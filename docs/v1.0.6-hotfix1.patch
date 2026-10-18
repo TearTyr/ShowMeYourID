@@ -1,0 +1,19 @@
+--- a/Assets/_Project/Scripts/Core/AspectMatchGuard.cs	2026-10-18 09:40:39.937097112 +0000
++++ b/Assets/_Project/Scripts/Core/AspectMatchGuard.cs	2026-10-18 09:37:02.378386455 +0000
+@@ -1,5 +1,6 @@
+ using System.Collections;
+ using UnityEngine;
++using UnityEngine.UI;   // CanvasScaler lives in UnityEngine.UI (com.unity.ugui), not UnityEngine
+ 
+ namespace Hollowbrook.Core
+ {
+--- a/Assets/_Project/Scripts/Bootstrap/CoreBootstrap.cs	2026-10-18 09:40:39.936097072 +0000
++++ b/Assets/_Project/Scripts/Bootstrap/CoreBootstrap.cs	2026-10-18 09:38:26.104738705 +0000
+@@ -5,6 +5,7 @@
+ using UnityEngine;
+ using UnityEngine.EventSystems;
+ using UnityEngine.SceneManagement;
++using UnityEngine.UI;   // CanvasScaler (used in NewCanvas) lives in UnityEngine.UI
+ 
+ namespace Hollowbrook.Bootstrap
+ {

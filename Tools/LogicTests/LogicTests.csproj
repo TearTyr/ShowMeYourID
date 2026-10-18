@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Runs the PURE-C# gameplay layer (Assets/_Project/Scripts/GameLogic) for real on
+       .NET — no Unity, no stubs. That folder is engine-free by design (see its
+       Enums.cs header), so the rules can be executed exactly as the editor would.
+
+       Usage:  dotnet run (project Tools/LogicTests/LogicTests.csproj) — see Tools/Verify/README.md  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <AssemblyName>LogicTests</AssemblyName>
+    <RootNamespace>Hollowbrook.LogicTests</RootNamespace>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <NoWarn>CS0169;CS0414;CS0649</NoWarn>
+    <GameLogicSrc Condition="'$(GameLogicSrc)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../Assets/_Project/Scripts/GameLogic'))</GameLogicSrc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(GameLogicSrc)/*.cs" />
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+
+</Project>

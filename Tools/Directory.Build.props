@@ -1,0 +1,12 @@
+<Project>
+  <!-- Keep ALL build artifacts out of the repo (they are 13 MB of copied Unity
+       assemblies and are never meant to be committed or zipped).
+       Override with:  dotnet build -p:VerifyOut=/some/scratch/            -->
+  <PropertyGroup>
+    <VerifyOut Condition="'$(VerifyOut)' == '' AND '$(OS)' == 'Windows_NT'">$([System.IO.Path]::GetTempPath())smid-verify\</VerifyOut>
+    <VerifyOut Condition="'$(VerifyOut)' == ''">/tmp/smid-verify/</VerifyOut>
+    <BaseIntermediateOutputPath>$(VerifyOut)obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(VerifyOut)bin/$(MSBuildProjectName)/</BaseOutputPath>
+    <RestorePackagesPath>$(VerifyOut)packages/</RestorePackagesPath>
+  </PropertyGroup>
+</Project>

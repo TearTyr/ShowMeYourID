@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Headless compile check: Unity stubs + ALL game scripts. Verifies the whole
+       codebase compiles under C# 9 (Unity 2022.3 language level). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>SMYID.CompileCheck</AssemblyName>
+    <RootNamespace>SMYID</RootNamespace>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Unity-serialized private fields legitimately appear "unused" to the compiler -->
+    <NoWarn>0169;0414;0649;0067;0108</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../UnityStubs/**/*.cs" />
+    <Compile Include="../../../Assets/_Project/Scripts/**/*.cs" />
+  </ItemGroup>
+</Project>

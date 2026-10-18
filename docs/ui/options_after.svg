@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="720" font-family="DejaVu Sans, Arial">
+<rect width="1280" height="720" fill="#0a0a0c"/>
+<rect x="0" y="0" width="640" height="720" fill="#17171a" stroke="#17171a" stroke-width="0"/>
+<rect x="638" y="0" width="2" height="720" fill="#3a3a3d" stroke="#3a3a3d" stroke-width="0"/>
+<text x="40" y="72" font-size="30" fill="#e8e8e6" text-anchor="start" font-weight="normal">OPTIONS</text>
+<text x="40" y="104" font-size="13" fill="#6b6b6b" text-anchor="start" font-weight="normal">Applies immediately. Remembered on this machine.</text>
+<text x="40" y="165" font-size="17" fill="#e8e8e6" text-anchor="start" font-weight="normal">Master volume</text>
+<rect x="300" y="152" width="300" height="8" fill="#1f1f21" stroke="#1f1f21" stroke-width="0"/>
+<rect x="480" y="146" width="14" height="20" fill="#9a9a98" stroke="#9a9a98" stroke-width="0"/>
+<text x="40" y="215" font-size="17" fill="#e8e8e6" text-anchor="start" font-weight="normal">Music volume</text>
+<rect x="300" y="202" width="300" height="8" fill="#1f1f21" stroke="#1f1f21" stroke-width="0"/>
+<rect x="480" y="196" width="14" height="20" fill="#9a9a98" stroke="#9a9a98" stroke-width="0"/>
+<text x="40" y="265" font-size="17" fill="#e8e8e6" text-anchor="start" font-weight="normal">Effects volume</text>
+<rect x="300" y="252" width="300" height="8" fill="#1f1f21" stroke="#1f1f21" stroke-width="0"/>
+<rect x="480" y="246" width="14" height="20" fill="#9a9a98" stroke="#9a9a98" stroke-width="0"/>
+<text x="40" y="315" font-size="17" fill="#e8e8e6" text-anchor="start" font-weight="normal">Text size</text>
+<rect x="230" y="296" width="110" height="34" fill="#1f1f21" stroke="#4d4d52" stroke-width="2"/>
+<text x="252" y="320.0" font-size="20" fill="#e8e8e6" text-anchor="start" font-weight="normal">SMALL</text>
+<rect x="348" y="296" width="110" height="34" fill="#1f1f21" stroke="#4d4d52" stroke-width="2"/>
+<text x="370" y="320.0" font-size="20" fill="#e8e8e6" text-anchor="start" font-weight="normal">NORMAL</text>
+<rect x="466" y="296" width="110" height="34" fill="#1f1f21" stroke="#4d4d52" stroke-width="2"/>
+<text x="488" y="320.0" font-size="20" fill="#e8e8e6" text-anchor="start" font-weight="normal">LARGE</text>
+<rect x="40" y="346" width="24" height="24" fill="#1f1f21" stroke="#3a3a3d" stroke-width="2"/>
+<text x="76" y="365" font-size="17" fill="#e8e8e6" text-anchor="start" font-weight="normal">Reduced motion  (no shake, no lunges, instant text)</text>
+<rect x="40" y="386" width="24" height="24" fill="#1f1f21" stroke="#3a3a3d" stroke-width="2"/>
+<text x="76" y="405" font-size="17" fill="#e8e8e6" text-anchor="start" font-weight="normal">Photosensitivity safe  (no strobe, softened scares)</text>
+<rect x="40" y="426" width="24" height="24" fill="#1f1f21" stroke="#3a3a3d" stroke-width="2"/>
+<text x="76" y="445" font-size="17" fill="#e8e8e6" text-anchor="start" font-weight="normal">Captions for significant sounds</text>
+<rect x="40" y="640" width="200" height="42" fill="#1f1f21" stroke="#4d4d52" stroke-width="2"/>
+<text x="62" y="668.0" font-size="20" fill="#e8e8e6" text-anchor="start" font-weight="normal">CONTROLS</text>
+<rect x="260" y="640" width="200" height="42" fill="#1f1f21" stroke="#4d4d52" stroke-width="2"/>
+<text x="282" y="668.0" font-size="20" fill="#e8e8e6" text-anchor="start" font-weight="normal">◂ BACK</text>
+<text x="960" y="360" font-size="16" fill="#4d4d52" text-anchor="middle" font-weight="normal">(game continues behind dim)</text>
+<text x="640" y="20" font-size="16" fill="#8a8a88" text-anchor="middle" font-weight="normal">OPTIONS — AFTER (v1.0.6): left sheet, single 40px gutter, bottom-left actions</text>
+</svg>

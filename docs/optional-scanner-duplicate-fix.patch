@@ -1,0 +1,30 @@
+--- a/Assets/_Project/Scripts/GameLogic/RosterFactory.cs	2026-10-18 09:29:26.653140042 +0000
++++ b/Assets/_Project/Scripts/GameLogic/RosterFactory.cs	2026-10-18 10:11:20.840807439 +0000
+@@ -444,16 +444,23 @@
+                 r.Display = "SYSTEM ERROR — UNREADABLE ID NUMBER";
+                 return r;
+             }
++            // Duplicate/returner evidence is computed BEFORE the registry early-return, so an
++            // unregistered ("ghost") ID that was already presented tonight with a different card
++            // still shows the warning — otherwise the scanner reports less than the results banner.
++            bool presented = playLog != null && playLog.WasPresented(v.IdNumber);
++            r.DuplicateTonight = playLog != null && playLog.WasPresentedWithDifferentCard(v.IdNumber, v.IdPhoto);
++            r.ReturningStudent = presented && !r.DuplicateTonight;
++
+             r.FoundInDatabase = _registry.Contains(v.IdNumber);
+             r.RegisteredTo = NameForRegistryId(v.IdNumber);
+             if (!r.FoundInDatabase)
+             {
+-                r.Display = "NOT FOUND — NO STUDENT RECORD FOR " + v.IdNumber;
++                r.Display = "NOT FOUND — NO STUDENT RECORD FOR " + v.IdNumber
++                    + (r.DuplicateTonight
++                        ? " · ⚠ ALREADY PRESENTED " + (playLog.LabelFor(v.IdNumber) ?? "").ToUpperInvariant() + " WITH A DIFFERENT CARD"
++                        : "");
+                 return r;
+             }
+-            bool presented = playLog != null && playLog.WasPresented(v.IdNumber);
+-            r.DuplicateTonight = playLog != null && playLog.WasPresentedWithDifferentCard(v.IdNumber, v.IdPhoto);
+-            r.ReturningStudent = presented && !r.DuplicateTonight;
+             if (r.DuplicateTonight)
+                 r.Display = "FOUND — REGISTERED TO " + r.RegisteredTo +
+                             " · ⚠ ALREADY PRESENTED " + (playLog.LabelFor(v.IdNumber) ?? "").ToUpperInvariant() +

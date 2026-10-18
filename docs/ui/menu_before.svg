@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="720" font-family="DejaVu Sans, Arial">
+<rect width="1280" height="720" fill="#0a0a0c"/>
+<rect x="0" y="0" width="1280" height="720" fill="#0d0d0f" stroke="#0d0d0f" stroke-width="0"/>
+<text x="60" y="100" font-size="40" fill="#9a9a98" text-anchor="start" font-weight="normal">SHOW ME YOUR</text>
+<text x="60" y="240" font-size="108" fill="#e8e8e6" text-anchor="start" font-weight="bold">ID!</text>
+<text x="60" y="282" font-size="19" fill="#b8333a" text-anchor="start" font-weight="normal">“Everyone has an ID. Not everyone is a student.”</text>
+<rect x="90" y="183" width="360" height="50" fill="#1f1f21" stroke="#8c8c92" stroke-width="2"/>
+<text x="112" y="215.0" font-size="20" fill="#e8e8e6" text-anchor="start" font-weight="normal">NEW GAME</text>
+<rect x="90" y="242" width="360" height="44" fill="#1f1f21" stroke="#4d4d52" stroke-width="2"/>
+<text x="112" y="271.0" font-size="20" fill="#e8e8e6" text-anchor="start" font-weight="normal">CONTINUE</text>
+<rect x="90" y="295" width="360" height="44" fill="#0d0d0e" stroke="#26262a" stroke-width="2"/>
+<text x="112" y="324.0" font-size="20" fill="#6b6b6b" text-anchor="start" font-weight="normal">CHALLENGE MODE · locked</text>
+<rect x="90" y="348" width="360" height="44" fill="#0d0d0e" stroke="#26262a" stroke-width="2"/>
+<text x="112" y="377.0" font-size="20" fill="#6b6b6b" text-anchor="start" font-weight="normal">EXTRAS · locked</text>
+<rect x="90" y="401" width="360" height="44" fill="#1f1f21" stroke="#4d4d52" stroke-width="2"/>
+<text x="112" y="430.0" font-size="20" fill="#e8e8e6" text-anchor="start" font-weight="normal">SETTINGS</text>
+<rect x="90" y="454" width="360" height="44" fill="#1f1f21" stroke="#4d4d52" stroke-width="2"/>
+<text x="112" y="483.0" font-size="20" fill="#e8e8e6" text-anchor="start" font-weight="normal">CREDITS</text>
+<rect x="90" y="507" width="360" height="44" fill="#1a1011" stroke="#b3202b" stroke-width="2"/>
+<text x="112" y="536.0" font-size="20" fill="#e0565c" text-anchor="start" font-weight="normal">EXIT</text>
+<rect x="60" y="257" width="760" height="30" fill="none" stroke="#b8333a" stroke-width="1"/>
+<text x="470" y="250" font-size="14" fill="#e0565c" text-anchor="start" font-weight="normal">overlap: tagline under column</text>
+<text x="60" y="706" font-size="13" fill="#6b6b6b" text-anchor="start" font-weight="normal">Twin Studio · v1.0.5</text>
+<text x="640" y="20" font-size="16" fill="#8a8a88" text-anchor="middle" font-weight="normal">MENU — BEFORE (v1.0.5): tagline + locked entries, column collides with tagline</text>
+</svg>
