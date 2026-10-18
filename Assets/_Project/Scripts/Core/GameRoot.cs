@@ -76,8 +76,16 @@ namespace Hollowbrook.Core
         public ScareSystem Scares;
         public HallucinationSystem Hallucinations;
 
-        // shift clock (22:00 → 02:00, advances per processed visitor; atmosphere only)
+        // shift clock (22:00 → 02:00): real time x Config rate in any in-shift scene,
+        // plus a bump per processed visitor. Atmosphere only — dawn never ends a shift early.
         private float _shiftMinutes;
+        /// <summary>Last published objective, so a HUD built after the publish (scene load)
+        /// can show it immediately instead of staying blank.</summary>
+        public string ObjectiveText { get; private set; } = "";
+
+        /// <summary>Advance the in-story shift clock. Public so headless suites can drive it
+        /// deterministically; Update is the only real-time caller.</summary>
+        public void AdvanceShiftClock(float minutes) { _shiftMinutes += minutes; }
         public string ClockString
         {
             get
@@ -97,6 +105,9 @@ namespace Hollowbrook.Core
             Instance = this;
             Bus = bus; Config = config; Saves = saves; Settings = settings; Audio = audio;
             DontDestroyOnLoad(gameObject);
+            // One boot-time application of the stored display preference. Missing or unusable
+            // preferences are cleared inside; the launcher default otherwise stands.
+            settings.ApplyStoredDisplay();
             Bus.Subscribe(EventIds.SettingsChanged, e =>
             {
                 UIFactory.ApplyTextScale(Settings.TextScaleMultiplier);
@@ -107,6 +118,14 @@ namespace Hollowbrook.Core
         private void Update()
         {
             if (Paused || Session == null) return;
+
+            // The shift clock runs on patrol too (scope: patrol has stakes). Single source:
+            // real time x Config rate, in whichever scene the night is happening.
+            if (State == AppViewState.Checkpoint || State == AppViewState.Exploration ||
+                State == AppViewState.SecurityRoom || State == AppViewState.Map)
+            {
+                AdvanceShiftClock(Time.deltaTime * (Config != null ? Config.clockMinutesPerSecond : 0.25f));
+            }
 
             // Endless / Challenge countdown — only while actually inspecting.
             if ((Session.Mode == GameMode.Endless || Session.Mode == GameMode.Challenge) &&
@@ -247,6 +266,11 @@ namespace Hollowbrook.Core
             for (int i = 0; i < number - 1; i++) Roster.GenerateShift(plan[i]); // advance RNG deterministically
             CurrentShiftDef = plan[number - 1];
             CurrentRoster = Roster.GenerateShift(CurrentShiftDef);
+            // one shared pool: this shift's anomalies, outstanding until resolved
+            var kinds = new System.Collections.Generic.List<AnomalyBehaviorKind>();
+            for (int i = 0; i < CurrentShiftDef.AnomalyCount; i++)
+                kinds.Add((AnomalyBehaviorKind)_runRng.NextInt(0, 4));
+            Session.Pool.Seed(kinds);
             Session.TonightLog.Clear();
             _shiftMinutes = 0f;
 
@@ -270,8 +294,9 @@ namespace Hollowbrook.Core
                     : (Session.Mode == GameMode.Endless ? "ENDLESS WATCH" : "CHALLENGE PROTOCOL"));
             SetState(AppViewState.ShiftIntro);
             Bus.Publish(GameEvent.Of(EventIds.ShiftStarted, shift));
-            Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, shift != null ? shift.Objective :
-                (Session.Mode == GameMode.Endless ? "Survive the clock. Reject every anomaly." : "Survive the clock under shifting district rules.")));
+            ObjectiveText = shift != null ? shift.Objective :
+                (Session.Mode == GameMode.Endless ? "Survive the clock. Reject every anomaly." : "Survive the clock under shifting district rules.");
+            Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));
             Bus.Publish(GameEvent.Of(EventIds.MusicContextRequested, "checkpoint"));
             if (Dialogue != null)
                 Dialogue.Play(intro, () =>
@@ -356,6 +381,8 @@ namespace Hollowbrook.Core
             QueueSceneAction(() =>
             {
                 SetState(AppViewState.Exploration);
+                ObjectiveText = "Night " + Session.CurrentShift + " — patrol: check the rooms, follow the chain, return to the checkpoint before dawn.";
+                Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));
                 if (Views != null) Views.EnterRoom(room);
                 Bus.Publish(GameEvent.Of(EventIds.MusicContextRequested, MusicForRoom(room)));
             });
@@ -387,6 +414,8 @@ namespace Hollowbrook.Core
         public void OpenSecurityRoom()
         {
             SetState(AppViewState.SecurityRoom);
+            ObjectiveText = "Night " + Session.CurrentShift + " — office: late list and expiry rule. Verdicts count.";
+            Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));
             Bus.Publish(GameEvent.Of(EventIds.MusicContextRequested, "darkroom"));
         }
 
@@ -474,6 +503,23 @@ namespace Hollowbrook.Core
             Session = new GameSession();
             Bus.Publish(GameEvent.Of(EventIds.Notification, "All save data erased."));
             Debug.Log("[GameRoot] data reset complete (settings preserved).");
+        }
+
+        /// <summary>The single confirmation + reset path shared by the F2 x3 shortcut and the
+        /// Options > RESET DATA button, so both can never drift apart. Settings (volumes,
+        /// display, accessibility) live in PlayerPrefs and are deliberately untouched.</summary>
+        public void RequestDataReset(System.Action afterReset = null)
+        {
+            if (Confirm == null) { ResetAllData(); if (afterReset != null) afterReset(); return; }
+            Confirm.Ask("ERASE ALL DATA?",
+                "Deletes your save: shift progress, records and unlocked endings.\n" +
+                "Volumes, display and accessibility settings are kept.",
+                () =>
+                {
+                    ResetAllData();
+                    Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_static", 0.3f, null));
+                    if (afterReset != null) afterReset();
+                });
         }
 
         /// <summary>Save at safe boundaries (shift end / run end / quit). Corrupt-safe by design.</summary>

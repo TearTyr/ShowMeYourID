@@ -38,6 +38,8 @@ namespace Hollowbrook.Logic
             sb.Append("falseRej=").Append(s.FalseRejections).Append('\n');
             sb.Append("breaches=").Append(s.Breaches).Append('\n');
             sb.Append("anomRej=").Append(s.AnomaliesRejected).Append('\n');
+            sb.Append("tokens=").Append(s.TokensCollected).Append('\n');
+            KV(sb, "pool", s.Pool.Encode());
             sb.Append("adminAllowed=").Append(s.AdminAllowed ? 1 : 0).Append('\n');
             sb.Append("adminRejected=").Append(s.AdminRejected ? 1 : 0).Append('\n');
             sb.Append("runFinished=").Append(s.RunFinished ? 1 : 0).Append('\n');
@@ -109,6 +111,8 @@ namespace Hollowbrook.Logic
                 s.FalseRejections = Int(map, "falseRej", 0);
                 s.Breaches = Int(map, "breaches", 0);
                 s.AnomaliesRejected = Int(map, "anomRej", 0);
+                s.TokensCollected = Int(map, "tokens", 0);
+                s.Pool.Decode(Str(map, "pool", ""));
                 s.AdminAllowed = Int(map, "adminAllowed", 0) == 1;
                 s.AdminRejected = Int(map, "adminRejected", 0) == 1;
                 s.RunFinished = Int(map, "runFinished", 0) == 1;

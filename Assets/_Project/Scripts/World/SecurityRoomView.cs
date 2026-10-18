@@ -33,6 +33,8 @@ namespace Hollowbrook.World
         private int _correct;
         private bool[] _checked = new bool[3];
         private int _anomalySpot;
+        private GameRng _rng;
+        private Text _ruleLabel;
 
         public void Init(GameRoot root)
         {
@@ -68,10 +70,9 @@ namespace Hollowbrook.World
             var frt = _idFields.rectTransform;
             frt.anchorMin = new Vector2(0, 0); frt.anchorMax = new Vector2(1, 1);
             frt.offsetMin = new Vector2(24, 20); frt.offsetMax = new Vector2(-24, -46);
-            var rule = UIFactory.Label(docRt, "rule",
-                "RULE: admit only students on tonight's late list whose ID is NOT expired.",
+            _ruleLabel = UIFactory.Label(docRt, "rule", PatrolRules.OfficeRule.RuleText,
                 13, new Color(0.45f, 0.12f, 0.14f), TextAnchor.MiddleCenter);
-            UIFactory.Anchor(rule.rectTransform, new Vector2(0.5f, 1f), new Vector2(340, 40), new Vector2(0, -18));
+            UIFactory.Anchor(_ruleLabel.rectTransform, new Vector2(0.5f, 1f), new Vector2(340, 40), new Vector2(0, -18));
             _docPanel.SetActive(false);
 
             // verdict buttons
@@ -120,8 +121,10 @@ namespace Hollowbrook.World
             _phase = Phase.Student;
             _correct = 0;
             _queue.Clear();
-            for (int i = 0; i < 3; i++) _queue.Add(R.NextRunVisitor());
-            _anomalySpot = Random.Range(0, 3);
+            // seeded, and drawn from the SAME pool patrol anomalies come from
+            _rng = new GameRng(R.Session.Seed + 977 + R.Session.Processed * 131 + R.Session.CurrentShift * 17);
+            _queue.AddRange(PatrolRules.BuildLateQueue(R.Roster, R.CurrentShiftDef, R.Session.Pool, _rng));
+            _anomalySpot = _rng.NextInt(0, 3);
             for (int i = 0; i < 3; i++) { _checked[i] = false; UIFactory.SetButtonEnabled(_checkBtns[i], false); }
             UIFactory.SetButtonEnabled(_returnBtn, false);
             _feedback.text = "";
@@ -147,10 +150,10 @@ namespace Hollowbrook.World
             sb.Append("ID NO: ").Append(_current.IdNumber).Append('\n');
             sb.Append("YEAR:  ").Append(Content.YearNames[_current.IdYearLevel - 1]).Append('\n');
             sb.Append("EXPIRES: ").Append(_current.ExpirationDisplay).Append(expired ? "   (EXPIRED)" : "").Append('\n');
-            sb.Append("ON TONIGHT'S LATE LIST: ").Append(_current.InDatabase ? "YES" : "NO — no record");
+            sb.Append("ON TONIGHT'S LATE LIST: ").Append(_current.OnLateList ? "YES" : "NO — not on tonight's list");
             _idFields.text = sb.ToString();
 
-            _progress.text = "LATE ARRIVALS REMAINING: " + (_queue.Count + 1) + "   ·   CORRECT CALLS: " + _correct + "/3";
+            _progress.text = ProgressLine(_queue.Count + 1);
             UIFactory.SetButtonEnabled(_allowBtn, true);
             UIFactory.SetButtonEnabled(_rejectBtn, true);
         }
@@ -158,26 +161,29 @@ namespace Hollowbrook.World
         private void Decide(Verdict v)
         {
             if (_phase != Phase.Student || _current == null) return;
-            bool shouldReject = _current.IsAnomaly || !IdRules.IsFormatValid(_current.IdNumber)
-                                || IdRules.IsExpired(_current, Mathf.Max(1, R.Session.CurrentShift))
-                                || !_current.InDatabase;
-            bool correct = (v == Verdict.Reject) == shouldReject;
+            // the SAME rules engine as the checkpoint scores this verdict, and the verdict
+            // feeds the SAME story counters (false rejections / breaches)
+            var outcome = InspectionRules.Apply(_current, v, PatrolRules.OfficeRule);
+            R.Session.RecordVerdict(outcome);
+            bool correct = outcome.Correct;
             if (correct) _correct++;
+            R.Bus.Publish(GameEvent.Of(EventIds.VerdictStamped, v));
+            R.Bus.Publish(GameEvent.Of(EventIds.VisitorResolved, outcome));
+            R.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, R.Session.Sanity));
             R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested,
                 v == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 0.9f, null));
 
             var fb = new System.Text.StringBuilder();
             fb.Append(correct ? "CORRECT. " : "MISTAKE. ");
-            if (shouldReject)
-            {
-                if (_current.IsAnomaly) fb.Append("Something about them was wrong — the way they stood, the way the photo didn't sit.");
-                else if (!_current.InDatabase) fb.Append("No record of that ID number anywhere.");
-                else if (IdRules.IsExpired(_current, Mathf.Max(1, R.Session.CurrentShift))) fb.Append("That ID expired months ago.");
-                else fb.Append("That ID number is not in the required format.");
-            }
+            if (_current.IsAnomaly)
+                fb.Append("Something about them was wrong — the way they stood, the way the photo didn't sit.");
+            else if (outcome.Expected == Verdict.Reject)
+                fb.Append(!_current.OnLateList
+                    ? "They were not on tonight's late list."
+                    : "The documents broke the office rule.");
             else fb.Append("A real student, late for night class. They needed to get in.");
             _feedback.text = fb.ToString();
-            _progress.text = "LATE ARRIVALS REMAINING: " + _queue.Count + "   ·   CORRECT CALLS: " + _correct + "/3";
+            _progress.text = ProgressLine(_queue.Count);
 
             UIFactory.SetButtonEnabled(_allowBtn, false);
             UIFactory.SetButtonEnabled(_rejectBtn, false);
@@ -186,6 +192,14 @@ namespace Hollowbrook.World
             _doorState.text = "The door closes. Footsteps fade down the hall.";
             _current = null;
             StartCoroutine(NextAfter(1.6f));
+        }
+
+        private string ProgressLine(int remaining)
+        {
+            return "LATE ARRIVALS REMAINING: " + remaining +
+                   "   ·   CORRECT CALLS: " + _correct + "/" + PatrolRules.LateArrivals +
+                   "   ·   BREACHES: " + R.Session.Breaches +
+                   "   ·   COMPLAINTS: " + R.Session.FalseRejections;
         }
 
         private System.Collections.IEnumerator NextAfter(float s)

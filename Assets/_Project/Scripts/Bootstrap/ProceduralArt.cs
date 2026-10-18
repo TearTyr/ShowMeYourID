@@ -181,6 +181,7 @@ namespace Hollowbrook.Bootstrap
                 case "prop_noticeboard": return MakeNoticeBoard(208, 160);
                 case "prop_cabinet": return MakeCabinet(160, 272);
                 case "prop_clock": return MakeClock(112);
+                case "token": return MakeClock(28);   // pocket-watch token left by a revealed anomaly
                 case "prop_photoframe": return MakePhotoFrame(144, 108);
                 case "prop_lightfixture": return MakeLightFixture(208, 40);
                 case "prop_lostid": return MakeLostId(56, 36);

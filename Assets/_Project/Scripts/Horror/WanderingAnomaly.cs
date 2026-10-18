@@ -22,7 +22,13 @@ namespace Hollowbrook.Horror
         private float _lifetime;
         private bool _sightedPenaltyApplied;
         private float _sanityTickTimer;
+        private float _track;             // 0..1 tracking meter (TrackingPolicy)
+        private float _trackThrottle;     // HUD event throttle
+        private bool _revealed;           // fully tracked: solid, inert, about to dispel
+        private float _revealBeat;
         public bool IsHallucination { get; private set; }
+        public bool WasRevealed { get; private set; }
+        public bool WasCaught { get; private set; }
         public AnomalyBehaviorKind Kind { get; private set; }
         public Vector3 Pos => transform.localPosition;
 
@@ -75,7 +81,9 @@ namespace Hollowbrook.Horror
             Vector3 playerPos = R.Views != null && R.Views.Player != null
                 ? R.Views.Player.transform.localPosition : Vector3.zero;
 
-            if (!dialogueOpen) _behavior.Tick(dt, playerPos);
+            if (!dialogueOpen && !_revealed) _behavior.Tick(dt, playerPos);
+
+            TickTracking(dt, dialogueOpen);
 
             TickVisibility();
 
@@ -104,11 +112,85 @@ namespace Hollowbrook.Horror
             }
         }
 
+        /// <summary>Master prompt §3/§4: hold an anomaly in the light and the haze solidifies
+        /// toward ink; a full meter reveals/dispels it and leaves a token. The same beam held
+        /// on a hallucination for half a second proves it was never there.</summary>
+        private void TickTracking(float dt, bool dialogueOpen)
+        {
+            if (dialogueOpen || R == null || R.Views == null) return;
+            bool focus = R.Views.IsIlluminated(transform.localPosition);
+            bool litRoom = _room != null && _room.Light != null && _room.Light.Mode == LightMode.Sweep;
+
+            if (IsHallucination)
+            {
+                _track = focus ? _track + dt : 0f;
+                if (TrackingPolicy.HallucinationDispelled(_track))
+                {
+                    R.Bus.Publish(GameEvent.Of(EventIds.AnomalyRevealed, "hallucination"));
+                    R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it was never there*", 2.2f, null));
+                    Despawn(true);
+                }
+                return;
+            }
+
+            if (_revealed)
+            {
+                _revealBeat -= dt;
+                if (_revealBeat <= 0f) Despawn(false);   // dispelled: the token stays behind
+                return;
+            }
+
+            float before = _track;
+            _track = TrackingPolicy.Advance(_track, dt, focus, litRoom);
+            _trackThrottle -= dt;
+            if (Mathf.Abs(_track - before) > 1e-4f && _trackThrottle <= 0f)
+            {
+                _trackThrottle = 0.1f;
+                R.Bus.Publish(GameEvent.Of(EventIds.TrackingChanged, _track));
+            }
+
+            if (TrackingPolicy.IsRevealed(_track))
+            {
+                _revealed = true;
+                WasRevealed = true;
+                _revealBeat = TrackingPolicy.RevealBeatSeconds;
+                R.Bus.Publish(GameEvent.Of(EventIds.TrackingChanged, 0f));
+                R.Bus.Publish(GameEvent.Of(EventIds.AnomalyRevealed, Kind));
+                R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested,
+                    "*the light holds it still - it is solid now*", 2.6f, null));
+                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_stinger", 0.5f, null));
+                DropToken();
+            }
+        }
+
+        /// <summary>Proof-of-observation pickup (spec §3 "leaves a Token").</summary>
+        private void DropToken()
+        {
+            if (_room == null || transform.parent == null) return;
+            var go = new GameObject("AnomalyToken");
+            go.transform.SetParent(transform.parent, false);
+            var p = transform.localPosition;
+            go.transform.localPosition = new Vector3(p.x, -2.2f, p.z - 0.2f);
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = ProceduralArt.Get("token");
+            sr.color = new Color(0.85f, 0.85f, 0.82f);
+            sr.sortingOrder = 75;
+            var pick = go.AddComponent<TokenPickup>();
+            pick.Init(R, _room, p.x);
+            _room.Interactables.Add(pick);
+        }
+
         /// <summary>Alpha/order rules: silhouettes under darkness; CoverHug only truly revealed
         /// by the Focus beam; hallucinations are translucent.</summary>
         public void TickVisibility()
         {
             if (_sr == null) return;
+            if (_revealed)
+            {
+                var rc = _sr.color; rc.a = 1f; _sr.color = rc;   // solid ink, no haze
+                _sr.sortingOrder = 80;
+                return;
+            }
             bool illuminated = R.Views != null && R.Views.IsIlluminated(transform.localPosition);
             float alpha = _behavior.BaseAlpha;
             int order = 40;
@@ -127,6 +209,7 @@ namespace Hollowbrook.Horror
         public void CatchPlayer()
         {
             if (IsHallucination) { Despawn(true); return; }
+            WasCaught = true;
             R.Session.ApplySanity(-15f);
             R.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, R.Session.Sanity));
             R.Bus.Publish(GameEvent.Of(EventIds.AnomalyCaught, Kind));

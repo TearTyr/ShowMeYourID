@@ -353,6 +353,19 @@ namespace Hollowbrook.Logic
 
         // ---------------------------------------------------------------- Shift-5 administrator (C3)
 
+        /// <summary>Identity draw for callers that assemble their own queues (office late list).</summary>
+        public StudentIdentity PickIdentity(GameRng rng) => _canon[rng.NextInt(0, _canon.Count)];
+
+        /// <summary>Late-arrival build for the security office: the SAME builders as the
+        /// checkpoint roster, so the fairness invariants hold at the door too.</summary>
+        public VisitorData BuildLateStudent(StudentIdentity id, ShiftDef shift, bool anomaly)
+        {
+            var v = anomaly ? BuildAnomaly(id, shift) : BuildLegit(id, shift);
+            v.ShiftNumber = shift.Number;
+            v.VisitorIndex = -1;   // office visitors are outside the checkpoint roster
+            return v;
+        }
+
         public VisitorData BuildAdministrator(ShiftDef shift)
         {
             var badgePhoto = new Portrait { HairStyle = 2, FaceVariant = 3, Accessory = 0, Distorted = false };

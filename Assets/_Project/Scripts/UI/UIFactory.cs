@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Hollowbrook.UI
@@ -227,13 +228,22 @@ namespace Hollowbrook.UI
         {
             var row = NewUI(parent, name);
             row.sizeDelta = new Vector2(width, 40);
-            var lab = Label(row, "label", labelText, 17, Ink);
-            Anchor(lab.rectTransform, new Vector2(0f, 0.5f), new Vector2(width * 0.42f, 30),
-                new Vector2(width * 0.21f - width / 2f + 8, 0));
-            lab.alignment = TextAnchor.MiddleLeft;
 
-            float trackX = width * 0.44f - width / 2f;
-            float trackW = width * 0.54f;
+            // invisible full-row catcher so hover/feedback works anywhere on the row
+            var rowBg = Panel(row, "rowbg", new Color(0f, 0f, 0f, 0f));
+            AnchorsFull(rowBg.rectTransform);
+            rowBg.raycastTarget = true;
+
+            // Left label column: left anchor + POSITIVE centre offset (the old negative
+            // offset pushed labels off-sheet, which is why volumes once showed bare tracks).
+            float labW = width * 0.36f;
+            var lab = Label(row, "label", labelText, 17, Ink);
+            Anchor(lab.rectTransform, new Vector2(0f, 0.5f), new Vector2(labW, 30), new Vector2(labW / 2f, 0));
+            lab.alignment = TextAnchor.MiddleLeft;
+            lab.raycastTarget = false;
+
+            float trackX = width * 0.38f;
+            float trackW = width * 0.50f;
             var track = Panel(row, "track", PanelAlt).rectTransform;
             Anchor(track, new Vector2(0f, 0.5f), new Vector2(trackW, 8), new Vector2(trackX + trackW / 2f, 0));
 
@@ -249,17 +259,49 @@ namespace Hollowbrook.UI
             var handleArea = NewUI(track, "handlearea");
             handleArea.anchorMin = Vector2.zero; handleArea.anchorMax = Vector2.one;
             handleArea.offsetMin = Vector2.zero; handleArea.offsetMax = Vector2.zero;
-            var handle = Panel(handleArea, "handle", InkDim).rectTransform;
-            Anchor(handle, new Vector2(0f, 0.5f), new Vector2(14, 22), Vector2.zero);
+            var handleImg = Panel(handleArea, "handle", InkDim);
+            var handle = handleImg.rectTransform;
+            Anchor(handle, new Vector2(0.5f, 0.5f), new Vector2(14, 22), Vector2.zero);
+
+            // live value read-out, right of the track — immediate feedback while dragging
+            float valW = width * 0.12f;
+            var val = Label(row, "value", Percent(value), 15, InkDim, TextAnchor.MiddleRight);
+            Anchor(val.rectTransform, new Vector2(0f, 0.5f), new Vector2(valW, 26),
+                new Vector2(trackX + trackW + valW / 2f, 0));
+            val.raycastTarget = false;
 
             var slider = row.gameObject.AddComponent<Slider>();
             slider.fillRect = fill;
             slider.handleRect = handle;
             slider.minValue = 0f; slider.maxValue = 1f;
             slider.value = value;
-            slider.targetGraphic = handle.GetComponent<Image>();
-            if (onChanged != null) slider.onValueChanged.AddListener(v => onChanged(v));
+            slider.targetGraphic = handleImg;
+            slider.onValueChanged.AddListener(v =>
+            {
+                if (val != null) val.text = Percent(v);
+                if (onChanged != null) onChanged(v);
+            });
+
+            AddHover(row.gameObject,
+                () => { if (handleImg != null) handleImg.color = Ink; if (lab != null) lab.color = Ink; },
+                () => { if (handleImg != null) handleImg.color = InkDim; if (lab != null) lab.color = Ink; });
             return slider;
+        }
+
+        private static string Percent(float v) => Mathf.RoundToInt(Mathf.Clamp01(v) * 100f) + "%";
+
+        /// <summary>Pointer enter/exit feedback without a new component type per call site.</summary>
+        public static void AddHover(GameObject go, UnityEngine.Events.UnityAction enter,
+            UnityEngine.Events.UnityAction exit)
+        {
+            if (go == null) return;
+            var et = go.AddComponent<EventTrigger>();
+            var on = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+            on.callback.AddListener(_ => { if (enter != null) enter(); });
+            et.triggers.Add(on);
+            var off = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+            off.callback.AddListener(_ => { if (exit != null) exit(); });
+            et.triggers.Add(off);
         }
 
         public static Toggle ToggleRow(Transform parent, string name, string labelText, bool value,
@@ -294,6 +336,11 @@ namespace Hollowbrook.UI
             toggle.graphic = check;
             toggle.isOn = value;
             if (onChanged != null) toggle.onValueChanged.AddListener(v => onChanged(v));
+
+            var bgImg = rowBg;
+            AddHover(row.gameObject,
+                () => { if (bgImg != null) bgImg.color = new Color(1f, 1f, 1f, 0.045f); },
+                () => { if (bgImg != null) bgImg.color = new Color(0f, 0f, 0f, 0f); });
             return toggle;
         }
 

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using Hollowbrook.Core;
 using Hollowbrook.Bootstrap;
 using Hollowbrook.Logic;
@@ -165,15 +166,11 @@ namespace Hollowbrook.UI
                 else
                 {
                     _f2Count = 0;
-                    R.Confirm.Ask("ERASE ALL DATA?",
-                        "Deletes your save: shift progress, records and unlocked endings.\nAccessibility settings are kept.",
-                        () =>
-                        {
-                            R.ResetAllData();
-                            RefreshContinue();
-                            ShowNote("All save data erased.");
-                            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_static", 0.3f, null));
-                        });
+                    R.RequestDataReset(() =>
+                    {
+                        RefreshContinue();
+                        ShowNote("All save data erased.");
+                    });
                 }
             }
         }
@@ -293,48 +290,149 @@ namespace Hollowbrook.UI
         public void Hide() => gameObject.SetActive(false);
     }
 
-    /// <summary>Options — overhauled onto the shared left-sheet look. Every control still
-    /// changes real behavior and applies immediately.</summary>
+    /// <summary>Options — same left-sheet family, typography and restraint as the main menu.
+    /// Every control writes through <see cref="SettingsSystem"/> (the single owner of each
+    /// setting), applies immediately and persists to PlayerPrefs. Display changes carry a
+    /// 15-second KEEP/REVERT window so an unusable mode can never strand the player.</summary>
     public class SettingsView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
-        private Button[] _textScaleButtons;
+        private bool _refreshing;
+
+        private Slider _masterSlider, _sfxSlider;
+        private Toggle _fullscreenToggle;
+        private readonly Toggle[] _toggles = new Toggle[3];
+        private readonly Button[] _textScaleButtons = new Button[3];
+        private readonly Button[] _resButtons = new Button[4];
+        private readonly Text[] _resLabels = new Text[4];
+        private List<ModeSize> _choices = new List<ModeSize>();
+
+        private RectTransform _displayNoteRow;
+        private Text _displayNote;
+        private SettingsData _displayBefore;
+        private Coroutine _revertRoutine;
+        private int _revertLeft;
+        private Text _dataHint;
 
         public void Init(GameRoot root)
         {
             R = root;
-            var sheet = UIFactory.LeftSheet(transform, "OPTIONS", "Applies immediately. Remembered on this machine.", out var col);
+            var sheet = UIFactory.LeftSheet(transform, "OPTIONS",
+                "Applies immediately. Remembered on this machine.", out var col);
+            col.GetComponent<VerticalLayoutGroup>().spacing = 8;
+            col.sizeDelta = new Vector2(560f, 505f);
+            col.anchoredPosition = new Vector2(320f, -364f);
 
             var s = R.Settings;
-            AddSlider(col, "Master volume", s.Current.MasterVolume, v => s.Apply(d => d.MasterVolume = v));
-            AddSlider(col, "Music volume", s.Current.MusicVolume, v => s.Apply(d => d.MusicVolume = v));
-            AddSlider(col, "Effects volume", s.Current.SfxVolume, v => s.Apply(d => d.SfxVolume = v));
 
+            // ---- AUDIO: no music slider on purpose — the game has no music mix to expose.
+            Section(col, "AUDIO");
+            _masterSlider = UIFactory.SliderRow(col, "master", "Master volume", s.Current.MasterVolume,
+                v => { if (!_refreshing) s.Apply(d => d.MasterVolume = v); }, 560);
+            UIFactory.Layout(_masterSlider.GetComponent<RectTransform>(), 560, 34);
+            _sfxSlider = UIFactory.SliderRow(col, "sfx", "SFX volume", s.Current.SfxVolume,
+                v => { if (!_refreshing) s.Apply(d => d.SfxVolume = v); }, 560);
+            UIFactory.Layout(_sfxSlider.GetComponent<RectTransform>(), 560, 34);
+
+            // ---- DISPLAY
+            Section(col, "DISPLAY");
+            _fullscreenToggle = UIFactory.ToggleRow(col, "fullscreen", "Fullscreen  (borderless)",
+                s.Current.Fullscreen, v =>
+                {
+                    if (_refreshing) return;
+                    var cur = R.Settings.CurrentMode();
+                    BeginDisplayChange(() => s.SetDisplay(
+                        s.Current.DisplayWidth > 0 ? s.Current.DisplayWidth : cur.W,
+                        s.Current.DisplayHeight > 0 ? s.Current.DisplayHeight : cur.H, v, false));
+                }, 560);
+            UIFactory.Layout(_fullscreenToggle.GetComponent<RectTransform>(), 560, 32);
+
+            var resRow = UIFactory.NewUI(col, "resrow");
+            UIFactory.Layout(resRow, 560, 38);
+            var resLab = UIFactory.Label(resRow, "lab", "Resolution", 13, UIFactory.InkFaint,
+                TextAnchor.MiddleLeft);
+            UIFactory.Anchor(resLab.rectTransform, new Vector2(0f, 0.5f), new Vector2(120, 26),
+                new Vector2(60, 0));
+            for (int i = 0; i < _resButtons.Length; i++)
+            {
+                int idx = i;
+                var b = UIFactory.StandardButton(resRow, "ResButton_" + i, "", () => ChooseResolution(idx), 100, 30);
+                UIFactory.Anchor(b.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(100, 30),
+                    new Vector2(186 + i * 108, 0));
+                _resButtons[i] = b;
+                _resLabels[i] = b.GetComponentInChildren<Text>();
+                if (_resLabels[i] != null) _resLabels[i].fontSize = 14;
+            }
+
+            // Kept OUT of the stacking column (anchored above the action buttons) so the
+            // 15-second revert window can appear without re-flowing the rows above it.
+            _displayNoteRow = UIFactory.NewUI(sheet, "displaynote");
+            UIFactory.Anchor(_displayNoteRow, new Vector2(0f, 0f), new Vector2(560, 30),
+                new Vector2(320, 100));
+            _displayNote = UIFactory.Label(_displayNoteRow, "txt", "", 14, UIFactory.AccentBright,
+                TextAnchor.MiddleLeft);
+            UIFactory.Anchor(_displayNote.rectTransform, new Vector2(0f, 0.5f), new Vector2(300, 26),
+                new Vector2(150, 0));
+            var keepBtn = UIFactory.StandardButton(_displayNoteRow, "keep", "KEEP",
+                () => ConfirmDisplay(), 90, 28);
+            UIFactory.Anchor(keepBtn.GetComponent<RectTransform>(), new Vector2(0f, 0.5f),
+                new Vector2(90, 28), new Vector2(355, 0));
+            var revertBtn = UIFactory.StandardButton(_displayNoteRow, "revert", "REVERT",
+                () => CancelDisplay(), 90, 28);
+            UIFactory.Anchor(revertBtn.GetComponent<RectTransform>(), new Vector2(0f, 0.5f),
+                new Vector2(90, 28), new Vector2(455, 0));
+            _displayNoteRow.gameObject.SetActive(false);
+
+            // ---- ACCESSIBILITY
+            Section(col, "ACCESSIBILITY");
             var tsRow = UIFactory.NewUI(col, "textscale");
-            UIFactory.Layout(tsRow, 560, 40);
+            UIFactory.Layout(tsRow, 560, 38);
             var tsLab = UIFactory.Label(tsRow, "lab", "Text size", 17, UIFactory.Ink, TextAnchor.MiddleLeft);
-            UIFactory.Anchor(tsLab.rectTransform, new Vector2(0f, 0.5f), new Vector2(180, 30), new Vector2(90, 0));
+            UIFactory.Anchor(tsLab.rectTransform, new Vector2(0f, 0.5f), new Vector2(180, 30),
+                new Vector2(90, 0));
             string[] names = { "SMALL", "NORMAL", "LARGE" };
-            _textScaleButtons = new Button[3];
             for (int i = 0; i < 3; i++)
             {
                 int idx = i;
                 var b = UIFactory.StandardButton(tsRow, "TextScaleButton_" + i, names[i], () =>
                 {
+                    if (_refreshing) return;
                     s.Apply(d => d.TextScale = idx);
                     RefreshTextScaleButtons();
                 }, 110, 34);
                 UIFactory.Anchor(b.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(110, 34),
-                    new Vector2(230 + i * 118, 0));
+                    new Vector2(285 + i * 118, 0));
                 _textScaleButtons[i] = b;
             }
+            _toggles[0] = Toggle(col, "Reduced motion  (no shake, no lunges, instant text)",
+                s.Current.ReduceMotion, v => s.Apply(d => d.ReduceMotion = v));
+            _toggles[1] = Toggle(col, "Photosensitivity safe  (no strobe, softened scares)",
+                s.Current.PhotosensitivitySafe, v => s.Apply(d => d.PhotosensitivitySafe = v));
+            _toggles[2] = Toggle(col, "Captions for significant sounds",
+                s.Current.Captions, v => s.Apply(d => d.Captions = v));
 
-            AddToggle(col, "Reduced motion  (no shake, no lunges, instant text)", s.Current.ReduceMotion,
-                v => s.Apply(d => d.ReduceMotion = v));
-            AddToggle(col, "Photosensitivity safe  (no strobe, softened scares)", s.Current.PhotosensitivitySafe,
-                v => s.Apply(d => d.PhotosensitivitySafe = v));
-            AddToggle(col, "Captions for significant sounds", s.Current.Captions,
-                v => s.Apply(d => d.Captions = v));
+            // ---- DATA: same confirmation + reset path as the F2 x3 shortcut
+            Section(col, "DATA");
+            var dataRow = UIFactory.NewUI(col, "datarow");
+            UIFactory.Layout(dataRow, 560, 40);
+            var resetBtn = UIFactory.StandardButton(dataRow, "resetdata", "RESET DATA…", () =>
+            {
+                R.RequestDataReset(() =>
+                {
+                    if (_dataHint != null)
+                    {
+                        _dataHint.text = "Save data erased. Settings kept.";
+                        _dataHint.color = UIFactory.AccentBright;
+                    }
+                });
+            }, 200, 40, true);
+            UIFactory.Anchor(resetBtn.GetComponent<RectTransform>(), new Vector2(0f, 0.5f),
+                new Vector2(200, 40), new Vector2(100, 0));
+            _dataHint = UIFactory.Label(dataRow, "hint",
+                "Progress, records, endings. Volumes, display and accessibility are kept.",
+                13, UIFactory.InkFaint, TextAnchor.MiddleLeft);
+            UIFactory.Anchor(_dataHint.rectTransform, new Vector2(0f, 0.5f), new Vector2(340, 30),
+                new Vector2(380, 0));
 
             UIFactory.SheetButton(sheet, "controls", "CONTROLS", () =>
             {
@@ -350,6 +448,129 @@ namespace Hollowbrook.UI
             gameObject.SetActive(false);
         }
 
+        // ------------------------------------------------------------------ helpers
+        private static void Section(RectTransform col, string title)
+        {
+            var lab = UIFactory.Label(col, "sec_" + title, title, 13, UIFactory.InkFaint,
+                TextAnchor.MiddleLeft);
+            lab.rectTransform.sizeDelta = new Vector2(560f, 18f);
+            lab.raycastTarget = false;
+            UIFactory.Layout(lab.rectTransform, 560, 18);
+        }
+
+        private Toggle Toggle(RectTransform col, string label, bool value,
+            UnityEngine.Events.UnityAction<bool> onChanged)
+        {
+            var t = UIFactory.ToggleRow(col, label, label, value, v =>
+            {
+                if (!_refreshing) onChanged(v);
+            }, 560);
+            UIFactory.Layout(t.GetComponent<RectTransform>(), 560, 32);
+            return t;
+        }
+
+        private void ChooseResolution(int idx)
+        {
+            if (_refreshing || idx < 0 || idx >= _choices.Count) return;
+            var m = _choices[idx];
+            BeginDisplayChange(() => R.Settings.SetDisplay(m.W, m.H, R.Settings.Current.Fullscreen, false));
+        }
+
+        private void BeginDisplayChange(UnityEngine.Events.UnityAction change)
+        {
+            if (_displayBefore == null) _displayBefore = R.Settings.Current.Clone();
+            change();
+            _revertLeft = DisplayPolicy.RevertSeconds;
+            if (_displayNoteRow != null) _displayNoteRow.gameObject.SetActive(true);
+            if (_revertRoutine != null) StopCoroutine(_revertRoutine);
+            _revertRoutine = StartCoroutine(RevertCountdown());
+            RefreshDisplayUI();
+        }
+
+        private IEnumerator RevertCountdown()
+        {
+            while (_revertLeft > 0)
+            {
+                if (_displayNote != null)
+                    _displayNote.text = "Keep " + ModeText(R.Settings.CurrentMode()) +
+                                        "?  reverts in " + _revertLeft + "s";
+                yield return new WaitForSecondsRealtime(1f);
+                _revertLeft--;
+            }
+            CancelDisplay();
+        }
+
+        private void ConfirmDisplay()
+        {
+            if (_revertRoutine != null) StopCoroutine(_revertRoutine);
+            _revertRoutine = null;
+            R.Settings.ApplyCurrentDisplay(true);
+            _displayBefore = null;
+            if (_displayNoteRow != null) _displayNoteRow.gameObject.SetActive(false);
+            RefreshDisplayUI();
+        }
+
+        private void CancelDisplay()
+        {
+            if (_revertRoutine != null) StopCoroutine(_revertRoutine);
+            _revertRoutine = null;
+            R.Settings.RestoreDisplaySnapshot(_displayBefore);
+            _displayBefore = null;
+            if (_displayNoteRow != null) _displayNoteRow.gameObject.SetActive(false);
+            RefreshDisplayUI();
+        }
+
+        private static string ModeText(ModeSize m) => m.W + "×" + m.H;
+
+        // ------------------------------------------------------------------ refresh
+        public void Show()
+        {
+            gameObject.SetActive(true);
+            Refresh();
+        }
+
+        public void Hide()
+        {
+            // leaving with an unconfirmed display change = the change did not happen
+            if (_displayBefore != null) CancelDisplay();
+            gameObject.SetActive(false);
+        }
+
+        private void Refresh()
+        {
+            _refreshing = true;
+            var s = R.Settings.Current;
+            if (_masterSlider != null) _masterSlider.value = s.MasterVolume;
+            if (_sfxSlider != null) _sfxSlider.value = s.SfxVolume;
+            if (_fullscreenToggle != null) _fullscreenToggle.isOn = s.Fullscreen;
+            if (_toggles[0] != null) _toggles[0].isOn = s.ReduceMotion;
+            if (_toggles[1] != null) _toggles[1].isOn = s.PhotosensitivitySafe;
+            if (_toggles[2] != null) _toggles[2].isOn = s.Captions;
+            _refreshing = false;
+            RefreshTextScaleButtons();
+            RefreshDisplayUI();
+        }
+
+        private void RefreshDisplayUI()
+        {
+            _choices = R.Settings.MenuChoices();
+            var cur = R.Settings.CurrentMode();
+            var stored = new ModeSize(R.Settings.Current.DisplayWidth, R.Settings.Current.DisplayHeight);
+            var active = stored.W > 0 && stored.H > 0 ? stored : cur;
+            for (int i = 0; i < _resButtons.Length; i++)
+            {
+                if (_resButtons[i] == null) continue;
+                bool has = i < _choices.Count;
+                _resButtons[i].gameObject.SetActive(has);
+                if (!has) continue;
+                var m = _choices[i];
+                if (_resLabels[i] != null) _resLabels[i].text = ModeText(m);
+                var inner = _resButtons[i].GetComponentInChildren<Image>();
+                if (inner != null)
+                    inner.color = m.Equals(active) ? new Color(0.30f, 0.30f, 0.33f) : UIFactory.PanelAlt;
+            }
+        }
+
         private void RefreshTextScaleButtons()
         {
             if (_textScaleButtons == null) return;
@@ -362,21 +583,6 @@ namespace Hollowbrook.UI
                 if (inner != null) inner.color = i == sel ? new Color(0.30f, 0.30f, 0.33f) : UIFactory.PanelAlt;
             }
         }
-
-        private void AddSlider(RectTransform parent, string label, float value, UnityEngine.Events.UnityAction<float> onChanged)
-        {
-            var row = UIFactory.SliderRow(parent, label, label, value, v => onChanged(v), 560);
-            UIFactory.Layout(row.GetComponent<RectTransform>(), 560, 40);
-        }
-
-        private void AddToggle(RectTransform parent, string label, bool value, UnityEngine.Events.UnityAction<bool> onChanged)
-        {
-            var row = UIFactory.ToggleRow(parent, label, label, value, v => onChanged(v), 560);
-            UIFactory.Layout(row.GetComponent<RectTransform>(), 560, 36);
-        }
-
-        public void Show() { gameObject.SetActive(true); RefreshTextScaleButtons(); }
-        public void Hide() { gameObject.SetActive(false); }
     }
 
     /// <summary>Controls reference — same left-sheet family.</summary>
@@ -389,21 +595,27 @@ namespace Hollowbrook.UI
             R = root;
             var sheet = UIFactory.LeftSheet(transform, "CONTROLS", "Mouse at the desk. Keys in the dark.", out _);
 
+            // Verified against the gameplay scripts (PlayerController.cs:57-72,159,
+            // DialogueView.cs:156, CheckpointView.cs, SecurityRoomView.cs) — nothing here is
+            // aspirational: every line maps to a real input path.
             string body =
                 "CHECKPOINT (mouse)\n" +
                 "   Click documents, checklist rows, SCAN, questions, ALLOW / REJECT.\n" +
-                "   Questions: at most 2 per visitor. Decisions are permanent.\n\n" +
+                "   At most 2 questions per visitor. Decisions are permanent.\n\n" +
                 "EXPLORATION\n" +
-                "   A / D  or  ◂ /         walk left / right\n" +
-                "   SHIFT                  run\n" +
-                "   E                      interact (doors, clues, switches)\n" +
-                "   F                      flashlight (Focus light)\n" +
-                "   M                      map\n" +
-                "   ESC                    pause\n\n" +
+                "   A / D  or  ← / →     walk left / right\n" +
+                "   SHIFT                run\n" +
+                "   E                    interact (doors, clues, switches)\n" +
+                "   F                    flashlight (Focus light)\n" +
+                "   M                    map          ESC   pause\n\n" +
+                "SECURITY ROOM (School scene prototype, mouse)\n" +
+                "   Click the door panel to admit or deny late night students.\n" +
+                "   Click the marked spots to check the rooms for anomalies.\n\n" +
                 "DIALOGUE\n" +
                 "   CLICK / SPACE / ENTER / E     advance\n\n" +
                 "SYSTEM\n" +
-                "   F2 ×3 (main menu)      erase save data";
+                "   F2 ×3 on the main menu, or OPTIONS → RESET DATA\n" +
+                "      erases save data (settings are kept)";
             var txt = UIFactory.Label(sheet, "body", body, 16, UIFactory.InkDim, TextAnchor.UpperLeft);
             UIFactory.Anchor(txt.rectTransform, new Vector2(0f, 1f), new Vector2(560, 430), new Vector2(320, -360));
 

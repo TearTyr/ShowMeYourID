@@ -36,6 +36,7 @@ namespace Hollowbrook.World
         public RoomInstance Current { get; private set; }
         public PlayerController Player { get; private set; }
         public bool Transitioning { get; private set; }
+        private Hollowbrook.Logic.GameRng _patrolRng;
         private int _anomaliesInside; // anomalies let through the checkpoint heighten the school
         private float _spawnCooldown = 6f;
         private WanderingAnomaly _liveAnomaly;
@@ -374,12 +375,13 @@ namespace Hollowbrook.World
             if (!hallucination && _liveAnomaly != null) return;
             var kinds = new[] { AnomalyBehaviorKind.Blink, AnomalyBehaviorKind.Slide,
                                 AnomalyBehaviorKind.Sprint, AnomalyBehaviorKind.CoverHug };
+            if (_patrolRng == null) _patrolRng = new Hollowbrook.Logic.GameRng(R.Session.Seed + 31 + R.Session.CurrentShift);
             var kind = hallucination
-                ? (UnityEngine.Random.value < 0.5f ? AnomalyBehaviorKind.Slide : AnomalyBehaviorKind.Blink)
-                : kinds[UnityEngine.Random.Range(0, kinds.Length)];
+                ? (_patrolRng.Chance(0.5f) ? AnomalyBehaviorKind.Slide : AnomalyBehaviorKind.Blink)
+                : R.Session.Pool.PeekKind(_patrolRng);   // shared pool: uncaught == outstanding
             if (hallucination && kind == AnomalyBehaviorKind.Blink) kind = AnomalyBehaviorKind.Slide; // phantoms never grab
             var spawn = Current.AnomalySpawnPoints.Count > 0
-                ? Current.AnomalySpawnPoints[UnityEngine.Random.Range(0, Current.AnomalySpawnPoints.Count)]
+                ? Current.AnomalySpawnPoints[_patrolRng.NextInt(0, Current.AnomalySpawnPoints.Count)]
                 : new Vector3(Current.HalfWidth - 1.5f, 0, 0);
             // never materialize right on top of the player
             if (Mathf.Abs(spawn.x - Player.transform.position.x) < 4f) spawn.x = -spawn.x;
@@ -396,6 +398,10 @@ namespace Hollowbrook.World
         public void OnAnomalyGone(WanderingAnomaly a)
         {
             if (_liveAnomaly == a) _liveAnomaly = null;
+            // dispelled by light or caught the player => resolved; a lifetime expiry
+            // (left uncaught) keeps it outstanding so it can knock at the office door
+            if (!a.IsHallucination && (a.WasRevealed || a.WasCaught))
+                R.Session.Pool.Resolve(a.Kind);
         }
 
         /// <summary>The flashlight cone illuminates this world point (Focus mode)?</summary>

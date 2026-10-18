@@ -48,5 +48,8 @@ namespace Hollowbrook.Core
         public const string CaptionRequested = "caption.show";     // Text: caption, Value: seconds
         public const string SettingsChanged = "settings.changed";  // Data: SettingsData
         public const string Notification = "ui.notification";      // Text: toast message
+        public const string TrackingChanged = "anomaly.tracking";    // Value: 0..1 meter
+        public const string AnomalyRevealed = "anomaly.revealed";    // Data: kind / "hallucination"
+        public const string TokenCollected = "anomaly.token";      // Value: tokens held this run
     }
 }

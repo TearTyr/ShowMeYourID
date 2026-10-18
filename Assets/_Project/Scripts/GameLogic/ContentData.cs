@@ -105,6 +105,7 @@ namespace Hollowbrook.Logic
         public string Greeting = "...";
         public Dictionary<QuestionId, Answer> Answers = new Dictionary<QuestionId, Answer>();
         public bool BehaviorGlitchVisible;    // rare visual micro-glitch hint for BehaviorOddity
+        public bool OnLateList = true;        // office rule: on tonight's late list
 
         public bool PhotoMatches => WindowPortrait == IdPhoto;
 
@@ -187,6 +188,8 @@ namespace Hollowbrook.Logic
                 case "fourth_year_curfew": return !v.IsAnomaly && v.IdYearLevel == 4;
                 case "strict_expiry": return !v.IsAnomaly && v.ExpirationDay - Content.ShiftDayNumber(v.ShiftNumber) <= 60;
                 case "odd_serials": return !v.IsAnomaly && IdRules.SerialOf(v.IdNumber) % 2 == 1;
+                case "office_late_list": return !v.IsAnomaly &&
+                    (!v.OnLateList || IdRules.IsExpired(v, v.ShiftNumber));
                 default: return false;
             }
         }

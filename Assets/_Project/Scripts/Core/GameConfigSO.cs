@@ -31,6 +31,10 @@ namespace Hollowbrook.Core
         public float coverHugCatchSeconds = 2.6f;
         public float sprintTelegraphSeconds = 0.9f;
 
+        [Header("Shift clock")]
+        [Tooltip("In-story minutes per real second while a shift is running, in ANY scene.")]
+        public float clockMinutesPerSecond = 0.25f;
+
         [Header("Presentation")]
         public int canvasReferenceWidth = 1280;
         public int canvasReferenceHeight = 720;

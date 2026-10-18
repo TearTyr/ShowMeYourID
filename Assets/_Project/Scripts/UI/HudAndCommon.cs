@@ -22,6 +22,9 @@ namespace Hollowbrook.UI
         private Text _toast;
         private Text _findings;
         private Text _roomInfo;
+        private GameObject _trackBar;
+        private Image _trackFill;
+        private Text _stageLabel;
         private float _toastUntil;
         private readonly List<EventSubscription> _subs = new List<EventSubscription>();
 
@@ -44,6 +47,24 @@ namespace Hollowbrook.UI
             _sanityFill.rectTransform.offsetMax = Vector2.zero;
             _sanityLabel = UIFactory.Label(barBg, "val", "100", 13, UIFactory.Ink, TextAnchor.MiddleRight);
             UIFactory.Anchor(_sanityLabel.rectTransform, new Vector2(1, 1), new Vector2(48, 18), new Vector2(-30, -10));
+            _stageLabel = UIFactory.Label(barBg, "stage", "STABLE", 11, UIFactory.InkFaint, TextAnchor.MiddleLeft);
+            UIFactory.Anchor(_stageLabel.rectTransform, new Vector2(0, 1), new Vector2(150, 16), new Vector2(120, -28));
+
+            // tracking meter (under the sanity bar; only visible while light holds an anomaly)
+            var tbg = UIFactory.Panel(transform, "trackbg", new Color(0.05f, 0.05f, 0.06f, 0.85f)).rectTransform;
+            UIFactory.Anchor(tbg, new Vector2(0, 1), new Vector2(240, 30), new Vector2(132, -140));
+            var tcap = UIFactory.Label(tbg, "cap", "TRACK", 12, UIFactory.InkDim, TextAnchor.MiddleLeft);
+            UIFactory.Anchor(tcap.rectTransform, new Vector2(0, 1), new Vector2(80, 16), new Vector2(46, -7));
+            var ttrack = UIFactory.Panel(tbg, "track", new Color(0.12f, 0.12f, 0.13f)).rectTransform;
+            UIFactory.Anchor(ttrack, new Vector2(0, 0), new Vector2(216, 10), new Vector2(120, 9));
+            _trackFill = UIFactory.Img(ttrack, "fill", ProceduralArt.Get("solid_white"), UIFactory.AccentBright);
+            _trackFill.rectTransform.anchorMin = new Vector2(0, 0);
+            _trackFill.rectTransform.anchorMax = new Vector2(0, 1);
+            _trackFill.rectTransform.pivot = new Vector2(0, 0.5f);
+            _trackFill.rectTransform.offsetMin = Vector2.zero;
+            _trackFill.rectTransform.offsetMax = Vector2.zero;
+            _trackBar = tbg.gameObject;
+            _trackBar.SetActive(false);
 
             // findings counter (top-right under the clock)
             _findings = UIFactory.Label(transform, "findings", "FINDINGS 0/10", 15, UIFactory.InkDim, TextAnchor.MiddleRight);
@@ -80,7 +101,12 @@ namespace Hollowbrook.UI
             _subs.Add(root.Bus.Subscribe(EventIds.InteractionPrompt, e => _prompt.text = e.Text ?? ""));
             _subs.Add(root.Bus.Subscribe(EventIds.Notification, e => Notify(e.Text)));
             _subs.Add(root.Bus.Subscribe(EventIds.ClueDiscovered, e => RefreshFindings()));
+            _subs.Add(root.Bus.Subscribe(EventIds.TrackingChanged, e => SetTracking(e.Value)));
+            _subs.Add(root.Bus.Subscribe(EventIds.AnomalyRevealed, e => SetTracking(0f)));
+            _subs.Add(root.Bus.Subscribe(EventIds.TokenCollected, e => RefreshFindings()));
             _subs.Add(root.Bus.Subscribe(EventIds.RoomEntered, e => RefreshRoom()));
+            _subs.Add(root.Bus.Subscribe(EventIds.LightModeChanged, e => RefreshRoom()));
+            _objective.text = root.ObjectiveText ?? "";   // HUD may be built after the publish
             _subs.Add(root.Bus.Subscribe(EventIds.LightModeChanged, e => RefreshRoom()));
             _subs.Add(root.Bus.Subscribe(EventIds.StateChanged, e => OnState(e.Payload<AppViewState>())));
 
@@ -114,13 +140,30 @@ namespace Hollowbrook.UI
                                 stage == SanityStage.Shaken ? new Color(0.75f, 0.45f, 0.2f) :
                                 stage == SanityStage.Uneasy ? UIFactory.InkDim : UIFactory.Ink;
             _sanityLabel.text = ((int)v).ToString();
+            if (_stageLabel != null)
+            {
+                _stageLabel.text = stage.ToString().ToUpperInvariant();
+                _stageLabel.color = stage == SanityStage.Breaking ? UIFactory.AccentBright :
+                                    stage == SanityStage.Shaken ? new Color(0.75f, 0.45f, 0.2f) : UIFactory.InkFaint;
+            }
+        }
+
+        /// <summary>0 hides the meter; 0..1 fills it; reveal/collection hides it again.</summary>
+        private void SetTracking(float v)
+        {
+            if (_trackBar == null) return;
+            bool on = v > 0.001f && v < 0.999f;
+            _trackBar.SetActive(on);
+            if (on && _trackFill != null)
+                _trackFill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(v), 1f);
         }
 
         public void RefreshFindings()
         {
             if (R.Session == null) return;
             _findings.text = "FINDINGS " + R.Session.Clues.FoundCount + "/10" +
-                             (R.Session.Clues.OrderIntact ? "" : "  (order broken)");
+                             (R.Session.Clues.OrderIntact ? "" : "  (order broken)") +
+                             (R.Session.TokensCollected > 0 ? "  ·  TOKENS " + R.Session.TokensCollected : "");
         }
 
         public void RefreshRoom()

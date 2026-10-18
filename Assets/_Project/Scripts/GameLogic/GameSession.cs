@@ -46,6 +46,7 @@ namespace Hollowbrook.Logic
         public int FalseRejections = 0;
         public int Breaches = 0;            // anomalies allowed in (includes administrator if allowed)
         public int AnomaliesRejected = 0;
+        public int TokensCollected = 0;      // fully-tracked anomalies (master prompt §3)
         public bool AdminAllowed = false;
         public bool AdminRejected = false;
         public float Sanity = SanityModel.Max;
@@ -56,6 +57,7 @@ namespace Hollowbrook.Logic
         public int RunProcessed = 0;        // Endless/Challenge visitors this run
         public string ActiveMutationKey = "none";
         public ClueTracker Clues = new ClueTracker();
+        public PatrolPool Pool = new PatrolPool();   // outstanding anomalies tonight
         public List<ShiftSummary> History = new List<ShiftSummary>();
         /// <summary>Set when an ending/run result was reached; such saves must not offer Continue.</summary>
         public bool RunFinished = false;
@@ -171,6 +173,9 @@ namespace Hollowbrook.Logic
         public bool ReduceMotion = false;  // disables camera shake / sprint lunges / pulsing
         public bool PhotosensitivitySafe = false; // no strobe flashes; scares fade instead of popping
         public bool Captions = true;       // text captions for significant audio events
+        public bool Fullscreen = true;     // display: exclusive fullscreen vs windowed
+        public int DisplayWidth = 0;       // stored resolution preference; 0 = "no preference, keep launcher default"
+        public int DisplayHeight = 0;
 
         public SettingsData Clone() => (SettingsData)MemberwiseClone();
 
@@ -181,19 +186,32 @@ namespace Hollowbrook.Logic
 
         public string Encode() =>
             Inv(MasterVolume) + "," + Inv(MusicVolume) + "," + Inv(SfxVolume) + "," +
-            TextScale + "," + B(ReduceMotion) + "," + B(PhotosensitivitySafe) + "," + B(Captions);
+            TextScale + "," + B(ReduceMotion) + "," + B(PhotosensitivitySafe) + "," + B(Captions) +
+            "," + B(Fullscreen) + "," + DisplayWidth + "," + DisplayHeight;
 
+        /// <summary>Tolerant by design: older saves carry 7 fields, newer ones 10. Anything
+        /// missing falls back to the defaults above instead of failing the whole load.</summary>
         public static SettingsData Decode(string s)
         {
             if (string.IsNullOrEmpty(s)) return null;
             var p = s.Split(',');
-            if (p.Length != 7) return null;
+            if (p.Length < 7) return null;
             var d = new SettingsData
             {
                 MasterVolume = F(p[0]), MusicVolume = F(p[1]), SfxVolume = F(p[2]),
                 TextScale = int.Parse(p[3]),
                 ReduceMotion = p[4] == "1", PhotosensitivitySafe = p[5] == "1", Captions = p[6] == "1",
             };
+            if (p.Length >= 10)
+            {
+                d.Fullscreen = p[7] != "0";
+                int w, h;
+                if (int.TryParse(p[8], out w) && int.TryParse(p[9], out h))
+                {
+                    d.DisplayWidth = w;
+                    d.DisplayHeight = h;
+                }
+            }
             return d;
         }
 

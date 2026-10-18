@@ -23,6 +23,29 @@ namespace Hollowbrook.World
         public float DistanceTo(Vector3 p) => Mathf.Abs(p.x - AnchorX);
     }
 
+    /// <summary>Left behind by a fully tracked (revealed) anomaly. Collecting it is the
+    /// proof-of-observation loop from master prompt §3; the count persists with the run.</summary>
+    public class TokenPickup : Interactable
+    {
+        public void Init(GameRoot root, RoomInstance room, float x)
+        {
+            R = root; Room = room; AnchorX = x;
+            Prompt = "Collect token [E]";
+            Art = GetComponent<SpriteRenderer>();
+        }
+
+        public override void Interact()
+        {
+            if (R == null || R.Session == null) return;
+            R.Session.TokensCollected++;
+            if (Room != null) Room.Interactables.Remove(this);
+            R.Bus.Publish(GameEvent.Of(EventIds.TokenCollected, R.Session.TokensCollected));
+            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_scan_ok", 0.6f, null));
+            R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*you pocket the token - evidence*", 2.4f, null));
+            Destroy(gameObject);
+        }
+    }
+
     /// <summary>Door between rooms / back to the security checkpoint.</summary>
     public class Doorway : Interactable
     {
