@@ -372,8 +372,10 @@ namespace Hollowbrook.Checkpoint
 
         // ---------------------------------------------------------------- run flow
 
+        /// <summary>[Flow] breadcrumb: the desk actually started with a roster.</summary>
         public void BeginRun(List<VisitorData> roster, ShiftDef shift)
         {
+            Debug.Log("[Flow] checkpoint started with " + (roster != null ? roster.Count : 0) + " visitors");
             _roster = roster;
             _shift = shift;
             _index = -1;

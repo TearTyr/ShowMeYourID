@@ -64,10 +64,43 @@ namespace Hollowbrook.Core
         public int CurrentVisitorIndex = 0;
 
         private System.Action _queuedSceneAction;
-        public void QueueSceneAction(System.Action a) { _queuedSceneAction = a; }
+        public void QueueSceneAction(System.Action a)
+        {
+            _queuedSceneAction = a;
+            _queuedAt = Time.unscaledTime;
+            _handshakeArmed = true;
+        }
+
+        public void ClearQueuedSceneAction() { _queuedSceneAction = null; _handshakeArmed = false; }
+
+        private float _queuedAt;
+        private bool _handshakeArmed;
+
+        /// <summary>Self-check for the one thing headless suites cannot prove: that the NEW
+        /// scene's bootstrap actually ran and consumed the queued action. If it did not within
+        /// the window (missing bootstrap component/GUID, scene not in Build Settings, thrown
+        /// Build), say exactly that and recover to the menu instead of a dead screen.
+        /// Update-based (not a coroutine) so it can never starve other routines.</summary>
+        private void CheckSceneHandshake()
+        {
+            if (!_handshakeArmed || _queuedSceneAction == null) return;
+            if (Time.unscaledTime - _queuedAt < 3.5f) return;
+            _handshakeArmed = false;
+            _queuedSceneAction = null;
+            Debug.LogError("[GameRoot] scene handshake FAILED: the queued start action was never " +
+                "consumed. Usual causes: target scene not enabled in Build Settings, or its " +
+                "bootstrap component missing / stale script GUID (Tools/generate_meta.py pins them).");
+            Bus.Publish(GameEvent.Of(EventIds.Notification,
+                "The game scene failed to start. Check Build Settings / scene bootstrap."));
+            Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Menu);
+        }
+
         /// <summary>Called by each scene bootstrap once its views exist.</summary>
         public void RunQueuedSceneAction()
         {
+            _handshakeArmed = false;
+            Debug.Log("[Flow] queued action consumed in scene '" +
+                      UnityEngine.SceneManagement.SceneManager.GetActiveScene().name + "'");
             var a = _queuedSceneAction;
             _queuedSceneAction = null;
             a?.Invoke();
@@ -117,6 +150,7 @@ namespace Hollowbrook.Core
 
         private void Update()
         {
+            CheckSceneHandshake();
             if (Paused || Session == null) return;
 
             // The shift clock runs on patrol too (scope: patrol has stakes). Single source:
@@ -298,12 +332,18 @@ namespace Hollowbrook.Core
                 (Session.Mode == GameMode.Endless ? "Survive the clock. Reject every anomaly." : "Survive the clock under shifting district rules.");
             Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));
             Bus.Publish(GameEvent.Of(EventIds.MusicContextRequested, "checkpoint"));
+            Debug.Log("[Flow] intro shown (loading=" + (Loading != null) + " dialogue=" + (Dialogue != null) + ")");
+            if (Dialogue == null) Debug.LogError("[GameRoot] intro: Dialogue view NULL - check scene bootstrap view creation.");
+            if (Loading == null) Debug.LogError("[GameRoot] intro: Loading view NULL - no NIGHT backdrop will show.");
+            if (Checkpoint == null) Debug.LogError("[GameRoot] intro: Checkpoint view NULL - the desk cannot start.");
             if (Dialogue != null)
                 Dialogue.Play(intro, () =>
                 {
                     if (Loading != null) Loading.Hide();
                     SetState(AppViewState.Checkpoint);
                     if (Checkpoint != null) Checkpoint.BeginRun(CurrentRoster, shift);
+                    else Debug.LogError("[GameRoot] intro finished but Checkpoint is still NULL.");
+                    Debug.Log("[Flow] intro done -> checkpoint state");
                 });
             else
             {

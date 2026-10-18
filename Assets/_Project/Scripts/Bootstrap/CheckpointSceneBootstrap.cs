@@ -52,10 +52,12 @@ namespace Hollowbrook.Bootstrap
             root.Hallucinations.Init(root);
 
             UIFactory.ApplyTextScale(root.Settings.TextScaleMultiplier);
+            Debug.Log("[Flow] checkpoint bootstrap built (checkpoint=" + (root.Checkpoint != null) +
+                      " loading=" + (root.Loading != null) + " dialogue=" + (root.Dialogue != null) + ")");
             root.RunQueuedSceneAction();
         }
 
-        private void Awake() { Build(CoreBootstrap.EnsureCore()); }
+        private void Awake() { CoreBootstrap.SafeBuild("Hollowbrook", () => Build(CoreBootstrap.EnsureCore())); }
     }
 
 }

@@ -39,6 +39,17 @@ namespace Hollowbrook.Core
                     DisplayWidth = PlayerPrefs.GetInt(KeyPrefix + "displayW", 0),
                     DisplayHeight = PlayerPrefs.GetInt(KeyPrefix + "displayH", 0),
                 };
+                // Pre-fix builds could persist a silent SFX value (0) without the player ever
+                // touching the slider. Zero with no explicit user write is treated as corrupt
+                // and restored to the audible default, loudly.
+                if (Current.SfxVolume <= 0f && !PlayerPrefs.HasKey(KeyPrefix + "sfxExplicit"))
+                {
+                    Debug.LogWarning("[Settings] stored SFX volume was 0 with no explicit user change - restoring audible default 0.8.");
+                    Current.SfxVolume = 0.8f;
+                }
+                Debug.Log("[Settings] loaded master=" + Current.MasterVolume + " music=" + Current.MusicVolume +
+                          " sfx=" + Current.SfxVolume + " text=" + Current.TextScale +
+                          " fullscreen=" + Current.Fullscreen + " res=" + Current.DisplayWidth + "x" + Current.DisplayHeight);
             }
             catch (Exception e)
             {
@@ -61,6 +72,7 @@ namespace Hollowbrook.Core
                 PlayerPrefs.SetInt(KeyPrefix + "fullscreen", Current.Fullscreen ? 1 : 0);
                 PlayerPrefs.SetInt(KeyPrefix + "displayW", Current.DisplayWidth);
                 PlayerPrefs.SetInt(KeyPrefix + "displayH", Current.DisplayHeight);
+                PlayerPrefs.SetInt(KeyPrefix + "sfxExplicit", 1);   // any Apply() is an explicit user write
                 PlayerPrefs.Save();
             }
             catch (Exception e) { Debug.LogWarning("[Settings] prefs write failed: " + e.Message); }

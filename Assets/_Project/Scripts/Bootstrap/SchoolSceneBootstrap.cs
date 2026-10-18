@@ -55,6 +55,6 @@ namespace Hollowbrook.Bootstrap
             root.RunQueuedSceneAction();
         }
 
-        private void Awake() { Build(CoreBootstrap.EnsureCore()); }
+        private void Awake() { CoreBootstrap.SafeBuild("School", () => Build(CoreBootstrap.EnsureCore())); }
     }
 }

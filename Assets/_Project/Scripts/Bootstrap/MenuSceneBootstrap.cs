@@ -25,7 +25,7 @@ namespace Hollowbrook.Bootstrap
             root.BootToMainMenu();
         }
 
-        private void Awake() { Build(CoreBootstrap.EnsureCore()); }
+        private void Awake() { CoreBootstrap.SafeBuild("MainMenu", () => Build(CoreBootstrap.EnsureCore())); }
     }
 
 }

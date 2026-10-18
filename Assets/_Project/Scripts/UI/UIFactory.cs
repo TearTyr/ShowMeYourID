@@ -26,6 +26,15 @@ namespace Hollowbrook.UI
         public static readonly Color PaperInk = new Color(0.10f, 0.10f, 0.11f);
         public static readonly Color Glass = new Color(0.75f, 0.78f, 0.80f, 0.10f);
 
+        // ---- the ONE type scale and the ONE spacing unit for the whole menu family.
+        // Nothing else may hard-code label sizes or row gaps (Options rework, item 6).
+        public const int TypeTitle = 30;
+        public const int TypeSubtitle = 14;
+        public const int TypeSection = 14;
+        public const int TypeLabel = 17;
+        public const int TypeSmall = 13;
+        public const int SpaceUnit = 8;
+
         private static Font _font;
         private static readonly List<Text> _texts = new List<Text>();
         private static readonly Dictionary<Text, int> _baseSizes = new Dictionary<Text, int>();
@@ -323,8 +332,12 @@ namespace Hollowbrook.UI
             boxBorder.effectColor = Border;
             boxBorder.effectDistance = new Vector2(2, 2);
 
-            var check = Label(box, "check", "X", 18, AccentBright, TextAnchor.MiddleCenter);
+            // unmistakable on/off: filled box + ON/OFF word (the old red X read as "error/close")
+            var check = Label(box, "check", value ? "ON" : "OFF", 10,
+                value ? PanelBase : InkDim, TextAnchor.MiddleCenter);
             Anchor(check.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(24, 24), Vector2.zero);
+            var boxImg = box.GetComponent<Image>();
+            if (boxImg != null) boxImg.color = value ? Ink : PanelAlt;
 
             var lab = Label(row, "label", labelText, 17, Ink);
             lab.alignment = TextAnchor.MiddleLeft;
@@ -333,7 +346,14 @@ namespace Hollowbrook.UI
                 new Vector2(34 + (width - 48) / 2f, 0)); // left-anchored: positive center
 
             var toggle = row.gameObject.AddComponent<Toggle>();
-            toggle.graphic = check;
+            toggle.graphic = null;   // we drive box+word ourselves, so state is never ambiguous
+            toggle.onValueChanged.AddListener(on =>
+            {
+                check.text = on ? "ON" : "OFF";
+                check.color = on ? PanelBase : InkDim;
+                var bi = box.GetComponent<Image>();
+                if (bi != null) bi.color = on ? Ink : PanelAlt;
+            });
             toggle.isOn = value;
             if (onChanged != null) toggle.onValueChanged.AddListener(v => onChanged(v));
 

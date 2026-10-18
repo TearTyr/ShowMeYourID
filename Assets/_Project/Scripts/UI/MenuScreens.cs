@@ -4,6 +4,7 @@ using Hollowbrook.Core;
 using Hollowbrook.Bootstrap;
 using Hollowbrook.Logic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Hollowbrook.UI
@@ -61,6 +62,7 @@ namespace Hollowbrook.UI
 
             MenuButtonLeft(col.transform, "NEW GAME", () =>
             {
+                Debug.Log("[Flow] NEW GAME clicked");
                 Click();
                 R.StartNewGame(GameMode.Normal);   // the only active gameplay entry
             }, b => { Emphasize(b); _newGameBtn = b; }, 360, 50);
@@ -313,15 +315,38 @@ namespace Hollowbrook.UI
         private Coroutine _revertRoutine;
         private int _revertLeft;
         private Text _dataHint;
+        private ScrollRect _scroll;
+        private Slider _musicSlider;
+        private GameObject _resRow;
+        private Text _resNote;
+        private readonly List<Selectable> _navOrder = new List<Selectable>();
 
         public void Init(GameRoot root)
         {
             R = root;
             var sheet = UIFactory.LeftSheet(transform, "OPTIONS",
                 "Applies immediately. Remembered on this machine.", out var col);
-            col.GetComponent<VerticalLayoutGroup>().spacing = 8;
+            col.GetComponent<VerticalLayoutGroup>().spacing = UIFactory.SpaceUnit;
             col.sizeDelta = new Vector2(560f, 505f);
             col.anchoredPosition = new Vector2(320f, -364f);
+
+            // Scrollable viewport: content may grow with text size or window size, while the
+            // pinned CONTROLS/BACK buttons live OUTSIDE it, so nothing can overlap them.
+            var viewport = UIFactory.NewUI(sheet, "optionsViewport");
+            UIFactory.Anchor(viewport, new Vector2(0f, 1f), new Vector2(560f, 505f), new Vector2(320f, -364f));
+            viewport.gameObject.AddComponent<Mask>().showMaskGraphic = false;
+            col.SetParent(viewport, false);
+            col.anchorMin = new Vector2(0f, 1f); col.anchorMax = new Vector2(1f, 1f);
+            col.pivot = new Vector2(0.5f, 1f);
+            col.anchoredPosition = Vector2.zero;
+            col.sizeDelta = Vector2.zero;
+            col.gameObject.AddComponent<ContentSizeFitter>().verticalFit =
+                ContentSizeFitter.FitMode.PreferredSize;
+            _scroll = viewport.gameObject.AddComponent<ScrollRect>();
+            _scroll.content = col;
+            _scroll.horizontal = false;
+            _scroll.movementType = ScrollRect.MovementType.Clamped;
+            _scroll.scrollSensitivity = 24f;
 
             var s = R.Settings;
 
@@ -330,6 +355,9 @@ namespace Hollowbrook.UI
             _masterSlider = UIFactory.SliderRow(col, "master", "Master volume", s.Current.MasterVolume,
                 v => { if (!_refreshing) s.Apply(d => d.MasterVolume = v); }, 560);
             UIFactory.Layout(_masterSlider.GetComponent<RectTransform>(), 560, 34);
+            _musicSlider = UIFactory.SliderRow(col, "music", "Music volume", s.Current.MusicVolume,
+                v => { if (!_refreshing) s.Apply(d => d.MusicVolume = v); }, 560);
+            UIFactory.Layout(_musicSlider.GetComponent<RectTransform>(), 560, 34);
             _sfxSlider = UIFactory.SliderRow(col, "sfx", "SFX volume", s.Current.SfxVolume,
                 v => { if (!_refreshing) s.Apply(d => d.SfxVolume = v); }, 560);
             UIFactory.Layout(_sfxSlider.GetComponent<RectTransform>(), 560, 34);
@@ -348,6 +376,7 @@ namespace Hollowbrook.UI
             UIFactory.Layout(_fullscreenToggle.GetComponent<RectTransform>(), 560, 32);
 
             var resRow = UIFactory.NewUI(col, "resrow");
+            _resRow = resRow.gameObject;
             UIFactory.Layout(resRow, 560, 38);
             var resLab = UIFactory.Label(resRow, "lab", "Resolution", 13, UIFactory.InkFaint,
                 TextAnchor.MiddleLeft);
@@ -366,6 +395,10 @@ namespace Hollowbrook.UI
 
             // Kept OUT of the stacking column (anchored above the action buttons) so the
             // 15-second revert window can appear without re-flowing the rows above it.
+            _resNote = UIFactory.Label(col, "resnote", "", UIFactory.TypeSmall, UIFactory.InkDim,
+                TextAnchor.MiddleLeft);
+            _resNote.rectTransform.sizeDelta = new Vector2(560f, 16f);
+            UIFactory.Layout(_resNote.rectTransform, 560, 16);
             _displayNoteRow = UIFactory.NewUI(sheet, "displaynote");
             UIFactory.Anchor(_displayNoteRow, new Vector2(0f, 0f), new Vector2(560, 30),
                 new Vector2(320, 100));
@@ -451,7 +484,7 @@ namespace Hollowbrook.UI
         // ------------------------------------------------------------------ helpers
         private static void Section(RectTransform col, string title)
         {
-            var lab = UIFactory.Label(col, "sec_" + title, title, 13, UIFactory.InkFaint,
+            var lab = UIFactory.Label(col, "sec_" + title, title, UIFactory.TypeSection, UIFactory.InkDim,
                 TextAnchor.MiddleLeft);
             lab.rectTransform.sizeDelta = new Vector2(560f, 18f);
             lab.raycastTarget = false;
@@ -527,6 +560,33 @@ namespace Hollowbrook.UI
         {
             gameObject.SetActive(true);
             Refresh();
+            if (_scroll != null) _scroll.verticalNormalizedPosition = 1f;   // open at the top
+            _navOrder.Clear();
+            foreach (var sel in new Selectable[]
+            {
+                _masterSlider, _musicSlider, _sfxSlider, _fullscreenToggle,
+                _toggles[0], _toggles[1], _toggles[2],
+                _textScaleButtons.Length > 0 ? _textScaleButtons[0] : null,
+                _textScaleButtons.Length > 1 ? _textScaleButtons[1] : null,
+                _textScaleButtons.Length > 2 ? _textScaleButtons[2] : null,
+            })
+                if (sel != null && sel.interactable && sel.gameObject.activeInHierarchy) _navOrder.Add(sel);
+            if (_navOrder.Count > 0 && EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(_navOrder[0].gameObject);
+        }
+
+        private void Update()
+        {
+            if (!gameObject.activeInHierarchy || R == null) return;
+            if (Input.GetKeyDown(KeyCode.Escape)) { R.CloseSettings(); return; }
+            if (Input.GetKeyDown(KeyCode.Tab) && _navOrder.Count > 0 && EventSystem.current != null)
+            {
+                var curSel = EventSystem.current.currentSelectedGameObject != null
+                    ? EventSystem.current.currentSelectedGameObject.GetComponent<Selectable>() : null;
+                int i = _navOrder.IndexOf(curSel);
+                i = (i + (Input.GetKey(KeyCode.LeftShift) ? _navOrder.Count - 1 : 1) + _navOrder.Count) % _navOrder.Count;
+                EventSystem.current.SetSelectedGameObject(_navOrder[i].gameObject);
+            }
         }
 
         public void Hide()
@@ -541,6 +601,7 @@ namespace Hollowbrook.UI
             _refreshing = true;
             var s = R.Settings.Current;
             if (_masterSlider != null) _masterSlider.value = s.MasterVolume;
+            if (_musicSlider != null) _musicSlider.value = s.MusicVolume;
             if (_sfxSlider != null) _sfxSlider.value = s.SfxVolume;
             if (_fullscreenToggle != null) _fullscreenToggle.isOn = s.Fullscreen;
             if (_toggles[0] != null) _toggles[0].isOn = s.ReduceMotion;
@@ -553,6 +614,9 @@ namespace Hollowbrook.UI
 
         private void RefreshDisplayUI()
         {
+            bool fs = R.Settings.Current.Fullscreen;
+            if (_resRow != null) _resRow.SetActive(!fs);   // borderless = desktop resolution
+            if (_resNote != null) _resNote.text = fs ? "Borderless fullscreen uses the desktop resolution." : "";
             _choices = R.Settings.MenuChoices();
             var cur = R.Settings.CurrentMode();
             var stored = new ModeSize(R.Settings.Current.DisplayWidth, R.Settings.Current.DisplayHeight);
@@ -565,10 +629,18 @@ namespace Hollowbrook.UI
                 if (!has) continue;
                 var m = _choices[i];
                 if (_resLabels[i] != null) _resLabels[i].text = ModeText(m);
-                var inner = _resButtons[i].GetComponentInChildren<Image>();
-                if (inner != null)
-                    inner.color = m.Equals(active) ? new Color(0.30f, 0.30f, 0.33f) : UIFactory.PanelAlt;
+                SetSelected(_resButtons[i], m.Equals(active));
             }
+        }
+
+        /// <summary>Selected = filled/inverted; hover stays a subtle brighten (ColorBlock).</summary>
+        private static void SetSelected(Button b, bool sel)
+        {
+            if (b == null) return;
+            var inner = b.GetComponentInChildren<Image>();
+            var label = b.GetComponentInChildren<Text>();
+            if (inner != null) inner.color = sel ? UIFactory.Ink : UIFactory.PanelAlt;
+            if (label != null) label.color = sel ? new Color(0.06f, 0.06f, 0.07f) : UIFactory.Ink;
         }
 
         private void RefreshTextScaleButtons()
@@ -579,8 +651,7 @@ namespace Hollowbrook.UI
             {
                 var b = _textScaleButtons[i];
                 if (b == null) continue;
-                var inner = b.GetComponentInChildren<Image>();
-                if (inner != null) inner.color = i == sel ? new Color(0.30f, 0.30f, 0.33f) : UIFactory.PanelAlt;
+                SetSelected(b, i == sel);
             }
         }
     }

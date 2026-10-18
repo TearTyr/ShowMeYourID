@@ -17,8 +17,14 @@ namespace Hollowbrook.Bootstrap
         public const string Checkpoint = "Hollowbrook";   // Scene A — "That's Not My Neighbor" desk loop
         public const string School = "School";           // Scene B — side-scroller + security room
 
+        public static bool IsRegistered(string sceneName) =>
+            sceneName == Menu || sceneName == Checkpoint || sceneName == School;
+
         public static void Load(string sceneName)
         {
+            if (!IsRegistered(sceneName))
+                Debug.LogError("[SceneRouter] refusing unknown scene '" + sceneName + "'.");
+            Debug.Log("[Flow] scene load requested: " + sceneName);
             Debug.Log("[SceneRouter] loading scene: " + sceneName);
             SceneManager.LoadScene(sceneName);
         }
@@ -81,6 +87,26 @@ namespace Hollowbrook.Bootstrap
             if (CurrentSceneRoot != null) Object.Destroy(CurrentSceneRoot);
             CurrentSceneRoot = new GameObject("SceneRoot_" + sceneName);
             return CurrentSceneRoot;
+        }
+
+            /// <summary>Wraps a scene Build so a throwing bootstrap can never leave a dead,
+            /// half-built scene with no explanation: log, notify, fall back to the menu.</summary>
+        public static void SafeBuild(string sceneName, System.Action build)
+        {
+            try { build(); }
+            catch (System.Exception e)
+            {
+                Debug.LogException(e);
+                Debug.LogError("[CoreBootstrap] scene '" + sceneName + "' failed to build: " + e.Message +
+                               " - returning to the main menu.");
+                if (GameRoot.Instance != null)
+                {
+                    GameRoot.Instance.ClearQueuedSceneAction();
+                    GameRoot.Instance.Bus.Publish(GameEvent.Of(EventIds.Notification,
+                        "Scene '" + sceneName + "' failed to start - back to the menu."));
+                }
+                SceneManager.LoadScene(SceneRouter.Menu);
+            }
         }
 
         public static Canvas NewCanvas(GameObject sceneRoot, string name, int order, GameConfigSO cfg)
