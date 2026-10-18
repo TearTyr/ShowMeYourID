@@ -114,7 +114,11 @@ namespace SMYID.Smoke
             MenuGatingAndDataReset();
             NormalRunFullStory_WinEnding();
             ExplorationAndClues_FreshRun();
-            SecurityRoomPrototype();
+            PressNewGameAndContinueButtons();
+            SecurityOffice_CountsTowardStory();
+            ClueOrderSurvivesSceneRoundTrip();
+            ClockRunsOnPatrol();
+            SecretEndingThroughSceneB();
             LoseByFalseRejections();
             EndlessRun();
             ChallengeRun();
@@ -398,7 +402,48 @@ namespace SMYID.Smoke
             R.QuitToMenu(false);
         }
 
-        static void SecurityRoomPrototype()
+        static void PressNewGameAndContinueButtons()
+        {
+            Section("Menu: pressing NEW GAME and CONTINUE like a player would");
+            R = GameRoot.Instance;
+            R.Saves.Delete();                 // earlier tests leave a save behind
+            SceneRouter.Load(SceneRouter.Menu);   // menu builds with the save state at boot
+            var buttons = R.MainMenu.transform.Find("buttons");
+            Check(buttons != null, "menu button column exists");
+            Check(!R.HasSave(), "no save on a fresh boot");
+            Check(!buttons.Find("CONTINUE").GetComponent<UnityEngine.UI.Button>().interactable,
+                "CONTINUE is disabled while no save exists");
+
+            ClickChild(buttons, "NEW GAME");
+            Check(R.State == AppViewState.ShiftIntro && R.Dialogue.IsActive,
+                "NEW GAME press plays the Night 1 intro");
+            DrainDialogue();
+            Check(R.State == AppViewState.Checkpoint, "NEW GAME press lands at the checkpoint");
+            Check(R.Checkpoint.CurrentVisitor != null, "a visitor is at the window after NEW GAME");
+            StampExpected();
+            StampExpected();
+            int shift = R.Session.CurrentShift;
+            R.PersistRun();
+            R.QuitToMenu(true);
+            Check(R.State == AppViewState.MainMenu, "quit-with-save returns to the menu");
+            Check(R.HasSave(), "save exists after quitting mid-shift");
+
+            buttons = R.MainMenu.transform.Find("buttons");   // menu was rebuilt by the scene load
+            Check(buttons.Find("CONTINUE").GetComponent<UnityEngine.UI.Button>().interactable,
+                "CONTINUE is enabled once a save exists");
+            ClickChild(buttons, "CONTINUE");
+            Check(R.State == AppViewState.ShiftIntro && R.Dialogue.IsActive,
+                "CONTINUE press replays the night's intro (documented mid-shift replay)");
+            DrainDialogue();
+            Check(R.State == AppViewState.Checkpoint, "CONTINUE press returns to the desk");
+            Check(R.Session.CurrentShift == shift, "CONTINUE resumes the same night");
+            Check(R.Checkpoint.CurrentVisitor != null &&
+                  R.Checkpoint.CurrentVisitor.ClaimedName == R.CurrentRoster[0].ClaimedName,
+                "the saved night replays from its first visitor with someone at the window");
+            R.QuitToMenu(false);
+        }
+
+        static void SecurityOffice_CountsTowardStory()
         {
             Section("Scene B: classroom → security office door-check prototype");
             R.StartNewGame(GameMode.Normal);
@@ -419,14 +464,31 @@ namespace SMYID.Smoke
             Check(R.State == AppViewState.SecurityRoom, "door opens the security-room view");
             Check(R.SecurityRoom.CurrentStudent != null, "first late student is at the door");
 
-            for (int i = 0; i < 3; i++)
+            int poolBefore = R.Session.Pool.Pending;
+            int mistakesBefore = R.Session.Breaches + R.Session.FalseRejections;
+            int anomaliesAtDoor = 0;
+            bool mistakeDone = false;
+            for (int i = 0; i < PatrolRules.LateArrivals; i++)
             {
                 var v = R.SecurityRoom.CurrentStudent;
-                Check(v != null, "late student " + (i + 1) + " present");
-                bool shouldReject = v.IsAnomaly || !IdRules.IsFormatValid(v.IdNumber)
-                                    || IdRules.IsExpired(v, 1) || !v.InDatabase;
-                ClickChild(R.SecurityRoom.transform, shouldReject ? "reject" : "allow");
+                Check(v != null, "late arrival " + (i + 1) + " at the door");
+                if (v == null) break;
+                if (v.IsAnomaly) anomaliesAtDoor++;
+                var expected = PatrolRules.ExpectedOfficeVerdict(v);
+                var click = expected;
+                // exactly one deliberate wrong call, and only where it moves a story counter
+                if (!mistakeDone && (v.IsAnomaly || expected == Verdict.Allow))
+                {
+                    click = expected == Verdict.Allow ? Verdict.Reject : Verdict.Allow;
+                    mistakeDone = true;
+                }
+                ClickChild(R.SecurityRoom.transform, click == Verdict.Allow ? "allow" : "reject");
             }
+            Check(mistakeDone, "the queue offered a counter-moving mistake case");
+            Check(R.Session.Breaches + R.Session.FalseRejections == mistakesBefore + 1,
+                "one deliberate office mistake moved the STORY counters by exactly 1");
+            Check(R.Session.Pool.Pending == poolBefore - anomaliesAtDoor,
+                "anomalies admitted at the door were consumed from the shared patrol pool");
             Check(R.SecurityRoom.CurrentStudent == null, "all three late arrivals processed");
 
             for (int i = 0; i < 3; i++) ClickChild(R.SecurityRoom.transform, "check" + i);
@@ -434,6 +496,89 @@ namespace SMYID.Smoke
             Check(R.State == AppViewState.Checkpoint, "return button loads the checkpoint scene");
             Check(R.Checkpoint.CurrentVisitor == null, "shift-1 roster already complete on resume");
             R.FinishShift();
+            R.QuitToMenu(false);
+        }
+
+        static void ClueOrderSurvivesSceneRoundTrip()
+        {
+            Section("Clues & pool survive Scene A -> B -> A round trips and saves");
+            R.StartNewGame(GameMode.Normal);
+            DrainDialogue();
+            var def = ShiftPlan.Get(1);
+            for (int i = 0; i < def.VisitorCount; i++) StampExpected();
+            R.Checkpoint.GoPatrol();
+            ClueIn(R.Views.Current, "light").Interact();
+            DrainDialogue();
+            Check(R.Session.Clues.FoundCount == 1, "clue 1 found on patrol");
+            R.ReturnToCheckpoint();
+            Check(R.Session.Clues.FoundCount == 1 && R.Session.Clues.OrderIntact,
+                "clue state survives the load back into Scene A");
+            R.Checkpoint.GoPatrol();
+            DoorTo(R.Views.Current, RoomId.Classroom1).Interact();
+            ClueIn(R.Views.Current, "chalkboard").Interact();
+            DrainDialogue();
+            R.ReturnToCheckpoint();
+            Check(R.Session.Clues.FoundCount == 2 && R.Session.Clues.OrderIntact,
+                "clue order intact after a second round trip");
+            int pool = R.Session.Pool.Pending;
+            R.PersistRun();
+            var loaded = R.Saves.Read();
+            Check(loaded != null && loaded.Session.Clues.FoundCount == 2, "save carries clue progress after patrol");
+            Check(loaded != null && loaded.Session.Pool.Pending == pool, "save carries the outstanding-anomaly pool");
+            R.FinishShift();
+            R.QuitToMenu(false);
+        }
+
+        static void ClockRunsOnPatrol()
+        {
+            Section("Shift clock keeps running on patrol");
+            R.StartNewGame(GameMode.Normal);
+            DrainDialogue();
+            string atDesk = R.ClockString;
+            R.Checkpoint.GoPatrol();
+            R.AdvanceShiftClock(45f);
+            Check(R.ClockString != atDesk, "clock advanced while on patrol");
+            R.ReturnToCheckpoint();
+            string back = R.ClockString;
+            R.AdvanceShiftClock(15f);
+            Check(R.ClockString != back, "the same continuous night keeps ticking at the desk");
+            R.QuitToMenu(false);
+        }
+
+        static void SecretEndingThroughSceneB()
+        {
+            Section("Secret ending reachable through a Scene B patrol");
+            R.StartNewGame(GameMode.Normal);
+            DrainDialogue();
+            var plan = ShiftPlan.Build();
+            var clues = ClueRegistry.Build();
+            for (int shift = 1; shift <= 5; shift++)
+            {
+                var def = plan[shift - 1];
+                int total = def.VisitorCount + (def.HasAdministrator ? 1 : 0);
+                for (int i = 0; i < total; i++) StampExpected();
+                if (shift == 2)
+                {
+                    R.Checkpoint.GoPatrol();
+                    foreach (var c in clues.OrderBy(c => c.Order))
+                    {
+                        if (R.Views.Current == null || R.Views.Current.Id != c.Room) R.Views.EnterRoom(c.Room);
+                        var it = ClueIn(R.Views.Current, c.Key);
+                        Check(it != null, "clue " + c.Key + " reachable in " + c.Room);
+                        if (it == null) continue;
+                        it.Interact();
+                        DrainDialogue();
+                    }
+                    Check(R.Session.Clues.AllFound && R.Session.Clues.OrderIntact,
+                        "all ten clues, intended order, in a single patrol");
+                    R.ReturnToCheckpoint();
+                }
+                R.FinishShift();
+                if (shift < 5) { R.AdvanceToNextShift(); DrainDialogue(); }
+            }
+            var eval = R.Session.EvaluateEnding();
+            Check(eval.Ending == EndingType.Secret && eval.ReasonKey == "secret",
+                "secret ending reached through Scene B");
             R.QuitToMenu(false);
         }
 

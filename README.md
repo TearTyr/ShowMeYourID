@@ -41,16 +41,32 @@ them automatically (keys are listed in `ProceduralArt` / `ProceduralAudio`).
 | Map | `M` |
 | Pause | `Esc` |
 | Dialogue | Click / `Space` / `Enter` / `E` |
-| Erase save data | `F2` ×3 on the main menu (each press ≤1.5 s apart, then confirm) |
+| Track an anomaly | hold `F` (Focus) on it, or keep the room lit; a full TRACK meter reveals it and leaves a token |
+| Collect a token | `E` while standing at it (count persists with the run) |
+| Erase save data | `F2` ×3 on the main menu (each press ≤1.5 s apart, then confirm), or Options → RESET DATA |
 | Security office (Scene B) | enter it from the office door inside Classroom 1 while patrolling |
+
+## Options & persistence
+
+- **Options** (`SETTINGS` in the main menu, and from Pause): master + SFX volume with live %
+  read-out, borderless-fullscreen toggle and a resolution row built from `Screen.resolutions`
+  (deduplicated, current mode always listed) with a 15-second KEEP/REVERT safety window, text size,
+  reduced motion, photosensitivity-safe, captions, and `RESET DATA…`.
+- Settings live in **PlayerPrefs** (`smyid.settings.*`) and survive a data reset; progression lives
+  in `hollowbrook_save.txt` under `Application.persistentDataPath` (versioned, checksum-guarded).
+- `RESET DATA…` and `F2` ×3 share one code path (`GameRoot.RequestDataReset`).
 
 ## Game structure
 
 - **Main menu** is focused for the current milestone: **NEW GAME** starts the five-night story
-  directly; **CHALLENGE MODE** and **EXTRAS** sit in the menu as *locked placeholders* for
-  later. The Endless/Challenge systems are fully implemented and headless-tested behind
-  `GameRoot.RunModesUnlocked = false` — flip that one flag (or wire an Extras screen) to
-  re-expose them without touching any other code.
+  directly. **CHALLENGE MODE** and **EXTRAS** are *not shown at all* (v1.0.6+ decision); the
+  Endless/Challenge systems remain fully implemented and headless-tested behind
+  `GameRoot.RunModesUnlocked = true` — flip that one flag to re-expose them without touching
+  any other code.
+- **Anomaly tracking** (master-prompt §3): hold the Focus beam — or a lit room, more slowly — on a
+  wandering anomaly and its silhouette solidifies from haze to ink; a full meter reveals/dispels it
+  and leaves a collectible token. Half a second of Focus on a hallucination proves it was never
+  there. Tuning lives in `GameLogic/TrackingPolicy.cs` and is unit-tested.
 - **Normal mode** — five shifts (4/6/7/8 students, then 8 + the district administrator on
   Night 5). Three endings: **Surviving Hollowbrook** (win), **Another Custodian** (lose at
   3 breaches or 3 false rejections), **The Truth Behind Hollowbrook** (secret: all ten
@@ -121,3 +137,14 @@ dotnet run --project Tools/Verification/EngineSmoke   # 123 engine tests: boots 
 `docs/HANDOFF.md` contains the full test matrix (PASS / FAIL / NOT RUN / BLOCKED) and the
 documented conflict resolutions (question limit, administrator-breach ending priority,
 clue sequence).
+
+## Verification
+
+- Every script compiles against **real Unity 2022.3.62f1 assemblies** (`Tools/Verify`): 0 errors,
+  0 warnings, all warnings enabled.
+- Team suites: `Tools/Verification/LogicTests` **519 passing**, `EngineSmoke` **194 passing**
+  (headless boots of all three scenes, full story run, office verdicts, clue round trips).
+- Independent suite: `Tools/LogicTests` — **27,125 assertions, 0 failures, 0 known gaps**.
+- Scene-load health in the editor: `[Flow]` breadcrumbs for every step of NEW GAME / CONTINUE,
+  plus a 3.5 s handshake watchdog that names and recovers from any bootstrap that fails to run.
+- Not verifiable without the editor: pixel layout, audio mix, Play-mode feel, Windows build.

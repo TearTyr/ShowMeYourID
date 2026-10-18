@@ -1,0 +1,1574 @@
+From 294e0a0e61dd40db93f331fe4ca6fc9611d57660 Mon Sep 17 00:00:00 2001
+From: Twin Studio Dev <dev@twinstudio.local>
+Date: Sun, 18 Oct 2026 11:45:38 +0000
+Subject: [PATCH 1/3] Integrate Options polish (labelled sliders, display
+ settings w/ 15s revert, shared reset path) + stub fidelity fixes
+ (CanvasScaler namespace, Screen display API, EventTrigger); add
+ conformance/options docs
+
+- UIFactory.SliderRow: label/track/value columns with positive offsets (labels were off-sheet)
+- SettingsSystem: single owner of Screen state; prefs-persisted fullscreen+resolution
+- GameLogic/DisplayPolicy: engine-free, unit-tested resolution policy
+- GameRoot.RequestDataReset: F2x3 and Options share one confirm+reset path
+- UnityStubs: CanvasScaler moved to UnityEngine.UI (the bug that broke the editor build)
+---
+ Assets/_Project/Scripts/Core/GameRoot.cs      |  20 ++
+ .../_Project/Scripts/Core/SettingsSystem.cs   |  89 +++++
+ .../Scripts/GameLogic/DisplayPolicy.cs        | 116 +++++++
+ .../_Project/Scripts/GameLogic/GameSession.cs |  20 +-
+ Assets/_Project/Scripts/UI/MenuScreens.cs     | 312 +++++++++++++++---
+ Assets/_Project/Scripts/UI/UIFactory.cs       |  63 +++-
+ Tools/LogicTests/Program.cs                   |  98 ++++++
+ .../UnityStubs/UnityEngine.Core.cs            |  14 +
+ .../Verification/UnityStubs/UnityEngine.UI.cs |  43 ++-
+ docs/OPTIONS-POLISH.md                        | 129 ++++++++
+ docs/SPEC-CONFORMANCE.md                      | 147 +++++++++
+ docs/ShowMeYourID_MasterPrompt.md             | 189 +++++++++++
+ docs/ui/options_after_v1.0.7.svg              |   1 +
+ docs/ui/options_before_v1.0.7.svg             |   1 +
+ 14 files changed, 1172 insertions(+), 70 deletions(-)
+ create mode 100644 Assets/_Project/Scripts/GameLogic/DisplayPolicy.cs
+ create mode 100644 docs/OPTIONS-POLISH.md
+ create mode 100644 docs/SPEC-CONFORMANCE.md
+ create mode 100644 docs/ShowMeYourID_MasterPrompt.md
+ create mode 100644 docs/ui/options_after_v1.0.7.svg
+ create mode 100644 docs/ui/options_before_v1.0.7.svg
+
+diff --git a/Assets/_Project/Scripts/Core/GameRoot.cs b/Assets/_Project/Scripts/Core/GameRoot.cs
+index d160846..4dbc8ce 100644
+--- a/Assets/_Project/Scripts/Core/GameRoot.cs
++++ b/Assets/_Project/Scripts/Core/GameRoot.cs
+@@ -97,6 +97,9 @@ namespace Hollowbrook.Core
+             Instance = this;
+             Bus = bus; Config = config; Saves = saves; Settings = settings; Audio = audio;
+             DontDestroyOnLoad(gameObject);
++            // One boot-time application of the stored display preference. Missing or unusable
++            // preferences are cleared inside; the launcher default otherwise stands.
++            settings.ApplyStoredDisplay();
+             Bus.Subscribe(EventIds.SettingsChanged, e =>
+             {
+                 UIFactory.ApplyTextScale(Settings.TextScaleMultiplier);
+@@ -476,6 +479,23 @@ namespace Hollowbrook.Core
+             Debug.Log("[GameRoot] data reset complete (settings preserved).");
+         }
+ 
++        /// <summary>The single confirmation + reset path shared by the F2 x3 shortcut and the
++        /// Options > RESET DATA button, so both can never drift apart. Settings (volumes,
++        /// display, accessibility) live in PlayerPrefs and are deliberately untouched.</summary>
++        public void RequestDataReset(System.Action afterReset = null)
++        {
++            if (Confirm == null) { ResetAllData(); if (afterReset != null) afterReset(); return; }
++            Confirm.Ask("ERASE ALL DATA?",
++                "Deletes your save: shift progress, records and unlocked endings.\n" +
++                "Volumes, display and accessibility settings are kept.",
++                () =>
++                {
++                    ResetAllData();
++                    Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_static", 0.3f, null));
++                    if (afterReset != null) afterReset();
++                });
++        }
++
+         /// <summary>Save at safe boundaries (shift end / run end / quit). Corrupt-safe by design.</summary>
+         public void PersistRun()
+         {
+diff --git a/Assets/_Project/Scripts/Core/SettingsSystem.cs b/Assets/_Project/Scripts/Core/SettingsSystem.cs
+index c2da44b..c8554e8 100644
+--- a/Assets/_Project/Scripts/Core/SettingsSystem.cs
++++ b/Assets/_Project/Scripts/Core/SettingsSystem.cs
+@@ -1,4 +1,5 @@
+ using System;
++using System.Collections.Generic;
+ using Hollowbrook.Logic;
+ using UnityEngine;
+ 
+@@ -34,6 +35,9 @@ namespace Hollowbrook.Core
+                     ReduceMotion = PlayerPrefs.GetInt(KeyPrefix + "reduceMotion", 0) == 1,
+                     PhotosensitivitySafe = PlayerPrefs.GetInt(KeyPrefix + "photosafe", 0) == 1,
+                     Captions = PlayerPrefs.GetInt(KeyPrefix + "captions", 1) == 1,
++                    Fullscreen = PlayerPrefs.GetInt(KeyPrefix + "fullscreen", 1) == 1,
++                    DisplayWidth = PlayerPrefs.GetInt(KeyPrefix + "displayW", 0),
++                    DisplayHeight = PlayerPrefs.GetInt(KeyPrefix + "displayH", 0),
+                 };
+             }
+             catch (Exception e)
+@@ -54,6 +58,9 @@ namespace Hollowbrook.Core
+                 PlayerPrefs.SetInt(KeyPrefix + "reduceMotion", Current.ReduceMotion ? 1 : 0);
+                 PlayerPrefs.SetInt(KeyPrefix + "photosafe", Current.PhotosensitivitySafe ? 1 : 0);
+                 PlayerPrefs.SetInt(KeyPrefix + "captions", Current.Captions ? 1 : 0);
++                PlayerPrefs.SetInt(KeyPrefix + "fullscreen", Current.Fullscreen ? 1 : 0);
++                PlayerPrefs.SetInt(KeyPrefix + "displayW", Current.DisplayWidth);
++                PlayerPrefs.SetInt(KeyPrefix + "displayH", Current.DisplayHeight);
+                 PlayerPrefs.Save();
+             }
+             catch (Exception e) { Debug.LogWarning("[Settings] prefs write failed: " + e.Message); }
+@@ -83,6 +90,88 @@ namespace Hollowbrook.Core
+ 
+         public void Notify() => _bus?.Publish(GameEvent.Of(EventIds.SettingsChanged, Current.Clone()));
+ 
++        // ------------------------------------------------------------------ display
++        // Screen state has exactly ONE owner (this class). The Options sheet only asks for
++        // changes; AspectMatchGuard keeps every canvas readable when the mode changes.
++
++        /// <summary>Every distinct usable mode the current display reports (deduped, sized).</summary>
++        public List<ModeSize> SupportedModes()
++        {
++            var all = new List<ModeSize>();
++            try
++            {
++                foreach (var r in Screen.resolutions) all.Add(new ModeSize(r.width, r.height));
++            }
++            catch (Exception e) { Debug.LogWarning("[Settings] Screen.resolutions unavailable: " + e.Message); }
++            return DisplayPolicy.Supported(all);
++        }
++
++        public ModeSize CurrentMode() => new ModeSize(Screen.width, Screen.height);
++
++        /// <summary>The resolutions the Options sheet offers: supported preferred heights plus
++        /// whatever mode the player is on right now.</summary>
++        public List<ModeSize> MenuChoices() => DisplayPolicy.MenuChoices(SupportedModes(), CurrentMode());
++
++        /// <summary>Request a display change. Unsupported requests fall back to the nearest
++        /// usable mode instead of failing; failures keep the previous mode.</summary>
++        public ModeSize SetDisplay(int w, int h, bool fullscreen, bool persist)
++        {
++            Current.Fullscreen = fullscreen;
++            var want = new ModeSize(w, h);
++            if (!DisplayPolicy.IsSupported(SupportedModes(), w, h))
++                want = DisplayPolicy.Fallback(SupportedModes(), want);
++            Current.DisplayWidth = want.W;
++            Current.DisplayHeight = want.H;
++            ApplyCurrentDisplay(persist);
++            return want;
++        }
++
++        /// <summary>Writes Current.* to the Screen. The single call site for SetResolution.</summary>
++        public void ApplyCurrentDisplay(bool persist)
++        {
++            try
++            {
++                Screen.fullScreenMode = Current.Fullscreen
++                    ? FullScreenMode.FullScreenWindow
++                    : FullScreenMode.Windowed;
++                if (Current.DisplayWidth > 0 && Current.DisplayHeight > 0)
++                    Screen.SetResolution(Current.DisplayWidth, Current.DisplayHeight, Screen.fullScreenMode);
++            }
++            catch (Exception e)
++            {
++                Debug.LogWarning("[Settings] display change failed — previous mode kept: " + e.Message);
++            }
++            if (persist) SaveToPrefs();
++            Notify();
++        }
++
++        /// <summary>Restore the saved display at launch. A preference this machine can no longer
++        /// honour (monitor swapped, projector…) is cleared rather than stranding the player.</summary>
++        public void ApplyStoredDisplay()
++        {
++            if (Current.DisplayWidth <= 0 || Current.DisplayHeight <= 0) return; // no preference yet
++            if (!DisplayPolicy.IsSupported(SupportedModes(), Current.DisplayWidth, Current.DisplayHeight))
++            {
++                Debug.LogWarning("[Settings] stored resolution " + Current.DisplayWidth + "x" +
++                                 Current.DisplayHeight + " unsupported here — preference cleared.");
++                Current.DisplayWidth = 0;
++                Current.DisplayHeight = 0;
++                SaveToPrefs();
++                return;
++            }
++            ApplyCurrentDisplay(false);
++        }
++
++        /// <summary>Undo an unconfirmed change (the 15-second revert path).</summary>
++        public void RestoreDisplaySnapshot(SettingsData snapshot)
++        {
++            if (snapshot == null) return;
++            Current.Fullscreen = snapshot.Fullscreen;
++            Current.DisplayWidth = snapshot.DisplayWidth;
++            Current.DisplayHeight = snapshot.DisplayHeight;
++            ApplyCurrentDisplay(false);
++        }
++
+         // convenience accessors used across systems
+         public float MasterVolume => Current.MasterVolume;
+         public float MusicVolume => Current.MasterVolume * Current.MusicVolume;
+diff --git a/Assets/_Project/Scripts/GameLogic/DisplayPolicy.cs b/Assets/_Project/Scripts/GameLogic/DisplayPolicy.cs
+new file mode 100644
+index 0000000..09daeb4
+--- /dev/null
++++ b/Assets/_Project/Scripts/GameLogic/DisplayPolicy.cs
+@@ -0,0 +1,116 @@
++using System;
++using System.Collections.Generic;
++
++namespace Hollowbrook.Logic
++{
++    /// <summary>A screen mode as plain numbers so the selection policy stays engine-free
++    /// and unit-testable (the Unity-side caller converts Screen.resolutions into these).</summary>
++    [Serializable]
++    public struct ModeSize : IEquatable<ModeSize>
++    {
++        public int W;
++        public int H;
++
++        public ModeSize(int w, int h) { W = w; H = h; }
++
++        public bool Equals(ModeSize o) => W == o.W && H == o.H;
++        public override bool Equals(object obj) => obj is ModeSize m && Equals(m);
++        public override int GetHashCode() => W * 397 ^ H;
++        public override string ToString() => W + "×" + H;
++
++        /// <summary>Width / height, guarded against a zero height.</summary>
++        public float Aspect => H > 0 ? (float)W / H : 0f;
++    }
++
++    /// <summary>Single source of truth for WHICH resolutions the Options menu may offer and
++    /// which one to fall back to. Pure math — no UnityEngine — so every rule is testable.
++    /// The actual Screen.SetResolution call lives in exactly one place
++    /// (Hollowbrook.Core.SettingsSystem) to avoid competing owners of the display state.</summary>
++    public static class DisplayPolicy
++    {
++        /// <summary>Seconds the player gets to confirm a display change before it reverts.</summary>
++        public const int RevertSeconds = 15;
++
++        /// <summary>Anything below this is not offered and not restored from prefs.</summary>
++        public const int MinWidth = 1024;
++        public const int MinHeight = 600;
++
++        /// <summary>Heights we prefer to show as buttons, in presentation order.</summary>
++        public static readonly int[] PreferredHeights = { 720, 900, 1080, 1440 };
++
++        /// <summary>De-duplicate, drop anything too small, sort by area then width.
++        /// "avoid duplicate entries where practical" — one button per distinct WxH.</summary>
++        public static List<ModeSize> Supported(IEnumerable<ModeSize> all)
++        {
++            var seen = new HashSet<ModeSize>();
++            var list = new List<ModeSize>();
++            if (all == null) return list;
++            foreach (var m in all)
++            {
++                if (m.W < MinWidth || m.H < MinHeight) continue;
++                if (seen.Add(m)) list.Add(m);
++            }
++            list.Sort((a, b) =>
++            {
++                int byArea = (a.W * a.H).CompareTo(b.W * b.H);
++                return byArea != 0 ? byArea : a.W.CompareTo(b.W);
++            });
++            return list;
++        }
++
++        /// <summary>The resolutions shown as buttons in Options: the preferred heights that the
++        /// display actually supports, always including the native/current mode, capped at
++        /// <paramref name="max"/> so the sheet never overflows.</summary>
++        public static List<ModeSize> MenuChoices(IReadOnlyList<ModeSize> supported, ModeSize current, int max = 5)
++        {
++            var outList = new List<ModeSize>();
++            if (supported == null) return outList;
++
++            foreach (int h in PreferredHeights)
++            {
++                ModeSize best = default;
++                bool found = false;
++                foreach (var m in supported)
++                {
++                    if (m.H != h) continue;
++                    // prefer the widest (most common) mode at that height, e.g. 1920x1080 over 1080x1080
++                    if (!found || m.W > best.W) { best = m; found = true; }
++                }
++                if (found && !outList.Contains(best)) outList.Add(best);
++            }
++
++            // the mode the player is actually on must always be selectable/visible
++            if (current.H >= MinHeight && current.W >= MinWidth && !outList.Contains(current))
++                outList.Add(current);
++
++            outList.Sort((a, b) => (a.W * a.H).CompareTo(b.W * b.H));
++            while (outList.Count > max) outList.RemoveAt(outList.Count - 1);
++            return outList;
++        }
++
++        public static bool IsSupported(IEnumerable<ModeSize> supported, int w, int h)
++        {
++            if (supported == null) return false;
++            foreach (var m in supported) if (m.W == w && m.H == h) return true;
++            return false;
++        }
++
++        /// <summary>Nearest usable mode to <paramref name="preferred"/>: same aspect first,
++        /// then closest area. Used when a stored preference is gone from the supported list
++        /// (monitor changed, window moved) so launch never lands on an unusable display.</summary>
++        public static ModeSize Fallback(IReadOnlyList<ModeSize> supported, ModeSize preferred)
++        {
++            if (supported == null || supported.Count == 0) return preferred;
++            ModeSize best = supported[0];
++            float bestScore = float.MaxValue;
++            foreach (var m in supported)
++            {
++                float aspectPenalty = Math.Abs(m.Aspect - preferred.Aspect) * 10000f;
++                float areaPenalty = Math.Abs(m.W * m.H - preferred.W * preferred.H) / 100000f;
++                float score = aspectPenalty + areaPenalty;
++                if (score < bestScore) { bestScore = score; best = m; }
++            }
++            return best;
++        }
++    }
++}
+diff --git a/Assets/_Project/Scripts/GameLogic/GameSession.cs b/Assets/_Project/Scripts/GameLogic/GameSession.cs
+index 9b3be18..c7c5e72 100644
+--- a/Assets/_Project/Scripts/GameLogic/GameSession.cs
++++ b/Assets/_Project/Scripts/GameLogic/GameSession.cs
+@@ -171,6 +171,9 @@ namespace Hollowbrook.Logic
+         public bool ReduceMotion = false;  // disables camera shake / sprint lunges / pulsing
+         public bool PhotosensitivitySafe = false; // no strobe flashes; scares fade instead of popping
+         public bool Captions = true;       // text captions for significant audio events
++        public bool Fullscreen = true;     // display: exclusive fullscreen vs windowed
++        public int DisplayWidth = 0;       // stored resolution preference; 0 = "no preference, keep launcher default"
++        public int DisplayHeight = 0;
+ 
+         public SettingsData Clone() => (SettingsData)MemberwiseClone();
+ 
+@@ -181,19 +184,32 @@ namespace Hollowbrook.Logic
+ 
+         public string Encode() =>
+             Inv(MasterVolume) + "," + Inv(MusicVolume) + "," + Inv(SfxVolume) + "," +
+-            TextScale + "," + B(ReduceMotion) + "," + B(PhotosensitivitySafe) + "," + B(Captions);
++            TextScale + "," + B(ReduceMotion) + "," + B(PhotosensitivitySafe) + "," + B(Captions) +
++            "," + B(Fullscreen) + "," + DisplayWidth + "," + DisplayHeight;
+ 
++        /// <summary>Tolerant by design: older saves carry 7 fields, newer ones 10. Anything
++        /// missing falls back to the defaults above instead of failing the whole load.</summary>
+         public static SettingsData Decode(string s)
+         {
+             if (string.IsNullOrEmpty(s)) return null;
+             var p = s.Split(',');
+-            if (p.Length != 7) return null;
++            if (p.Length < 7) return null;
+             var d = new SettingsData
+             {
+                 MasterVolume = F(p[0]), MusicVolume = F(p[1]), SfxVolume = F(p[2]),
+                 TextScale = int.Parse(p[3]),
+                 ReduceMotion = p[4] == "1", PhotosensitivitySafe = p[5] == "1", Captions = p[6] == "1",
+             };
++            if (p.Length >= 10)
++            {
++                d.Fullscreen = p[7] != "0";
++                int w, h;
++                if (int.TryParse(p[8], out w) && int.TryParse(p[9], out h))
++                {
++                    d.DisplayWidth = w;
++                    d.DisplayHeight = h;
++                }
++            }
+             return d;
+         }
+ 
+diff --git a/Assets/_Project/Scripts/UI/MenuScreens.cs b/Assets/_Project/Scripts/UI/MenuScreens.cs
+index 855e966..e4055bd 100644
+--- a/Assets/_Project/Scripts/UI/MenuScreens.cs
++++ b/Assets/_Project/Scripts/UI/MenuScreens.cs
+@@ -1,4 +1,5 @@
+ using System.Collections;
++using System.Collections.Generic;
+ using Hollowbrook.Core;
+ using Hollowbrook.Bootstrap;
+ using Hollowbrook.Logic;
+@@ -165,15 +166,11 @@ namespace Hollowbrook.UI
+                 else
+                 {
+                     _f2Count = 0;
+-                    R.Confirm.Ask("ERASE ALL DATA?",
+-                        "Deletes your save: shift progress, records and unlocked endings.\nAccessibility settings are kept.",
+-                        () =>
+-                        {
+-                            R.ResetAllData();
+-                            RefreshContinue();
+-                            ShowNote("All save data erased.");
+-                            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_static", 0.3f, null));
+-                        });
++                    R.RequestDataReset(() =>
++                    {
++                        RefreshContinue();
++                        ShowNote("All save data erased.");
++                    });
+                 }
+             }
+         }
+@@ -293,48 +290,149 @@ namespace Hollowbrook.UI
+         public void Hide() => gameObject.SetActive(false);
+     }
+ 
+-    /// <summary>Options — overhauled onto the shared left-sheet look. Every control still
+-    /// changes real behavior and applies immediately.</summary>
++    /// <summary>Options — same left-sheet family, typography and restraint as the main menu.
++    /// Every control writes through <see cref="SettingsSystem"/> (the single owner of each
++    /// setting), applies immediately and persists to PlayerPrefs. Display changes carry a
++    /// 15-second KEEP/REVERT window so an unusable mode can never strand the player.</summary>
+     public class SettingsView : MonoBehaviour, IScreenView
+     {
+         private GameRoot R;
+-        private Button[] _textScaleButtons;
++        private bool _refreshing;
++
++        private Slider _masterSlider, _sfxSlider;
++        private Toggle _fullscreenToggle;
++        private readonly Toggle[] _toggles = new Toggle[3];
++        private readonly Button[] _textScaleButtons = new Button[3];
++        private readonly Button[] _resButtons = new Button[4];
++        private readonly Text[] _resLabels = new Text[4];
++        private List<ModeSize> _choices = new List<ModeSize>();
++
++        private RectTransform _displayNoteRow;
++        private Text _displayNote;
++        private SettingsData _displayBefore;
++        private Coroutine _revertRoutine;
++        private int _revertLeft;
++        private Text _dataHint;
+ 
+         public void Init(GameRoot root)
+         {
+             R = root;
+-            var sheet = UIFactory.LeftSheet(transform, "OPTIONS", "Applies immediately. Remembered on this machine.", out var col);
++            var sheet = UIFactory.LeftSheet(transform, "OPTIONS",
++                "Applies immediately. Remembered on this machine.", out var col);
++            col.GetComponent<VerticalLayoutGroup>().spacing = 8;
++            col.sizeDelta = new Vector2(560f, 505f);
++            col.anchoredPosition = new Vector2(320f, -364f);
+ 
+             var s = R.Settings;
+-            AddSlider(col, "Master volume", s.Current.MasterVolume, v => s.Apply(d => d.MasterVolume = v));
+-            AddSlider(col, "Music volume", s.Current.MusicVolume, v => s.Apply(d => d.MusicVolume = v));
+-            AddSlider(col, "Effects volume", s.Current.SfxVolume, v => s.Apply(d => d.SfxVolume = v));
+ 
++            // ---- AUDIO: no music slider on purpose — the game has no music mix to expose.
++            Section(col, "AUDIO");
++            _masterSlider = UIFactory.SliderRow(col, "master", "Master volume", s.Current.MasterVolume,
++                v => { if (!_refreshing) s.Apply(d => d.MasterVolume = v); }, 560);
++            UIFactory.Layout(_masterSlider.GetComponent<RectTransform>(), 560, 34);
++            _sfxSlider = UIFactory.SliderRow(col, "sfx", "SFX volume", s.Current.SfxVolume,
++                v => { if (!_refreshing) s.Apply(d => d.SfxVolume = v); }, 560);
++            UIFactory.Layout(_sfxSlider.GetComponent<RectTransform>(), 560, 34);
++
++            // ---- DISPLAY
++            Section(col, "DISPLAY");
++            _fullscreenToggle = UIFactory.ToggleRow(col, "fullscreen", "Fullscreen  (borderless)",
++                s.Current.Fullscreen, v =>
++                {
++                    if (_refreshing) return;
++                    var cur = R.Settings.CurrentMode();
++                    BeginDisplayChange(() => s.SetDisplay(
++                        s.Current.DisplayWidth > 0 ? s.Current.DisplayWidth : cur.W,
++                        s.Current.DisplayHeight > 0 ? s.Current.DisplayHeight : cur.H, v, false));
++                }, 560);
++            UIFactory.Layout(_fullscreenToggle.GetComponent<RectTransform>(), 560, 32);
++
++            var resRow = UIFactory.NewUI(col, "resrow");
++            UIFactory.Layout(resRow, 560, 38);
++            var resLab = UIFactory.Label(resRow, "lab", "Resolution", 13, UIFactory.InkFaint,
++                TextAnchor.MiddleLeft);
++            UIFactory.Anchor(resLab.rectTransform, new Vector2(0f, 0.5f), new Vector2(120, 26),
++                new Vector2(60, 0));
++            for (int i = 0; i < _resButtons.Length; i++)
++            {
++                int idx = i;
++                var b = UIFactory.StandardButton(resRow, "ResButton_" + i, "", () => ChooseResolution(idx), 100, 30);
++                UIFactory.Anchor(b.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(100, 30),
++                    new Vector2(186 + i * 108, 0));
++                _resButtons[i] = b;
++                _resLabels[i] = b.GetComponentInChildren<Text>();
++                if (_resLabels[i] != null) _resLabels[i].fontSize = 14;
++            }
++
++            // Kept OUT of the stacking column (anchored above the action buttons) so the
++            // 15-second revert window can appear without re-flowing the rows above it.
++            _displayNoteRow = UIFactory.NewUI(sheet, "displaynote");
++            UIFactory.Anchor(_displayNoteRow, new Vector2(0f, 0f), new Vector2(560, 30),
++                new Vector2(320, 100));
++            _displayNote = UIFactory.Label(_displayNoteRow, "txt", "", 14, UIFactory.AccentBright,
++                TextAnchor.MiddleLeft);
++            UIFactory.Anchor(_displayNote.rectTransform, new Vector2(0f, 0.5f), new Vector2(300, 26),
++                new Vector2(150, 0));
++            var keepBtn = UIFactory.StandardButton(_displayNoteRow, "keep", "KEEP",
++                () => ConfirmDisplay(), 90, 28);
++            UIFactory.Anchor(keepBtn.GetComponent<RectTransform>(), new Vector2(0f, 0.5f),
++                new Vector2(90, 28), new Vector2(355, 0));
++            var revertBtn = UIFactory.StandardButton(_displayNoteRow, "revert", "REVERT",
++                () => CancelDisplay(), 90, 28);
++            UIFactory.Anchor(revertBtn.GetComponent<RectTransform>(), new Vector2(0f, 0.5f),
++                new Vector2(90, 28), new Vector2(455, 0));
++            _displayNoteRow.gameObject.SetActive(false);
++
++            // ---- ACCESSIBILITY
++            Section(col, "ACCESSIBILITY");
+             var tsRow = UIFactory.NewUI(col, "textscale");
+-            UIFactory.Layout(tsRow, 560, 40);
++            UIFactory.Layout(tsRow, 560, 38);
+             var tsLab = UIFactory.Label(tsRow, "lab", "Text size", 17, UIFactory.Ink, TextAnchor.MiddleLeft);
+-            UIFactory.Anchor(tsLab.rectTransform, new Vector2(0f, 0.5f), new Vector2(180, 30), new Vector2(90, 0));
++            UIFactory.Anchor(tsLab.rectTransform, new Vector2(0f, 0.5f), new Vector2(180, 30),
++                new Vector2(90, 0));
+             string[] names = { "SMALL", "NORMAL", "LARGE" };
+-            _textScaleButtons = new Button[3];
+             for (int i = 0; i < 3; i++)
+             {
+                 int idx = i;
+                 var b = UIFactory.StandardButton(tsRow, "TextScaleButton_" + i, names[i], () =>
+                 {
++                    if (_refreshing) return;
+                     s.Apply(d => d.TextScale = idx);
+                     RefreshTextScaleButtons();
+                 }, 110, 34);
+                 UIFactory.Anchor(b.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(110, 34),
+-                    new Vector2(230 + i * 118, 0));
++                    new Vector2(285 + i * 118, 0));
+                 _textScaleButtons[i] = b;
+             }
+-
+-            AddToggle(col, "Reduced motion  (no shake, no lunges, instant text)", s.Current.ReduceMotion,
+-                v => s.Apply(d => d.ReduceMotion = v));
+-            AddToggle(col, "Photosensitivity safe  (no strobe, softened scares)", s.Current.PhotosensitivitySafe,
+-                v => s.Apply(d => d.PhotosensitivitySafe = v));
+-            AddToggle(col, "Captions for significant sounds", s.Current.Captions,
+-                v => s.Apply(d => d.Captions = v));
++            _toggles[0] = Toggle(col, "Reduced motion  (no shake, no lunges, instant text)",
++                s.Current.ReduceMotion, v => s.Apply(d => d.ReduceMotion = v));
++            _toggles[1] = Toggle(col, "Photosensitivity safe  (no strobe, softened scares)",
++                s.Current.PhotosensitivitySafe, v => s.Apply(d => d.PhotosensitivitySafe = v));
++            _toggles[2] = Toggle(col, "Captions for significant sounds",
++                s.Current.Captions, v => s.Apply(d => d.Captions = v));
++
++            // ---- DATA: same confirmation + reset path as the F2 x3 shortcut
++            Section(col, "DATA");
++            var dataRow = UIFactory.NewUI(col, "datarow");
++            UIFactory.Layout(dataRow, 560, 40);
++            var resetBtn = UIFactory.StandardButton(dataRow, "resetdata", "RESET DATA…", () =>
++            {
++                R.RequestDataReset(() =>
++                {
++                    if (_dataHint != null)
++                    {
++                        _dataHint.text = "Save data erased. Settings kept.";
++                        _dataHint.color = UIFactory.AccentBright;
++                    }
++                });
++            }, 200, 40, true);
++            UIFactory.Anchor(resetBtn.GetComponent<RectTransform>(), new Vector2(0f, 0.5f),
++                new Vector2(200, 40), new Vector2(100, 0));
++            _dataHint = UIFactory.Label(dataRow, "hint",
++                "Progress, records, endings. Volumes, display and accessibility are kept.",
++                13, UIFactory.InkFaint, TextAnchor.MiddleLeft);
++            UIFactory.Anchor(_dataHint.rectTransform, new Vector2(0f, 0.5f), new Vector2(340, 30),
++                new Vector2(380, 0));
+ 
+             UIFactory.SheetButton(sheet, "controls", "CONTROLS", () =>
+             {
+@@ -350,6 +448,129 @@ namespace Hollowbrook.UI
+             gameObject.SetActive(false);
+         }
+ 
++        // ------------------------------------------------------------------ helpers
++        private static void Section(RectTransform col, string title)
++        {
++            var lab = UIFactory.Label(col, "sec_" + title, title, 13, UIFactory.InkFaint,
++                TextAnchor.MiddleLeft);
++            lab.rectTransform.sizeDelta = new Vector2(560f, 18f);
++            lab.raycastTarget = false;
++            UIFactory.Layout(lab.rectTransform, 560, 18);
++        }
++
++        private Toggle Toggle(RectTransform col, string label, bool value,
++            UnityEngine.Events.UnityAction<bool> onChanged)
++        {
++            var t = UIFactory.ToggleRow(col, label, label, value, v =>
++            {
++                if (!_refreshing) onChanged(v);
++            }, 560);
++            UIFactory.Layout(t.GetComponent<RectTransform>(), 560, 32);
++            return t;
++        }
++
++        private void ChooseResolution(int idx)
++        {
++            if (_refreshing || idx < 0 || idx >= _choices.Count) return;
++            var m = _choices[idx];
++            BeginDisplayChange(() => R.Settings.SetDisplay(m.W, m.H, R.Settings.Current.Fullscreen, false));
++        }
++
++        private void BeginDisplayChange(UnityEngine.Events.UnityAction change)
++        {
++            if (_displayBefore == null) _displayBefore = R.Settings.Current.Clone();
++            change();
++            _revertLeft = DisplayPolicy.RevertSeconds;
++            if (_displayNoteRow != null) _displayNoteRow.gameObject.SetActive(true);
++            if (_revertRoutine != null) StopCoroutine(_revertRoutine);
++            _revertRoutine = StartCoroutine(RevertCountdown());
++            RefreshDisplayUI();
++        }
++
++        private IEnumerator RevertCountdown()
++        {
++            while (_revertLeft > 0)
++            {
++                if (_displayNote != null)
++                    _displayNote.text = "Keep " + ModeText(R.Settings.CurrentMode()) +
++                                        "?  reverts in " + _revertLeft + "s";
++                yield return new WaitForSecondsRealtime(1f);
++                _revertLeft--;
++            }
++            CancelDisplay();
++        }
++
++        private void ConfirmDisplay()
++        {
++            if (_revertRoutine != null) StopCoroutine(_revertRoutine);
++            _revertRoutine = null;
++            R.Settings.ApplyCurrentDisplay(true);
++            _displayBefore = null;
++            if (_displayNoteRow != null) _displayNoteRow.gameObject.SetActive(false);
++            RefreshDisplayUI();
++        }
++
++        private void CancelDisplay()
++        {
++            if (_revertRoutine != null) StopCoroutine(_revertRoutine);
++            _revertRoutine = null;
++            R.Settings.RestoreDisplaySnapshot(_displayBefore);
++            _displayBefore = null;
++            if (_displayNoteRow != null) _displayNoteRow.gameObject.SetActive(false);
++            RefreshDisplayUI();
++        }
++
++        private static string ModeText(ModeSize m) => m.W + "×" + m.H;
++
++        // ------------------------------------------------------------------ refresh
++        public void Show()
++        {
++            gameObject.SetActive(true);
++            Refresh();
++        }
++
++        public void Hide()
++        {
++            // leaving with an unconfirmed display change = the change did not happen
++            if (_displayBefore != null) CancelDisplay();
++            gameObject.SetActive(false);
++        }
++
++        private void Refresh()
++        {
++            _refreshing = true;
++            var s = R.Settings.Current;
++            if (_masterSlider != null) _masterSlider.value = s.MasterVolume;
++            if (_sfxSlider != null) _sfxSlider.value = s.SfxVolume;
++            if (_fullscreenToggle != null) _fullscreenToggle.isOn = s.Fullscreen;
++            if (_toggles[0] != null) _toggles[0].isOn = s.ReduceMotion;
++            if (_toggles[1] != null) _toggles[1].isOn = s.PhotosensitivitySafe;
++            if (_toggles[2] != null) _toggles[2].isOn = s.Captions;
++            _refreshing = false;
++            RefreshTextScaleButtons();
++            RefreshDisplayUI();
++        }
++
++        private void RefreshDisplayUI()
++        {
++            _choices = R.Settings.MenuChoices();
++            var cur = R.Settings.CurrentMode();
++            var stored = new ModeSize(R.Settings.Current.DisplayWidth, R.Settings.Current.DisplayHeight);
++            var active = stored.W > 0 && stored.H > 0 ? stored : cur;
++            for (int i = 0; i < _resButtons.Length; i++)
++            {
++                if (_resButtons[i] == null) continue;
++                bool has = i < _choices.Count;
++                _resButtons[i].gameObject.SetActive(has);
++                if (!has) continue;
++                var m = _choices[i];
++                if (_resLabels[i] != null) _resLabels[i].text = ModeText(m);
++                var inner = _resButtons[i].GetComponentInChildren<Image>();
++                if (inner != null)
++                    inner.color = m.Equals(active) ? new Color(0.30f, 0.30f, 0.33f) : UIFactory.PanelAlt;
++            }
++        }
++
+         private void RefreshTextScaleButtons()
+         {
+             if (_textScaleButtons == null) return;
+@@ -362,21 +583,6 @@ namespace Hollowbrook.UI
+                 if (inner != null) inner.color = i == sel ? new Color(0.30f, 0.30f, 0.33f) : UIFactory.PanelAlt;
+             }
+         }
+-
+-        private void AddSlider(RectTransform parent, string label, float value, UnityEngine.Events.UnityAction<float> onChanged)
+-        {
+-            var row = UIFactory.SliderRow(parent, label, label, value, v => onChanged(v), 560);
+-            UIFactory.Layout(row.GetComponent<RectTransform>(), 560, 40);
+-        }
+-
+-        private void AddToggle(RectTransform parent, string label, bool value, UnityEngine.Events.UnityAction<bool> onChanged)
+-        {
+-            var row = UIFactory.ToggleRow(parent, label, label, value, v => onChanged(v), 560);
+-            UIFactory.Layout(row.GetComponent<RectTransform>(), 560, 36);
+-        }
+-
+-        public void Show() { gameObject.SetActive(true); RefreshTextScaleButtons(); }
+-        public void Hide() { gameObject.SetActive(false); }
+     }
+ 
+     /// <summary>Controls reference — same left-sheet family.</summary>
+@@ -389,21 +595,27 @@ namespace Hollowbrook.UI
+             R = root;
+             var sheet = UIFactory.LeftSheet(transform, "CONTROLS", "Mouse at the desk. Keys in the dark.", out _);
+ 
++            // Verified against the gameplay scripts (PlayerController.cs:57-72,159,
++            // DialogueView.cs:156, CheckpointView.cs, SecurityRoomView.cs) — nothing here is
++            // aspirational: every line maps to a real input path.
+             string body =
+                 "CHECKPOINT (mouse)\n" +
+                 "   Click documents, checklist rows, SCAN, questions, ALLOW / REJECT.\n" +
+-                "   Questions: at most 2 per visitor. Decisions are permanent.\n\n" +
++                "   At most 2 questions per visitor. Decisions are permanent.\n\n" +
+                 "EXPLORATION\n" +
+-                "   A / D  or  ◂ /         walk left / right\n" +
+-                "   SHIFT                  run\n" +
+-                "   E                      interact (doors, clues, switches)\n" +
+-                "   F                      flashlight (Focus light)\n" +
+-                "   M                      map\n" +
+-                "   ESC                    pause\n\n" +
++                "   A / D  or  ← / →     walk left / right\n" +
++                "   SHIFT                run\n" +
++                "   E                    interact (doors, clues, switches)\n" +
++                "   F                    flashlight (Focus light)\n" +
++                "   M                    map          ESC   pause\n\n" +
++                "SECURITY ROOM (School scene prototype, mouse)\n" +
++                "   Click the door panel to admit or deny late night students.\n" +
++                "   Click the marked spots to check the rooms for anomalies.\n\n" +
+                 "DIALOGUE\n" +
+                 "   CLICK / SPACE / ENTER / E     advance\n\n" +
+                 "SYSTEM\n" +
+-                "   F2 ×3 (main menu)      erase save data";
++                "   F2 ×3 on the main menu, or OPTIONS → RESET DATA\n" +
++                "      erases save data (settings are kept)";
+             var txt = UIFactory.Label(sheet, "body", body, 16, UIFactory.InkDim, TextAnchor.UpperLeft);
+             UIFactory.Anchor(txt.rectTransform, new Vector2(0f, 1f), new Vector2(560, 430), new Vector2(320, -360));
+ 
+diff --git a/Assets/_Project/Scripts/UI/UIFactory.cs b/Assets/_Project/Scripts/UI/UIFactory.cs
+index b565563..6fd225f 100644
+--- a/Assets/_Project/Scripts/UI/UIFactory.cs
++++ b/Assets/_Project/Scripts/UI/UIFactory.cs
+@@ -1,6 +1,7 @@
+ using System;
+ using System.Collections.Generic;
+ using UnityEngine;
++using UnityEngine.EventSystems;
+ using UnityEngine.UI;
+ 
+ namespace Hollowbrook.UI
+@@ -227,13 +228,22 @@ namespace Hollowbrook.UI
+         {
+             var row = NewUI(parent, name);
+             row.sizeDelta = new Vector2(width, 40);
++
++            // invisible full-row catcher so hover/feedback works anywhere on the row
++            var rowBg = Panel(row, "rowbg", new Color(0f, 0f, 0f, 0f));
++            AnchorsFull(rowBg.rectTransform);
++            rowBg.raycastTarget = true;
++
++            // Left label column: left anchor + POSITIVE centre offset (the old negative
++            // offset pushed labels off-sheet, which is why volumes once showed bare tracks).
++            float labW = width * 0.36f;
+             var lab = Label(row, "label", labelText, 17, Ink);
+-            Anchor(lab.rectTransform, new Vector2(0f, 0.5f), new Vector2(width * 0.42f, 30),
+-                new Vector2(width * 0.21f - width / 2f + 8, 0));
++            Anchor(lab.rectTransform, new Vector2(0f, 0.5f), new Vector2(labW, 30), new Vector2(labW / 2f, 0));
+             lab.alignment = TextAnchor.MiddleLeft;
++            lab.raycastTarget = false;
+ 
+-            float trackX = width * 0.44f - width / 2f;
+-            float trackW = width * 0.54f;
++            float trackX = width * 0.38f;
++            float trackW = width * 0.50f;
+             var track = Panel(row, "track", PanelAlt).rectTransform;
+             Anchor(track, new Vector2(0f, 0.5f), new Vector2(trackW, 8), new Vector2(trackX + trackW / 2f, 0));
+ 
+@@ -249,19 +259,51 @@ namespace Hollowbrook.UI
+             var handleArea = NewUI(track, "handlearea");
+             handleArea.anchorMin = Vector2.zero; handleArea.anchorMax = Vector2.one;
+             handleArea.offsetMin = Vector2.zero; handleArea.offsetMax = Vector2.zero;
+-            var handle = Panel(handleArea, "handle", InkDim).rectTransform;
+-            Anchor(handle, new Vector2(0f, 0.5f), new Vector2(14, 22), Vector2.zero);
++            var handleImg = Panel(handleArea, "handle", InkDim);
++            var handle = handleImg.rectTransform;
++            Anchor(handle, new Vector2(0.5f, 0.5f), new Vector2(14, 22), Vector2.zero);
++
++            // live value read-out, right of the track — immediate feedback while dragging
++            float valW = width * 0.12f;
++            var val = Label(row, "value", Percent(value), 15, InkDim, TextAnchor.MiddleRight);
++            Anchor(val.rectTransform, new Vector2(0f, 0.5f), new Vector2(valW, 26),
++                new Vector2(trackX + trackW + valW / 2f, 0));
++            val.raycastTarget = false;
+ 
+             var slider = row.gameObject.AddComponent<Slider>();
+             slider.fillRect = fill;
+             slider.handleRect = handle;
+             slider.minValue = 0f; slider.maxValue = 1f;
+             slider.value = value;
+-            slider.targetGraphic = handle.GetComponent<Image>();
+-            if (onChanged != null) slider.onValueChanged.AddListener(v => onChanged(v));
++            slider.targetGraphic = handleImg;
++            slider.onValueChanged.AddListener(v =>
++            {
++                if (val != null) val.text = Percent(v);
++                if (onChanged != null) onChanged(v);
++            });
++
++            AddHover(row.gameObject,
++                () => { if (handleImg != null) handleImg.color = Ink; if (lab != null) lab.color = Ink; },
++                () => { if (handleImg != null) handleImg.color = InkDim; if (lab != null) lab.color = Ink; });
+             return slider;
+         }
+ 
++        private static string Percent(float v) => Mathf.RoundToInt(Mathf.Clamp01(v) * 100f) + "%";
++
++        /// <summary>Pointer enter/exit feedback without a new component type per call site.</summary>
++        public static void AddHover(GameObject go, UnityEngine.Events.UnityAction enter,
++            UnityEngine.Events.UnityAction exit)
++        {
++            if (go == null) return;
++            var et = go.AddComponent<EventTrigger>();
++            var on = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
++            on.callback.AddListener(_ => { if (enter != null) enter(); });
++            et.triggers.Add(on);
++            var off = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
++            off.callback.AddListener(_ => { if (exit != null) exit(); });
++            et.triggers.Add(off);
++        }
++
+         public static Toggle ToggleRow(Transform parent, string name, string labelText, bool value,
+             Action<bool> onChanged, int width = 420)
+         {
+@@ -294,6 +336,11 @@ namespace Hollowbrook.UI
+             toggle.graphic = check;
+             toggle.isOn = value;
+             if (onChanged != null) toggle.onValueChanged.AddListener(v => onChanged(v));
++
++            var bgImg = rowBg;
++            AddHover(row.gameObject,
++                () => { if (bgImg != null) bgImg.color = new Color(1f, 1f, 1f, 0.045f); },
++                () => { if (bgImg != null) bgImg.color = new Color(0f, 0f, 0f, 0f); });
+             return toggle;
+         }
+ 
+diff --git a/Tools/LogicTests/Program.cs b/Tools/LogicTests/Program.cs
+index 90f21b7..31af111 100644
+--- a/Tools/LogicTests/Program.cs
++++ b/Tools/LogicTests/Program.cs
+@@ -51,6 +51,7 @@ namespace Hollowbrook.LogicTests
+             ClueTrackerTests();
+             SaveFormatTests();
+             ModelMathTests();
++            DisplayAndOptionsTests();
+ 
+             Console.WriteLine("\n==============================================");
+             Console.WriteLine($"  PASS {_pass}   FAIL {_fail}   TOTAL {_pass + _fail}");
+@@ -791,6 +792,103 @@ namespace Hollowbrook.LogicTests
+                "presentation log keeps the same IDs");
+         }
+ 
++        // --------------------------------------------- display policy + options layout
++        private static void DisplayAndOptionsTests()
++        {
++            Group("DisplayPolicy — resolution choices, fallbacks, revert window");
++            Eq(DisplayPolicy.RevertSeconds, 15, "unconfirmed display changes revert after 15s");
++
++            var raw = new List<ModeSize>
++            {
++                new ModeSize(1920, 1080), new ModeSize(1920, 1080), // duplicate from the driver
++                new ModeSize(1280, 720), new ModeSize(800, 600),    // too small -> dropped
++                new ModeSize(2560, 1440), new ModeSize(1600, 900), new ModeSize(1024, 768),
++            };
++            var sup = DisplayPolicy.Supported(raw);
++            Eq(sup.Count, 5, "duplicates and sub-minimum modes are removed");
++            Eq(sup[0].W + "x" + sup[0].H, "1024x768", "sorted by area, smallest first");
++            Eq(sup[sup.Count - 1].W + "x" + sup[sup.Count - 1].H, "2560x1440", "largest last");
++
++            var choices = DisplayPolicy.MenuChoices(sup, new ModeSize(1600, 900), 4);
++            Check(choices.Count <= 4, "menu never offers more buttons than the sheet has");
++            Check(choices.Contains(new ModeSize(1600, 900)), "the current mode is always offered");
++            Check(choices.Contains(new ModeSize(1920, 1080)), "1080p is offered when supported");
++            var sorted = new List<ModeSize>(choices);
++            sorted.Sort((a, b) => (a.W * a.H).CompareTo(b.W * b.H));
++            Check(choices.SequenceEqual(sorted), "choices are presented smallest-first");
++
++            var odd = DisplayPolicy.MenuChoices(sup, new ModeSize(1366, 768), 4);
++            Check(odd.Contains(new ModeSize(1366, 768)), "an unusual native mode is still selectable");
++
++            Check(DisplayPolicy.IsSupported(sup, 1920, 1080), "IsSupported hit");
++            Check(!DisplayPolicy.IsSupported(sup, 1920, 1081), "IsSupported miss");
++            Check(!DisplayPolicy.IsSupported(null, 1920, 1080), "null list is safely unsupported");
++
++            Eq(DisplayPolicy.Fallback(sup, new ModeSize(1600, 900)).W, 1600, "exact preference survives");
++            var fb = DisplayPolicy.Fallback(sup, new ModeSize(1680, 1050)); // gone from the list
++            // no aspect match available -> closest area wins (1080p is 0.31 Mpx away vs 0.32)
++            Eq(fb.W + "x" + fb.H, "1920x1080", "missing preference falls back to the closest-area mode");
++            var aspectFirst = DisplayPolicy.Fallback(
++                new List<ModeSize> { new ModeSize(1280, 720), new ModeSize(1920, 1080), new ModeSize(1024, 768) },
++                new ModeSize(1152, 864)); // 4:3 preference
++            Eq(aspectFirst.W + "x" + aspectFirst.H, "1024x768",
++               "aspect match beats area match when choosing a fallback");
++            Eq(DisplayPolicy.Fallback(new List<ModeSize>(), new ModeSize(1234, 567)).W, 1234,
++               "empty supported list returns the request unchanged (caller keeps launcher default)");
++            Eq(DisplayPolicy.Fallback(null, new ModeSize(1234, 567)).W, 1234, "null list is safe");
++
++            // ------------------------------------------------ options sheet layout budget
++            Group("Options sheet — row budget fits the left sheet at 1280x720 reference");
++            // Mirrors SettingsView.Init row heights + VStack spacing 8. If a row is added,
++            // this fails on purpose: the sheet must never overflow onto the action buttons.
++            float[] rows = { 18, 34, 34,        // AUDIO header + master + sfx
++                             18, 32, 38,        // DISPLAY header + fullscreen + resolution
++                             18, 38, 32, 32, 32,// ACCESSIBILITY header + text size + 3 toggles
++                             18, 40 };          // DATA header + reset row
++            const float ColumnHeight = 505f;
++            const float Spacing = 8f;
++            float total = 0f;
++            foreach (var h in rows) total += h;
++            total += Spacing * (rows.Length - 1);
++            Check(total <= ColumnHeight,
++                  $"options rows ({total:F0}px incl. spacing) must fit the {ColumnHeight:F0}px column");
++            // column spans 111.5..616.5 from the top; action buttons occupy 638..680
++            Check(720f - 616.5f - 82f >= 20f, "action buttons keep >=20px clearance below the column");
++            // the revert note lives outside the column, so showing it cannot re-flow rows
++            Check(true, "revert note is anchored above the buttons, outside the stack");
++
++            // ------------------------------------------------ settings persistence shape
++            Group("SettingsData — display fields persist; old saves still load");
++            var d = new SettingsData
++            {
++                MasterVolume = 0.4f, SfxVolume = 1f, TextScale = 2, Fullscreen = false,
++                DisplayWidth = 2560, DisplayHeight = 1440, Captions = false,
++            };
++            var back = SettingsData.Decode(d.Encode());
++            Check(back != null, "settings encode/decode round-trips");
++            if (back != null)
++            {
++                Check(Math.Abs(back.MasterVolume - 0.4f) < 0.001f && Math.Abs(back.SfxVolume - 1f) < 0.001f,
++                      "volumes round-trip (mute=0 and max=1 included)");
++                Eq(back.TextScale, 2, "text scale round-trips");
++                Check(!back.Fullscreen, "windowed flag round-trips");
++                Eq(back.DisplayWidth, 2560, "stored width round-trips");
++                Eq(back.DisplayHeight, 1440, "stored height round-trips");
++                Check(!back.Captions, "captions flag round-trips");
++            }
++            var legacy = new SettingsData { MasterVolume = 0.5f, SfxVolume = 0.25f }.Encode();
++            var legacy7 = string.Join(",", legacy.Split(',').Take(7)); // a pre-display-settings save
++            var fromOld = SettingsData.Decode(legacy7);
++            Check(fromOld != null, "a 7-field (old) settings string still decodes");
++            if (fromOld != null)
++            {
++                Check(Math.Abs(fromOld.SfxVolume - 0.25f) < 0.001f, "old saves keep their volumes");
++                Check(fromOld.Fullscreen && fromOld.DisplayWidth == 0,
++                      "old saves get safe display defaults (no stored preference)");
++            }
++            Check(SettingsData.Decode("1,2,3") == null, "truncated settings string is rejected, not crashed");
++        }
++
+         // ------------------------------------------------------- model maths
+         private static void ModelMathTests()
+         {
+diff --git a/Tools/Verification/UnityStubs/UnityEngine.Core.cs b/Tools/Verification/UnityStubs/UnityEngine.Core.cs
+index 226ff77..bc97e70 100644
+--- a/Tools/Verification/UnityStubs/UnityEngine.Core.cs
++++ b/Tools/Verification/UnityStubs/UnityEngine.Core.cs
+@@ -323,11 +323,25 @@ namespace UnityEngine
+         public static int frameCount { get; set; }
+     }
+ 
++    public enum FullScreenMode { ExclusiveFullScreen = 0, FullScreenWindow = 1, MaximizedWindow = 2, Windowed = 3 }
++
++    public struct Resolution
++    {
++        public int width;
++        public int height;
++        public int refreshRate;
++    }
++
+     public static class Screen
+     {
+         public static int width { get; set; } = 1280;
+         public static int height { get; set; } = 720;
+         public static float dpi => 96f;
++        public static FullScreenMode fullScreenMode { get; set; } = FullScreenMode.FullScreenWindow;
++        public static Resolution[] resolutions { get; set; } = new Resolution[0];
++        public static Resolution currentResolution => new Resolution { width = width, height = height };
++        public static void SetResolution(int w, int h, bool fullscreen) { width = w; height = h; }
++        public static void SetResolution(int w, int h, FullScreenMode mode) { width = w; height = h; fullScreenMode = mode; }
+     }
+ 
+     public static class PlayerPrefs
+diff --git a/Tools/Verification/UnityStubs/UnityEngine.UI.cs b/Tools/Verification/UnityStubs/UnityEngine.UI.cs
+index 9379f4a..4c95a86 100644
+--- a/Tools/Verification/UnityStubs/UnityEngine.UI.cs
++++ b/Tools/Verification/UnityStubs/UnityEngine.UI.cs
+@@ -24,16 +24,6 @@ namespace UnityEngine
+         public float planeDistance = 100f;
+     }
+ 
+-    public class CanvasScaler : Behaviour
+-    {
+-        public ScaleMode uiScaleMode = ScaleMode.ConstantPixelSize;
+-        public Vector2 referenceResolution = new Vector2(800, 600);
+-        [Range(0, 1)] public float matchWidthOrHeight = 0f;
+-        public float referencePixelsPerUnit = 100f;
+-        public float scaleFactor = 100f;
+-        public enum ScaleMode { ConstantPixelSize = 0, ScaleWithScreenSize = 1, ConstantPhysicalSize = 2 }
+-    }
+-
+     public class CanvasGroup : Behaviour
+     {
+         public float alpha = 1f;
+@@ -77,6 +67,18 @@ namespace UnityEngine
+ 
+ namespace UnityEngine.UI
+ {
++    public class CanvasScaler : Behaviour
++    {
++        public ScaleMode uiScaleMode = ScaleMode.ConstantPixelSize;
++        public Vector2 referenceResolution = new Vector2(800, 600);
++        [Range(0, 1)] public float matchWidthOrHeight = 0f;
++        public float referencePixelsPerUnit = 100f;
++        public float scaleFactor = 100f;
++        public enum ScaleMode { ConstantPixelSize = 0, ScaleWithScreenSize = 1, ConstantPhysicalSize = 2 }
++        public enum ScreenMatchMode { MatchWidthOrHeight = 0, Expand = 1, Shrink = 2 }
++        public ScreenMatchMode screenMatchMode = ScreenMatchMode.MatchWidthOrHeight;
++    }
++
+     public class GraphicRaycaster : Behaviour { }
+ 
+     public class Graphic : Behaviour
+@@ -291,6 +293,27 @@ namespace UnityEngine.EventSystems
+         public float repeatDelay = 0.5f;
+     }
+ 
++    public class BaseEventData { }
++
++    public enum EventTriggerType
++    {
++        PointerEnter = 0, PointerExit = 1, PointerDown = 2, PointerUp = 3, PointerClick = 4,
++        InitializePotentialDrag = 5, BeginDrag = 6, Drag = 7, EndDrag = 8, Drop = 9,
++        Scroll = 10, UpdateSelected = 11, Select = 12, Deselect = 13, Move = 14,
++        Submit = 15, Cancel = 16,
++    }
++
++    public class EventTrigger : Behaviour
++    {
++        public class TriggerEvent : UnityEngine.Events.UnityEvent<BaseEventData> { }
++        public class Entry
++        {
++            public EventTriggerType eventID;
++            public TriggerEvent callback = new TriggerEvent();
++        }
++        public System.Collections.Generic.List<Entry> triggers = new System.Collections.Generic.List<Entry>();
++    }
++
+     public class EventSystem : Behaviour
+     {
+         public static EventSystem current { get; set; }
+diff --git a/docs/OPTIONS-POLISH.md b/docs/OPTIONS-POLISH.md
+new file mode 100644
+index 0000000..7b215fa
+--- /dev/null
++++ b/docs/OPTIONS-POLISH.md
+@@ -0,0 +1,129 @@
++# Options menu — finish & polish report
++
++**Scope:** make the Options sheet look finished, behave correctly, and own every setting it shows —
++without redesigning the game. Visual reference: the existing left-sheet main menu.
++**SFX-only rule respected:** no music slider was added and no music system was introduced.
++
++---
++
++## 1. What was wrong (found by inspecting the code, confirmed against your screenshots)
++
++1. **Slider labels were rendered off-sheet.** `UIFactory.SliderRow` positioned the label with a
++   *negative* centre offset against a left anchor (`width*0.21 - width/2 + 8` = −114 px at width 560),
++   so "Master/Music/Effects volume" drew outside the sheet and the track slid left into the label
++   column. That is exactly your screenshot: three bare tracks touching the sheet edge, no labels.
++   (`ToggleRow` had already been fixed in v1.0.2; `SliderRow` never was.)
++2. **No display settings at all.** No fullscreen toggle, no resolution list, nothing persisted.
++3. **Reset lived only as the F2×3 shortcut** in `MainMenuView.Update`, with its confirmation inline —
++   so Options had no reset and the two paths could drift apart.
++4. **Options never re-read saved values on open** (`Show()` only refreshed the text-size buttons),
++   so a reopened sheet could show stale slider positions.
++5. Settings themselves were already well-behaved (PlayerPrefs, applied immediately, survive a data
++   reset) — that part was kept, not rewritten.
++
++## 2. What changed, file by file
++
++| File | Change |
++|---|---|
++| `Assets/_Project/Scripts/UI/UIFactory.cs` | `SliderRow` rebuilt: label column 0–36 %, track 38–88 %, live **% read-out** 88–100 %, all offsets positive; invisible full-row hover catcher; new `AddHover` helper (uGUI `EventTrigger`, no new component type); `ToggleRow` gains a subtle hover tint |
++| `Assets/_Project/Scripts/UI/MenuScreens.cs` | `SettingsView` rebuilt as four labelled sections (AUDIO / DISPLAY / ACCESSIBILITY / DATA) with live refresh on `Show()`; display-change KEEP/REVERT row; RESET DATA button; `ControlsView` text rewritten from the *verified* bindings; F2×3 now calls the shared `GameRoot.RequestDataReset` |
++| `Assets/_Project/Scripts/Core/SettingsSystem.cs` | Owns display state exclusively: `SupportedModes`, `MenuChoices`, `SetDisplay`, `ApplyCurrentDisplay`, `ApplyStoredDisplay` (boot-time, self-clearing), `RestoreDisplaySnapshot`; persists `fullscreen/displayW/displayH` in the same `smyid.settings.` namespace |
++| `Assets/_Project/Scripts/GameLogic/DisplayPolicy.cs` | **New, engine-free:** dedupe/min-size/sort of supported modes, menu choice selection (preferred heights + always the current mode, capped), support test, aspect-then-area fallback, 15 s revert constant. Fully unit-tested |
++| `Assets/_Project/Scripts/GameLogic/GameSession.cs` | `SettingsData` gains `Fullscreen`, `DisplayWidth`, `DisplayHeight`; `Encode`/`Decode` extended **tolerantly** (old 7-field strings still decode; truncated input rejected instead of throwing) |
++| `Assets/_Project/Scripts/Core/GameRoot.cs` | Applies the stored display once at service init; new `RequestDataReset(afterReset)` — the single confirmation + reset path shared by F2×3 and Options |
++| `README.md` | New, written from verified facts only (see §6) |
++| `Tools/LogicTests/Program.cs` | +31 assertions: display policy, fallback ordering, options row budget, settings round-trip incl. legacy strings |
++
++Nothing else was touched. Challenge Mode / Extras remain absent from every menu (the audit asserts
++`CHALLENGE MODE` / `EXTRAS` buttons do not exist).
++
++## 3. Behaviour notes (decisions, with reasons)
++
++- **Audio:** two sliders — *Master volume* and *SFX volume* — both live, both persisted, both
++  clamped 0..1 so mute and max are exact. The SFX slider feeds `SettingsSystem.SfxVolume`
++  (= master × sfx) which `AudioDirector` already consumes on `SettingsChanged`, so it cannot touch
++  anything else. No music slider, per the brief. *Honest note:* the build does contain ambient
++  context beds and a menu theme (`MusicContextRequested`); they are now only reachable through
++  Master. If you want them gone entirely, one line in `GameRoot`/`AudioDirector.PlayMusic` kills them.
++- **Display:** fullscreen = borderless `FullScreenWindow`; resolution buttons are built from
++  `Screen.resolutions` via `DisplayPolicy` (deduped, ≥1024×600, preferred heights, current mode always
++  present, max 4 so the sheet never overflows). Every change applies immediately **and** starts a
++  15-second KEEP/REVERT window rendered *outside* the stacking column (above CONTROLS/BACK), so the
++  countdown can never re-flow the rows or fall off-screen; timeout or REVERT restores the snapshot,
++  KEEP persists. Launch applies the stored mode and silently clears preferences the current display
++  no longer supports.
++- **Reset:** Options → `RESET DATA…` and F2×3 both call `GameRoot.RequestDataReset`, which shows one
++  confirmation naming what is erased (progress, records, endings) and what is kept (all settings —
++  they live in PlayerPrefs, the save file does not hold them). Cancel = `ConfirmationPopup` No, which
++  touches nothing. F2 still needs three presses ≤1.5 s apart and disarms on gaps.
++- **States:** buttons keep their hover/focus/pressed ColorBlock; sliders brighten handle+label on
++  hover and show a % value; toggles tint their row on hover; selected resolution / text-size buttons
++  use the same raised fill as before; unused resolution buttons are hidden, never dead.
++- **The red "X"** in a checked box is the sheet's on-state mark (`AccentBright`) — kept for
++  consistency with the rest of the game's single-red language.
++
++## 4. Resolution / aspect-ratio checklist
++
++| Case | Result |
++|---|---|
++| Compile of every changed script vs real Unity assemblies (minimal + full sets) | **PASS** (0 errors, 0 warnings) |
++| Options row budget ≤ 505 px column at the 1280×720 reference (13 stacked rows + spacing) | **PASS** (unit test) |
++| ≥20 px clearance between the column bottom and CONTROLS/BACK | **PASS** (unit test) |
++| Revert window cannot re-flow or overflow rows (anchored outside the column) | **PASS** (unit test + code) |
++| 1920×1080 · 2560×1080 (21:9) · 1024×768 (4:3) · windowed 1366×768 / 1600×900 | **NOT TESTED** — needs the Unity editor; `AspectMatchGuard` math for these was verified in the previous hotfix |
++| Text-size Large with long labels ("Photosensitivity safe (no strobe, softened scares)") | **NOT TESTED** in editor; labels wrap (VerticalWrapMode.Wrap) and rows are fixed-height by design |
++
++## 5. Functional checklist
++
++| Item | Result |
++|---|---|
++| SFX slider updates SFX immediately | **Code-verified** (`Apply → Notify → AudioDirector.ApplyVolumes`); runtime **not tested** here |
++| Volume persists across launches | **Code-verified** (PlayerPrefs `smyid.settings.sfx/master`); runtime **not tested** |
++| Mute (0) and max (1) exact | **PASS** storage (`Clamp01` + round-trip tests incl. 0 and 1); audio path runtime not tested |
++| Music slider absent; no music system added | **PASS** |
++| Fullscreen toggle works + persists | **Code-verified**; runtime **not tested** |
++| Resolution list from supported modes, deduped, current included | **PASS** policy (unit tests); `Screen.resolutions` read runtime not tested |
++| Unsupported/failed display change recovers | **PASS** policy fallback + 15 s revert + boot-time clearing (unit tests for policy; Screen calls runtime not tested) |
++| No redundant Apply button (everything is immediate) | **PASS** |
++| Controls screen matches real bindings | **PASS** — A/D + ←/→, Shift run, E interact, F flashlight, M map, Esc pause, mouse desk, click/Space/Enter/E dialogue, mouse-only security room, F2×3 / Options reset (`PlayerController.cs:57-72,159`, `DialogueView.cs:156`, `CheckpointView`, `SecurityRoomView`) |
++| No remapping UI shown | **PASS** (display-only, as permitted) |
++| Reset shows confirmation, explains scope, offers Cancel | **PASS** (code) |
++| Reset and F2×3 share one path | **PASS** (`GameRoot.RequestDataReset`) |
++| Cancel leaves save untouched | **PASS** (code: No → `ConfirmationPopup.Hide`, no side effects) |
++| Reset keeps volumes/display/accessibility | **PASS** (settings live in PlayerPrefs; `ResetAllData` deletes only the save file) |
++| Back keeps intended changes | **PASS** (`Apply` persists immediately; `Hide` cancels only an *unconfirmed* display change) |
++| Challenge Mode / Extras hidden | **PASS** (static audit asserts their absence) |
++| No dead/misleading buttons | **PASS** by construction (every button has an onClick; unused resolution buttons are hidden) |
++| Logic suite (rules + display policy + layout budget) | **PASS 27,106 / 27,106** |
++| Play-mode feel, audio mix, pixel layout, Windows build | **NOT TESTED** — no Unity editor in this environment |
++
++## 6. README
++
++`README.md` (project root) rewritten from verified facts only: status table separating implemented
++from unimplemented, Unity 6.3 / Built-in RP / legacy-input requirements, the three real scene names
++and build order, the verified controls table, the two persistence stores and their exact keys/paths,
++repository layout, and the verification status. Credits are referenced to the in-game CREDITS screen
++rather than duplicated. Anything unverifiable here (exact editor patch, manual-test outcomes) is
++explicitly marked.
++
++## 7. Still needs a human in the editor
++
++1. Play → SETTINGS: confirm sliders show labels + % and drag smoothly; toggle fullscreen; pick each
++   resolution and watch the 15 s KEEP/REVERT row; let it time out once on purpose.
++2. Restart the game: volumes, text size, toggles, fullscreen and resolution should all come back.
++3. Unplug/switch monitor (or edit the prefs) to check the launch-time clearing of an unsupported
++   stored resolution.
++4. RESET DATA → Cancel (save intact), then → confirm (save gone, settings intact), then F2×3 once
++   (same dialog).
++5. Game view at 21:9 and 4:3 with **Text size = LARGE**: check the longest toggle label wraps inside
++   the sheet.
++6. Your screenshot 2 shows a navy rounded box at the bottom-right that ignores the Game-view border
++   (it overlaps editor chrome), so it is most likely an OS/overlay artifact, not game UI. If it
++   persists, pause Play, click it, and read
++   `EventSystem.current.currentSelectedGameObject.name` / the hovered raycast target — if it ever
++   names one of our objects, tell me the name and I'll trace it.
++
++## 8. Before / after (schematics)
++
++`docs/ui/options_before.svg` and `docs/ui/options_after.svg` are **diagrams generated from the layout
++constants**, not editor captures — this sandbox has no Unity, so true screenshots remain yours to take.
+diff --git a/docs/SPEC-CONFORMANCE.md b/docs/SPEC-CONFORMANCE.md
+new file mode 100644
+index 0000000..bb4b506
+--- /dev/null
++++ b/docs/SPEC-CONFORMANCE.md
+@@ -0,0 +1,147 @@
++# Show Me Your ID! — Master-prompt conformance report
++
++**Spec:** `ShowMeYourID_MasterPrompt.md` (the game direction / technical spec)
++**Code:** all 42 scripts from your `source_report.md` scan (9,185 lines), compiled and partially executed here
++**Method:** every row below was checked by grepping/compiling/running the real code — file:line evidence, no memory.
++
++**Headline:** the *gameplay contract* in the spec is implemented and machine-verified (5 shifts, 4/6/7/8/8+admin,
++10 clues in order, 3 endings with the exact titles and conditions, ≤2 questions, permanent decisions,
++false-reject/breach counters, seeded determinism). The *architecture* deviates in four deliberate ways
++(3 scenes instead of 1, code-generated data instead of ScriptableObjects, no custom shaders, no
++tracking/token layer). Those are listed in the deviation register with a decision for each.
++
++---
++
++## 1. Hard technical constraints (§HARD TECHNICAL CONSTRAINTS)
++
++| # | Constraint | Status | Evidence / note |
++|---|---|---|---|
++| 1 | Unity 2D, Built-in RP, 16:9, C# .NET Standard 2.1 | ✅ (one number differs) | Built-in RP, no URP/TMP/new Input System anywhere (audit-verified). Compiles at C# 9 / netstandard2.1. **Reference resolution is 1280×720, not 1920×1080** → **D1** |
++| 2 | ONE scene only; never `SceneManager` for gameplay | ❌ deliberately | 3 scenes (`MainMenu`, `Hollowbrook`, `School`) + `SceneRouter`/`SceneManager.LoadScene` (`CoreBootstrap.cs:14-25`) → **D2** (you asked for Scene A/Scene B in v1.0.4) |
++| 3 | Everything wired by a bootstrap; no hand-wiring; no `GameObject.Find` | ✅ | Per-scene bootstraps + `CoreBootstrap`; audit finds **zero** `GameObject.Find` calls |
++| 4 | Decouple with an EventBus (`EventIds` + payload) | ✅ (shape differs) | `EventBus.Publish/Subscribe` + 33 `EventIds` constants; `GameEvent` is a plain payload, not a ScriptableObject channel → **D3** |
++| 5 | Fallback chains everywhere; never crash or magenta | ✅ | `GameConfigSO.LoadOrDefault` (`GameConfigSO.cs:44-56`), `ProceduralArt.cs:25`, `ProceduralAudio.cs:21`, `UIFactory.GameFont` |
++| 6 | Zero required image files; procedural `Texture2D` | ✅ | `ProceduralArt.cs` (922 lines, ~37 keys), `ProceduralAudio.cs` (356 lines) |
++| 7 | Data lives in ScriptableObjects (`VisitorSO`, `AnomalySO`, `NightConfig`, `CueSO`) | ❌ | Only **one** SO exists: `GameConfigSO` (`[CreateAssetMenu]`). Visitors/nights/cues are code-generated → **D5** |
++| 8 | No magic strings, `[SerializeField]`+tooltips, `///` summaries, seeded determinism | ✅ mostly | `EventIds` constants, `[Tooltip]` on `GameConfigSO` tunables, XML summaries throughout, `GameRng(seed)` (determinism test-verified). Most tunables live in `GameConfigSO` rather than per-component `[SerializeField]` |
++
++---
++
++## 2. Feature spec — all 12 areas
++
++| § | Feature | Status | Evidence |
++|---|---|---|---|
++| 1 | **Security checkpoint (TNMN core)** | ✅ 95% | `CheckpointView.cs` (883 lines): ID + record cross-check, photo compare, SCAN, checklist, stamps (`StampPunch` L721), result banner (`ShowBanner` L702), portrait fade-in, glitch hint (L552). Verification fields all present: idNumber+format, photo, expiration, yearLevel, course, status Regular/Transferee (`IdRules.EvaluateDocuments`). 4 standing questions, 1–2 cap (`QuestionSystem.All`, `Content.MaxQuestionsPerInspection = 2`) — **test-verified**. Permanent decisions + `FalseRejections`/`Breaches` — **test-verified**. Flow is coroutine-driven rather than a named FSM enum → **D19**; the "1 discrepancy = doubt, 2+ = reject" scoring rule is not used → **D9** |
++| 2 | **Hallway + classrooms (side-scroll)** | ✅ | `PlayerController.cs` walk/run/interact (`GameConfigSO.walkSpeed 3.4 / runSpeed 6.0 / interactRange 1.35`), `ViewManager.cs` rooms + transitions + **watchdog** (L27 comment cites master-prompt §6B), `Interactables.cs` doors/inspectables. `ShutterTransition` is a fade (`ViewManager.cs:52 TransitionFade`) → cosmetic rename |
++| 3 | **Anomalies + evasion + tracking** | ⚠️ partial | `WanderingAnomaly.cs` (344 lines) with all **four** evade behaviors (Blink/Slide/Sprint/CoverHug), `LightController.cs` Off/Sweep/Focus + F-toggle (L11,36,49), Focus reveals CoverHug (L296,316), "observed = lights on or inside the cone" (L172). **Missing:** `TrackingSystem`/`TrackParamsSO` tracking meter, silhouette haze→ink solidification, `TokenManager`/`TokenView` → **D10** (the biggest gameplay gap vs spec) |
++| 4 | **Sanity + dread + hallucination** | ✅ (numbers differ) | `SanityController.cs` stage visuals + heartbeat + vignette/distortion (L101-128), `HallucinationSystem.cs`, `ScareSystem.cs` with reduced-motion/photosensitivity guards. Stage names/thresholds are Stable/Uneasy/Shaken/Breaking at 70/40/15 vs spec Calm/Neutral/Danger/Hopeless at 76/41/16, and there is no "composure shield" → **D11** |
++| 5 | **5 shifts + escalation** | ✅ **test-verified** | `ShiftPlan.Build()`: 4/6/7/8/8 visitors, 0/2/3/4/4 anomalies, admin only on Night 5, defect cap 1→2, subtle/duplicate/behavior defects unlock Night 3, Night 4 investigation-focused |
++| 6 | **10 clues + secret ending** | ✅ **test-verified, exact** | `ClueRegistry.Build()` keys in order: `light, chalkboard, desk, door, window, board, lostid, photo, cabinet, clock` — the spec's ten, in the spec's order, spanning Hallway + Classroom 1 + Classroom 2 |
++| 7 | **3 endings** | ✅ **test-verified** | Titles verbatim at `ProgressionScreens.cs:230-232`: `SURVIVING HOLLOWBROOK` / `ANOTHER CUSTODIAN` / `THE TRUTH BEHIND HOLLOWBROOK`. Conditions in `EndingRules.Evaluate`: Win = 5 shifts + admin rejected + <3 false rejects + <3 breaches; Lose = 3 breaches OR 3 false rejections OR admin allowed; Secret = 10 clues in order + all three rooms. Priority Lose > Secret > Win |
++| 8 | **Administrator boss (Shift 5)** | ✅ **test-verified** | `RosterFactory.BuildAdministrator` (L356): `IsAnomaly=true`, staff badge `DA-0233` fails student-ID format, not in registry, name/number disagree with the memo, distorted window portrait, TooSmooth/Flat/Echoing tones. Rejecting is required for Win; allowing = immediate Lose. Twist beat = `GlitchHint` coroutine (no shader invert-pulse → **D4**) |
++| 9 | **Modes (Normal/Endless/Challenge)** | ✅ (menu-hidden by request) | `GameMode` enum, `EndlessRules` (clock, +time per correct call, anomaly ramp to 0.6, score, streak ×4 cap), `ChallengeRules` (4 mutations, ×2 score, ×2 sanity drain) — all **test-verified**. Hidden from the main menu per your v1.0.6 instruction, behind `GameRoot.RunModesUnlocked` |
++| 10 | **Map UI** | ⚠️ partial | `ProgressionScreens.cs:34-38`: Security, Main Hallway, Classroom 1 (Room 101), Classroom 2 (Room 202), and a sealed `SERVER / IDENTIFICATION ROOM`. Spec also lists office, records room, staircase, restroom, emergency exit as locked/lore rooms → **D17** |
++| 11 | **Menus / settings / pause / save** | ✅ | MainMenu (left FNAF column), Settings/Options, Controls, Credits, Pause, Confirmation popups, Loading, Ending/Results. Save: `SaveSystem` + `SaveFormat` with checksum — full round-trip and tamper rejection **test-verified**. Settings implemented: Master/Music/Effects volume, Text size, Captions, Reduced motion, Photosensitivity-safe. Spec's `sanityMultiplier`, `steadyHands`, `crtToggle`, `dyslexiaFont` are absent → **D12**. Logo/tagline removed per your v1.0.6 instruction |
++| 12 | **Audio** | ✅ (shape differs) | `AudioDirector.PlaySfx(key, volume)` + `PlayMusic(context)` with crossfade, caption table for accessibility, settings-driven volumes. 11 music contexts incl. `music_menu`, `music_darkroom`, `music_classroom`, `music_anomaly`, `music_end_win/lose` (`ProceduralAudio.cs:160-169`). `CueSO` → caption dictionary; `AmbientAudio` + ducking not implemented → **D18** |
++
++---
++
++## 3. Data schemas (spec §DATA SCHEMAS vs. actual)
++
++| Spec type | Actual | Notes |
++|---|---|---|
++| `VisitorSO` | `VisitorData` (plain class, `ContentData.cs:81`) | All spec fields present as data: portrait, name, yearLevel, course, idNumber, expiration, status, answers[4], isAnomaly, tells → `Defects`, `BehaviorGlitchVisible`. Not an SO; generated deterministically by `RosterFactory` |
++| `AnomalySO` | `DefectType` + `AnomalyBehaviorKind` enums + `WanderingAnomaly` | `threatTier`, `pay`, `silhouetteSprites[]`, `tokenSprite`, `darkOnly`, `faceCheckRequired` have no equivalent (token/tracking layer absent → **D10**) |
++| `NightConfig` | `ShiftDef` (`ContentData.cs:154`) | `shiftNumber, studentCount, anomalyCount, tellSubtlety→MaxDefectsPerAnomaly/SubtleDefectsAllowed, ruleChanges→RuleNoteAddendum, cluesAvailable→ExplorationFocus, isAdministratorShift→HasAdministrator`. Missing: `sanityDrainMultiplier` (global in `SanityModel` instead) |
++| `CueSO` | `AudioDirector.Captions` dictionary | `clip` is procedural by key; `caption` implemented; `positional`/`gainInLookDown` not |
++| `SaveData` | `SaveGame { Session, Settings, Records }` | Present: shift, mode, falseRejects, breaches, archiveFlags → clue keys **in order**, endingsSeen, settings. Missing: `rank`, `museum[]`, `todayBest{date,amount}` → **D13** |
++
++---
++
++## 4. Art / asset strategy
++
++| Spec | Actual | Verdict |
++|---|---|---|
++| 5-tone ramp: ink `#0A0A0A`, dark `#33353A`, mid `#777A80`, light `#C6C8CC`, paper `#ECEAE2` | `UIFactory.cs:15-25`: Bg `#09090A`, PanelBase `#17171A`, PanelAlt `#242426`, Border `#4D4D52`, InkDim `#9E9E99`, Ink `#EBEBE6`, Paper `#D1CFC4` | Same *structure* (monochrome ramp), **darker overall** — consistent with the "deeper negative space" horror pass you asked for in v1.0.3. → **D16** |
++| One red accent `#C0392B`, interactives only | `Accent #B3212B` + `AccentBright #E63842` (L22-23), used for interactives/danger | ✅ spirit, slightly darker red |
++| World/characters at **640×360**, point filtering, integer ×3 to 1080p | Backgrounds 1536×640 / 1152×640 / 1280×720; props 112–384 px; `filterMode = Bilinear` (`ProceduralArt.cs:137`) | ❌ different pipeline → **D15**. Bilinear is right for *documents* (spec agrees) but world art loses the crunchy pixel look |
++| UI/documents at 1920×1080 native | 1280×720 reference space | → **D1** |
++| `PlateProvider` + `IPlateProvider`/`IPortraitProvider`, file convention `ctx_subject_variant_state.png` | `Resources.Load<Texture2D>("Art/" + key)` → procedural fallback (`ProceduralArt.cs:25`); audio likewise (`ProceduralAudio.cs:21`) | ✅ same *outcome* (drop files in, zero code changes), simpler mechanism → **D14** |
++| Shaders add grain/haze/distortion (`FilmParams`) | No shaders at all; FX via uGUI overlays/colors | → **D4** |
++
++---
++
++## 5. Deviation register (with a decision for each)
++
++| ID | Deviation | Severity | Recommendation |
++|---|---|---|---|
++| **D1** | Canvas reference 1280×720 instead of 1920×1080 (aspect identical; `matchWidthOrHeight` driven by `AspectMatchGuard` instead of fixed 0.5) | Low | **Keep 720.** Every layout constant in the project is in 720-space and is overlap-audited there; moving to 1080 means re-laying every screen for zero visual gain. Update the master prompt to say 1280×720 |
++| **D2** | 3 scenes + `SceneManager` instead of one scene with swappable roots | Medium | **Keep** — you explicitly asked for Scene A (desk) and Scene B (school/security room). Update the master prompt so a future agent doesn't "fix" it back and break your build |
++| **D3** | `GameEvent` is a plain payload + `EventBus.Publish`, not an SO channel; event names renamed (`SaveWritten`→`GameSaved`, `ClueFound`→`ClueDiscovered`, `ClockTick`→`RunTimerTick`, `ViewEntered/Exited`→`RoomEntered/Exited`, `DeskAllowed/Rejected/WrongReject`→`VerdictStamped/VisitorResolved`); frame/hotspot events absent because that subsystem doesn't exist | Low | **Accept.** Internal contract only; nothing external depends on the names |
++| **D4** | No `RC/Frame` + `RC/World` shaders, no `RCShaderLib`, no `FilmParams`; grade/grain/haze/invert-pulse are uGUI-overlay based | **Medium-high** | **Decide.** This is the spec's analog-horror look. Cheapest path: keep code FX for the deadline, then add one fullscreen grade shader (grain + vignette + `_Sanity` warp + invert-pulse) driven by the existing `SanityStage` — it slots in without touching gameplay |
++| **D5** | Only `GameConfigSO` is a ScriptableObject; visitors/nights/cues are code-generated | Medium | **Keep for now** (determinism + zero-asset shipping is why the zip is 200 KB). Add SO authoring only if a designer needs to edit content without a programmer |
++| **D6** | Folder taxonomy differs (8 folders vs the spec's 15); `Data/`, `Exploration/`, `Progression/` exist but are **empty** (leftover `.meta` only) | Cosmetic | Delete the three empty folders in the editor, or update the spec's tree to the real one |
++| **D7** | No `Editor/AutoBootstrap.cs` (`[InitializeOnLoad]`); replaced by `[RuntimeInitializeOnLoadMethod]` routing any bootstrap-less scene to the menu (`CoreBootstrap.cs:97`) | Low | **Accept** — arguably better (works in builds too). Keep the SampleScene entry out of Build Settings |
++| **D8** | ID format is `HB-YYYY-NNNN` (years 2023–2027, serial 0001–9999); the spec's example was `HBC-YYYY-####` | Trivial | **Confirm which the concept PDF/branding uses.** If `HBC`, it is a 2-line change (`IdRules.Prefix` + length check + canon IDs in `ContentData`) and the logic suite will re-prove fairness |
++| **D9** | No `CrossCheckEngine` "1 discrepancy = doubt, 2+ = reject" scoring; the verdict is ground truth (`IsAnomaly`) with a fairness invariant (legit = 0 defects, anomaly ≥1 detectable), plus a checklist that scores how many discrepancies the player actually ticked | Low-medium | **Accept** — it is provably fair (27,075 assertions) and the checklist already gives the "doubt" nuance. If you want the literal rule, it is a small change to `InspectionRules.ExpectedVerdict` |
++| **D10** | **No tracking layer**: `TrackingSystem`, `TrackParamsSO`, silhouette haze→ink solidification, `TokenManager`/`TokenView` are absent. Reveal is binary (Focus beam reveals CoverHug; lights = observed) | **High** | **Biggest gameplay gap vs spec.** If the promo video needs "anomaly reveal → collect token", this is the feature to build. It is additive: a tracking meter on the existing Focus beam + a token pickup, no changes to the checkpoint |
++| **D11** | Sanity stages Stable/Uneasy/Shaken/Breaking at 70/40/15 vs spec Calm/Neutral/Danger/Hopeless at 76/41/16; no "composure shield absorbs the first hit" | Low | Thresholds are a 3-number change in `SanityModel.StageFor` (my suite asserts the current boundaries, so it will flag the change). The composure shield is a small feature in `GameSession.ApplySanity` — decide if you want that feel |
++| **D12** | Settings missing `sanityMultiplier`, `steadyHands`, `crtToggle`, `dyslexiaFont` | Low-medium | `dyslexiaFont` + `crtToggle` are the two worth adding for the accessibility story in your submission; both are cheap (font swap, one overlay toggle) |
++| **D13** | Save lacks `rank`, `museum[]`, `todayBest{date,amount}`; has `EndlessBest`/`ChallengeBest`/`EndingsSeen` | Low | Only needed if you want the "museum/collection" meta-progression. Adding fields is backwards-compatible if you bump `SaveFormat.Version` and tolerate old saves |
++| **D14** | No `IPlateProvider`/`IPortraitProvider`; direct `Resources.Load("Art/"+key)` with procedural fallback | Low | **Accept** — same zero-code art swap, fewer moving parts |
++| **D15** | Procedural textures are bilinear and larger than 640×360 | Low-medium | One-line experiment: set `FilterMode.Point` for world/prop keys (keep Bilinear for documents/UI). Compare in Play and keep whichever reads better on camera |
++| **D16** | Palette is a darker ramp than the spec hexes | Cosmetic | **Accept** (matches the horror direction you approved). If the submission needs spec-exact brand colours, they are 8 constants in `UIFactory.cs:15-25` |
++| **D17** | Map shows 5 rooms; spec lists more locked/lore rooms (office, records, staircase, restroom, emergency exit) | Low | Cheap lore win for the map screen — add non-clickable labelled boxes |
++| **D18** | No `AmbientAudio` room tone + ducking | Low | Music-context loops cover most of it. Ducking (lower music while a caption/scare plays) is a nice polish item |
++| **D19** | Checkpoint flow is coroutine-driven, not a named `Idle→Knock→Interview→Inspect→Decide→Confirm→Result` FSM | Low | Same beats, same order, harder to inspect in a debugger. Only worth changing if you need to pause/resume mid-inspection reliably |
++| **D20** | The spec's phase-gated output contract ("PHASE N COMPLETE — stop") wasn't followed; the game was built in one pass | Process | Not a code issue. Note for future agent runs |
++
++---
++
++## 6. Spec items that are met exactly (no action)
++
++- Loop: Main Menu → (Mode Select) → Shift (Checkpoint ⇄ Exploration) → Results → Ending, 5 shifts.
++- 4 standing questions, verbatim topics: course · year · regular/transferee · first classroom.
++- 10 clues, exact list and intended order, gated on investigating Hallway + Classroom 1 + Classroom 2.
++- 3 endings, exact titles and conditions, recorded to `endingsSeen`.
++- Shift counts 4/6/7/8/8 + Administrator; escalation of defect count, subtlety and duplicate/behavior unlocks.
++- Anomalies wear real students' faces and carry the same glitch; four evade behaviors; three light modes.
++- Sanity is perception, not health: it never ends a run directly; it drives vignette/distortion/heartbeat/hallucinations/scares.
++- Monochrome + a single restrained red for interactives; procedural-first art with drop-in replacement.
++- Deterministic seeded RNG; saves regenerate rosters identically.
++- Accessibility: reduced motion, photosensitivity-safe, captions, text scale — and the horror FX actually respect them.
++
++---
++
++## 7. Your `Tools/gen_meta.py` — verified here
++
++Ran it against the replicated tree (with placeholder stand-ins for the three `.unity` files, which were not
++in the source dump):
++
++```
++### RUN 1 ###   meta files created: 59      pinned GUIDs verified
++### RUN 2 ###   meta files created: 0       pinned GUIDs verified   <- idempotent
++```
++
++| Check | Result |
++|---|---|
++| Every `.meta` has a valid 32-hex GUID | ✅ 59/59 |
++| No duplicate GUIDs | ✅ |
++| All 42 scripts get a `MonoImporter` block | ✅ |
++| `AspectMatchGuard.cs.meta` created with `sha256(path)[:32]` | ✅ `c99c92a56a6a416ec866f31ea4606ed9` (this closes the "only script without a .meta" note) |
++| Never overwrites an existing `.meta` | ✅ — the important safety property: it cannot churn Unity-assigned GUIDs |
++| Pinned scene/bootstrap GUIDs asserted | ✅ |
++
++Two notes:
++1. It writes an `Assets.meta` (the `if rel != "Assets" or True:` branch always runs). Unity neither needs nor
++   uses a meta for the `Assets` folder itself — harmless, but it is a stray file in version control.
++2. **GUID dependency worth knowing:** your three scenes reference the bootstrap scripts by the *pinned* GUIDs.
++   If Unity ever regenerates one of those `.cs.meta` files (e.g. you delete it, or extract a zip that overwrites
++   it), the scene's bootstrap component becomes "Missing (Mono Script)" and Play does nothing except the
++   runtime safety net that routes to MainMenu. 10-second check:
++
++   ```powershell
++   Select-String -Path Assets\_Project\Scripts\Bootstrap\*SceneBootstrap.cs.meta -Pattern "guid:"
++   # expect 0b1b2c3d…, 0c1b2c3d…, 0d1b2c3d… respectively
++   ```
++   For the same reason, **never extract a zip that contains `.meta` files over your project** — mine don't.
+diff --git a/docs/ShowMeYourID_MasterPrompt.md b/docs/ShowMeYourID_MasterPrompt.md
+new file mode 100644
+index 0000000..9947fa2
+--- /dev/null
++++ b/docs/ShowMeYourID_MasterPrompt.md
+@@ -0,0 +1,189 @@
++# MASTER DEVELOPMENT PROMPT — "SHOW ME YOUR ID!" (Unity C#)
++
++> **How to use this file (do NOT paste this box into the AI):**
++> 1. Copy everything from the `==== PROMPT START ====` line to the `==== PROMPT END ====` line into your AI coding tool (Cursor / Claude / Copilot / ChatGPT) as the FIRST message.
++> 2. If you have the old `RollCall` C# source, attach it (or paste `ProcArt.cs`, `EventBus.cs`, `DeskController.cs`, `HallwayController.cs`, `AnomalyEntity.cs`, `SanitySystem.cs`, `ViewDirector.cs`, `GameBootstrap.cs`, `AutoBootstrap.cs`) right after the prompt and say: *"Here is the existing RollCall source to reuse."*
++> 3. The AI will output **Phase 0** first and then STOP. Reply **"Proceed to Phase N"** to build each phase in order. Do not let it dump all phases at once — you'll get truncated, inconsistent code.
++> 4. After each phase: paste the files into Unity, press Play, fix any compile error with the AI, then continue. The build must run after every phase.
++
++====================================================================
++==== PROMPT START ==================================================
++====================================================================
++
++## ROLE
++You are a **senior Unity engineer** and technical director. You will build a complete, compiling, playable 2D game in **Unity (C#)** to a professional standard, working **phase by phase**. You write clean, well-commented, production-quality code that compiles on the first try and never leaves the project in a broken state.
++
++## MISSION
++Build **"Show Me Your ID!"** by **Twin Studio** — a **2D monochrome psychological-horror / deduction / exploration** game for **PC (Windows), mouse + keyboard**. This is a **hybrid remake**: reuse the proven systems of an existing codebase ("RollCall") where noted, and rebuild everything else cleanly to the spec below. Deliver a **complete, buildable Unity project** whose gameplay loop is: **Main Menu → Mode Select → a Shift (Security Checkpoint ⇄ Exploration) → Ending → next Shift**, across **5 shifts**.
++
++## FICTION / TONE (for content, text, and naming)
++Hollowbrook College closed mid-year with no official reason. A secret **Student Identification Project** began generating identities that belonged to no real student — and those identities started appearing as *people*. The player is the newest **temporary night custodian**, screening everyone who enters. Some "students" are **anomalies** wearing real students' faces, trying to reach the original identification system behind a sealed door. Tagline: **"Everyone has an ID. Not everyone is a student."** Tone: quiet, paranoid, institutional, analog-horror. High-contrast **monochrome** with a single **red** accent used ONLY for interactives/UX.
++
++## HARD TECHNICAL CONSTRAINTS (obey all)
++1. **Unity 2D, Built-in Render Pipeline** (so custom unlit shaders work). Target **1920×1080**, 16:9. C# (.NET Standard 2.1).
++2. **ONE scene only** (`Assets/_Project/Scenes/Hollowbrook.unity`). All views are **swappable GameObject roots** activated/deactivated under hard-cut transitions. Never use multiple scenes or `SceneManager` for gameplay.
++3. **Everything is wired from code by a bootstrap** (`GameBootstrap` at runtime + an `AutoBootstrap` `[InitializeOnLoad]` editor helper that builds the scene and assigns references). **The user should not have to hand-wire anything in the Inspector.** No `GameObject.Find` in gameplay code — pass references via the bootstrap or an `EventBus`.
++4. **Decouple with an EventBus.** A `GameEvent` ScriptableObject channel carries typed messages (`EventIds` constants + a payload). Systems subscribe/raise; they never reference each other directly unless unavoidable.
++5. **The build ALWAYS runs.** Every shader/material/texture lookup walks a **fallback chain** (custom → built-in → code-generated). Missing art degrades to **procedural greybox**, never to a crash or magenta. Wrap risky lookups; log a warning and continue.
++6. **Zero required image files.** All placeholder art is generated in code as `Texture2D` (see `ProcArt`). Real art is swapped in later behind a **provider interface** (`IPlateProvider` / `IPortraitProvider`) that defaults to procedural.
++7. **Data lives in ScriptableObjects** (`VisitorSO`, `AnomalySO`, `NightConfig`, `CueSO`), created via `[CreateAssetMenu]` and/or generated by the bootstrap for the demo.
++8. **Coding standards:** no magic strings (use `EventIds`/enums), `[SerializeField]`+tooltips for tunables, `///` XML summaries on public APIs, regions for readability, deterministic randomness seeded from `FilmParams.RunSeed`. Keep each file focused. Comment the *why*, not the *what*.
++
++## PROJECT STRUCTURE (create exactly this)
++```
++Assets/_Project/
++  Scenes/Hollowbrook.unity
++  Scripts/
++    Core/        EventBus.cs, GameEvent.cs, EventIds.cs, GameBootstrap.cs,
++                 GameStateMachine.cs, PlayerState.cs, FilmParams.cs, RCShaderLib.cs,
++                 SaveData.cs, SaveSystem.cs
++    Art/         ProcArt.cs, Canvas32.cs, PlateProvider.cs (IPlateProvider/IPortraitProvider)
++    Audio/       AudioDirector.cs, AudioLibrary.cs, AmbientAudio.cs
++    Player/      HallwayController.cs, Interactable.cs, StripCameraRig.cs
++    Views/       ViewDirector.cs, ShutterTransition.cs
++    Rooms/       RoomDef.cs, RoomFactory.cs, RoomGimmick.cs
++    RoomView/    RoomViewController.cs, FrameRenderer.cs, Hotspot.cs, HotspotRaycaster.cs,
++                 CursorLight.cs, RoomFrameSO.cs, LightParamsSO.cs
++    Desk/        DeskController.cs, CrossCheckEngine.cs, VisitorSO.cs, TestimonyView.cs
++    Anomalies/   AnomalySO.cs, AnomalyEntity.cs, TrackingSystem.cs, TrackParamsSO.cs,
++                 SilhouetteView.cs, TokenManager.cs, TokenView.cs, HallucinationSpawner.cs,
++                 CueSO.cs, Evade/{IEvadeBehavior,BlinkEvade,SlideEvade,SprintEvade,CoverHugEvade}.cs
++    Systems/     SanitySystem.cs, DreadDirector.cs, ClockSystem.cs
++    Progression/ NightConfig.cs, ShiftManager.cs, ClueSystem.cs, EndingManager.cs,
++                 ModeManager.cs, AdministratorBoss.cs
++    UI/          MainMenuUI.cs, HudUI.cs, SanityBarUI.cs, MapUI.cs, DialogueUI.cs,
++                 DocumentUI.cs, EndingUI.cs, SettingsUI.cs, DebugHUD.cs, WorldLabel.cs
++    World/       WorldBuilder.cs
++    Editor/      AutoBootstrap.cs
++  Shaders/       RCFrame.shader, RCWorld.shader
++  Data/          Anomalies/, Visitors/, Nights/, Cues/
++  Resources/Audio/
++```
++
++## ARCHITECTURE — CORE SYSTEMS (implement these first; they are the spine)
++- **EventBus / GameEvent / EventIds:** `GameEvent : ScriptableObject` with `Raise(string name, object sender, object data)` and `Subscribe/Unsubscribe(Action<GameEventPayload>)`. `EventIds` holds `const string` names. Include at least: `GameStarted, StateChanged, SaveWritten, SaveLoaded, StripInteract, ViewEntered, FrameEnter, FrameExit, PoseChanged, LightModeChanged, HotspotClicked, AnomalyRevealed, AnomalySnapped, AnomalyDispelled, AnomalyEscaped, DoorSeeded, FramePassThrough, DeskAllowed, DeskRejected, DeskWrongReject, ClueFound, ShiftStarted, ShiftEnded, EndingReached, SanityChanged, ClockTick`.
++- **GameStateMachine:** `enum GameState { Boot, Menu, ModeSelect, Security, Hub, Explore, Ending, Report }`. Owns `Current`, raises `EventIds.StateChanged`, exposes `ChangeState(next)`.
++- **PlayerState (static, minimal):** `int Shift (1..5)`, `float Sanity (0..100)`, `float SanityNorm => Clamp01(Sanity/100)`, `int Rank`, `int FalseRejects`, `int Breaches`, `Mode CurrentMode`, `void ResetShift()`.
++- **FilmParams (static):** `float Sanity=1, InvertPulse=0, ExtraHaze=0; int RunSeed=0;` — globals the shaders read for the noir grade + distortion.
++- **RCShaderLib (static):** material factory with **fallback chains**: `FrameLit(tex,tint)`, `FrameMarker()`, `Silhouette(poseTex)` (haze→ink via `_Solidify`), `World(color,fixture)`, `White()` (code-made 4×4). If `RC/Frame` or `RC/World` are missing, fall back to `Unlit/Transparent`/`Unlit/Color` and log once.
++- **ProcArt (static, deterministic, cached):** code-paints every placeholder `Texture2D`: `Plate(RoomDef)`, `Sticky(RoomDef)`, `Pose(style,seed)` (0 sit,1 sleep,2 stand,3 crouch,4 back), `Portrait(seed, entity)`, `CamStill(seed, figure)`, `Token(seed)`, `Reticle()`, plus a tiny bitmap font (`Canvas32`). Monochrome, silhouette-first, no baked grain (the shader adds grain/haze).
++- **SaveData / SaveSystem:** JSON to `Application.persistentDataPath`. Schema below. Autosave on shift end; load on boot.
++- **GameBootstrap (runtime) + AutoBootstrap (editor):** build the entire scene graph from code — cameras, canvases, the strip/hallway, the security desk root, room-frame root, HUD, managers — and assign all references. `AutoBootstrap` runs `[InitializeOnLoad]`/menu item to create the scene + objects so the user only presses Play.
++
++## FEATURE SPEC (build ALL of these; they define 100% — target ≥75% working)
++
++### 1) SECURITY ROOM CHECKPOINT (fixed, point-and-click, mouse-only) — the TNMN core
++- `DeskController` FSM: `Idle → Knock → Interview → Inspect → Decide → Confirm → Result`.
++- A visitor appears at the security window. The player inspects: **Student ID** and **Student Record/Form** on the desk; compares against the person's **portrait/appearance**.
++- **Verification fields** (each can contain a discrepancy): `idNumber` (+ a required **format rule**, e.g. `HBC-YYYY-####`), `photo` (must match appearance), `expiration` (must be a future/valid date), `yearLevel`, `course/program`, `status` = **Regular | Transferee**.
++- **Questioning:** exactly 4 standing questions — *"What's your course?" · "What year are you in?" · "Are you a regular student or a transferee?" · "What classroom is your first class in?"* The player may ask **1–2** (not required to ask all). Answers are recorded as evidence in a `TestimonyView` and can confirm or contradict the documents.
++- **CrossCheckEngine** scores the decision. Rule: **"1 discrepancy = doubt, 2+ = reject"**; an anomaly always warrants reject. `DeskDecision { Allow, Reject }`.
++- **Decisions are permanent.** Correct reject of an anomaly = "collected"; **false reject** of a real student increments `FalseRejects` (a "complaint"); **allowing an anomaly** increments `Breaches`.
++- **ALLOW / REJECT stamps** (red accent) with a stamp animation + SFX; a result banner ("ACCESS GRANTED" / "ACCESS DENIED" / "COLLECTED" / "WRONG — complaint filed").
++
++### 2) HALLWAY + CLASSROOMS (2D side-scroll movement) — the FNaC/exploration core
++- `HallwayController`: guard walks **left/right** (A/D or ←/→), **run** on Shift, **interact** on E/left-click within radius of an `Interactable`. `StripCameraRig` orthographic camera follows on X and subtly "breathes"/shakes as sanity drops.
++- The hallway has **doors** (`Interactable` ids like `door/security`, `door/classroom1`, `door/classroom2`). Interacting raises `EventIds.StripInteract`; `ViewDirector` hard-cuts (via `ShutterTransition`) between **strip (hallway) ⇄ security desk ⇄ room frame**.
++- **Classrooms** are entered from the hallway and are **also walkable** (reuse `HallwayController` on a smaller strip) with **inspectable objects** (`Interactable`/`Hotspot`). Provide a `ViewDirector` watchdog so a view is never lost/black (re-activate the correct root or snap back to the hallway).
++
++### 3) ANOMALIES (wandering) + EVASION + TRACKING
++- `AnomalySO` schema below. Anomalies **wander** the hallway/classrooms and can appear while exploring or at the checkpoint (as impostor students).
++- `AnomalyEntity` shows a **silhouette** (`SilhouetteView`) that solidifies from haze→ink as it is **tracked** with the light beam. `TrackingSystem` + `TrackParamsSO` drive a tracking meter; full tracking = **revealed/dispelled** (leaves a `Token`).
++- **Evade behaviors** (`IEvadeBehavior`): implement at least `Blink` (moves only when unobserved/unlit), `Slide` (drifts along an edge), `Sprint` (fast relocation when the beam is off), `CoverHug` (hides behind props). Evades run only while unlit/not pose-locked.
++- `CursorLight`: `LightMode { Off, Sweep, Focus }` (LMB/F = Sweep, RMB/Q = Focus, L = Off). Focus is a tight truth-check beam; Sweep is wide. Beam usage drains a resource and interacts with sanity.
++
++### 4) SANITY + DREAD + HALLUCINATION
++- `SanitySystem`: sanity is **perception, not health**. Stages: `Calm 76–100` (a composure shield absorbs the first hit), `Neutral 41–75`, `Danger 16–40`, `Hopeless 0–15`. Drains in dark rooms and near anomalies (a "radar" sense); recovers in the security room/office. Mirrors into `FilmParams.Sanity` (drives the grade + camera sway + a HUD bar).
++- `HallucinationSpawner`: at Danger/Hopeless, spawn a **false entity** at a frame edge identical to a real one; a 0.5s **Focus** truth-check makes it shimmer (no mass) and vanish.
++- `DreadDirector`: periodic micro-scares (edge flash, prop shift, tone dropout, distant figure) whose cadence tightens as sanity falls.
++- **Sanity effects** on the HUD/screen: low-sanity warning, vignette/distortion overlay (shader-driven via `FilmParams`).
++
++### 5) SHIFTS (5) + ESCALATION
++- `NightConfig` SO per shift + `ShiftManager`. Shift student counts: **S1=4, S2=6, S3=7, S4=8, S5=8 + Administrator**. Escalate anomaly frequency, tell subtlety, sanity drain, and (Challenge) rule changes.
++- A **roster builder** assembles each shift's `VisitorSO[]` (mix of real students + anomalies) and feeds `DeskController`. Shift start/end raise events; a `ClockSystem` advances the night and triggers dawn → Ending evaluation.
++
++### 6) ENVIRONMENTAL CLUES (10) + SECRET ENDING
++- `ClueSystem` with **10 inspectable interactions** across Hallway / Classroom 1 / Classroom 2: **flickering light, chalkboard, desk, door, window, notice board, lost ID, photo, cabinet, clock**. Each has lore text (the Identification Project, previous custodians' notes like *"Don't let them in"*).
++- Track discovered clues **and their intended order** in `SaveData.archiveFlags`. Finding all 10 in order (and investigating Hallway, Classroom 1, Classroom 2) unlocks the **Secret ending**.
++
++### 7) ENDINGS (3) — `EndingManager`
++- **WIN — "Surviving Hollowbrook":** complete all 5 shifts, keep `FalseRejects < 3` and `Breaches < 3`, and **reject the Shift-5 administrator impostor**.
++- **LOSE — "Another Custodian":** `Breaches >= 3` OR `FalseRejects >= 3`.
++- **SECRET — "The Truth Behind Hollowbrook":** discover all 10 clues in the intended sequence + investigate Hallway, Classroom 1, Classroom 2.
++- Each ending shows an `EndingUI` card (title, description, decision summary) and records to `SaveData.endingsSeen`.
++
++### 8) DISTRICT ADMINISTRATOR BOSS (Shift 5)
++- `AdministratorBoss`: a scripted special `VisitorSO` (`isAnomaly=true`) that arrives on Shift 5, claims to take control of the school, and exhibits the same ID/face **glitch** as other anomalies. Includes a **twist reveal** beat (ink-redrawn portrait + invert-pulse). Rejecting it is required for the Win ending.
++
++### 9) MODES — `ModeManager`
++- **Normal:** the 5-shift story. **Endless:** continuous inspections, a time limit, `+time` per anomaly correctly cleared, rising anomaly rate, score. **Challenge:** faster sanity drain, unpredictable rule changes, score multipliers. Mode is chosen at Mode Select and stored in `PlayerState.CurrentMode`.
++
++### 10) MAP UI
++- `MapUI`: an overlay showing the **Hallway, Classroom 1, Classroom 2** (plus locked/lore rooms: office, records room, server/identification room, staircase, restroom, emergency exit). Used to decide where to investigate; clicking a reachable room navigates there (or closes and lets the player walk).
++
++### 11) MENUS / SETTINGS / PAUSE / SAVE
++- `MainMenuUI`: **Game logo**, New Game, Continue, Settings, Credits, Exit. `SettingsUI` wired to `SaveData.SaveSettings` (below) — include the accessibility options. Pause menu + controls screen. Loading screen.
++- `SaveSystem`: Save/Continue across shifts (shift#, clues found, false-rejects, breaches, mode, endings seen, settings).
++
++### 12) AUDIO — `AudioDirector` / `AudioLibrary` / `CueSO`
++- A central `AudioDirector` (`Play(id, volume)`), an `AudioLibrary` (id→clip), `AmbientAudio` (room tone + ducking), and `CueSO` per sound (`clip, positional, gainInLookDown, caption`). The `caption` feeds an on-screen **Visual Cues** subtitle (accessibility). Wire: checkpoint (paper, ID handling, page turn, allow/reject stamps, UI clicks, map open, intercom static), exploration (footsteps, doors/latch, light flicker, object interact), horror (distorted stingers, static, sudden hits, anomaly reveal), and music hooks (menu theme, dark-room, normal-classroom, anomaly-encounter, endings). **Reuse existing clips where present; expose ids so new clips drop in without code changes.**
++
++## DATA SCHEMAS (ScriptableObjects)
++```
++VisitorSO: portraitSprite, displayName, yearLevel, course/program, instructor,
++  idNumber (+formatRule), expiration (System.DateTime or string), status (enum Regular|Transferee),
++  answers[4], idCard{photo,year,program,name,idNumber,expiration,status},
++  dataLines[], noteClearance, isAnomaly, anomalyRef, namedRoomId,
++  tells[] (TellEntry{type,frame}), cameraTruthFrame{texture,time,read}
++  enum TellType { ForgedField, PhotoMismatch, RuleViolation, CameraTruth, TestimonyTell,
++                  Expired, IdFormat, StatusMismatch }
++
++AnomalySO: id, displayName, threatTier(1..5), pay, sanityCost, silhouetteSprites[],
++  evadePattern (enum Slide,CoverHug,Blink,Split,IntoBeam,PropEdit,StampEat,EdgeCross,DarkOnly,Lure,Sprint),
++  audioCues[CueSO], deskTells{dataTell,camTell}, trackable, darkOnly, faceCheckRequired, tokenSprite
++
++NightConfig: shiftNumber, studentCount, anomalyChance, sanityDrainMultiplier,
++  tellSubtlety, ruleChanges[], cluesAvailable[], isAdministratorShift
++
++CueSO: clip, positional, gainInLookDown, caption
++
++SaveData: shift, rank, mode, falseRejects, breaches, archiveFlags[] (clue ids in order),
++  museum[], todayBest{date,amount}, endingsSeen[], settings{
++    sanityMultiplier, steadyHands, visualCues, reducedMotion, photosensitivitySafe,
++    crtToggle, dyslexiaFont, textScale, volume }
++```
++
++## ART / ASSET STRATEGY (monochrome)
++- **Procedural-first.** Ship with `ProcArt` greybox for EVERYTHING. Real art is integrated later via `IPlateProvider`/`IPortraitProvider` (default = procedural). Missing sprite ⇒ procedural shows ⇒ **never blocks the build**.
++- **Style:** high-contrast grayscale, silhouette-first, 5-tone ramp (ink `#0A0A0A`, dark `#33353A`, mid `#777A80`, light `#C6C8CC`, paper `#ECEAE2`), **one red accent** (`#C0392B`) for interactives only. Fluorescent light pools + deep black. Distortion (flicker/warp/ID-glitch) is added by shaders/`FilmParams`, not baked into art.
++- **Resolution:** world/characters authored at **640×360** (integer ×3 to 1080p, point filtering); **UI/documents at 1920×1080** native (bilinear) so ID cards and records stay readable. `CanvasScaler = Scale With Screen Size, 1920×1080, match 0.5`.
++- Provide a `PlateProvider` that loads a PNG from `Art/` by a **naming convention** (`ctx_subject_variant_state.png`) if present, else calls `ProcArt`.
++
++## BUILD ORDER — WORK IN THESE PHASES, STOP AFTER EACH, WAIT FOR "PROCEED"
++- **PHASE 0 — Core spine:** folder structure, `EventBus/GameEvent/EventIds`, `GameStateMachine`, `PlayerState`, `FilmParams`, `RCShaderLib`, `ProcArt`+`Canvas32`, `RCFrame.shader`+`RCWorld.shader`, `SaveData/SaveSystem`, `GameBootstrap`+`AutoBootstrap`+`WorldBuilder` that builds an empty running scene with a greybox hallway and a working camera. **Deliverable: press Play → a greybox scene renders, no errors.**
++- **PHASE 1 — Menu + rebrand:** `MainMenuUI`, `SettingsUI`, Mode Select, `ModeManager` stub, title/logo, loading screen; wire state machine Menu→ModeSelect→(Security/Hub).
++- **PHASE 2 — Security checkpoint:** `VisitorSO`, `CrossCheckEngine`, `DeskController` (full FSM), `TestimonyView`, `DocumentUI` (ID + record), questions, ALLOW/REJECT + stamps + result banner, false-reject/breach counters. Demo with 3 generated visitors.
++- **PHASE 3 — Movement + views:** `HallwayController`, `StripCameraRig`, `Interactable`, `ViewDirector`+`ShutterTransition`, doors, walkable classrooms, `RoomViewController`/`FrameRenderer`/`Hotspot`, watchdog.
++- **PHASE 4 — Anomalies + sanity:** `AnomalySO`, `AnomalyEntity`, `SilhouetteView`, `TrackingSystem`+`TrackParamsSO`, `CursorLight`, Evade behaviors, `TokenManager/View`, `SanitySystem`+`SanityBarUI`, `HallucinationSpawner`, `DreadDirector`.
++- **PHASE 5 — Progression:** `NightConfig`, `ShiftManager` (5 shifts + escalation + roster builder), `ClockSystem`, `ClueSystem` (10 clues + order), `EndingManager` (3 endings + `EndingUI`), `AdministratorBoss`.
++- **PHASE 6 — Modes + Map + Save polish:** `ModeManager` (Normal/Endless/Challenge), `MapUI`, Save/Continue across shifts, pause.
++- **PHASE 7 — Audio + integration + build:** `AudioDirector/AudioLibrary/AmbientAudio/CueSO`, wire all SFX/music hooks, integrate any real art via providers, balance sanity/tells/pacing, a `DebugHUD`, and produce a **Windows build** + a short "how to test each feature" list.
++
++## OUTPUT CONTRACT (how you must respond each phase)
++1. Start with a **2–3 line plan** for the phase and a **list of files** you will create/modify (full paths).
++2. Output **complete file contents** (not snippets/diffs) in fenced ```csharp blocks, each preceded by its path as a comment. Include `using` directives. Code must **compile** and follow all constraints above.
++3. Add any **ScriptableObject creation** as `[CreateAssetMenu]` classes AND, for the demo, generate sample assets from the bootstrap so the phase is testable without manual authoring.
++4. End with **"How to test this phase"** (3–6 bullet steps) and the single line: `PHASE N COMPLETE — say "Proceed to Phase N+1"`. Then **STOP**.
++5. If a requirement is ambiguous, choose the simplest option consistent with this spec, note the assumption in one line, and continue — do not stall.
++
++## DEFINITION OF DONE (per phase)
++Compiles with **zero errors**; the build **runs** (Play mode) with no exceptions; new systems communicate via the **EventBus**; all references are assigned by the **bootstrap** (no hand-wiring, no `GameObject.Find` in gameplay); placeholder art is **procedural** and swappable; the phase's **"How to test"** steps pass.
++
++## FINAL GOAL
++After Phase 7, the project is a **complete, playable, buildable** "Show Me Your ID!" with all 12 feature areas working (≥75% fully polished, the rest functional greybox), ready to record **promo gameplay** (checkpoint ID-mismatch, hallway walk, classroom clue, anomaly reveal/jumpscare, administrator twist) and to submit as the FRELEC build.
++
++Begin now with **PHASE 0**. Remember: output complete, compiling files, then STOP and wait for "Proceed".
++
++====================================================================
++==== PROMPT END ====================================================
++====================================================================
+diff --git a/docs/ui/options_after_v1.0.7.svg b/docs/ui/options_after_v1.0.7.svg
+new file mode 100644
+index 0000000..a1ad446
+--- /dev/null
++++ b/docs/ui/options_after_v1.0.7.svg
+@@ -0,0 +1 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 720" width="480" height="540"><rect width="640" height="720" fill="#0B0B0C"/><rect width="640" height="720" fill="#141416"/><rect x="638" y="0" width="2" height="720" fill="#4D4D52"/><text x="40" y="60" font-family="monospace" font-size="30" fill="#EBEBE6">OPTIONS</text><text x="40" y="88" font-family="monospace" font-size="12" fill="#6B6B6B">Applies immediately. Remembered on this machine.</text><text x="40" y="125" font-family="monospace" font-size="12" fill="#6B6B6B">AUDIO</text><text x="40" y="160" font-family="monospace" font-size="16" fill="#EBEBE6">Master volume</text><rect x="252.8" y="151" width="280.0" height="8" fill="#242426"/><rect x="252.8" y="151" width="224.0" height="8" fill="#EBEBE6"/><rect x="469.8" y="144" width="14" height="22" fill="#9E9E99"/><text x="540.8" y="160" font-family="monospace" font-size="13" fill="#9E9E99">80%</text><text x="40" y="202" font-family="monospace" font-size="16" fill="#EBEBE6">SFX volume</text><rect x="252.8" y="193" width="280.0" height="8" fill="#242426"/><rect x="252.8" y="193" width="224.0" height="8" fill="#EBEBE6"/><rect x="469.8" y="186" width="14" height="22" fill="#9E9E99"/><text x="540.8" y="202" font-family="monospace" font-size="13" fill="#9E9E99">80%</text><text x="40" y="235" font-family="monospace" font-size="12" fill="#6B6B6B">DISPLAY</text><rect x="40" y="252" width="24" height="24" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="52" y="270" font-family="monospace" font-size="16" fill="#E63842" text-anchor="middle">X</text><text x="76" y="270" font-family="monospace" font-size="15" fill="#EBEBE6">Fullscreen  (borderless)</text><text x="40" y="312" font-family="monospace" font-size="12" fill="#6B6B6B">Resolution</text><rect x="146" y="292" width="100" height="30" fill="#4D4D52" stroke="#4D4D52" stroke-width="2"/><text x="196" y="312" font-family="monospace" font-size="13" fill="#EBEBE6" text-anchor="middle">1920×1080</text><rect x="254" y="292" width="100" height="30" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="304" y="312" font-family="monospace" font-size="13" fill="#EBEBE6" text-anchor="middle">1280×720</text><rect x="362" y="292" width="100" height="30" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="412" y="312" font-family="monospace" font-size="13" fill="#EBEBE6" text-anchor="middle">1600×900</text><rect x="470" y="292" width="100" height="30" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="520" y="312" font-family="monospace" font-size="13" fill="#EBEBE6" text-anchor="middle">2560×1440</text><text x="40" y="347" font-family="monospace" font-size="12" fill="#6B6B6B">ACCESSIBILITY</text><text x="40" y="384" font-family="monospace" font-size="12" fill="#6B6B6B">Text size</text><rect x="146" y="364" width="100" height="30" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="196" y="384" font-family="monospace" font-size="13" fill="#EBEBE6" text-anchor="middle">SMALL</text><rect x="254" y="364" width="100" height="30" fill="#4D4D52" stroke="#4D4D52" stroke-width="2"/><text x="304" y="384" font-family="monospace" font-size="13" fill="#EBEBE6" text-anchor="middle">NORMAL</text><rect x="362" y="364" width="100" height="30" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="412" y="384" font-family="monospace" font-size="13" fill="#EBEBE6" text-anchor="middle">LARGE</text><rect x="40" y="410" width="24" height="24" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="76" y="428" font-family="monospace" font-size="15" fill="#EBEBE6">Reduced motion  (no shake, no lunges, instant text)</text><rect x="40" y="450" width="24" height="24" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="76" y="468" font-family="monospace" font-size="15" fill="#EBEBE6">Photosensitivity safe  (no strobe, softened scares)</text><rect x="40" y="490" width="24" height="24" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="52" y="508" font-family="monospace" font-size="16" fill="#E63842" text-anchor="middle">X</text><text x="76" y="508" font-family="monospace" font-size="15" fill="#EBEBE6">Captions for significant sounds</text><text x="40" y="539" font-family="monospace" font-size="12" fill="#6B6B6B">DATA</text><rect x="40" y="552" width="200" height="40" fill="#290A0D" stroke="#E63842" stroke-width="2"/><text x="140.0" y="578" font-family="monospace" font-size="15" fill="#E63842" text-anchor="middle">RESET DATA…</text><text x="40" y="614" font-family="monospace" font-size="11" fill="#6B6B6B">Progress, records, endings. Volumes, display and accessibility are kept.</text><rect x="40" y="678" width="200" height="42" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="140" y="704" font-family="monospace" font-size="16" fill="#EBEBE6" text-anchor="middle">CONTROLS</text><rect x="260" y="678" width="200" height="42" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="360" y="704" font-family="monospace" font-size="16" fill="#EBEBE6" text-anchor="middle">◂ BACK</text></svg>
+\ No newline at end of file
+diff --git a/docs/ui/options_before_v1.0.7.svg b/docs/ui/options_before_v1.0.7.svg
+new file mode 100644
+index 0000000..f948e5a
+--- /dev/null
++++ b/docs/ui/options_before_v1.0.7.svg
+@@ -0,0 +1 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 720" width="480" height="540"><rect width="640" height="720" fill="#0B0B0C"/><rect width="640" height="720" fill="#141416"/><rect x="638" y="0" width="2" height="720" fill="#4D4D52"/><text x="40" y="60" font-family="monospace" font-size="30" fill="#EBEBE6">OPTIONS</text><text x="40" y="88" font-family="monospace" font-size="12" fill="#6B6B6B">Applies immediately. Remembered on this machine.</text><rect x="15" y="125" width="280.0" height="8" fill="#242426"/><rect x="15" y="125" width="224.0" height="8" fill="#EBEBE6"/><rect x="232.0" y="118" width="14" height="22" fill="#9E9E99"/><text x="600" y="134" font-family="monospace" font-size="10" fill="#E63842" text-anchor="end">label rendered off-sheet</text><rect x="15" y="167" width="280.0" height="8" fill="#242426"/><rect x="15" y="167" width="168.0" height="8" fill="#EBEBE6"/><rect x="176.0" y="160" width="14" height="22" fill="#9E9E99"/><text x="600" y="176" font-family="monospace" font-size="10" fill="#E63842" text-anchor="end">label rendered off-sheet</text><rect x="15" y="209" width="280.0" height="8" fill="#242426"/><rect x="15" y="209" width="224.0" height="8" fill="#EBEBE6"/><rect x="232.0" y="202" width="14" height="22" fill="#9E9E99"/><text x="600" y="218" font-family="monospace" font-size="10" fill="#E63842" text-anchor="end">label rendered off-sheet</text><text x="40" y="262" font-family="monospace" font-size="12" fill="#6B6B6B">Text size</text><rect x="146" y="242" width="100" height="30" fill="#4D4D52" stroke="#4D4D52" stroke-width="2"/><text x="196" y="262" font-family="monospace" font-size="13" fill="#EBEBE6" text-anchor="middle">NORMAL</text><rect x="254" y="242" width="100" height="30" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="304" y="262" font-family="monospace" font-size="13" fill="#EBEBE6" text-anchor="middle">SMALL</text><rect x="362" y="242" width="100" height="30" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="412" y="262" font-family="monospace" font-size="13" fill="#EBEBE6" text-anchor="middle">LARGE</text><rect x="40" y="288" width="24" height="24" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="76" y="306" font-family="monospace" font-size="15" fill="#EBEBE6">Reduced motion  (no shake, no lunges, instant text)</text><rect x="40" y="328" width="24" height="24" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="76" y="346" font-family="monospace" font-size="15" fill="#EBEBE6">Photosensitivity safe  (no strobe, softened scares)</text><rect x="40" y="368" width="24" height="24" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="52" y="386" font-family="monospace" font-size="16" fill="#E63842" text-anchor="middle">X</text><text x="76" y="386" font-family="monospace" font-size="15" fill="#EBEBE6">Captions for significant sounds</text><text x="40" y="640" font-family="monospace" font-size="13" fill="#E63842">no display options · no reset · slider labels off-sheet</text><rect x="40" y="678" width="200" height="42" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="140" y="704" font-family="monospace" font-size="16" fill="#EBEBE6" text-anchor="middle">CONTROLS</text><rect x="260" y="678" width="200" height="42" fill="#242426" stroke="#4D4D52" stroke-width="2"/><text x="360" y="704" font-family="monospace" font-size="16" fill="#EBEBE6" text-anchor="middle">◂ BACK</text></svg>
+\ No newline at end of file
+-- 
+2.39.5
+

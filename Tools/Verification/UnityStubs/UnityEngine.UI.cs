@@ -24,16 +24,6 @@ namespace UnityEngine
         public float planeDistance = 100f;
     }
 
-    public class CanvasScaler : Behaviour
-    {
-        public ScaleMode uiScaleMode = ScaleMode.ConstantPixelSize;
-        public Vector2 referenceResolution = new Vector2(800, 600);
-        [Range(0, 1)] public float matchWidthOrHeight = 0f;
-        public float referencePixelsPerUnit = 100f;
-        public float scaleFactor = 100f;
-        public enum ScaleMode { ConstantPixelSize = 0, ScaleWithScreenSize = 1, ConstantPhysicalSize = 2 }
-    }
-
     public class CanvasGroup : Behaviour
     {
         public float alpha = 1f;
@@ -77,7 +67,20 @@ namespace UnityEngine
 
 namespace UnityEngine.UI
 {
+    public class CanvasScaler : Behaviour
+    {
+        public ScaleMode uiScaleMode = ScaleMode.ConstantPixelSize;
+        public Vector2 referenceResolution = new Vector2(800, 600);
+        [Range(0, 1)] public float matchWidthOrHeight = 0f;
+        public float referencePixelsPerUnit = 100f;
+        public float scaleFactor = 100f;
+        public enum ScaleMode { ConstantPixelSize = 0, ScaleWithScreenSize = 1, ConstantPhysicalSize = 2 }
+        public enum ScreenMatchMode { MatchWidthOrHeight = 0, Expand = 1, Shrink = 2 }
+        public ScreenMatchMode screenMatchMode = ScreenMatchMode.MatchWidthOrHeight;
+    }
+
     public class GraphicRaycaster : Behaviour { }
+    public class Mask : Behaviour { public bool showMaskGraphic = true; }
 
     public class Graphic : Behaviour
     {
@@ -194,6 +197,9 @@ namespace UnityEngine.UI
         public bool horizontal = true;
         public bool vertical = true;
         public float verticalNormalizedPosition = 1f;
+        public enum MovementType { Unrestricted, Elastic, Clamped }
+        public MovementType movementType = MovementType.Clamped;
+        public float scrollSensitivity = 24f;
     }
 
     public class LayoutGroup : Behaviour
@@ -289,6 +295,27 @@ namespace UnityEngine.EventSystems
         public string cancelButton = "Cancel";
         public float inputActionsPerSecond = 10f;
         public float repeatDelay = 0.5f;
+    }
+
+    public class BaseEventData { }
+
+    public enum EventTriggerType
+    {
+        PointerEnter = 0, PointerExit = 1, PointerDown = 2, PointerUp = 3, PointerClick = 4,
+        InitializePotentialDrag = 5, BeginDrag = 6, Drag = 7, EndDrag = 8, Drop = 9,
+        Scroll = 10, UpdateSelected = 11, Select = 12, Deselect = 13, Move = 14,
+        Submit = 15, Cancel = 16,
+    }
+
+    public class EventTrigger : Behaviour
+    {
+        public class TriggerEvent : UnityEngine.Events.UnityEvent<BaseEventData> { }
+        public class Entry
+        {
+            public EventTriggerType eventID;
+            public TriggerEvent callback = new TriggerEvent();
+        }
+        public System.Collections.Generic.List<Entry> triggers = new System.Collections.Generic.List<Entry>();
     }
 
     public class EventSystem : Behaviour

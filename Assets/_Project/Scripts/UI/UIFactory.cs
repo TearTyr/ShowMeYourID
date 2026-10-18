@@ -63,6 +63,7 @@ namespace Hollowbrook.UI
             canvas.sortingOrder = sortingOrder;
             var scaler = go.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;  // explicit: AspectMatchGuard drives matchWidthOrHeight
             scaler.referenceResolution = new Vector2(refW, refH);
             scaler.matchWidthOrHeight = 0.5f;
             return canvas;

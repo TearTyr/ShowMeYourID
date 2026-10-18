@@ -105,7 +105,8 @@ def main():
     for dirpath, dirnames, filenames in os.walk(ASSETS):
         rel = os.path.relpath(dirpath, ROOT)
         meta_path = os.path.join(dirpath + ".meta")
-        if rel != "Assets" or True:
+        # Unity has no meta for the Assets folder itself; never create one.
+        if rel != "Assets":
             if not os.path.exists(meta_path):
                 with open(meta_path, "w") as f:
                     f.write(meta_for(rel, True))

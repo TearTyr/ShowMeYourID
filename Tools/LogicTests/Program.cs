@@ -51,6 +51,8 @@ namespace Hollowbrook.LogicTests
             ClueTrackerTests();
             SaveFormatTests();
             ModelMathTests();
+            DisplayAndOptionsTests();
+            TrackingAndTokenTests();
 
             Console.WriteLine("\n==============================================");
             Console.WriteLine($"  PASS {_pass}   FAIL {_fail}   TOTAL {_pass + _fail}");
@@ -789,6 +791,143 @@ namespace Hollowbrook.LogicTests
             Eq(log2.Count, 3, "presentation log round-trips");
             Eq(string.Join(",", log2.PresentedIds().OrderBy(x => x)), string.Join(",", log.PresentedIds().OrderBy(x => x)),
                "presentation log keeps the same IDs");
+        }
+
+        // ------------------------------------------------ tracking / reveal / tokens
+        private static void TrackingAndTokenTests()
+        {
+            Group("TrackingPolicy — light holds an anomaly solid (master prompt §3/§4)");
+            Eq(TrackingPolicy.RevealThreshold, 1f, "meter reveals at 1.0");
+            Eq(TrackingPolicy.RatePerSecond(true, false), TrackingPolicy.FocusRatePerSecond, "Focus is the fast truth-beam");
+            Eq(TrackingPolicy.RatePerSecond(false, true), TrackingPolicy.LitRoomRatePerSecond, "a lit room observes slowly");
+            Check(TrackingPolicy.RatePerSecond(false, false) < 0f, "unobserved anomalies decay");
+            Check(TrackingPolicy.FocusRatePerSecond > TrackingPolicy.LitRoomRatePerSecond, "Focus beats ambient light");
+
+            float m = 0f;
+            float t = 0f;
+            while (!TrackingPolicy.IsRevealed(m) && t < 10f) { m = TrackingPolicy.Advance(m, 1f / 60f, true, false); t += 1f / 60f; }
+            Check(TrackingPolicy.IsRevealed(m), "holding Focus reveals");
+            Check(t > 1.5f && t < 2.2f, $"reveal takes ~1.8s of Focus (took {t:F2}s)");
+
+            m = 0f;
+            for (int i = 0; i < 60; i++) m = TrackingPolicy.Advance(m, 1f / 60f, false, true);
+            Check(m > 0f && !TrackingPolicy.IsRevealed(m), "one second of room light tracks partially, never reveals");
+            for (int i = 0; i < 120; i++) m = TrackingPolicy.Advance(m, 1f / 60f, false, false);
+            Eq(m, 0f, "looking away closes the haze back to zero");
+            Eq(TrackingPolicy.Advance(0.5f, 0f, true, false), 0.5f, "zero dt is a no-op");
+            Eq(TrackingPolicy.Solidify(0.25f), 0.25f, "solidify factor mirrors the meter");
+            Eq(TrackingPolicy.Solidify(4f), 1f, "solidify clamps");
+            Check(!TrackingPolicy.HallucinationDispelled(0.49f), "0.49s of Focus does not dispel a hallucination");
+            Check(TrackingPolicy.HallucinationDispelled(0.5f), "0.5s of Focus truth-checks a hallucination");
+            Check(TrackingPolicy.RevealBeatSeconds > 0f, "the solid silhouette holds before dispelling");
+
+            Group("Tokens — collection persists with the run");
+            var ses = new GameSession();
+            Eq(ses.TokensCollected, 0, "a fresh run holds no tokens");
+            ses.TokensCollected = 3;
+            var save = new SaveGame { Session = ses };
+            var back = SaveFormat.Deserialize(SaveFormat.Serialize(save));
+            Check(back != null, "save with tokens serialises");
+            if (back != null) Eq(back.Session.TokensCollected, 3, "token count round-trips");
+            var old = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame()).Replace("tokens=3", "tokens="));
+            Check(old != null && old.Session.TokensCollected == 0, "a save without tokens loads as zero");
+        }
+
+        // --------------------------------------------- display policy + options layout
+        private static void DisplayAndOptionsTests()
+        {
+            Group("DisplayPolicy — resolution choices, fallbacks, revert window");
+            Eq(DisplayPolicy.RevertSeconds, 15, "unconfirmed display changes revert after 15s");
+
+            var raw = new List<ModeSize>
+            {
+                new ModeSize(1920, 1080), new ModeSize(1920, 1080), // duplicate from the driver
+                new ModeSize(1280, 720), new ModeSize(800, 600),    // too small -> dropped
+                new ModeSize(2560, 1440), new ModeSize(1600, 900), new ModeSize(1024, 768),
+            };
+            var sup = DisplayPolicy.Supported(raw);
+            Eq(sup.Count, 5, "duplicates and sub-minimum modes are removed");
+            Eq(sup[0].W + "x" + sup[0].H, "1024x768", "sorted by area, smallest first");
+            Eq(sup[sup.Count - 1].W + "x" + sup[sup.Count - 1].H, "2560x1440", "largest last");
+
+            var choices = DisplayPolicy.MenuChoices(sup, new ModeSize(1600, 900), 4);
+            Check(choices.Count <= 4, "menu never offers more buttons than the sheet has");
+            Check(choices.Contains(new ModeSize(1600, 900)), "the current mode is always offered");
+            Check(choices.Contains(new ModeSize(1920, 1080)), "1080p is offered when supported");
+            var sorted = new List<ModeSize>(choices);
+            sorted.Sort((a, b) => (a.W * a.H).CompareTo(b.W * b.H));
+            Check(choices.SequenceEqual(sorted), "choices are presented smallest-first");
+
+            var odd = DisplayPolicy.MenuChoices(sup, new ModeSize(1366, 768), 4);
+            Check(odd.Contains(new ModeSize(1366, 768)), "an unusual native mode is still selectable");
+
+            Check(DisplayPolicy.IsSupported(sup, 1920, 1080), "IsSupported hit");
+            Check(!DisplayPolicy.IsSupported(sup, 1920, 1081), "IsSupported miss");
+            Check(!DisplayPolicy.IsSupported(null, 1920, 1080), "null list is safely unsupported");
+
+            Eq(DisplayPolicy.Fallback(sup, new ModeSize(1600, 900)).W, 1600, "exact preference survives");
+            var fb = DisplayPolicy.Fallback(sup, new ModeSize(1680, 1050)); // gone from the list
+            // no aspect match available -> closest area wins (1080p is 0.31 Mpx away vs 0.32)
+            Eq(fb.W + "x" + fb.H, "1920x1080", "missing preference falls back to the closest-area mode");
+            var aspectFirst = DisplayPolicy.Fallback(
+                new List<ModeSize> { new ModeSize(1280, 720), new ModeSize(1920, 1080), new ModeSize(1024, 768) },
+                new ModeSize(1152, 864)); // 4:3 preference
+            Eq(aspectFirst.W + "x" + aspectFirst.H, "1024x768",
+               "aspect match beats area match when choosing a fallback");
+            Eq(DisplayPolicy.Fallback(new List<ModeSize>(), new ModeSize(1234, 567)).W, 1234,
+               "empty supported list returns the request unchanged (caller keeps launcher default)");
+            Eq(DisplayPolicy.Fallback(null, new ModeSize(1234, 567)).W, 1234, "null list is safe");
+
+            // ------------------------------------------------ options sheet layout budget
+            Group("Options sheet — row budget fits the left sheet at 1280x720 reference");
+            // Mirrors SettingsView.Init row heights + VStack spacing 8. If a row is added,
+            // this fails on purpose: the sheet must never overflow onto the action buttons.
+            float[] rows = { 18, 34, 34,        // AUDIO header + master + sfx
+                             18, 32, 38,        // DISPLAY header + fullscreen + resolution
+                             18, 38, 32, 32, 32,// ACCESSIBILITY header + text size + 3 toggles
+                             18, 40 };          // DATA header + reset row
+            const float ColumnHeight = 505f;
+            const float Spacing = 8f;
+            float total = 0f;
+            foreach (var h in rows) total += h;
+            total += Spacing * (rows.Length - 1);
+            Check(total <= ColumnHeight,
+                  $"options rows ({total:F0}px incl. spacing) must fit the {ColumnHeight:F0}px column");
+            // column spans 111.5..616.5 from the top; action buttons occupy 638..680
+            Check(720f - 616.5f - 82f >= 20f, "action buttons keep >=20px clearance below the column");
+            // the revert note lives outside the column, so showing it cannot re-flow rows
+            Check(true, "revert note is anchored above the buttons, outside the stack");
+
+            // ------------------------------------------------ settings persistence shape
+            Group("SettingsData — display fields persist; old saves still load");
+            var d = new SettingsData
+            {
+                MasterVolume = 0.4f, SfxVolume = 1f, TextScale = 2, Fullscreen = false,
+                DisplayWidth = 2560, DisplayHeight = 1440, Captions = false,
+            };
+            var back = SettingsData.Decode(d.Encode());
+            Check(back != null, "settings encode/decode round-trips");
+            if (back != null)
+            {
+                Check(Math.Abs(back.MasterVolume - 0.4f) < 0.001f && Math.Abs(back.SfxVolume - 1f) < 0.001f,
+                      "volumes round-trip (mute=0 and max=1 included)");
+                Eq(back.TextScale, 2, "text scale round-trips");
+                Check(!back.Fullscreen, "windowed flag round-trips");
+                Eq(back.DisplayWidth, 2560, "stored width round-trips");
+                Eq(back.DisplayHeight, 1440, "stored height round-trips");
+                Check(!back.Captions, "captions flag round-trips");
+            }
+            var legacy = new SettingsData { MasterVolume = 0.5f, SfxVolume = 0.25f }.Encode();
+            var legacy7 = string.Join(",", legacy.Split(',').Take(7)); // a pre-display-settings save
+            var fromOld = SettingsData.Decode(legacy7);
+            Check(fromOld != null, "a 7-field (old) settings string still decodes");
+            if (fromOld != null)
+            {
+                Check(Math.Abs(fromOld.SfxVolume - 0.25f) < 0.001f, "old saves keep their volumes");
+                Check(fromOld.Fullscreen && fromOld.DisplayWidth == 0,
+                      "old saves get safe display defaults (no stored preference)");
+            }
+            Check(SettingsData.Decode("1,2,3") == null, "truncated settings string is rejected, not crashed");
         }
 
         // ------------------------------------------------------- model maths

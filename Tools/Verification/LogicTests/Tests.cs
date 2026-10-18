@@ -51,6 +51,79 @@ namespace SMYID.Tests
             TestSaveFormat();
             TestPresentationLog();
             TestFullPlaythroughs();
+            TestOfficeRulesAndPool();
+        }
+
+        static void TestOfficeRulesAndPool()
+        {
+            Section("Security office rules + shared patrol pool (Scene B)");
+
+            var onList = new VisitorData { IsAnomaly = false, OnLateList = true, ShiftNumber = 3,
+                ExpirationDay = Content.ShiftDayNumber(3) + 50, IdNumber = "HB-2026-0000".Replace("0000", "0002") };
+            var offList = new VisitorData { IsAnomaly = false, OnLateList = false, ShiftNumber = 3,
+                ExpirationDay = Content.ShiftDayNumber(3) + 50, IdNumber = "HB-2026-0004" };
+            var expired = new VisitorData { IsAnomaly = false, OnLateList = true, ShiftNumber = 3,
+                ExpirationDay = Content.ShiftDayNumber(3) - 5, IdNumber = "HB-2026-0006" };
+            Check(PatrolRules.ExpectedOfficeVerdict(onList) == Verdict.Allow, "on-list, unexpired late student => Allow");
+            Check(PatrolRules.ExpectedOfficeVerdict(offList) == Verdict.Reject, "off-list => Reject by the office rule");
+            Check(PatrolRules.ExpectedOfficeVerdict(expired) == Verdict.Reject, "expired ID => Reject by the office rule");
+
+            var offOutcome = InspectionRules.Apply(offList, Verdict.Reject, PatrolRules.OfficeRule);
+            Check(offOutcome.Correct && !offOutcome.FalseRejection,
+                "rejecting an off-list student is correct and NOT a false rejection");
+            var badAllow = InspectionRules.Apply(offList, Verdict.Allow, PatrolRules.OfficeRule);
+            Check(!badAllow.Correct && !badAllow.AnomalyBreach && !badAllow.FalseRejection,
+                "admitting an off-list student is a mistake but not a breach/complaint");
+            var anomaly = new VisitorData { IsAnomaly = true, OnLateList = true, ShiftNumber = 3, IdNumber = "HB-2026-0008" };
+            Check(PatrolRules.ExpectedOfficeVerdict(anomaly) == Verdict.Reject, "anomaly at the door => Reject");
+            Check(InspectionRules.Apply(anomaly, Verdict.Allow, PatrolRules.OfficeRule).AnomalyBreach,
+                "admitting an anomaly at the door counts as a breach");
+
+            // fairness of the generated late queue over many seeds
+            int queues = 0, anomalies = 0;
+            for (int seed = 1; seed <= 40; seed++)
+            {
+                var rf = new RosterFactory(seed);
+                var pool = new PatrolPool();
+                pool.Seed(new[] { AnomalyBehaviorKind.Blink, AnomalyBehaviorKind.Sprint });
+                var rng = new GameRng(seed);
+                var q = PatrolRules.BuildLateQueue(rf, ShiftPlan.Get(3), pool, rng);
+                queues++;
+                Check(q.Count == PatrolRules.LateArrivals, "late queue always has exactly 3 arrivals");
+                foreach (var v in q)
+                {
+                    var docs = IdRules.EvaluateDocuments(v, rf.Registry, new PresentationLog());
+                    if (v.IsAnomaly)
+                    {
+                        anomalies++;
+                        Check(docs.Count > 0 || v.Defects.Contains(DefectType.BehaviorOddity)
+                              || v.Answers.Values.Any(a => a.ContradictsDocuments || a.Tone != ToneTag.Normal),
+                              "office anomaly is always detectable");
+                        Check(PatrolRules.ExpectedOfficeVerdict(v) == Verdict.Reject, "office anomaly => Reject");
+                    }
+                    else
+                    {
+                        Check(docs.Count == 0, "office late student has clean documents");
+                        Check(PatrolRules.ExpectedOfficeVerdict(v) == (v.OnLateList ? Verdict.Allow : Verdict.Reject),
+                            "office legit verdict follows the late list exactly");
+                    }
+                }
+                Check(pool.Pending >= 0 && pool.Pending <= 2, "pool never goes negative");
+            }
+            Check(queues == 40 && anomalies > 0, "pool-fed anomalies actually reached the door in the sample");
+
+            var p = new PatrolPool();
+            p.Seed(new[] { AnomalyBehaviorKind.Slide, AnomalyBehaviorKind.CoverHug, AnomalyBehaviorKind.Blink });
+            Check(p.Pending == 3, "pool seeded with the shift's anomaly count");
+            p.Resolve(AnomalyBehaviorKind.Slide);
+            Check(p.Pending == 2, "dispelling removes the kind from the pool");
+            AnomalyBehaviorKind taken;
+            Check(p.TryTake(new GameRng(5), out taken), "office can take an outstanding anomaly");
+            Check(p.Pending == 1, "taking consumes it");
+            var p2 = new PatrolPool();
+            p2.Decode(p.Encode());
+            Check(p2.Pending == p.Pending && p2.PendingList[0] == p.PendingList[0], "pool survives encode/decode (save)");
+            Check(!new PatrolPool().TryTake(new GameRng(1), out taken), "empty pool takes nothing");
         }
 
         // ------------------------------------------------------------ helpers

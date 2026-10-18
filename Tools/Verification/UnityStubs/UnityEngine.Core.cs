@@ -323,11 +323,25 @@ namespace UnityEngine
         public static int frameCount { get; set; }
     }
 
+    public enum FullScreenMode { ExclusiveFullScreen = 0, FullScreenWindow = 1, MaximizedWindow = 2, Windowed = 3 }
+
+    public struct Resolution
+    {
+        public int width;
+        public int height;
+        public int refreshRate;
+    }
+
     public static class Screen
     {
         public static int width { get; set; } = 1280;
         public static int height { get; set; } = 720;
         public static float dpi => 96f;
+        public static FullScreenMode fullScreenMode { get; set; } = FullScreenMode.FullScreenWindow;
+        public static Resolution[] resolutions { get; set; } = new Resolution[0];
+        public static Resolution currentResolution => new Resolution { width = width, height = height };
+        public static void SetResolution(int w, int h, bool fullscreen) { width = w; height = h; }
+        public static void SetResolution(int w, int h, FullScreenMode mode) { width = w; height = h; fullScreenMode = mode; }
     }
 
     public static class PlayerPrefs

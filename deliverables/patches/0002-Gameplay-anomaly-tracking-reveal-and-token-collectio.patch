@@ -1,0 +1,470 @@
+From 7e8ba6bcd0ada43af400800cc84164ddda839c6b Mon Sep 17 00:00:00 2001
+From: Twin Studio Dev <dev@twinstudio.local>
+Date: Sun, 18 Oct 2026 11:50:13 +0000
+Subject: [PATCH 2/3] =?UTF-8?q?Gameplay:=20anomaly=20tracking,=20reveal=20?=
+ =?UTF-8?q?and=20token=20collection=20(master-prompt=20=C2=A73/=C2=A74)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- GameLogic/TrackingPolicy: engine-free rates (Focus 0.55/s, lit room 0.22/s, decay 0.35/s),
+  reveal threshold, 0.5s hallucination truth-check, 1.2s reveal beat (19 new unit assertions)
+- WanderingAnomaly: tracking meter, solidify-to-ink on reveal, inert+dispel leaving a token
+- TokenPickup interactable + 'token' procedural art + GameSession.TokensCollected (saved)
+- HUD TRACK meter (visible only while tracking); new EventIds Tracking/Revealed/Token
+- docs/GAMEPLAY-TRACKING.md; README status + controls updated
+---
+ .../Scripts/Bootstrap/ProceduralArt.cs        |  1 +
+ Assets/_Project/Scripts/Core/EventIds.cs      |  3 +
+ .../_Project/Scripts/GameLogic/GameSession.cs |  1 +
+ .../_Project/Scripts/GameLogic/SaveFormat.cs  |  2 +
+ .../Scripts/GameLogic/TrackingPolicy.cs       | 50 ++++++++++++
+ .../Scripts/Horror/WanderingAnomaly.cs        | 81 ++++++++++++++++++-
+ Assets/_Project/Scripts/UI/HudAndCommon.cs    | 31 +++++++
+ .../_Project/Scripts/World/Interactables.cs   | 23 ++++++
+ Tools/LogicTests/Program.cs                   | 41 ++++++++++
+ docs/GAMEPLAY-TRACKING.md                     | 51 ++++++++++++
+ 10 files changed, 283 insertions(+), 1 deletion(-)
+ create mode 100644 Assets/_Project/Scripts/GameLogic/TrackingPolicy.cs
+ create mode 100644 docs/GAMEPLAY-TRACKING.md
+
+diff --git a/Assets/_Project/Scripts/Bootstrap/ProceduralArt.cs b/Assets/_Project/Scripts/Bootstrap/ProceduralArt.cs
+index c04ae51..59ddeb9 100644
+--- a/Assets/_Project/Scripts/Bootstrap/ProceduralArt.cs
++++ b/Assets/_Project/Scripts/Bootstrap/ProceduralArt.cs
+@@ -181,6 +181,7 @@ namespace Hollowbrook.Bootstrap
+                 case "prop_noticeboard": return MakeNoticeBoard(208, 160);
+                 case "prop_cabinet": return MakeCabinet(160, 272);
+                 case "prop_clock": return MakeClock(112);
++                case "token": return MakeClock(28);   // pocket-watch token left by a revealed anomaly
+                 case "prop_photoframe": return MakePhotoFrame(144, 108);
+                 case "prop_lightfixture": return MakeLightFixture(208, 40);
+                 case "prop_lostid": return MakeLostId(56, 36);
+diff --git a/Assets/_Project/Scripts/Core/EventIds.cs b/Assets/_Project/Scripts/Core/EventIds.cs
+index 69aa36f..c6b4577 100644
+--- a/Assets/_Project/Scripts/Core/EventIds.cs
++++ b/Assets/_Project/Scripts/Core/EventIds.cs
+@@ -48,5 +48,8 @@ namespace Hollowbrook.Core
+         public const string CaptionRequested = "caption.show";     // Text: caption, Value: seconds
+         public const string SettingsChanged = "settings.changed";  // Data: SettingsData
+         public const string Notification = "ui.notification";      // Text: toast message
++        public const string TrackingChanged = "anomaly.tracking";    // Value: 0..1 meter
++        public const string AnomalyRevealed = "anomaly.revealed";    // Data: kind / "hallucination"
++        public const string TokenCollected = "anomaly.token";      // Value: tokens held this run
+     }
+ }
+diff --git a/Assets/_Project/Scripts/GameLogic/GameSession.cs b/Assets/_Project/Scripts/GameLogic/GameSession.cs
+index c7c5e72..0025a80 100644
+--- a/Assets/_Project/Scripts/GameLogic/GameSession.cs
++++ b/Assets/_Project/Scripts/GameLogic/GameSession.cs
+@@ -46,6 +46,7 @@ namespace Hollowbrook.Logic
+         public int FalseRejections = 0;
+         public int Breaches = 0;            // anomalies allowed in (includes administrator if allowed)
+         public int AnomaliesRejected = 0;
++        public int TokensCollected = 0;      // fully-tracked anomalies (master prompt §3)
+         public bool AdminAllowed = false;
+         public bool AdminRejected = false;
+         public float Sanity = SanityModel.Max;
+diff --git a/Assets/_Project/Scripts/GameLogic/SaveFormat.cs b/Assets/_Project/Scripts/GameLogic/SaveFormat.cs
+index 22b3a65..8153bef 100644
+--- a/Assets/_Project/Scripts/GameLogic/SaveFormat.cs
++++ b/Assets/_Project/Scripts/GameLogic/SaveFormat.cs
+@@ -38,6 +38,7 @@ namespace Hollowbrook.Logic
+             sb.Append("falseRej=").Append(s.FalseRejections).Append('\n');
+             sb.Append("breaches=").Append(s.Breaches).Append('\n');
+             sb.Append("anomRej=").Append(s.AnomaliesRejected).Append('\n');
++            sb.Append("tokens=").Append(s.TokensCollected).Append('\n');
+             sb.Append("adminAllowed=").Append(s.AdminAllowed ? 1 : 0).Append('\n');
+             sb.Append("adminRejected=").Append(s.AdminRejected ? 1 : 0).Append('\n');
+             sb.Append("runFinished=").Append(s.RunFinished ? 1 : 0).Append('\n');
+@@ -109,6 +110,7 @@ namespace Hollowbrook.Logic
+                 s.FalseRejections = Int(map, "falseRej", 0);
+                 s.Breaches = Int(map, "breaches", 0);
+                 s.AnomaliesRejected = Int(map, "anomRej", 0);
++                s.TokensCollected = Int(map, "tokens", 0);
+                 s.AdminAllowed = Int(map, "adminAllowed", 0) == 1;
+                 s.AdminRejected = Int(map, "adminRejected", 0) == 1;
+                 s.RunFinished = Int(map, "runFinished", 0) == 1;
+diff --git a/Assets/_Project/Scripts/GameLogic/TrackingPolicy.cs b/Assets/_Project/Scripts/GameLogic/TrackingPolicy.cs
+new file mode 100644
+index 0000000..aea5949
+--- /dev/null
++++ b/Assets/_Project/Scripts/GameLogic/TrackingPolicy.cs
+@@ -0,0 +1,50 @@
++namespace Hollowbrook.Logic
++{
++    /// <summary>Master-prompt §3: an anomaly held in the light <i>solidifies from haze to ink</i>;
++    /// fully tracking one reveals/dispels it and leaves a collectible token. A hallucination
++    /// given the same truth-check shimmers and vanishes instead. Pure math on purpose: the
++    /// feel-tuning below is asserted by Tools/LogicTests, not by eyeballing Play mode.</summary>
++    public static class TrackingPolicy
++    {
++        /// <summary>Meter runs 0..1; reaching this reveals the anomaly.</summary>
++        public const float RevealThreshold = 1f;
++
++        /// <summary>Focus (flashlight) is the tight truth-beam: ~1.8 s of hold to reveal.</summary>
++        public const float FocusRatePerSecond = 0.55f;
++
++        /// <summary>A lit room (Sweep) observes slowly — tracking is deliberate, not passive.</summary>
++        public const float LitRoomRatePerSecond = 0.22f;
++
++        /// <summary>Look away and the haze closes back up.</summary>
++        public const float DecayPerSecond = 0.35f;
++
++        /// <summary>Spec §4: half a second of Focus truth-checks a hallucination.</summary>
++        public const float HallucinationTruthSeconds = 0.5f;
++
++        /// <summary>How long the solidified silhouette holds before it dispels (leaving the token).</summary>
++        public const float RevealBeatSeconds = 1.2f;
++
++        public static float RatePerSecond(bool focus, bool litRoom)
++        {
++            if (focus) return FocusRatePerSecond;
++            if (litRoom) return LitRoomRatePerSecond;
++            return -DecayPerSecond;
++        }
++
++        public static float Advance(float meter, float dt, bool focus, bool litRoom)
++        {
++            if (dt <= 0f) return Clamp01(meter);
++            return Clamp01(meter + RatePerSecond(focus, litRoom) * dt);
++        }
++
++        public static bool IsRevealed(float meter) => meter >= RevealThreshold - 1e-4f;
++
++        /// <summary>Haze→ink factor for the silhouette (0 = haze, 1 = solid ink).</summary>
++        public static float Solidify(float meter) => Clamp01(meter);
++
++        public static bool HallucinationDispelled(float focusSeconds) =>
++            focusSeconds >= HallucinationTruthSeconds;
++
++        private static float Clamp01(float v) => v < 0f ? 0f : (v > 1f ? 1f : v);
++    }
++}
+diff --git a/Assets/_Project/Scripts/Horror/WanderingAnomaly.cs b/Assets/_Project/Scripts/Horror/WanderingAnomaly.cs
+index d6f7433..0c04821 100644
+--- a/Assets/_Project/Scripts/Horror/WanderingAnomaly.cs
++++ b/Assets/_Project/Scripts/Horror/WanderingAnomaly.cs
+@@ -22,6 +22,10 @@ namespace Hollowbrook.Horror
+         private float _lifetime;
+         private bool _sightedPenaltyApplied;
+         private float _sanityTickTimer;
++        private float _track;             // 0..1 tracking meter (TrackingPolicy)
++        private float _trackThrottle;     // HUD event throttle
++        private bool _revealed;           // fully tracked: solid, inert, about to dispel
++        private float _revealBeat;
+         public bool IsHallucination { get; private set; }
+         public AnomalyBehaviorKind Kind { get; private set; }
+         public Vector3 Pos => transform.localPosition;
+@@ -75,7 +79,9 @@ namespace Hollowbrook.Horror
+             Vector3 playerPos = R.Views != null && R.Views.Player != null
+                 ? R.Views.Player.transform.localPosition : Vector3.zero;
+ 
+-            if (!dialogueOpen) _behavior.Tick(dt, playerPos);
++            if (!dialogueOpen && !_revealed) _behavior.Tick(dt, playerPos);
++
++            TickTracking(dt, dialogueOpen);
+ 
+             TickVisibility();
+ 
+@@ -104,11 +110,84 @@ namespace Hollowbrook.Horror
+             }
+         }
+ 
++        /// <summary>Master prompt §3/§4: hold an anomaly in the light and the haze solidifies
++        /// toward ink; a full meter reveals/dispels it and leaves a token. The same beam held
++        /// on a hallucination for half a second proves it was never there.</summary>
++        private void TickTracking(float dt, bool dialogueOpen)
++        {
++            if (dialogueOpen || R == null || R.Views == null) return;
++            bool focus = R.Views.IsIlluminated(transform.localPosition);
++            bool litRoom = _room != null && _room.Light != null && _room.Light.Mode == LightMode.Sweep;
++
++            if (IsHallucination)
++            {
++                _track = focus ? _track + dt : 0f;
++                if (TrackingPolicy.HallucinationDispelled(_track))
++                {
++                    R.Bus.Publish(GameEvent.Of(EventIds.AnomalyRevealed, "hallucination"));
++                    R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it was never there*", 2.2f, null));
++                    Despawn(true);
++                }
++                return;
++            }
++
++            if (_revealed)
++            {
++                _revealBeat -= dt;
++                if (_revealBeat <= 0f) Despawn(false);   // dispelled: the token stays behind
++                return;
++            }
++
++            float before = _track;
++            _track = TrackingPolicy.Advance(_track, dt, focus, litRoom);
++            _trackThrottle -= dt;
++            if (Mathf.Abs(_track - before) > 1e-4f && _trackThrottle <= 0f)
++            {
++                _trackThrottle = 0.1f;
++                R.Bus.Publish(GameEvent.Of(EventIds.TrackingChanged, _track));
++            }
++
++            if (TrackingPolicy.IsRevealed(_track))
++            {
++                _revealed = true;
++                _revealBeat = TrackingPolicy.RevealBeatSeconds;
++                R.Bus.Publish(GameEvent.Of(EventIds.TrackingChanged, 0f));
++                R.Bus.Publish(GameEvent.Of(EventIds.AnomalyRevealed, Kind));
++                R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested,
++                    "*the light holds it still - it is solid now*", 2.6f, null));
++                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_stinger", 0.5f, null));
++                DropToken();
++            }
++        }
++
++        /// <summary>Proof-of-observation pickup (spec §3 "leaves a Token").</summary>
++        private void DropToken()
++        {
++            if (_room == null || transform.parent == null) return;
++            var go = new GameObject("AnomalyToken");
++            go.transform.SetParent(transform.parent, false);
++            var p = transform.localPosition;
++            go.transform.localPosition = new Vector3(p.x, -2.2f, p.z - 0.2f);
++            var sr = go.AddComponent<SpriteRenderer>();
++            sr.sprite = ProceduralArt.Get("token");
++            sr.color = new Color(0.85f, 0.85f, 0.82f);
++            sr.sortingOrder = 75;
++            var pick = go.AddComponent<TokenPickup>();
++            pick.Init(R, _room, p.x);
++            _room.Interactables.Add(pick);
++        }
++
+         /// <summary>Alpha/order rules: silhouettes under darkness; CoverHug only truly revealed
+         /// by the Focus beam; hallucinations are translucent.</summary>
+         public void TickVisibility()
+         {
+             if (_sr == null) return;
++            if (_revealed)
++            {
++                var rc = _sr.color; rc.a = 1f; _sr.color = rc;   // solid ink, no haze
++                _sr.sortingOrder = 80;
++                return;
++            }
+             bool illuminated = R.Views != null && R.Views.IsIlluminated(transform.localPosition);
+             float alpha = _behavior.BaseAlpha;
+             int order = 40;
+diff --git a/Assets/_Project/Scripts/UI/HudAndCommon.cs b/Assets/_Project/Scripts/UI/HudAndCommon.cs
+index 30de12f..1cfc090 100644
+--- a/Assets/_Project/Scripts/UI/HudAndCommon.cs
++++ b/Assets/_Project/Scripts/UI/HudAndCommon.cs
+@@ -22,6 +22,8 @@ namespace Hollowbrook.UI
+         private Text _toast;
+         private Text _findings;
+         private Text _roomInfo;
++        private GameObject _trackBar;
++        private Image _trackFill;
+         private float _toastUntil;
+         private readonly List<EventSubscription> _subs = new List<EventSubscription>();
+ 
+@@ -45,6 +47,22 @@ namespace Hollowbrook.UI
+             _sanityLabel = UIFactory.Label(barBg, "val", "100", 13, UIFactory.Ink, TextAnchor.MiddleRight);
+             UIFactory.Anchor(_sanityLabel.rectTransform, new Vector2(1, 1), new Vector2(48, 18), new Vector2(-30, -10));
+ 
++            // tracking meter (under the sanity bar; only visible while light holds an anomaly)
++            var tbg = UIFactory.Panel(transform, "trackbg", new Color(0.05f, 0.05f, 0.06f, 0.85f)).rectTransform;
++            UIFactory.Anchor(tbg, new Vector2(0, 1), new Vector2(240, 30), new Vector2(132, -140));
++            var tcap = UIFactory.Label(tbg, "cap", "TRACK", 12, UIFactory.InkDim, TextAnchor.MiddleLeft);
++            UIFactory.Anchor(tcap.rectTransform, new Vector2(0, 1), new Vector2(80, 16), new Vector2(46, -7));
++            var ttrack = UIFactory.Panel(tbg, "track", new Color(0.12f, 0.12f, 0.13f)).rectTransform;
++            UIFactory.Anchor(ttrack, new Vector2(0, 0), new Vector2(216, 10), new Vector2(120, 9));
++            _trackFill = UIFactory.Img(ttrack, "fill", ProceduralArt.Get("solid_white"), UIFactory.AccentBright);
++            _trackFill.rectTransform.anchorMin = new Vector2(0, 0);
++            _trackFill.rectTransform.anchorMax = new Vector2(0, 1);
++            _trackFill.rectTransform.pivot = new Vector2(0, 0.5f);
++            _trackFill.rectTransform.offsetMin = Vector2.zero;
++            _trackFill.rectTransform.offsetMax = Vector2.zero;
++            _trackBar = tbg.gameObject;
++            _trackBar.SetActive(false);
++
+             // findings counter (top-right under the clock)
+             _findings = UIFactory.Label(transform, "findings", "FINDINGS 0/10", 15, UIFactory.InkDim, TextAnchor.MiddleRight);
+             UIFactory.Anchor(_findings.rectTransform, new Vector2(1, 1), new Vector2(240, 24), new Vector2(-150, -64));
+@@ -80,6 +98,9 @@ namespace Hollowbrook.UI
+             _subs.Add(root.Bus.Subscribe(EventIds.InteractionPrompt, e => _prompt.text = e.Text ?? ""));
+             _subs.Add(root.Bus.Subscribe(EventIds.Notification, e => Notify(e.Text)));
+             _subs.Add(root.Bus.Subscribe(EventIds.ClueDiscovered, e => RefreshFindings()));
++            _subs.Add(root.Bus.Subscribe(EventIds.TrackingChanged, e => SetTracking(e.Value)));
++            _subs.Add(root.Bus.Subscribe(EventIds.AnomalyRevealed, e => SetTracking(0f)));
++            _subs.Add(root.Bus.Subscribe(EventIds.TokenCollected, e => RefreshFindings()));
+             _subs.Add(root.Bus.Subscribe(EventIds.RoomEntered, e => RefreshRoom()));
+             _subs.Add(root.Bus.Subscribe(EventIds.LightModeChanged, e => RefreshRoom()));
+             _subs.Add(root.Bus.Subscribe(EventIds.StateChanged, e => OnState(e.Payload<AppViewState>())));
+@@ -116,6 +137,16 @@ namespace Hollowbrook.UI
+             _sanityLabel.text = ((int)v).ToString();
+         }
+ 
++        /// <summary>0 hides the meter; 0..1 fills it; reveal/collection hides it again.</summary>
++        private void SetTracking(float v)
++        {
++            if (_trackBar == null) return;
++            bool on = v > 0.001f && v < 0.999f;
++            _trackBar.SetActive(on);
++            if (on && _trackFill != null)
++                _trackFill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(v), 1f);
++        }
++
+         public void RefreshFindings()
+         {
+             if (R.Session == null) return;
+diff --git a/Assets/_Project/Scripts/World/Interactables.cs b/Assets/_Project/Scripts/World/Interactables.cs
+index c1c72d8..7b40e42 100644
+--- a/Assets/_Project/Scripts/World/Interactables.cs
++++ b/Assets/_Project/Scripts/World/Interactables.cs
+@@ -23,6 +23,29 @@ namespace Hollowbrook.World
+         public float DistanceTo(Vector3 p) => Mathf.Abs(p.x - AnchorX);
+     }
+ 
++    /// <summary>Left behind by a fully tracked (revealed) anomaly. Collecting it is the
++    /// proof-of-observation loop from master prompt §3; the count persists with the run.</summary>
++    public class TokenPickup : Interactable
++    {
++        public void Init(GameRoot root, RoomInstance room, float x)
++        {
++            R = root; Room = room; AnchorX = x;
++            Prompt = "Collect token [E]";
++            Art = GetComponent<SpriteRenderer>();
++        }
++
++        public override void Interact()
++        {
++            if (R == null || R.Session == null) return;
++            R.Session.TokensCollected++;
++            if (Room != null) Room.Interactables.Remove(this);
++            R.Bus.Publish(GameEvent.Of(EventIds.TokenCollected, R.Session.TokensCollected));
++            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_scan_ok", 0.6f, null));
++            R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*you pocket the token - evidence*", 2.4f, null));
++            Destroy(gameObject);
++        }
++    }
++
+     /// <summary>Door between rooms / back to the security checkpoint.</summary>
+     public class Doorway : Interactable
+     {
+diff --git a/Tools/LogicTests/Program.cs b/Tools/LogicTests/Program.cs
+index 31af111..b34cf34 100644
+--- a/Tools/LogicTests/Program.cs
++++ b/Tools/LogicTests/Program.cs
+@@ -52,6 +52,7 @@ namespace Hollowbrook.LogicTests
+             SaveFormatTests();
+             ModelMathTests();
+             DisplayAndOptionsTests();
++            TrackingAndTokenTests();
+ 
+             Console.WriteLine("\n==============================================");
+             Console.WriteLine($"  PASS {_pass}   FAIL {_fail}   TOTAL {_pass + _fail}");
+@@ -792,6 +793,46 @@ namespace Hollowbrook.LogicTests
+                "presentation log keeps the same IDs");
+         }
+ 
++        // ------------------------------------------------ tracking / reveal / tokens
++        private static void TrackingAndTokenTests()
++        {
++            Group("TrackingPolicy — light holds an anomaly solid (master prompt §3/§4)");
++            Eq(TrackingPolicy.RevealThreshold, 1f, "meter reveals at 1.0");
++            Eq(TrackingPolicy.RatePerSecond(true, false), TrackingPolicy.FocusRatePerSecond, "Focus is the fast truth-beam");
++            Eq(TrackingPolicy.RatePerSecond(false, true), TrackingPolicy.LitRoomRatePerSecond, "a lit room observes slowly");
++            Check(TrackingPolicy.RatePerSecond(false, false) < 0f, "unobserved anomalies decay");
++            Check(TrackingPolicy.FocusRatePerSecond > TrackingPolicy.LitRoomRatePerSecond, "Focus beats ambient light");
++
++            float m = 0f;
++            float t = 0f;
++            while (!TrackingPolicy.IsRevealed(m) && t < 10f) { m = TrackingPolicy.Advance(m, 1f / 60f, true, false); t += 1f / 60f; }
++            Check(TrackingPolicy.IsRevealed(m), "holding Focus reveals");
++            Check(t > 1.5f && t < 2.2f, $"reveal takes ~1.8s of Focus (took {t:F2}s)");
++
++            m = 0f;
++            for (int i = 0; i < 60; i++) m = TrackingPolicy.Advance(m, 1f / 60f, false, true);
++            Check(m > 0f && !TrackingPolicy.IsRevealed(m), "one second of room light tracks partially, never reveals");
++            for (int i = 0; i < 120; i++) m = TrackingPolicy.Advance(m, 1f / 60f, false, false);
++            Eq(m, 0f, "looking away closes the haze back to zero");
++            Eq(TrackingPolicy.Advance(0.5f, 0f, true, false), 0.5f, "zero dt is a no-op");
++            Eq(TrackingPolicy.Solidify(0.25f), 0.25f, "solidify factor mirrors the meter");
++            Eq(TrackingPolicy.Solidify(4f), 1f, "solidify clamps");
++            Check(!TrackingPolicy.HallucinationDispelled(0.49f), "0.49s of Focus does not dispel a hallucination");
++            Check(TrackingPolicy.HallucinationDispelled(0.5f), "0.5s of Focus truth-checks a hallucination");
++            Check(TrackingPolicy.RevealBeatSeconds > 0f, "the solid silhouette holds before dispelling");
++
++            Group("Tokens — collection persists with the run");
++            var ses = new GameSession();
++            Eq(ses.TokensCollected, 0, "a fresh run holds no tokens");
++            ses.TokensCollected = 3;
++            var save = new SaveGame { Session = ses };
++            var back = SaveFormat.Deserialize(SaveFormat.Serialize(save));
++            Check(back != null, "save with tokens serialises");
++            if (back != null) Eq(back.Session.TokensCollected, 3, "token count round-trips");
++            var old = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame()).Replace("tokens=3", "tokens="));
++            Check(old != null && old.Session.TokensCollected == 0, "a save without tokens loads as zero");
++        }
++
+         // --------------------------------------------- display policy + options layout
+         private static void DisplayAndOptionsTests()
+         {
+diff --git a/docs/GAMEPLAY-TRACKING.md b/docs/GAMEPLAY-TRACKING.md
+new file mode 100644
+index 0000000..db521eb
+--- /dev/null
++++ b/docs/GAMEPLAY-TRACKING.md
+@@ -0,0 +1,51 @@
++# Gameplay increment — anomaly tracking, reveal & tokens (master-prompt §3/§4)
++
++Closes deviation **D10** from `docs/SPEC-CONFORMANCE.md`: the spec's tracking layer did not exist.
++Design goal: the light beam becomes a *verb* — hold it and the haze solidifies into ink.
++
++## Rules (`GameLogic/TrackingPolicy.cs`, engine-free, unit-tested)
++
++| Input | Effect on the 0..1 meter |
++|---|---|
++| Focus beam (flashlight cone) on the anomaly | +0.55 /s  → reveal in ~1.8 s |
++| Room lit (Sweep) | +0.22 /s → deliberate, never passive |
++| Neither (unobserved) | −0.35 /s → the haze closes back up |
++| Meter reaches 1.0 | **revealed/dispelled**: silhouette goes solid ink for 1.2 s, then despawns **leaving a token** |
++| Focus held 0.5 s on a *hallucination* | it shimmers out ("*it was never there*") — spec §4 truth-check |
++
++## Wiring
++
++- `Horror/WanderingAnomaly.cs` — `TickTracking` runs between the behavior tick and visibility;
++  publishes `EventIds.TrackingChanged` (throttled to 10 Hz), `AnomalyRevealed`, caption + stinger.
++  Revealed anomalies stop evading; `TickVisibility` renders them at full alpha / sorting order 80.
++- `World/Interactables.cs` — `TokenPickup : Interactable` ("Collect token [E]") registers itself in
++  `RoomInstance.Interactables`, increments `GameSession.TokensCollected`, publishes `TokenCollected`,
++  removes itself from the room list and destroys its GameObject.
++- `Bootstrap/ProceduralArt.cs` — new `token` key (28 px pocket-watch motif; still zero image files).
++- `UI/HudAndCommon.cs` — a TRACK meter under the sanity bar, visible only while 0 < meter < 1;
++  hidden on reveal/decay/collection. No new screen, no clutter.
++- `GameLogic/GameSession.cs` + `SaveFormat.cs` — `TokensCollected` persists with the run
++  (`tokens=` line; old saves without it load as 0).
++
++## Verification
++
++| Check | Result |
++|---|---|
++| Compile vs real Unity 2022.3.62f1 assemblies (minimal + full sets) | PASS, 0 errors / 0 warnings |
++| `Tools/Verification/LogicTests` (the team's suite) | PASS 185 / 185 |
++| `Tools/Verification/EngineSmoke` (the team's suite) | PASS 159 / 159 |
++| `Tools/LogicTests` (independent suite, incl. 19 new tracking/token assertions) | PASS 27,125 / 27,125 |
++| Static audit (`Tools/Verify/audit.py`, 44 scripts) | clean |
++| Feel/pixels in Play mode | **NOT TESTED** — needs the Unity editor |
++
++## Manual test (2 minutes, in the editor)
++
++1. Play → NEW GAME → Night 1 has no anomalies, so jump to Night 3 via a save or press on; enter the
++   hallway (`PATROL HALLWAY`) and wait for a wandering anomaly.
++2. Lights **Off**: silhouette faint, meter hidden. Press **F** and hold the cone on it: TRACK bar
++   fills, silhouette darkens toward solid ink.
++3. Release **F**: bar drains. Hold again to 100 %: stinger + caption, silhouette goes solid,
++   dispels, a small watch-token remains; walk to it, press **E** → caption + FINDINGS-adjacent toast
++   state; `tokens=` in the save file increments.
++4. At low sanity a hallucination appears: 0.5 s of Focus makes it vanish without a token.
++5. Pause/resume mid-track: the meter freezes (Update early-returns while `R.Paused`).
+-- 
+2.39.5
+

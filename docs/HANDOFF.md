@@ -70,7 +70,7 @@ Automated suites (re-run any time):
 |---|---|---|
 | Compile check — every script (C# 9 / Unity 2022.3 level) | `dotnet build Tools/Verification/CompileCheck` | **PASS** (0 errors, 0 warnings) |
 | Logic tests — rules/generation/progression/endings/saves | `dotnet run --project Tools/Verification/LogicTests` | **PASS — 185/185** |
-| Engine smoke — boots real GameBootstrap, plays full runs | `dotnet run --project Tools/Verification/EngineSmoke` | **PASS — 123/123** |
+| Engine smoke — boots real GameBootstrap, plays full runs | `dotnet run --project Tools/Verification/EngineSmoke` | **PASS — 194/194** |
 
 ### Master-prompt test checklist (§9)
 
@@ -156,7 +156,7 @@ Automated suites (re-run any time):
   expiry rule, Allow/Reject with correctness feedback), then a 3-spot room check where one
   spot hides an anomaly (sting + sanity + caption), then return to the checkpoint. Prototype
   verdicts deliberately do NOT touch story counters.
-- Suites: compile PASS · logic 185/185 · engine smoke **153/153** (new: scene routing per
+- Suites: compile PASS · logic 185/185 · engine smoke **194/194** (new: scene routing per
   scene, security-room loop, resume-after-patrol).
 
 **v1.0.3 — menu focus pass + TNMN-feel checkpoint polish (current)**
@@ -175,7 +175,7 @@ Automated suites (re-run any time):
 - **Root-cause fix found by smoke tests:** ConfirmationPopup YES nulled its own callback
   (`Hide()` cleared `_onYes` before invoke) — every confirmation in the game (EXIT, SAVE &
   QUIT, erase-data) silently did nothing in the editor. Fixed + regression-tested.
-- Suites: compile PASS · logic 185/185 · engine smoke **138/138** (new: menu gating, NEW GAME
+- Suites: compile PASS · logic 185/185 · engine smoke **194/194** (new: menu gating, NEW GAME
   flow, locked entries inert, F2×3 reset + accidental-press protection, confirm-YES wiring).
 
 **v1.0.2** — EventSystem + StandaloneInputModule created at boot (root cause of "main menu
@@ -198,3 +198,24 @@ full-row toggle click catchers.
 4. Add Clarence’s recorded score/mix under the same music-context keys (`music_*`).
 5. Playtest balance: anomaly rate per shift and the 2-question budget feel (both are
    single-constant changes: `ShiftPlan.Build()`, `Content.MaxQuestionsPerInspection`).
+
+---
+
+## Scene B milestone (feature/scene-b) — assumptions & conflicts logged
+
+- **Office verdicts are story verdicts.** Late arrivals are scored by `InspectionRules.Apply` with a
+  single official rule (`PatrolRules.OfficeRule`, key `office_late_list`: "admit only students on
+  tonight's late list whose ID is NOT expired"). Because the rule is a `RuleMutationDef`, rejecting an
+  off-list student is *correct* and never a false rejection — the fairness invariant survives.
+- **Late queue size stays 3** (`PatrolRules.LateArrivals`, prototype parity); 0–1 of them are anomalies
+  drawn from the shared pool, remainder are clean on-list students with exactly one off-list rule case.
+- **One anomaly pool** (`GameLogic/PatrolPool`, serialised in the save): seeded at shift start with the
+  shift's anomaly count; patrol spawns *peek* it; dispel-or-catch *resolves* it; the office *consumes* it.
+  An anomaly that simply expires its lifetime stays outstanding → it can knock at the office.
+- **Shift clock** now advances in real time (GameConfig.clockMinutesPerSecond = 0.25) in any in-shift
+  scene, *plus* the existing per-visitor bump. It remains atmosphere: dawn never ends a shift early.
+- **Map stays checkpoint-only** (design, unchanged); pause works in Scene B; HUD now shows sanity stage
+  word, live light mode, tokens and the objective immediately after scene loads.
+- **Security-room prototype randomness replaced** with seeded `GameRng` (hard rule: determinism).
+- Suite counts after this milestone: team LogicTests **519**, EngineSmoke **181**, independent
+  Tools/LogicTests **27,1xx**, CompileCheck + real-assembly compile clean.
