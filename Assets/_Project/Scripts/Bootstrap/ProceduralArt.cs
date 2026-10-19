@@ -179,6 +179,7 @@ namespace Hollowbrook.Bootstrap
                 case "school_facade": return MakeSchoolFacade(300, 150);
                 case "camera_frame": return MakeCameraFrame(252, 150);
                 case "window_frame": return MakeWindowFrame(470, 340);
+                case "lamp_glow": return MakeLampGlow(128);
                 case "prop_photoframe": return MakePhotoFrame(144, 108);
                 case "prop_lightfixture": return MakeLightFixture(208, 40);
                 case "prop_lostid": return MakeLostId(56, 36);
@@ -461,6 +462,20 @@ namespace Hollowbrook.Bootstrap
             RoughLine(c, r, 4, h - 5, 4 + L, h - 5, 0.9f, 3); RoughLine(c, r, 4, h - 5, 4, h - 5 - L, 0.9f, 3);
             RoughLine(c, r, w - 5, h - 5, w - 5 - L, h - 5, 0.9f, 3); RoughLine(c, r, w - 5, h - 5, w - 5, h - 5 - L, 0.9f, 3);
             return c.ToSprite("camera_frame", UiPpu);
+        }
+
+        private static Sprite MakeLampGlow(int d)
+        {
+            var c = new Canvas2D(d, d);
+            float half = d / 2f;
+            for (int y = 0; y < d; y++)
+                for (int x = 0; x < d; x++)
+                {
+                    float dist = Mathf.Sqrt((x - half) * (x - half) + (y - half) * (y - half)) / half;
+                    float a = Mathf.Clamp01(1f - dist);
+                    c.Px[y * d + x] = new Color(1f, 0.97f, 0.88f, a * a * 0.85f);
+                }
+            return c.ToSprite("lamp_glow", UiPpu);
         }
 
         private static Sprite MakeWindowFrame(int w, int h)

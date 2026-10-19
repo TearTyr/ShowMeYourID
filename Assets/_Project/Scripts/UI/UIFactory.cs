@@ -219,8 +219,11 @@ namespace Hollowbrook.UI
         {
             if (b == null) return;
             b.interactable = on;
-            if (b.targetGraphic != null)
-                b.targetGraphic.color = on ? PanelAlt : new Color(0.08f, 0.08f, 0.085f);
+            // Dim the whole button instead of repainting its fill: round decision buttons carry
+            // custom paper/ink colours that a generic disabled colour would destroy.
+            var cg = b.GetComponent<CanvasGroup>();
+            if (cg == null) cg = b.gameObject.AddComponent<CanvasGroup>();
+            cg.alpha = on ? 1f : 0.45f;
         }
 
         public static Slider SliderRow(Transform parent, string name, string labelText, float value,

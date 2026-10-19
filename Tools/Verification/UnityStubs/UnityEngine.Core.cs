@@ -47,6 +47,17 @@ namespace UnityEngine
             gameObject != null ? gameObject.GetComponentInChildrenHelper<T>(includeInactive, true) : null;
         public Component GetComponent(Type t) => gameObject != null ? gameObject.GetComponent(t) : null;
         public bool TryGetComponent<T>(out T c) where T : class { c = GetComponent<T>(); return c != null; }
+        public T GetComponentInParent<T>() where T : class
+        {
+            Transform t = transform;
+            while (t != null)
+            {
+                var c = t.GetComponent<T>();
+                if (c != null) return c;
+                t = t.parent;
+            }
+            return null;
+        }
     }
 
     public class Behaviour : Component
@@ -404,6 +415,7 @@ namespace UnityEngine
         public static float Distance(Vector2 a, Vector2 b) => (a - b).magnitude;
         public static Vector2 Lerp(Vector2 a, Vector2 b, float t) { t = Mathf.Clamp01(t); return new Vector2(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t); }
         public static Vector2 MoveTowards(Vector2 a, Vector2 b, float d) => Lerp(a, b, 1f);
+        public static Vector2 operator /(Vector2 a, float d) => new Vector2(a.x / d, a.y / d);
     }
 
     public struct Vector3

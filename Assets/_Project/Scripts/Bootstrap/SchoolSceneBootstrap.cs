@@ -45,6 +45,10 @@ namespace Hollowbrook.Bootstrap
             root.HUD = CoreBootstrap.CreateView<HUDView>(ui, "HUDView", root);
             root.Dialogue = CoreBootstrap.CreateView<DialogueView>(ui, "DialogueView", root);
             root.PauseScreen = CoreBootstrap.CreateView<PauseView>(ui, "PauseView", root);
+            // Pause menu entries need their screens in this scene too, or they silently do nothing.
+            root.SettingsScreen = CoreBootstrap.CreateView<SettingsView>(ui, "SettingsView", root);
+            root.ControlsScreen = CoreBootstrap.CreateView<ControlsView>(ui, "ControlsView", root);
+            root.CreditsScreen = CoreBootstrap.CreateView<CreditsView>(ui, "CreditsView", root);
             root.Captions = CoreBootstrap.CreateView<CaptionBar>(ui, "CaptionBar", root);
             root.Confirm = CoreBootstrap.CreateView<ConfirmationPopup>(ui, "ConfirmationPopup", root);
             root.SecurityRoom = CoreBootstrap.CreateView<World.SecurityRoomView>(ui, "SecurityRoomView", root);

@@ -27,6 +27,11 @@ namespace Hollowbrook.World
         private int _correct;
         private bool[] _checked = new bool[3];
         private int _anomalySpot;
+        private RectTransform _searchOverlay;
+        private RectTransform _lamp;
+        private readonly RectTransform[] _zones = new RectTransform[3];
+        private readonly Image[] _zoneArt = new Image[3];
+        private readonly float[] _zoneProgress = new float[3];
         private GameRng _rng;
         private Text _ruleLabel;
 
@@ -195,16 +200,70 @@ namespace Hollowbrook.World
         private void BeginRoomCheck()
         {
             _phase = Phase.RoomCheck;
+            BuildSearchOverlay();
             _doorState.text = "Quiet now. Protocol says check the room before you lock up.";
             _feedback.text = "";
-            for (int i = 0; i < 3; i++) UIFactory.SetButtonEnabled(_checkBtns[i], true);
+            for (int i = 0; i < 3; i++) _checkBtns[i].gameObject.SetActive(false);
+        }
+
+        // FNaC-style room check: the cursor IS the lamp. Dark spots only give up what they
+        // hide while the light rests on them.
+        private void BuildSearchOverlay()
+        {
+            if (_searchOverlay != null) { _searchOverlay.gameObject.SetActive(true); return; }
+            _searchOverlay = UIFactory.NewUI(transform, "search");
+            UIFactory.AnchorsFull(_searchOverlay);
+            Vector2[] centers = { new Vector2(-430, 40), new Vector2(430, 60), new Vector2(0, -150) };
+            Vector2[] sizes = { new Vector2(300, 260), new Vector2(280, 240), new Vector2(420, 160) };
+            for (int i = 0; i < 3; i++)
+            {
+                _zones[i] = UIFactory.NewUI(_searchOverlay, "zone" + i);
+                UIFactory.Anchor(_zones[i], new Vector2(0.5f, 0.5f), sizes[i], centers[i]);
+                _zoneArt[i] = UIFactory.Img(_zones[i], "dark", ProceduralArt.Get("solid_white"),
+                    new Color(0.02f, 0.02f, 0.03f, 0.55f));
+                UIFactory.AnchorsFull(_zoneArt[i].rectTransform);
+                _zoneArt[i].raycastTarget = false;
+                _zoneProgress[i] = 0f;
+            }
+            var lampImg = UIFactory.Img(_searchOverlay, "lamp", ProceduralArt.Get("lamp_glow"));
+            _lamp = lampImg.rectTransform;
+            UIFactory.Anchor(_lamp, new Vector2(0.5f, 0.5f), new Vector2(260, 260), new Vector2(0, -400));
+            lampImg.raycastTarget = false;
+        }
+
+        private void Update()
+        {
+            if (_phase != Phase.RoomCheck || _searchOverlay == null || !gameObject.activeInHierarchy) return;
+            if (_gameRoot == null || _gameRoot.Paused) return;
+            Vector2 local;
+            var canvas = GetComponentInParent<Canvas>();
+            if (canvas == null || !RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    (RectTransform)canvas.transform, Input.mousePosition,
+                    canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera,
+                    out local))
+                return;
+            _lamp.anchoredPosition = local;
+            for (int i = 0; i < 3; i++)
+            {
+                if (_checked[i] || _zones[i] == null) continue;
+                Vector2 center = _zones[i].anchoredPosition;
+                Vector2 half = _zones[i].sizeDelta / 2f;
+                bool over = Mathf.Abs(local.x - center.x) <= half.x && Mathf.Abs(local.y - center.y) <= half.y;
+                _zoneProgress[i] = SearchRules.Advance(_zoneProgress[i], Time.unscaledDeltaTime, over);
+                if (_zoneArt[i] != null)
+                {
+                    var c = _zoneArt[i].color;
+                    c.a = 0.55f * (1f - _zoneProgress[i]);
+                    _zoneArt[i].color = c;
+                }
+                if (SearchRules.IsSearched(_zoneProgress[i])) CheckSpot(i);
+            }
         }
 
         private void CheckSpot(int idx)
         {
             if (_phase != Phase.RoomCheck || _checked[idx]) return;
             _checked[idx] = true;
-            UIFactory.SetButtonEnabled(_checkBtns[idx], false);
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.5f);
 
             if (idx == _anomalySpot)
@@ -233,6 +292,7 @@ namespace Hollowbrook.World
                 _doorState.text = "Room checked. The office holds its breath.";
                 _feedback.text += "   — Check complete (" + _correct + "/3 correct calls).";
                 UIFactory.SetButtonEnabled(_returnBtn, true);
+                if (_searchOverlay != null) _searchOverlay.gameObject.SetActive(false);
             }
         }
     }

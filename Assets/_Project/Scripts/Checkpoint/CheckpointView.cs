@@ -106,7 +106,7 @@ namespace Hollowbrook.Checkpoint
             UIFactory.Anchor(_topLeft.rectTransform, new Vector2(0, 0.5f), new Vector2(560, 44), new Vector2(300, 0));
 
             _topClock = UIFactory.Label(bar, "clock", "22:00", 22, UIFactory.InkDim, TextAnchor.MiddleRight);
-            UIFactory.Anchor(_topClock.rectTransform, new Vector2(1, 0.5f), new Vector2(160, 44), new Vector2(-140, 0));
+            UIFactory.Anchor(_topClock.rectTransform, new Vector2(1, 0.5f), new Vector2(160, 44), new Vector2(-230, 0));
 
             var pause = UIFactory.StandardButton(bar, "pause", "II  PAUSE", () => _gameRoot.TogglePause(true), 104, 34);
             UIFactory.Anchor(pause.GetComponent<RectTransform>(), new Vector2(1, 0.5f), new Vector2(104, 34), new Vector2(-60, 0));
@@ -465,6 +465,9 @@ namespace Hollowbrook.Checkpoint
             UIFactory.Anchor(_noteText.rectTransform, new Vector2(0f, 1f), new Vector2(226, 140), new Vector2(118, -40));
             var qPanel = UIFactory.Img(_root, "qpanel", ProceduralArt.Get("rough_panel"));
             UIFactory.Anchor(qPanel.rectTransform, new Vector2(1f, 1f), new Vector2(320, 260), CheckpointLayout.QuestionsPanelCenter);
+            // Explicit draw order: the panel is built after the question column, so without this it
+            // paints over its own buttons. Sending it to the back keeps heading/buttons/testimony readable.
+            qPanel.rectTransform.SetAsFirstSibling();
             var qHead = UIFactory.Label(qPanel.rectTransform, "head", "QUESTIONS", 18, UIFactory.PaperInk, TextAnchor.UpperLeft);
             UIFactory.Anchor(qHead.rectTransform, new Vector2(0f, 1f), new Vector2(280, 26), new Vector2(145, -14));
             var camFrame = UIFactory.Img(_monRt, "camframe", ProceduralArt.Get("camera_frame"));

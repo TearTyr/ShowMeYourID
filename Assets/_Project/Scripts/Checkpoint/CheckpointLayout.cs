@@ -12,9 +12,9 @@ namespace Hollowbrook.Checkpoint
         public const float CheckRowStep = 14f;
         public const float CheckRowFirst = -226f;
 
-        public static readonly Vector2 PauseCenter = new Vector2(60f, -26f);        // top-left
+        public static readonly Vector2 PauseCenter = new Vector2(-60f, -26f);       // top-right end of the bar
         public static readonly Vector2 ClockCenter = new Vector2(-60f, -26f);       // top-right
-        public static readonly Vector2 BannerCenter = new Vector2(170f, -58f);      // top-left
+        public static readonly Vector2 BannerCenter = new Vector2(170f, -26f);      // inside the bar, left of the meters
         public static readonly Vector2 RecordCenter = new Vector2(170f, 470f);      // bottom-left
         public static readonly Vector2 IdCardCenter = new Vector2(170f, 160f);      // bottom-left
         public static readonly Vector2 WindowCenter = new Vector2(0f, -176f);       // top-center; facade + confirm overlay it
