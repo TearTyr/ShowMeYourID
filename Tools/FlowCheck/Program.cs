@@ -64,66 +64,117 @@ namespace FlowCheck
             Environment.Exit(_failures == 0 ? 0 : 1);
         }
 
-        // UIFactory.Anchor math, replicated so on-screen placement is provable headlessly.
-        private static void Rect(float ax, float ay, float w, float h, float px, float py,
-            out float left, out float top, out float right, out float bottom)
+        // The desk grid is absolute 1280x720 regions; the audit replays Place()'s pin math and
+        // proves every panel lands on screen and that co-visible panels never overlap.
+        // Tags: C = checkpoint desk, E = exploration, B = both.
+        private struct AuditRow
         {
-            float cx = ax * 1280f + px;
-            float cy = (1f - ay) * 720f - py;
-            left = cx - w / 2f; top = cy - h / 2f; right = cx + w / 2f; bottom = cy + h / 2f;
-        }
-
-        private static void OnScreen(string what, float ax, float ay, float w, float h, float px, float py)
-        {
-            float l, t, r, b;
-            Rect(ax, ay, w, h, px, py, out l, out t, out r, out b);
-            Check(l >= -0.5f && t >= -0.5f && r <= 1280.5f && b <= 720.5f,
-                what + " on screen (" + l.ToString("0") + "," + t.ToString("0") + ")-(" + r.ToString("0") + "," + b.ToString("0") + ")");
+            public string Name;
+            public Hollowbrook.Checkpoint.CheckpointLayout.Region Reg;
+            public Hollowbrook.Checkpoint.CheckpointLayout.Pin Pin;
+            public string Tags;
         }
 
         private static void LayoutAudit()
         {
-            Console.WriteLine("== 1280x720 layout audit (same math as UIFactory.Anchor) ==");
-            var L = Hollowbrook.Checkpoint.CheckpointLayout.QuestionsColumnCenter;
-            OnScreen("question column", 1f, 1f, 280f, 200f, L.x, L.y);
-            OnScreen("question 1", 1f, 1f, 272f, 40f, L.x, L.y - 100f + 34f);
-            OnScreen("question 4", 1f, 1f, 272f, 40f, L.x, L.y - 100f + 34f + 3f * 44f);
-            OnScreen("questions panel", 1f, 1f, 300f, 250f,
-                Hollowbrook.Checkpoint.CheckpointLayout.QuestionsPanelCenter.x,
-                Hollowbrook.Checkpoint.CheckpointLayout.QuestionsPanelCenter.y);
-            OnScreen("record sheet", 0f, 0f, 320f, 340f,
-                Hollowbrook.Checkpoint.CheckpointLayout.RecordCenter.x,
-                Hollowbrook.Checkpoint.CheckpointLayout.RecordCenter.y);
-            // record sheet top edge sits at 480-140 = 340; rows hang 44+24*i below it
-            OnScreen("record row NAME", 0f, 1f, 220f, 20f, 120f, -(340f + 44f));
-            OnScreen("record row EXPIRES", 0f, 1f, 220f, 20f, 120f, -(340f + 44f + 6f * 24f));
-            OnScreen("id card", 0f, 0f, 320f, 220f,
-                Hollowbrook.Checkpoint.CheckpointLayout.IdCardCenter.x,
-                Hollowbrook.Checkpoint.CheckpointLayout.IdCardCenter.y);
-            OnScreen("camera monitor", 1f, 0f, 252f, 120f,
-                Hollowbrook.Checkpoint.CheckpointLayout.CameraCenter.x,
-                Hollowbrook.Checkpoint.CheckpointLayout.CameraCenter.y);
-            OnScreen("allow circle", 1f, 0f, 120f, 120f,
-                Hollowbrook.Checkpoint.CheckpointLayout.AllowCenter.x,
-                Hollowbrook.Checkpoint.CheckpointLayout.AllowCenter.y);
-            OnScreen("principal circle", 1f, 0f, 120f, 120f,
-                Hollowbrook.Checkpoint.CheckpointLayout.PrincipalCenter.x,
-                Hollowbrook.Checkpoint.CheckpointLayout.PrincipalCenter.y);
-            OnScreen("scan button", 1f, 1f, 150f, 36f,
-                Hollowbrook.Checkpoint.CheckpointLayout.UtilityGridFirst.x,
-                Hollowbrook.Checkpoint.CheckpointLayout.UtilityGridFirst.y);
-            OnScreen("speech panel", 0.5f, 0f, 300f, 110f,
-                Hollowbrook.Checkpoint.CheckpointLayout.SpeechCenter.x,
-                Hollowbrook.Checkpoint.CheckpointLayout.SpeechCenter.y);
-            OnScreen("principal note", 0.5f, 0f, 300f, 100f,
-                Hollowbrook.Checkpoint.CheckpointLayout.NoteCenter.x,
-                Hollowbrook.Checkpoint.CheckpointLayout.NoteCenter.y);
-            OnScreen("objective", 0.5f, 0f, 560f, 36f,
-                Hollowbrook.Checkpoint.CheckpointLayout.ObjectiveCenter.x,
-                Hollowbrook.Checkpoint.CheckpointLayout.ObjectiveCenter.y);
-            OnScreen("visitor portrait", 0.5f, 1f, 150f, 190f,
-                Hollowbrook.Checkpoint.CheckpointLayout.PortraitCenter.x,
-                Hollowbrook.Checkpoint.CheckpointLayout.PortraitCenter.y);
+            Console.WriteLine("== 1280x720 layout audit (single region grid) ==");
+            var rows = new List<AuditRow>();
+            Add(rows, "day banner", Hollowbrook.Checkpoint.CheckpointLayout.Banner, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopLeft, "B");
+            Add(rows, "sanity meter", Hollowbrook.Checkpoint.CheckpointLayout.SanityMeter, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopLeft, "B");
+            Add(rows, "light meter", Hollowbrook.Checkpoint.CheckpointLayout.LightMeter, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopCenter, "B");
+            Add(rows, "track meter", Hollowbrook.Checkpoint.CheckpointLayout.TrackMeter, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopRight, "B");
+            Add(rows, "clock", Hollowbrook.Checkpoint.CheckpointLayout.Clock, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopRight, "B");
+            Add(rows, "pause", Hollowbrook.Checkpoint.CheckpointLayout.Pause, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopRight, "B");
+            Add(rows, "run stats", Hollowbrook.Checkpoint.CheckpointLayout.RunStats, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopCenter, "B");
+            Add(rows, "findings", Hollowbrook.Checkpoint.CheckpointLayout.Findings, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopRight, "B");
+            Add(rows, "objective", Hollowbrook.Checkpoint.CheckpointLayout.Objective, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopLeft, "E");
+            Add(rows, "room info", Hollowbrook.Checkpoint.CheckpointLayout.RoomInfo, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopRight, "E");
+            Add(rows, "prompt", Hollowbrook.Checkpoint.CheckpointLayout.Prompt, Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomCenter, "E");
+            Add(rows, "record sheet", Hollowbrook.Checkpoint.CheckpointLayout.Record, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopLeft, "C");
+            Add(rows, "id card", Hollowbrook.Checkpoint.CheckpointLayout.IdCard, Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomLeft, "C");
+            Add(rows, "checklist", Hollowbrook.Checkpoint.CheckpointLayout.Checklist, Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomLeft, "C");
+            Add(rows, "window", Hollowbrook.Checkpoint.CheckpointLayout.Window, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopCenter, "C");
+            Add(rows, "sill", Hollowbrook.Checkpoint.CheckpointLayout.Sill, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopCenter, "C");
+            Add(rows, "speech", Hollowbrook.Checkpoint.CheckpointLayout.Speech, Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomCenter, "C");
+            Add(rows, "principal note", Hollowbrook.Checkpoint.CheckpointLayout.Note, Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomCenter, "C");
+            Add(rows, "patrol button", Hollowbrook.Checkpoint.CheckpointLayout.PatrolBtn, Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomCenter, "C");
+            Add(rows, "end shift button", Hollowbrook.Checkpoint.CheckpointLayout.EndShiftBtn, Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomCenter, "C");
+            Add(rows, "questions panel", Hollowbrook.Checkpoint.CheckpointLayout.Questions, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopRight, "C");
+            Add(rows, "scan button", Hollowbrook.Checkpoint.CheckpointLayout.UtilityScan, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopRight, "C");
+            Add(rows, "log button", Hollowbrook.Checkpoint.CheckpointLayout.UtilityRecords, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopRight, "C");
+            Add(rows, "map button", Hollowbrook.Checkpoint.CheckpointLayout.UtilityMap, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopRight, "C");
+            Add(rows, "rules button", Hollowbrook.Checkpoint.CheckpointLayout.UtilityNotes, Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopRight, "C");
+            Add(rows, "call principal", Hollowbrook.Checkpoint.CheckpointLayout.StampReject, Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomRight, "C");
+            Add(rows, "allow", Hollowbrook.Checkpoint.CheckpointLayout.StampAllow, Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomRight, "C");
+            Add(rows, "camera monitor", Hollowbrook.Checkpoint.CheckpointLayout.Monitor, Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomRight, "C");
+
+            foreach (var r in rows)
+            {
+                float l, t, w, h;
+                Placed(r.Reg, r.Pin, out l, out t, out w, out h);
+                Check(Mathf.Abs(l - r.Reg.X) < 0.01f && Mathf.Abs(t - r.Reg.Y) < 0.01f &&
+                      Mathf.Abs(w - r.Reg.W) < 0.01f && Mathf.Abs(h - r.Reg.H) < 0.01f,
+                    r.Name + " placed at (" + l.ToString("0") + "," + t.ToString("0") + ") " + w.ToString("0") + "x" + h.ToString("0"));
+                Check(l >= -0.5f && t >= -0.5f && l + w <= 1280.5f && t + h <= 720.5f, r.Name + " on screen");
+            }
+            for (int i = 0; i < rows.Count; i++)
+                for (int j = i + 1; j < rows.Count; j++)
+                {
+                    if (!ShareState(rows[i].Tags, rows[j].Tags)) continue;
+                    var a = rows[i].Reg; var b = rows[j].Reg;
+                    bool hit = a.X < b.Right && b.X < a.Right && a.Y < b.Bottom && b.Y < a.Bottom;
+                    Check(!hit, rows[i].Name + " / " + rows[j].Name + " do not overlap");
+                }
+        }
+
+        private static void Add(List<AuditRow> rows, string name,
+            Hollowbrook.Checkpoint.CheckpointLayout.Region reg, Hollowbrook.Checkpoint.CheckpointLayout.Pin pin, string tags)
+        {
+            rows.Add(new AuditRow { Name = name, Reg = reg, Pin = pin, Tags = tags });
+        }
+
+        private static bool ShareState(string a, string b)
+        {
+            if (a.Contains("B") || b.Contains("B")) return true;
+            foreach (char c in a) if (b.IndexOf(c) >= 0) return true;
+            return false;
+        }
+
+        // same corner-pin math as CheckpointLayout.Place: anchor point + pos lands the pivot
+        // corner, then the rect hangs off that corner per pin.
+        private static void Placed(Hollowbrook.Checkpoint.CheckpointLayout.Region r,
+            Hollowbrook.Checkpoint.CheckpointLayout.Pin pin, out float left, out float top, out float w, out float h)
+        {
+            w = r.W; h = r.H;
+            float ax, ay, px, py;
+            switch (pin)
+            {
+                case Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopLeft:
+                    ax = 0; ay = 0; px = r.X; py = r.Y; break;
+                case Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopCenter:
+                    ax = 640; ay = 0; px = r.X + r.W / 2 - 640; py = r.Y; break;
+                case Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopRight:
+                    ax = 1280; ay = 0; px = r.Right - 1280; py = r.Y; break;
+                case Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomLeft:
+                    ax = 0; ay = 720; px = r.X; py = r.Bottom - 720; break;
+                case Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomCenter:
+                    ax = 640; ay = 720; px = r.X + r.W / 2 - 640; py = r.Bottom - 720; break;
+                case Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomRight:
+                    ax = 1280; ay = 720; px = r.Right - 1280; py = r.Bottom - 720; break;
+                default:
+                    ax = 640; ay = 360; px = r.X + r.W / 2 - 640; py = r.Y + r.H / 2 - 360; break;
+            }
+            float cornerX = ax + px, cornerY = ay + py;
+            switch (pin)
+            {
+                case Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopCenter: left = cornerX - w / 2; top = cornerY; break;
+                case Hollowbrook.Checkpoint.CheckpointLayout.Pin.TopRight: left = cornerX - w; top = cornerY; break;
+                case Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomLeft: left = cornerX; top = cornerY - h; break;
+                case Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomCenter: left = cornerX - w / 2; top = cornerY - h; break;
+                case Hollowbrook.Checkpoint.CheckpointLayout.Pin.BottomRight: left = cornerX - w; top = cornerY - h; break;
+                case Hollowbrook.Checkpoint.CheckpointLayout.Pin.Center: left = cornerX - w / 2; top = cornerY - h / 2; break;
+                default: left = cornerX; top = cornerY; break;
+            }
         }
 
         private static void SaveContinueResume()

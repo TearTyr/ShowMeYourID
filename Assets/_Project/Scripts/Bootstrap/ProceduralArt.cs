@@ -129,7 +129,11 @@ namespace Hollowbrook.Bootstrap
                 var tex = new Texture2D(W, H, TextureFormat.RGBA32, false);
                 tex.filterMode = FilterMode.Bilinear;
                 tex.wrapMode = TextureWrapMode.Clamp;
-                tex.SetPixels(Px);
+                // SetPixels reads row 0 as the texture's BOTTOM; the canvas draws row 0 as top.
+                var rows = new Color[Px.Length];
+                for (int y = 0; y < H; y++)
+                    System.Array.Copy(Px, y * W, rows, (H - 1 - y) * W, W);
+                tex.SetPixels(rows);
                 tex.Apply(false, false);
                 tex.name = name;
                 var sp = Sprite.Create(tex, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), ppu);

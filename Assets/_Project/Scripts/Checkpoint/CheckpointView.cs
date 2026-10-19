@@ -47,7 +47,7 @@ namespace Hollowbrook.Checkpoint
         private Button[] _questionButtons = new Button[4];
         private Text _budgetLabel;
         private Button _allowBtn, _rejectBtn, _scanBtn, _notesBtn, _recordsBtn, _mapBtn, _patrolBtn, _endShiftBtn;
-        private RectTransform _idCardRt, _recRt, _clipRt, _monRt, _qColRt;
+        private RectTransform _idCardRt, _recRt, _monRt, _qColRt;
         private Text _testimony;
         private readonly List<EventSubscription> _subscriptions = new List<EventSubscription>();
         private GameObject _confirmBox;
@@ -63,6 +63,10 @@ namespace Hollowbrook.Checkpoint
             "ID number format", "Photo matches person", "Expiration valid", "Year level matches",
             "Course matches", "Status matches", "Record name matches", "Behavior / answers",
         };
+
+        // printed rule lines of the two paper sprites, in panel pixels after stretching
+        private static readonly float[] RecordRules = { 42f, 63f, 84f, 105f, 126f, 147f, 168f };
+        private static readonly float[] IdCardRules = { 52f, 75f, 99f, 123f, 146f, 179f };
 
         public void Init(GameRoot root)
         {
@@ -100,79 +104,67 @@ namespace Hollowbrook.Checkpoint
             var bar = UIFactory.Panel(_root, "topbar", new Color(0.05f, 0.05f, 0.06f, 0.92f)).rectTransform;
             bar.anchorMin = new Vector2(0, 1); bar.anchorMax = new Vector2(1, 1);
             bar.pivot = new Vector2(0.5f, 1);
-            bar.sizeDelta = new Vector2(0, 52); bar.anchoredPosition = Vector2.zero;
+            bar.sizeDelta = new Vector2(0, CheckpointLayout.TopBarHeight); bar.anchoredPosition = Vector2.zero;
 
-            _topLeft = UIFactory.Label(bar, "left", "", 19, UIFactory.Ink, TextAnchor.MiddleLeft);
-            UIFactory.Anchor(_topLeft.rectTransform, new Vector2(0, 0.5f), new Vector2(560, 44), new Vector2(300, 0));
+            var banner = UIFactory.Img(_root, "daybanner", ProceduralArt.Get("rough_panel"));
+            CheckpointLayout.Place(banner.rectTransform, CheckpointLayout.Banner, CheckpointLayout.Pin.TopLeft);
+            _topLeft = UIFactory.Label(banner.rectTransform, "left", "", 16, UIFactory.PaperInk, TextAnchor.MiddleCenter);
+            UIFactory.AnchorsFull(_topLeft.rectTransform);
 
-            _topClock = UIFactory.Label(bar, "clock", "22:00", 22, UIFactory.InkDim, TextAnchor.MiddleRight);
-            UIFactory.Anchor(_topClock.rectTransform, new Vector2(1, 0.5f), new Vector2(160, 44), new Vector2(-230, 0));
+            _topClock = UIFactory.Label(_root, "clock", "22:00", 22, UIFactory.InkDim, TextAnchor.MiddleCenter);
+            CheckpointLayout.Place(_topClock.rectTransform, CheckpointLayout.Clock, CheckpointLayout.Pin.TopRight);
 
             var pause = UIFactory.StandardButton(bar, "pause", "II  PAUSE", () => _gameRoot.TogglePause(true), 104, 34);
-            UIFactory.Anchor(pause.GetComponent<RectTransform>(), new Vector2(1, 0.5f), new Vector2(104, 34), new Vector2(-60, 0));
+            CheckpointLayout.Place(pause.GetComponent<RectTransform>(), CheckpointLayout.Pause, CheckpointLayout.Pin.TopRight);
 
-            _runStats = UIFactory.Label(bar, "runstats", "", 17, UIFactory.Ink, TextAnchor.MiddleCenter);
-            UIFactory.Anchor(_runStats.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(420, 40), new Vector2(60, 0));
+            _runStats = UIFactory.Label(_root, "runstats", "", 17, UIFactory.Ink, TextAnchor.MiddleCenter);
+            CheckpointLayout.Place(_runStats.rectTransform, CheckpointLayout.RunStats, CheckpointLayout.Pin.TopCenter);
             _runStats.gameObject.SetActive(false);
 
-            _mutationStrip = UIFactory.Label(_root, "mutation", "", 15, new Color(0.95f, 0.85f, 0.55f), TextAnchor.MiddleCenter);
-            var msRt = _mutationStrip.rectTransform;
-            msRt.anchorMin = new Vector2(0, 1); msRt.anchorMax = new Vector2(1, 1);
-            msRt.pivot = new Vector2(0.5f, 1);
-            msRt.sizeDelta = new Vector2(-24, 34); msRt.anchoredPosition = new Vector2(0, -56);
+            var mutBg = UIFactory.Panel(_root, "mutationbg", new Color(0.04f, 0.04f, 0.05f, 0.9f)).rectTransform;
+            CheckpointLayout.Place(mutBg, CheckpointLayout.Mutation, CheckpointLayout.Pin.TopCenter);
+            _mutationStrip = UIFactory.Label(mutBg, "mutation", "", 15, new Color(0.95f, 0.85f, 0.55f), TextAnchor.MiddleCenter);
+            UIFactory.AnchorsFull(_mutationStrip.rectTransform);
             _mutationStrip.gameObject.SetActive(false);
         }
 
         private void BuildWindowArea()
         {
+            var win = UIFactory.Img(_root, "windowframe", ProceduralArt.Get("window_frame"));
+            CheckpointLayout.Place(win.rectTransform, CheckpointLayout.Window, CheckpointLayout.Pin.TopCenter);
+            var facade = UIFactory.Img(win.rectTransform, "facade", ProceduralArt.Get("school_facade"));
+            CheckpointLayout.PlaceLocal(facade.rectTransform, 15, 10, 440, 296);
+            var glass = UIFactory.Panel(win.rectTransform, "glass", UIFactory.Glass);
+            UIFactory.AnchorsFull(glass.rectTransform);
+            glass.raycastTarget = false;
+            var sill = UIFactory.Panel(_root, "sill", new Color(0.10f, 0.10f, 0.11f));
+            CheckpointLayout.Place(sill.rectTransform, CheckpointLayout.Sill, CheckpointLayout.Pin.TopCenter);
+
             _visitorPortrait = UIFactory.Img(_root, "visitor", null);
-            UIFactory.Anchor(_visitorPortrait.rectTransform, new Vector2(0.5f, 1f), new Vector2(150, 190), CheckpointLayout.PortraitCenter);
+            CheckpointLayout.Place(_visitorPortrait.rectTransform, CheckpointLayout.Portrait, CheckpointLayout.Pin.TopCenter);
             _visitorPortrait.preserveAspect = true;
 
             _glitchOverlay = UIFactory.Img(_root, "glitch", ProceduralArt.Get("noise_overlay"), new Color(1, 1, 1, 0f));
-            UIFactory.Anchor(_glitchOverlay.rectTransform, new Vector2(0.5f, 1f), new Vector2(160, 200), new Vector2(0, -144));
+            CheckpointLayout.Place(_glitchOverlay.rectTransform, CheckpointLayout.Glitch, CheckpointLayout.Pin.TopCenter);
+            _glitchOverlay.raycastTarget = false;
 
             _speechPanel = UIFactory.Panel(_root, "speech", new Color(0.86f, 0.85f, 0.82f, 0.96f)).rectTransform;
-            UIFactory.Anchor(_speechPanel, new Vector2(0.5f, 0f), new Vector2(300, 110), CheckpointLayout.SpeechCenter);
-            _speechSpeaker = UIFactory.Label(_speechPanel, "who", "", 14, UIFactory.PaperInk, TextAnchor.UpperLeft);
-            UIFactory.Anchor(_speechSpeaker.rectTransform, new Vector2(0, 1), new Vector2(310, 20), new Vector2(170, -14));
-            _speechText = UIFactory.Label(_speechPanel, "text", "", 17, UIFactory.PaperInk, TextAnchor.UpperLeft);
-            var stRt = _speechText.rectTransform;
-            stRt.anchorMin = new Vector2(0, 0); stRt.anchorMax = new Vector2(1, 1);
-            stRt.offsetMin = new Vector2(12, 8); stRt.offsetMax = new Vector2(-12, -36);
+            CheckpointLayout.Place(_speechPanel, CheckpointLayout.Speech, CheckpointLayout.Pin.BottomCenter);
+            _speechSpeaker = UIFactory.Label(_speechPanel, "who", "", 13, UIFactory.PaperInk, TextAnchor.UpperLeft);
+            CheckpointLayout.PlaceLocal(_speechSpeaker.rectTransform, 10, 6, 280, 18);
+            _speechText = UIFactory.Label(_speechPanel, "text", "", 15, UIFactory.PaperInk, TextAnchor.UpperLeft);
+            CheckpointLayout.PlaceLocal(_speechText.rectTransform, 10, 28, 280, 74);
             _speechPanel.gameObject.SetActive(false);
         }
 
         private void BuildDesk()
         {
-            var idCard = UIFactory.Img(_root, "idcard", ProceduralArt.Get("id_card_frame"));
-            _idCardRt = idCard.rectTransform;
-            UIFactory.Anchor(idCard.rectTransform, new Vector2(0f, 0f), new Vector2(320, 220), CheckpointLayout.IdCardCenter);
-            _idHeader = UIFactory.Label(idCard.rectTransform, "header", "HOLLOWBROOK COLLEGE — STUDENT ID", 13,
-                new Color(0.9f, 0.9f, 0.88f), TextAnchor.MiddleCenter);
-            UIFactory.Anchor(_idHeader.rectTransform, new Vector2(0.5f, 1), new Vector2(270, 26), new Vector2(0, -14));
-            _idPhoto = UIFactory.Img(idCard.rectTransform, "photo", null);
-            UIFactory.Anchor(_idPhoto.rectTransform, new Vector2(0, 0), new Vector2(84, 104), new Vector2(58, 74));
-            _idPhoto.preserveAspect = true;
-            _idName = UIFactory.Label(idCard.rectTransform, "name", "", 14, UIFactory.PaperInk);
-            UIFactory.Anchor(_idName.rectTransform, new Vector2(0, 0), new Vector2(170, 22), new Vector2(196, 152));
-            _idNumber = UIFactory.Label(idCard.rectTransform, "num", "", 14, UIFactory.PaperInk);
-            UIFactory.Anchor(_idNumber.rectTransform, new Vector2(0, 0), new Vector2(170, 22), new Vector2(196, 126));
-            _idYear = UIFactory.Label(idCard.rectTransform, "year", "", 13, UIFactory.PaperInk);
-            UIFactory.Anchor(_idYear.rectTransform, new Vector2(0, 0), new Vector2(170, 20), new Vector2(196, 102));
-            _idCourse = UIFactory.Label(idCard.rectTransform, "course", "", 12, UIFactory.PaperInk);
-            UIFactory.Anchor(_idCourse.rectTransform, new Vector2(0, 0), new Vector2(176, 20), new Vector2(199, 80));
-            _idStatus = UIFactory.Label(idCard.rectTransform, "status", "", 13, UIFactory.PaperInk);
-            UIFactory.Anchor(_idStatus.rectTransform, new Vector2(0, 0), new Vector2(170, 20), new Vector2(196, 58));
-            _idExpires = UIFactory.Label(idCard.rectTransform, "exp", "", 13, UIFactory.PaperInk);
-            UIFactory.Anchor(_idExpires.rectTransform, new Vector2(0, 0), new Vector2(200, 20), new Vector2(112, 30));
-
             var rec = UIFactory.Img(_root, "record", ProceduralArt.Get("record_sheet"));
             _recRt = rec.rectTransform;
-            UIFactory.Anchor(rec.rectTransform, new Vector2(0f, 0f), new Vector2(320, 340), CheckpointLayout.RecordCenter);
-            _recHeader = UIFactory.Label(rec.rectTransform, "header", "STUDENT RECORD — FORM 11-C", 13,
+            CheckpointLayout.Place(rec.rectTransform, CheckpointLayout.Record, CheckpointLayout.Pin.TopLeft);
+            _recHeader = UIFactory.Label(rec.rectTransform, "header", "STUDENT RECORD — FORM 11-C", 12,
                 new Color(0.9f, 0.9f, 0.88f), TextAnchor.MiddleCenter);
-            UIFactory.Anchor(_recHeader.rectTransform, new Vector2(0.5f, 1), new Vector2(224, 30), new Vector2(0, -16));
+            CheckpointLayout.PlaceLocal(_recHeader.rectTransform, 0, 3, 320, 26);
             _recName = Row(rec.rectTransform, "rname", 0);
             _recNumber = Row(rec.rectTransform, "rnum", 1);
             _recYear = Row(rec.rectTransform, "ryear", 2);
@@ -183,52 +175,96 @@ namespace Hollowbrook.Checkpoint
 
             // respects Reduced Motion (no punch, instant) and never blocks clicks
             _stampOverlay = UIFactory.Img(rec.rectTransform, "stampoverlay", null, new Color(1, 1, 1, 0f));
-            UIFactory.Anchor(_stampOverlay.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(132, 132), new Vector2(56, 100));
+            CheckpointLayout.PlaceLocal(_stampOverlay.rectTransform, 180, 170, 110, 110);
             _stampOverlay.rectTransform.localEulerAngles = new Vector3(0, 0, -12f);
             _stampOverlay.raycastTarget = false;
 
+            var idCard = UIFactory.Img(_root, "idcard", ProceduralArt.Get("id_card_frame"));
+            _idCardRt = idCard.rectTransform;
+            CheckpointLayout.Place(idCard.rectTransform, CheckpointLayout.IdCard, CheckpointLayout.Pin.BottomLeft);
+            _idHeader = UIFactory.Label(idCard.rectTransform, "header", "HOLLOWBROOK COLLEGE — STUDENT ID", 12,
+                new Color(0.9f, 0.9f, 0.88f), TextAnchor.MiddleCenter);
+            CheckpointLayout.PlaceLocal(_idHeader.rectTransform, 0, 3, 320, 28);
+            _idPhoto = UIFactory.Img(idCard.rectTransform, "photo", null);
+            CheckpointLayout.PlaceLocal(_idPhoto.rectTransform, 10, 46, 90, 118);
+            _idPhoto.preserveAspect = true;
+            _idName = IdRow(idCard.rectTransform, "name", 0);
+            _idNumber = IdRow(idCard.rectTransform, "num", 1);
+            _idYear = IdRow(idCard.rectTransform, "year", 2);
+            _idCourse = IdRow(idCard.rectTransform, "course", 3);
+            _idStatus = IdRow(idCard.rectTransform, "status", 4);
+            _idExpires = IdRow(idCard.rectTransform, "exp", 5);
+
+            var clip = UIFactory.Img(_root, "checklist", ProceduralArt.Get("rough_panel"));
+            CheckpointLayout.Place(clip.rectTransform, CheckpointLayout.Checklist, CheckpointLayout.Pin.BottomLeft);
+            var clipHead = UIFactory.Label(clip.rectTransform, "head", "CHECKLIST — click a row to mark it", 12,
+                UIFactory.PaperInk, TextAnchor.UpperLeft);
+            CheckpointLayout.PlaceLocal(clipHead.rectTransform, 8, 4, 300, 16);
             for (int i = 0; i < 8; i++)
             {
                 int row = i;
-                var rb = UIFactory.StandardButton(rec.rectTransform, "check" + i, "[  ] " + ChecklistLabels[i],
-                    () => CycleCheckRow(row), 280, 15);
-                UIFactory.SetBaseFontSize(rb.GetComponentInChildren<Text>(), 11);
-                rb.GetComponentInChildren<Text>().alignment = TextAnchor.MiddleLeft;
-                UIFactory.Anchor(rb.GetComponent<RectTransform>(), new Vector2(0f, 1f),
-                    new Vector2(300, 13), new Vector2(160, CheckpointLayout.CheckRowFirst - i * CheckpointLayout.CheckRowStep));
+                var rb = UIFactory.StandardButton(clip.rectTransform, "check" + i, "[  ] " + ChecklistLabels[i],
+                    () => CycleCheckRow(row), 308, 12);
+                CheckpointLayout.PlaceLocal(rb.GetComponent<RectTransform>(), 6, 22 + i * 12.5f, 308, 12);
+                StylePaperRow(rb);
                 _checkRows[i] = rb.GetComponentInChildren<Text>();
             }
+
             var mon = UIFactory.Panel(_root, "monitor", new Color(0.06f, 0.07f, 0.06f)).rectTransform;
             _monRt = mon;
-            UIFactory.Anchor(mon, new Vector2(1f, 0f), new Vector2(252, 120), CheckpointLayout.CameraCenter);
+            CheckpointLayout.Place(mon, CheckpointLayout.Monitor, CheckpointLayout.Pin.BottomRight);
             var monBorder = UIFactory.Panel(mon, "border", UIFactory.Border).rectTransform;
             UIFactory.AnchorsFull(monBorder);
             var monInner = UIFactory.Panel(monBorder, "inner", new Color(0.03f, 0.04f, 0.03f)).rectTransform;
             monInner.anchorMin = Vector2.zero; monInner.anchorMax = Vector2.one;
             monInner.offsetMin = new Vector2(2, 2); monInner.offsetMax = new Vector2(-2, -2);
+            var camCap = UIFactory.Label(mon, "camcap", "CAMERA", 11, UIFactory.InkDim, TextAnchor.MiddleCenter);
+            CheckpointLayout.PlaceLocal(camCap.rectTransform, 0, 2, 296, 16);
             _monitorOutput = UIFactory.Label(monInner, "out", "SCANNER READY", 13, new Color(0.55f, 0.75f, 0.55f));
-            UIFactory.AnchorsFull(_monitorOutput.rectTransform);
-            _monitorOutput.rectTransform.offsetMin = new Vector2(10, 8);
-            _monitorOutput.rectTransform.offsetMax = new Vector2(-10, -8);
+            CheckpointLayout.PlaceLocal(_monitorOutput.rectTransform, 8, 18, 272, 116);
+        }
+
+        private void StylePaperRow(Button b)
+        {
+            b.GetComponent<Image>().color = new Color(0.74f, 0.73f, 0.69f);
+            var inner = b.transform.GetChild(0).GetComponent<Image>();
+            inner.color = new Color(0.80f, 0.79f, 0.75f);
+            var t = b.GetComponentInChildren<Text>();
+            UIFactory.SetBaseFontSize(t, 11);
+            t.color = UIFactory.PaperInk;
+            t.alignment = TextAnchor.MiddleLeft;
+            UIFactory.AnchorsFull(t.rectTransform);
+            t.rectTransform.offsetMin = new Vector2(4, 0);
+            t.rectTransform.offsetMax = new Vector2(-2, 0);
         }
 
         private Text Row(RectTransform parent, string name, int rowIndex)
         {
-            const float HeaderHeight = 44f;
-            const float RowHeight = 24f;
-            var t = UIFactory.Label(parent, name, "", 13, UIFactory.PaperInk);
-            UIFactory.Anchor(t.rectTransform, new Vector2(0, 1), new Vector2(220, 20),
-                new Vector2(120, -(HeaderHeight + rowIndex * RowHeight)));
+            var t = UIFactory.Label(parent, name, "", 11, UIFactory.PaperInk);
+            CheckpointLayout.PlaceLocal(t.rectTransform, 14, RecordRules[rowIndex] - 14, 292, 14);
+            return t;
+        }
+
+        private Text IdRow(RectTransform parent, string name, int rowIndex)
+        {
+            var t = UIFactory.Label(parent, name, "", 12, UIFactory.PaperInk);
+            CheckpointLayout.PlaceLocal(t.rectTransform, 112, IdCardRules[rowIndex] - 16, 200, 16);
             return t;
         }
 
         private void BuildControls()
         {
+            var qPanel = UIFactory.Img(_root, "qpanel", ProceduralArt.Get("rough_panel"));
+            CheckpointLayout.Place(qPanel.rectTransform, CheckpointLayout.Questions, CheckpointLayout.Pin.TopRight);
+            var qHead = UIFactory.Label(qPanel.rectTransform, "head", "QUESTIONS", 14, UIFactory.PaperInk, TextAnchor.UpperLeft);
+            CheckpointLayout.PlaceLocal(qHead.rectTransform, 12, 6, 140, 20);
+
             var qCol = UIFactory.NewUI(_root, "questions");
             _qColRt = qCol;
-            UIFactory.Anchor(qCol, new Vector2(1, 1), new Vector2(320, 260), CheckpointLayout.QuestionsColumnCenter);
-            _budgetLabel = UIFactory.Label(qCol, "budget", "QUESTIONS: 2 LEFT", 14, UIFactory.InkDim, TextAnchor.MiddleLeft);
-            UIFactory.Anchor(_budgetLabel.rectTransform, new Vector2(0, 1), new Vector2(260, 24), new Vector2(130, -12));
+            CheckpointLayout.Place(qCol, CheckpointLayout.Questions, CheckpointLayout.Pin.TopRight);
+            _budgetLabel = UIFactory.Label(qCol, "budget", "QUESTIONS: 2 LEFT", 11,
+                new Color(0.35f, 0.35f, 0.34f), TextAnchor.MiddleRight);
+            CheckpointLayout.PlaceLocal(_budgetLabel.rectTransform, 146, 8, 138, 16);
             string[] qs =
             {
                 "1 · Your course?", "2 · Your year?",
@@ -238,30 +274,33 @@ namespace Hollowbrook.Checkpoint
             for (int i = 0; i < 4; i++)
             {
                 int qi = i;
-                var b = UIFactory.StandardButton(qCol, "q" + i, qs[i], () => AskQuestion(qids[qi]), 260, 40);
-                UIFactory.Anchor(b.GetComponent<RectTransform>(), new Vector2(0, 1), new Vector2(272, 40), new Vector2(0f, -34 - i * 44));
+                var b = UIFactory.StandardButton(qCol, "q" + i, qs[i], () => AskQuestion(qids[qi]), 272, 38);
+                CheckpointLayout.PlaceLocal(b.GetComponent<RectTransform>(), 12, 30 + i * 42, 272, 38);
                 _questionButtons[i] = b;
             }
+            _testimony = UIFactory.Label(qCol, "testimony", "", 11, new Color(0.30f, 0.30f, 0.29f), TextAnchor.UpperLeft);
+            CheckpointLayout.PlaceLocal(_testimony.rectTransform, 12, 200, 272, 54);
 
-            _allowBtn = UIFactory.StandardButton(_root, "allow", "ALLOW", () => Stamp(Verdict.Allow), 120, 120);
+            _allowBtn = UIFactory.StandardButton(_root, "allow", "ALLOW", () => Stamp(Verdict.Allow), 110, 110);
             MakeRound(_allowBtn, true);
-            UIFactory.Anchor(_allowBtn.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(120, 120), CheckpointLayout.AllowCenter);
-            _rejectBtn = UIFactory.StandardButton(_root, "reject", "CALL PRINCIPAL", () => AskPrincipal(), 120, 120, true);
+            CheckpointLayout.Place(_allowBtn.GetComponent<RectTransform>(), CheckpointLayout.StampAllow, CheckpointLayout.Pin.BottomRight);
+            _rejectBtn = UIFactory.StandardButton(_root, "reject", "CALL PRINCIPAL", () => AskPrincipal(), 110, 110, true);
             MakeRound(_rejectBtn, false);
-            UIFactory.Anchor(_rejectBtn.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(120, 120), CheckpointLayout.PrincipalCenter);
-            _scanBtn = UIFactory.StandardButton(_root, "scan", "SCAN ID", () => DoScan(), 130, 38);
-            UIFactory.Anchor(_scanBtn.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(150, 36), CheckpointLayout.UtilityGridFirst);
-            _notesBtn = UIFactory.StandardButton(_root, "notes", "RULES NOTE", () => ToggleOverlay(_notesRoot), 130, 38);
-            UIFactory.Anchor(_notesBtn.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(150, 36), CheckpointLayout.UtilityGridFirst + CheckpointLayout.UtilityGridStep);
-            _recordsBtn = UIFactory.StandardButton(_root, "records", "TONIGHT'S LOG", () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, 130, 38);
-            UIFactory.Anchor(_recordsBtn.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(150, 36), CheckpointLayout.UtilityGridFirst + new Vector2(CheckpointLayout.UtilityGridStep.x, 0f));
-            _mapBtn = UIFactory.StandardButton(_root, "map", "MAP", () => _gameRoot.OpenMap(), 130, 38);
-            UIFactory.Anchor(_mapBtn.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(150, 36), CheckpointLayout.UtilityGridFirst + new Vector2(0f, CheckpointLayout.UtilityGridStep.y));
+            CheckpointLayout.Place(_rejectBtn.GetComponent<RectTransform>(), CheckpointLayout.StampReject, CheckpointLayout.Pin.BottomRight);
 
-            _patrolBtn = UIFactory.StandardButton(_root, "patrol", "PATROL HALLWAY  ▸", () => GoPatrol(), 220, 44);
-            UIFactory.Anchor(_patrolBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(180, 36), CheckpointLayout.PatrolCenter);
-            _endShiftBtn = UIFactory.StandardButton(_root, "endshift", "END SHIFT — CLOCK OUT", () => _gameRoot.FinishShift(), 250, 44);
-            UIFactory.Anchor(_endShiftBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(200, 36), CheckpointLayout.EndShiftCenter);
+            _scanBtn = UIFactory.StandardButton(_root, "scan", "SCAN ID", () => DoScan(), 140, 36);
+            CheckpointLayout.Place(_scanBtn.GetComponent<RectTransform>(), CheckpointLayout.UtilityScan, CheckpointLayout.Pin.TopRight);
+            _recordsBtn = UIFactory.StandardButton(_root, "records", "TONIGHT'S LOG", () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, 140, 36);
+            CheckpointLayout.Place(_recordsBtn.GetComponent<RectTransform>(), CheckpointLayout.UtilityRecords, CheckpointLayout.Pin.TopRight);
+            _mapBtn = UIFactory.StandardButton(_root, "map", "MAP", () => _gameRoot.OpenMap(), 140, 36);
+            CheckpointLayout.Place(_mapBtn.GetComponent<RectTransform>(), CheckpointLayout.UtilityMap, CheckpointLayout.Pin.TopRight);
+            _notesBtn = UIFactory.StandardButton(_root, "notes", "RULES NOTE", () => ToggleOverlay(_notesRoot), 140, 36);
+            CheckpointLayout.Place(_notesBtn.GetComponent<RectTransform>(), CheckpointLayout.UtilityNotes, CheckpointLayout.Pin.TopRight);
+
+            _patrolBtn = UIFactory.StandardButton(_root, "patrol", "PATROL HALLWAY  ▸", () => GoPatrol(), 180, 36);
+            CheckpointLayout.Place(_patrolBtn.GetComponent<RectTransform>(), CheckpointLayout.PatrolBtn, CheckpointLayout.Pin.BottomCenter);
+            _endShiftBtn = UIFactory.StandardButton(_root, "endshift", "END SHIFT — CLOCK OUT", () => _gameRoot.FinishShift(), 200, 36);
+            CheckpointLayout.Place(_endShiftBtn.GetComponent<RectTransform>(), CheckpointLayout.EndShiftBtn, CheckpointLayout.Pin.BottomCenter);
             _endShiftBtn.gameObject.SetActive(false);
         }
 
@@ -270,7 +309,7 @@ namespace Hollowbrook.Checkpoint
             _bannerRoot = new GameObject("Banner");
             var brt = UIFactory.NewUI(_bannerRoot.transform, "inner");
             _bannerRoot.transform.SetParent(_root, false);
-            UIFactory.Anchor(brt, new Vector2(0.5f, 0.5f), new Vector2(640, 250), new Vector2(0, 60));
+            CheckpointLayout.Place(brt, CheckpointLayout.VerdictBanner, CheckpointLayout.Pin.Center);
             var bimg = UIFactory.Panel(brt, "bg", new Color(0.04f, 0.04f, 0.05f, 0.97f));
             UIFactory.AnchorsFull(bimg.rectTransform);
             var border = UIFactory.Panel(brt, "borderline", UIFactory.Border).rectTransform;
@@ -278,11 +317,9 @@ namespace Hollowbrook.Checkpoint
             border.offsetMin = new Vector2(2, 2); border.offsetMax = new Vector2(-2, -2);
             border.GetComponent<Image>().color = new Color(0.04f, 0.04f, 0.05f, 0.97f);
             _bannerTitle = UIFactory.Label(brt, "title", "", 34, UIFactory.Ink, TextAnchor.MiddleCenter);
-            UIFactory.Anchor(_bannerTitle.rectTransform, new Vector2(0.5f, 1), new Vector2(600, 52), new Vector2(0, -34));
-            _bannerBody = UIFactory.Label(brt, "body", "", 16, UIFactory.InkDim, TextAnchor.UpperCenter);
-            var bbRt = _bannerBody.rectTransform;
-            bbRt.anchorMin = new Vector2(0, 0); bbRt.anchorMax = new Vector2(1, 1);
-            bbRt.offsetMin = new Vector2(24, 16); bbRt.offsetMax = new Vector2(-24, -70);
+            CheckpointLayout.PlaceLocal(_bannerTitle.rectTransform, 20, 22, 600, 44);
+            _bannerBody = UIFactory.Label(brt, "body", "", 16, UIFactory.InkDim, TextAnchor.UpperLeft);
+            CheckpointLayout.PlaceLocal(_bannerBody.rectTransform, 24, 70, 592, 164);
             _bannerRoot.SetActive(false);
 
             _notesRoot = BuildPaperOverlay("note_paper", "PAPER NOTE — INSPECTION RULES", out _notesText);
@@ -295,15 +332,13 @@ namespace Hollowbrook.Checkpoint
             go.transform.SetParent(_root, false);
             UIFactory.Dimmer(go.transform, "dim", 0.6f);
             var panel = UIFactory.Img(go.transform, "paper", ProceduralArt.Get(spriteKey));
-            UIFactory.Anchor(panel.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(760, 480), Vector2.zero);
+            CheckpointLayout.Place(panel.rectTransform, CheckpointLayout.PaperOverlay, CheckpointLayout.Pin.Center);
             var head = UIFactory.Label(panel.rectTransform, "title", title, 20, UIFactory.PaperInk, TextAnchor.MiddleCenter);
-            UIFactory.Anchor(head.rectTransform, new Vector2(0.5f, 1), new Vector2(700, 40), new Vector2(0, -30));
+            CheckpointLayout.PlaceLocal(head.rectTransform, 30, 22, 700, 32);
             body = UIFactory.Label(panel.rectTransform, "body", "", 16, UIFactory.PaperInk);
-            var bRt = body.rectTransform;
-            bRt.anchorMin = new Vector2(0, 0); bRt.anchorMax = new Vector2(1, 1);
-            bRt.offsetMin = new Vector2(40, 64); bRt.offsetMax = new Vector2(-40, -70);
+            CheckpointLayout.PlaceLocal(body.rectTransform, 40, 62, 680, 344);
             var close = UIFactory.StandardButton(panel.rectTransform, "close", "CLOSE [X]", () => go.SetActive(false), 140, 38);
-            UIFactory.Anchor(close.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(140, 38), new Vector2(0, 26));
+            CheckpointLayout.PlaceLocal(close.GetComponent<RectTransform>(), 310, 416, 140, 38);
             go.SetActive(false);
             return go;
         }
@@ -437,62 +472,26 @@ namespace Hollowbrook.Checkpoint
             t.color = paper ? UIFactory.PaperInk : UIFactory.Ink;
         }
 
-        // chalk decor from the art-direction sample: banner, facade, window, note, confirm box
         private void BuildDecor()
         {
-            var banner = UIFactory.Img(_root, "daybanner", ProceduralArt.Get("rough_panel"));
-            UIFactory.Anchor(banner.rectTransform, new Vector2(0f, 1f), new Vector2(300, 44), CheckpointLayout.BannerCenter);
-            _topLeft.transform.SetParent(banner.rectTransform, false);
-            UIFactory.AnchorsFull(_topLeft.rectTransform);
-            _topLeft.color = UIFactory.PaperInk; UIFactory.SetBaseFontSize(_topLeft, 20);
-            _topLeft.alignment = TextAnchor.MiddleCenter;
-            var facade = UIFactory.Img(_root, "facade", ProceduralArt.Get("school_facade"));
-            // facade is parented to the window a few lines below, once win exists
-            var win = UIFactory.Img(_root, "windowframe", ProceduralArt.Get("window_frame"));
-            UIFactory.Anchor(win.rectTransform, new Vector2(0.5f, 1f), new Vector2(470, 340), CheckpointLayout.WindowCenter);
-            facade.transform.SetParent(win.rectTransform, false);
-            UIFactory.Anchor(facade.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(440, 300), Vector2.zero);
-            var glass = UIFactory.Panel(win.rectTransform, "glass", UIFactory.Glass);
-            UIFactory.AnchorsFull(glass.rectTransform);
-            glass.raycastTarget = false;
-            var sill = UIFactory.Panel(_root, "sill", new Color(0.10f, 0.10f, 0.11f));
-            UIFactory.Anchor(sill.rectTransform, new Vector2(0.5f, 1f), new Vector2(470, 34), new Vector2(0, -332));
             var note = UIFactory.Img(_root, "principalnote", ProceduralArt.Get("rough_panel"));
-            UIFactory.Anchor(note.rectTransform, new Vector2(0.5f, 0f), new Vector2(300, 100), CheckpointLayout.NoteCenter);
-            var head = UIFactory.Label(note.rectTransform, "head", "PRINCIPAL NOTE", 14, UIFactory.PaperInk, TextAnchor.UpperLeft);
-            UIFactory.Anchor(head.rectTransform, new Vector2(0f, 1f), new Vector2(230, 22), new Vector2(120, -16));
-            _noteText = UIFactory.Label(note.rectTransform, "body", "", 12, UIFactory.PaperInk, TextAnchor.UpperLeft);
-            UIFactory.Anchor(_noteText.rectTransform, new Vector2(0f, 1f), new Vector2(226, 140), new Vector2(118, -40));
-            var qPanel = UIFactory.Img(_root, "qpanel", ProceduralArt.Get("rough_panel"));
-            UIFactory.Anchor(qPanel.rectTransform, new Vector2(1f, 1f), new Vector2(320, 260), CheckpointLayout.QuestionsPanelCenter);
-            // Explicit draw order: the panel is built after the question column, so without this it
-            // paints over its own buttons. Sending it to the back keeps heading/buttons/testimony readable.
-            qPanel.rectTransform.SetAsFirstSibling();
-            var qHead = UIFactory.Label(qPanel.rectTransform, "head", "QUESTIONS", 18, UIFactory.PaperInk, TextAnchor.UpperLeft);
-            UIFactory.Anchor(qHead.rectTransform, new Vector2(0f, 1f), new Vector2(280, 26), new Vector2(145, -14));
-            var camFrame = UIFactory.Img(_monRt, "camframe", ProceduralArt.Get("camera_frame"));
-            UIFactory.AnchorsFull(camFrame.rectTransform);
-            camFrame.raycastTarget = false;
-            var camCap = UIFactory.Label(_monRt, "camcap", "CAMERA", 13, UIFactory.InkDim, TextAnchor.MiddleCenter);
-            UIFactory.Anchor(camCap.rectTransform, new Vector2(0.5f, 1f), new Vector2(240, 20), new Vector2(0, -20));
+            CheckpointLayout.Place(note.rectTransform, CheckpointLayout.Note, CheckpointLayout.Pin.BottomCenter);
+            var head = UIFactory.Label(note.rectTransform, "head", "PRINCIPAL NOTE", 13, UIFactory.PaperInk, TextAnchor.UpperLeft);
+            CheckpointLayout.PlaceLocal(head.rectTransform, 10, 6, 170, 18);
+            _noteText = UIFactory.Label(note.rectTransform, "body", "", 11, UIFactory.PaperInk, TextAnchor.UpperLeft);
+            CheckpointLayout.PlaceLocal(_noteText.rectTransform, 10, 26, 260, 78);
+
             var conf = UIFactory.Img(_root, "confirmbox", ProceduralArt.Get("rough_panel"));
-            UIFactory.Anchor(conf.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(420, 110), Vector2.zero);
+            CheckpointLayout.Place(conf.rectTransform, CheckpointLayout.ConfirmBox, CheckpointLayout.Pin.Center);
             _confirmText = UIFactory.Label(conf.rectTransform, "txt", "", 14, UIFactory.PaperInk, TextAnchor.MiddleCenter);
-            UIFactory.Anchor(_confirmText.rectTransform, new Vector2(0.5f, 1f), new Vector2(280, 40), new Vector2(0, -18));
+            CheckpointLayout.PlaceLocal(_confirmText.rectTransform, 20, 12, 380, 40);
             var no = UIFactory.StandardButton(conf.rectTransform, "no", "No", () => _confirmBox.SetActive(false), 90, 30);
-            UIFactory.Anchor(no.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(90, 30), new Vector2(-52, -64));
+            CheckpointLayout.PlaceLocal(no.GetComponent<RectTransform>(), 150, 64, 90, 30);
             var yes = UIFactory.StandardButton(conf.rectTransform, "yes", "Yes",
                 () => { _confirmBox.SetActive(false); Stamp(Verdict.Reject); }, 90, 30);
-            UIFactory.Anchor(yes.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(90, 30), new Vector2(52, -64));
+            CheckpointLayout.PlaceLocal(yes.GetComponent<RectTransform>(), 250, 64, 90, 30);
             _confirmBox = conf.gameObject;
             _confirmBox.SetActive(false);
-            // B3: the window frame is created after the portrait, and later siblings draw on
-            // top, so lift the visitor, the glass glitch and the speech bubble above it.
-            if (_visitorPortrait != null) _visitorPortrait.rectTransform.SetAsLastSibling();
-            if (_glitchOverlay != null) _glitchOverlay.rectTransform.SetAsLastSibling();
-            if (_speechPanel != null) _speechPanel.SetAsLastSibling();
-            _testimony = UIFactory.Label(_qColRt, "testimony", "", 12, UIFactory.InkDim, TextAnchor.UpperLeft);
-            UIFactory.Anchor(_testimony.rectTransform, new Vector2(0.5f, 1f), new Vector2(300, 80), new Vector2(0f, -236));
         }
 
         private void OnDestroy()
@@ -919,7 +918,7 @@ namespace Hollowbrook.Checkpoint
                 int total = _roster != null ? _roster.Count : 0;
                 int shown = Mathf.Clamp(_index + 1, 0, total);
                 _topLeft.text = "NIGHT " + _gameRoot.Session.CurrentShift + " · " + (_shift != null ? _shift.DateLabel : "") +
-                                "   —   VISITOR " + shown + " / " + total;
+                                " — VISITOR " + shown + "/" + total;
                 _topClock.text = _gameRoot.ClockString;
             }
             else

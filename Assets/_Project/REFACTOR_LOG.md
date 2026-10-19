@@ -164,3 +164,35 @@ FlowCheck re-run after the change: 22 OK / 0 BAD, B8 resume Ana Delgado -> Carlo
   facade (visible in the provided screenshot), and the bottom-left strip belongs to the id card.
 - The facade art is now the view THROUGH the window (child of the window frame) because the left
   column is fully occupied by banner/record/id; the confirm box overlays the window centre as a modal.
+
+## Layout redo, from the ground up (branch fix/ui-layout-redo) — SUPERSEDES the table above
+
+Root causes found behind "the UI is rotated invertedly" and the remaining overlaps:
+1. ProceduralArt.Canvas2D draws row 0 as the TOP, but Texture2D.SetPixels reads row 0 as the
+   BOTTOM of the texture. Every procedural sprite therefore rendered vertically mirrored:
+   faces grew hair under the chin, the ID card wore its barcode on top and its header band at
+   the bottom, the record sheet showed its stamp strip as a header. ToSprite now flips rows.
+2. CheckpointLayout mixed centre-offset and edge-offset constants against UIFactory.Anchor's
+   centre-pos convention, so panels drifted into each other (note over speech, camera under the
+   stamps, meters inside each other, objective text bleeding over the ID card).
+
+New rule: one grid, absolute 1280x720 regions, top-left origin, as the mockup reads.
+CheckpointLayout.Region + Place(rt, region, pin) + PlaceLocal(rt, x, y, w, h) (children always
+measured from the parent's top-left). Pins attach each region to the nearest screen corner so
+other aspect ratios widen the gutters instead of colliding columns.
+
+    top bar y4..48    banner 16..336 | sanity 348..628 | light 636..856 | track 864..984 |
+                      clock 1000..1150 | pause 1160..1264
+    row   y56..80     objective 16..476 (exploration) | run stats 490..830 | findings 1016..1264
+    left  x16..336    record 64..354 | id card 362..582 | checklist 590..712
+    centre            window 88..404 | sill 404..428 | speech 436..546 | note 554..664 |
+                      patrol/end-shift 672..708
+    right x968..1264  questions 88..348 | utilities 356..432 (2x2) | stamps 440..550 |
+                      camera monitor 558..704
+
+Checklist rows left the record sheet (its printed rules hold the seven data rows) and became
+their own paper panel with paper-toned buttons; record/ID headers sit inside the sprites' dark
+header bands; the monitor keeps caption and scanner output on separate rows.
+FlowCheck's audit now replays the pin math for all 28 regions: placed == grid, on screen, and
+every co-visible pair disjoint (state-tagged C/E/B). 27,125 logic assertions still pass.
+Play-mode and screenshot checks: NOT RUN (no Unity editor in this sandbox).

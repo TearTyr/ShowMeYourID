@@ -7,6 +7,7 @@ using Hollowbrook.Logic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using L = Hollowbrook.Checkpoint.CheckpointLayout;
 
 namespace Hollowbrook.UI
 {
@@ -34,28 +35,28 @@ namespace Hollowbrook.UI
             _gameRoot = root;
 
             var barBg = UIFactory.Panel(transform, "sanitybg", new Color(0.05f, 0.05f, 0.06f, 0.85f)).rectTransform;
-            UIFactory.Anchor(barBg, new Vector2(0.5f, 1f), new Vector2(260, 36), new Vector2(-160, -26));
-            var label = UIFactory.Label(barBg, "cap", "SANITY", 13, UIFactory.InkDim, TextAnchor.MiddleLeft);
-            UIFactory.Anchor(label.rectTransform, new Vector2(0, 1), new Vector2(80, 18), new Vector2(46, -10));
+            L.Place(barBg, L.SanityMeter, L.Pin.TopLeft);
+            var label = UIFactory.Label(barBg, "cap", "SANITY", 12, UIFactory.InkDim, TextAnchor.MiddleLeft);
+            L.PlaceLocal(label.rectTransform, 8, 3, 100, 16);
             var track = UIFactory.Panel(barBg, "track", new Color(0.12f, 0.12f, 0.13f)).rectTransform;
-            UIFactory.Anchor(track, new Vector2(0, 0), new Vector2(216, 14), new Vector2(120, 12));
+            L.PlaceLocal(track, 8, 21, 264, 12);
             _sanityFill = UIFactory.Img(track, "fill", ProceduralArt.Get("solid_white"), UIFactory.Ink);
             _sanityFill.rectTransform.anchorMin = new Vector2(0, 0);
             _sanityFill.rectTransform.anchorMax = new Vector2(1, 1);
             _sanityFill.rectTransform.pivot = new Vector2(0, 0.5f);
             _sanityFill.rectTransform.offsetMin = Vector2.zero;
             _sanityFill.rectTransform.offsetMax = Vector2.zero;
-            _sanityLabel = UIFactory.Label(barBg, "val", "100", 13, UIFactory.Ink, TextAnchor.MiddleRight);
-            UIFactory.Anchor(_sanityLabel.rectTransform, new Vector2(1, 1), new Vector2(48, 18), new Vector2(-30, -10));
-            _stageLabel = UIFactory.Label(barBg, "stage", "STABLE", 11, UIFactory.InkFaint, TextAnchor.MiddleLeft);
-            UIFactory.Anchor(_stageLabel.rectTransform, new Vector2(0, 1), new Vector2(150, 16), new Vector2(120, -28));
+            _sanityLabel = UIFactory.Label(barBg, "val", "100", 12, UIFactory.Ink, TextAnchor.MiddleRight);
+            L.PlaceLocal(_sanityLabel.rectTransform, 224, 3, 48, 16);
+            _stageLabel = UIFactory.Label(barBg, "stage", "STABLE", 10, UIFactory.InkFaint, TextAnchor.MiddleCenter);
+            L.PlaceLocal(_stageLabel.rectTransform, 108, 3, 116, 16);
 
             var tbg = UIFactory.Panel(transform, "trackbg", new Color(0.05f, 0.05f, 0.06f, 0.85f)).rectTransform;
-            UIFactory.Anchor(tbg, new Vector2(0.5f, 1f), new Vector2(220, 36), new Vector2(90, -26));
-            var tcap = UIFactory.Label(tbg, "cap", "TRACK", 12, UIFactory.InkDim, TextAnchor.MiddleLeft);
-            UIFactory.Anchor(tcap.rectTransform, new Vector2(0, 1), new Vector2(80, 16), new Vector2(46, -7));
+            L.Place(tbg, L.TrackMeter, L.Pin.TopRight);
+            var tcap = UIFactory.Label(tbg, "cap", "TRACK", 10, UIFactory.InkDim, TextAnchor.MiddleLeft);
+            L.PlaceLocal(tcap.rectTransform, 6, 3, 60, 14);
             var ttrack = UIFactory.Panel(tbg, "track", new Color(0.12f, 0.12f, 0.13f)).rectTransform;
-            UIFactory.Anchor(ttrack, new Vector2(0, 0), new Vector2(216, 10), new Vector2(120, 9));
+            L.PlaceLocal(ttrack, 6, 20, 108, 12);
             _trackFill = UIFactory.Img(ttrack, "fill", ProceduralArt.Get("solid_white"), UIFactory.AccentBright);
             _trackFill.rectTransform.anchorMin = new Vector2(0, 0);
             _trackFill.rectTransform.anchorMax = new Vector2(0, 1);
@@ -66,11 +67,11 @@ namespace Hollowbrook.UI
             _trackBar.SetActive(false);
 
             var bbg = UIFactory.Panel(transform, "batterybg", new Color(0.05f, 0.05f, 0.06f, 0.85f)).rectTransform;
-            UIFactory.Anchor(bbg, new Vector2(0.5f, 1f), new Vector2(220, 36), new Vector2(300, -26));
-            var bcap = UIFactory.Label(bbg, "cap", "LIGHT", 12, UIFactory.InkDim, TextAnchor.MiddleLeft);
-            UIFactory.Anchor(bcap.rectTransform, new Vector2(0, 1), new Vector2(80, 16), new Vector2(46, -5));
+            L.Place(bbg, L.LightMeter, L.Pin.TopCenter);
+            var bcap = UIFactory.Label(bbg, "cap", "LIGHT", 11, UIFactory.InkDim, TextAnchor.MiddleLeft);
+            L.PlaceLocal(bcap.rectTransform, 8, 3, 60, 16);
             var btrack = UIFactory.Panel(bbg, "track", new Color(0.12f, 0.12f, 0.13f)).rectTransform;
-            UIFactory.Anchor(btrack, new Vector2(0, 0), new Vector2(216, 8), new Vector2(120, 9));
+            L.PlaceLocal(btrack, 8, 21, 204, 12);
             _batteryFill = UIFactory.Img(btrack, "fill", ProceduralArt.Get("solid_white"), UIFactory.InkDim);
             _batteryFill.rectTransform.anchorMin = new Vector2(0, 0);
             _batteryFill.rectTransform.anchorMax = new Vector2(1, 1);
@@ -80,23 +81,19 @@ namespace Hollowbrook.UI
             _batteryBar = bbg.gameObject;
 
             _findings = UIFactory.Label(transform, "findings", "FINDINGS 0/10", 15, UIFactory.InkDim, TextAnchor.MiddleRight);
-            UIFactory.Anchor(_findings.rectTransform, new Vector2(1, 1), new Vector2(240, 24), new Vector2(-150, -64));
+            L.Place(_findings.rectTransform, L.Findings, L.Pin.TopRight);
 
             _roomInfo = UIFactory.Label(transform, "room", "", 14, UIFactory.InkFaint, TextAnchor.MiddleRight);
-            UIFactory.Anchor(_roomInfo.rectTransform, new Vector2(1, 1), new Vector2(300, 22), new Vector2(-180, -88));
+            L.Place(_roomInfo.rectTransform, L.RoomInfo, L.Pin.TopRight);
 
             _objective = UIFactory.Label(transform, "objective", "", 15, UIFactory.InkDim);
-            var ort = _objective.rectTransform;
-            ort.anchorMin = new Vector2(0, 0); ort.anchorMax = new Vector2(0, 0);
-            ort.pivot = new Vector2(0, 0);
-            ort.sizeDelta = new Vector2(560, 66);
-            ort.anchoredPosition = new Vector2(20, 16);
+            L.Place(_objective.rectTransform, L.Objective, L.Pin.TopLeft);
 
             _prompt = UIFactory.Label(transform, "prompt", "", 20, UIFactory.AccentBright, TextAnchor.MiddleCenter);
-            UIFactory.Anchor(_prompt.rectTransform, new Vector2(0.5f, 0), new Vector2(640, 30), new Vector2(0, 92));
+            L.Place(_prompt.rectTransform, L.Prompt, L.Pin.BottomCenter);
 
             _toast = UIFactory.Label(transform, "toast", "", 18, UIFactory.Ink, TextAnchor.MiddleCenter);
-            UIFactory.Anchor(_toast.rectTransform, new Vector2(0.5f, 1), new Vector2(720, 30), new Vector2(0, -64));
+            L.Place(_toast.rectTransform, L.Toast, L.Pin.TopCenter);
             _toast.gameObject.SetActive(false);
 
             _subs.Add(root.Bus.Subscribe(EventIds.SanityChanged, e => SetSanity(e.Value)));
@@ -134,6 +131,7 @@ namespace Hollowbrook.UI
             _prompt.gameObject.SetActive(true);
             _roomInfo.gameObject.SetActive(exploring);
             if (!exploring) _prompt.text = "";
+            if (!exploring && _batteryBar != null) _batteryBar.SetActive(false); // desk has no flashlight
             if (s == AppViewState.Checkpoint) _objective.text = "Inspect every visitor. Permanent decisions.";
             RefreshFindings();
             SetSanity(_gameRoot.Session != null ? _gameRoot.Session.Sanity : 100f);
