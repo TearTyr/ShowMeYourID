@@ -8,11 +8,6 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.Horror
 {
-    /// <summary>Scare director: jumpscares for anomaly captures, stingers for disturbing
-    /// discoveries, and camera shake. Accessibility is built in, not bolted on:
-    ///  • Photosensitivity-Safe  => no white flash, faces fade in slowly, softer audio;
-    ///  • Reduced Motion         => no camera shake, no scale punch.
-    /// A cooldown prevents stacked scares (readability + comfort).</summary>
     public class ScareSystem : MonoBehaviour
     {
         private GameRoot R;
@@ -48,7 +43,6 @@ namespace Hollowbrook.Horror
             _flash.raycastTarget = false;
         }
 
-        /// <summary>Full jumpscare (anomaly caught the player).</summary>
         public void Capture(AnomalyBehaviorKind kind)
         {
             if (Time.unscaledTime < _cooldownUntil) return;
@@ -112,7 +106,6 @@ namespace Hollowbrook.Horror
             var f2 = _face.color; f2.a = 0; _face.color = f2;
         }
 
-        /// <summary>Light scare: static burst + stinger (clue discoveries, sightings).</summary>
         public void Stinger(string kind, float sanityHit)
         {
             if (Time.unscaledTime < _cooldownUntil) return;
@@ -138,7 +131,6 @@ namespace Hollowbrook.Horror
             _flash.sprite = ProceduralArt.Get("flash");
         }
 
-        /// <summary>Camera shake (ignored when Reduced Motion is on).</summary>
         public void Shake(float strength)
         {
             if (R.Settings != null && R.Settings.ReduceMotion) return;
@@ -149,8 +141,6 @@ namespace Hollowbrook.Horror
 
         private IEnumerator ShakeRoutine(float strength)
         {
-            // Shake the WORLD root, not the camera: the camera-follow LateUpdate owns camera
-            // position, so shaking here avoids fighting it (and shakes props+player together).
             if (R.Views == null) yield break;
             var target = R.Views.transform;
             float t = 0f;

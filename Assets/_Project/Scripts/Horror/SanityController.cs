@@ -10,11 +10,6 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.Horror
 {
-    /// <summary>Drives sanity over time per context and renders its atmospheric effects
-    /// (vignette, distortion, low-sanity warning, heartbeat). Sanity is perception and
-    /// atmosphere — never a health bar: it cannot end the run by itself. All distortion
-    /// lives on the FX canvas BELOW the UI canvas, so documents/HUD stay readable at every
-    /// stage (approved requirement). Subscribes/disposes through the EventBus properly.</summary>
     public class SanityController : MonoBehaviour
     {
         private GameRoot R;
@@ -61,7 +56,6 @@ namespace Hollowbrook.Horror
             _subs.Clear();
         }
 
-        /// <summary>Called every frame by GameRoot while in a run; accumulates whole seconds.</summary>
         public void Tick(bool inSecurity)
         {
             if (R == null || R.Session == null) return;
@@ -72,7 +66,6 @@ namespace Hollowbrook.Horror
             float before = R.Session.Sanity;
             if (inSecurity)
             {
-                // the lit security booth is the safe space: slow recovery (approved)
                 float rate = R.Session.Mode == GameMode.Normal
                     ? SanityModel.SecurityRoomRecoveryPerSecond
                     : SanityModel.SecurityRoomRecoveryPerSecond * 0.4f;
@@ -97,7 +90,6 @@ namespace Hollowbrook.Horror
                 R.Bus.Publish(GameEvent.Of(EventIds.SanityStageChanged, stage));
             }
 
-            // heartbeat at Shaken/Breaking
             if (stage == SanityStage.Shaken || stage == SanityStage.Breaking)
             {
                 _heartbeatTimer -= dt;

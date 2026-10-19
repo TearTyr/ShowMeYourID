@@ -8,10 +8,6 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    /// <summary>Gameplay HUD (approved list): sanity bar, current time, objective display,
-    /// interaction indicator, notification toasts, findings counter, room/light readout.
-    /// Lives above the FX canvas so essential info is always readable (sanity effects can
-    /// never obscure it).</summary>
     public class HUDView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -34,7 +30,6 @@ namespace Hollowbrook.UI
         {
             R = root;
 
-            // sanity bar (top-left)
             var barBg = UIFactory.Panel(transform, "sanitybg", new Color(0.05f, 0.05f, 0.06f, 0.85f)).rectTransform;
             UIFactory.Anchor(barBg, new Vector2(0, 1), new Vector2(240, 46), new Vector2(132, -86));
             var label = UIFactory.Label(barBg, "cap", "SANITY", 13, UIFactory.InkDim, TextAnchor.MiddleLeft);
@@ -52,7 +47,6 @@ namespace Hollowbrook.UI
             _stageLabel = UIFactory.Label(barBg, "stage", "STABLE", 11, UIFactory.InkFaint, TextAnchor.MiddleLeft);
             UIFactory.Anchor(_stageLabel.rectTransform, new Vector2(0, 1), new Vector2(150, 16), new Vector2(120, -28));
 
-            // tracking meter (under the sanity bar; only visible while light holds an anomaly)
             var tbg = UIFactory.Panel(transform, "trackbg", new Color(0.05f, 0.05f, 0.06f, 0.85f)).rectTransform;
             UIFactory.Anchor(tbg, new Vector2(0, 1), new Vector2(240, 30), new Vector2(132, -140));
             var tcap = UIFactory.Label(tbg, "cap", "TRACK", 12, UIFactory.InkDim, TextAnchor.MiddleLeft);
@@ -82,15 +76,12 @@ namespace Hollowbrook.UI
             _batteryFill.rectTransform.offsetMax = Vector2.zero;
             _batteryBar = bbg.gameObject;
 
-            // findings counter (top-right under the clock)
             _findings = UIFactory.Label(transform, "findings", "FINDINGS 0/10", 15, UIFactory.InkDim, TextAnchor.MiddleRight);
             UIFactory.Anchor(_findings.rectTransform, new Vector2(1, 1), new Vector2(240, 24), new Vector2(-150, -64));
 
-            // room + light info (right, under findings)
             _roomInfo = UIFactory.Label(transform, "room", "", 14, UIFactory.InkFaint, TextAnchor.MiddleRight);
             UIFactory.Anchor(_roomInfo.rectTransform, new Vector2(1, 1), new Vector2(300, 22), new Vector2(-180, -88));
 
-            // objective (bottom-left)
             _objective = UIFactory.Label(transform, "objective", "", 15, UIFactory.InkDim);
             var ort = _objective.rectTransform;
             ort.anchorMin = new Vector2(0, 0); ort.anchorMax = new Vector2(0, 0);
@@ -98,11 +89,9 @@ namespace Hollowbrook.UI
             ort.sizeDelta = new Vector2(560, 66);
             ort.anchoredPosition = new Vector2(20, 16);
 
-            // interaction prompt (bottom-center)
             _prompt = UIFactory.Label(transform, "prompt", "", 20, UIFactory.AccentBright, TextAnchor.MiddleCenter);
             UIFactory.Anchor(_prompt.rectTransform, new Vector2(0.5f, 0), new Vector2(640, 30), new Vector2(0, 92));
 
-            // toast (top-center)
             _toast = UIFactory.Label(transform, "toast", "", 18, UIFactory.Ink, TextAnchor.MiddleCenter);
             UIFactory.Anchor(_toast.rectTransform, new Vector2(0.5f, 1), new Vector2(720, 30), new Vector2(0, -64));
             _toast.gameObject.SetActive(false);
@@ -176,7 +165,6 @@ namespace Hollowbrook.UI
             }
         }
 
-        /// <summary>0 hides the meter; 0..1 fills it; reveal/collection hides it again.</summary>
         private void SetTracking(float v)
         {
             if (_trackBar == null) return;
@@ -225,8 +213,6 @@ namespace Hollowbrook.UI
         public void Hide() { gameObject.SetActive(false); }
     }
 
-    /// <summary>Accessibility caption bar: shows text for significant audio events when
-    /// Captions are enabled in settings.</summary>
     public class CaptionBar : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -263,7 +249,6 @@ namespace Hollowbrook.UI
         public void Hide() { gameObject.SetActive(false); }
     }
 
-    /// <summary>Loading / shift-title flash screen.</summary>
     public class LoadingView : MonoBehaviour, IScreenView
     {
         private Text _label;
@@ -296,7 +281,6 @@ namespace Hollowbrook.UI
             _routine = null;
         }
 
-        /// <summary>Persistent backdrop with a title (used while shift intros play over it).</summary>
         public void Show(string label)
         {
             _label.text = label ?? "";
@@ -312,7 +296,6 @@ namespace Hollowbrook.UI
         }
     }
 
-    /// <summary>Modal yes/no confirmation (used for quitting, destructive choices).</summary>
     public class ConfirmationPopup : MonoBehaviour, IScreenView
     {
         private GameObject _root;
@@ -333,8 +316,6 @@ namespace Hollowbrook.UI
             UIFactory.Anchor(_body.rectTransform, new Vector2(0.5f, 1), new Vector2(500, 70), new Vector2(0, -92));
             var yes = UIFactory.StandardButton(panel, "yes", "YES", () =>
             {
-                // capture BEFORE Hide() — Hide() clears _onYes (order bug caught by smoke tests:
-                // without this, every confirmation in the game silently did nothing)
                 var act = _onYes;
                 Hide();
                 act?.Invoke();

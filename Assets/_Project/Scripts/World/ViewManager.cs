@@ -9,7 +9,6 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
-    /// <summary>One explorable room: background, interactables, light rig, spawn points.</summary>
     public class RoomInstance
     {
         public RoomId Id;
@@ -23,11 +22,6 @@ namespace Hollowbrook.World
         public string DisplayName;
     }
 
-    /// <summary>Owns the world-space exploration views (Hallway, Classroom 1, Classroom 2),
-    /// the player, room transitions, camera follow and the wandering-anomaly spawner.
-    /// Transition + recovery guarantees (master prompt §6B): every EnterRoom verifies the
-    /// target view exists and is active, rebuilds it if not, and falls back to the security
-    /// checkpoint rather than leaving the player trapped.</summary>
     public class ViewManager : MonoBehaviour
     {
         private GameRoot R;
@@ -51,7 +45,6 @@ namespace Hollowbrook.World
             _worldRoot = worldRoot;
 
             // dedicated fade canvas (between FX and UI layers; parented to the scene root so
-            // it survives world deactivation mid-transition)
             var fadeGo = new GameObject("TransitionFade", typeof(RectTransform));
             var fadeCanvas = fadeGo.AddComponent<Canvas>();
             fadeCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -67,8 +60,6 @@ namespace Hollowbrook.World
             BuildRoom(RoomId.Classroom1);
             BuildRoom(RoomId.Classroom2);
         }
-
-        // ---------------------------------------------------------------- construction
 
         private static GameObject SpriteGO(Transform parent, string name, Sprite sprite,
             Vector3 pos, int order, float alpha = 1f)
@@ -109,14 +100,12 @@ namespace Hollowbrook.World
                     room.DisplayName = "MAIN HALLWAY";
                     room.HalfWidth = 11.4f;
                     SpriteGO(root.transform, "bg", ProceduralArt.Get("hallway_bg"), Vector3.zero, 0);
-                    // doors & switches
                     AddDoor(room, "Security Door", -10.6f, floorY, RoomId.Security, "prop_door_security");
                     AddDoor(room, "Classroom 1", -4.0f, floorY, RoomId.Classroom1, "prop_door");
                     AddDoor(room, "Classroom 2", 4.6f, floorY, RoomId.Classroom2, "prop_door");
                     SpriteGO(root.transform, "server_door_art", ProceduralArt.Get("prop_server_door"),
                         new Vector3(10.4f, floorY + 3f, 0), 10);
                     AddLightSwitch(room, -9.2f, floorY);
-                    // the ten interactions live across the three rooms (see ClueRegistry)
                     AddClue(room, "light", -7.0f, floorY, "Flickering Light (switch panel)");
                     AddClue(room, "door", 10.0f, floorY, "Sealed Door");
                     AddClue(room, "board", 0.6f, floorY, "Notice Board");
@@ -164,7 +153,6 @@ namespace Hollowbrook.World
                 }
             }
 
-            // light rig: darkness overlay + fixture + controller
             var dark = SpriteGO(root.transform, "darkness", ProceduralArt.Get("solid_white"),
                 new Vector3(0, 0, 0), 70);
             dark.transform.localScale = new Vector3(room.HalfWidth * 2f + 4f, 11f, 1f);
@@ -173,8 +161,6 @@ namespace Hollowbrook.World
                 id == RoomId.Classroom2 ? LightMode.Off : LightMode.Sweep);
             room.Light = lightCtl;
             room.Darkness = dark.GetComponent<SpriteRenderer>();
-            // the darkness is punched out wherever the flashlight mask is: real limited
-            // visibility without shaders; with no active mask it renders normally
             room.Darkness.maskInteraction = SpriteMaskInteraction.VisibleOutsideMask;
 
             _rooms[id] = room;
@@ -225,8 +211,6 @@ namespace Hollowbrook.World
             room.Interactables.Add(co);
         }
 
-        // ---------------------------------------------------------------- transitions
-
         public void ShowWorld()
         {
             if (Flashlight == null && _cam != null)
@@ -246,8 +230,6 @@ namespace Hollowbrook.World
 
         public void HideWorld()
         {
-            // reset the fade immediately: transition coroutines live on this component and die
-            // when the world deactivates mid-fade — without this the screen could stay black.
             SetFade(0f);
             _worldRoot.SetActive(false);
             if (_liveAnomaly != null) { Destroy(_liveAnomaly.gameObject); _liveAnomaly = null; }
@@ -263,15 +245,13 @@ namespace Hollowbrook.World
         private IEnumerator TransitionRoutine(RoomId id)
         {
             Transitioning = true;
-            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_door"));
+            R.Audio.PlaySfx("sfx_door");
             yield return FadeTo(1f, 0.28f);
             EnterRoomImmediate(id, Current);
             yield return FadeTo(0f, 0.34f);
             Transitioning = false;
         }
 
-        /// <summary>Recovery-safe room activation: verifies/rebuilds the view, repositions the
-        /// player, and if everything fails returns the player to the security checkpoint.</summary>
         private void EnterRoomImmediate(RoomId id, RoomInstance from)
         {
             if (!_rooms.TryGetValue(id, out var room) || room.Root == null)
@@ -291,7 +271,6 @@ namespace Hollowbrook.World
             room.Root.SetActive(true);
             _worldRoot.SetActive(true);
 
-            // spawn: away from the door we came through
             Vector3 spawn = room.PlayerSpawn;
             if (from != null)
             {
@@ -347,8 +326,6 @@ namespace Hollowbrook.World
             _fade.raycastTarget = a > 0.9f;
         }
 
-        // ---------------------------------------------------------------- update: camera + spawning
-
         private void LateUpdate()
         {
             if (!_worldRoot.activeSelf || Current == null || Player == null) return;
@@ -383,9 +360,6 @@ namespace Hollowbrook.World
             SpawnAnomaly(false);
         }
 
-        /// <summary>Spawn a wandering anomaly (or a harmless hallucination phantom when
-        /// <paramref name="hallucination"/> is set — phantoms are untracked and cannot catch
-        /// the player).</summary>
         public void SpawnAnomaly(bool hallucination)
         {
             if (Current == null) return;
@@ -400,7 +374,6 @@ namespace Hollowbrook.World
             var spawn = Current.AnomalySpawnPoints.Count > 0
                 ? Current.AnomalySpawnPoints[_patrolRng.NextInt(0, Current.AnomalySpawnPoints.Count)]
                 : new Vector3(Current.HalfWidth - 1.5f, 0, 0);
-            // never materialize right on top of the player
             if (Mathf.Abs(spawn.x - Player.transform.position.x) < 4f) spawn.x = -spawn.x;
 
             var go = new GameObject(hallucination ? "Phantom" : "Anomaly_" + kind);
@@ -412,8 +385,6 @@ namespace Hollowbrook.World
             R.Bus.Publish(GameEvent.Of(EventIds.AnomalySighted, kind));
         }
 
-        /// <summary>Recovering happens off-stage: after the tuning cooldown the same kind may
-        /// roam again (in whatever room the player is in by then — it followed you).</summary>
         public void ScheduleReturn(AnomalyBehaviorKind kind)
         {
             StartCoroutine(ReturnRoutine(kind));
@@ -428,13 +399,10 @@ namespace Hollowbrook.World
         public void OnAnomalyGone(WanderingAnomaly a)
         {
             if (_liveAnomaly == a) _liveAnomaly = null;
-            // dispelled by light or caught the player => resolved; a lifetime expiry
-            // (left uncaught) keeps it outstanding so it can knock at the office door
             if (!a.IsHallucination && (a.WasRevealed || a.WasCaught))
                 R.Session.Pool.Resolve(a.Kind);
         }
 
-        /// <summary>The flashlight cone illuminates this world point (Focus mode)?</summary>
         public bool IsIlluminated(Vector3 worldPoint)
         {
             if (Player == null) return false;
@@ -444,7 +412,6 @@ namespace Hollowbrook.World
         }
     }
 
-    /// <summary>Tiny local helpers so the world layer doesn't depend on UI construction order.</summary>
     internal static class UIFactoryLocal
     {
         public static RectTransform NewRect(GameObject go)

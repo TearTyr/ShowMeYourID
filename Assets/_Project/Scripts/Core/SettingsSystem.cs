@@ -5,10 +5,6 @@ using UnityEngine;
 
 namespace Hollowbrook.Core
 {
-    /// <summary>Owns the live <see cref="SettingsData"/>, persists it (PlayerPrefs, applied
-    /// immediately — survives even when the run save is deleted) and broadcasts
-    /// SettingsChanged so views/audio can react. Every setting here is wired to real
-    /// behavior (volume gains, text registry rescale, motion/strobe guards, captions).</summary>
     public class SettingsSystem
     {
         private const string KeyPrefix = "smyid.settings.";
@@ -39,9 +35,6 @@ namespace Hollowbrook.Core
                     DisplayWidth = PlayerPrefs.GetInt(KeyPrefix + "displayW", 0),
                     DisplayHeight = PlayerPrefs.GetInt(KeyPrefix + "displayH", 0),
                 };
-                // Pre-fix builds could persist a silent SFX value (0) without the player ever
-                // touching the slider. Zero with no explicit user write is treated as corrupt
-                // and restored to the audible default, loudly.
                 if (Current.SfxVolume <= 0f && !PlayerPrefs.HasKey(KeyPrefix + "sfxExplicit"))
                 {
                     Debug.LogWarning("[Settings] stored SFX volume was 0 with no explicit user change - restoring audible default 0.8.");
@@ -78,8 +71,6 @@ namespace Hollowbrook.Core
             catch (Exception e) { Debug.LogWarning("[Settings] prefs write failed: " + e.Message); }
         }
 
-        /// <summary>Adopt settings loaded from a save file (only if the player has no local
-        /// prefs yet — local prefs win to respect per-machine accessibility choices).</summary>
         public void AdoptFromSaveIfFresh(SettingsData saved)
         {
             if (saved == null) return;
@@ -102,11 +93,6 @@ namespace Hollowbrook.Core
 
         public void Notify() => _bus?.Publish(GameEvent.Of(EventIds.SettingsChanged, Current.Clone()));
 
-        // ------------------------------------------------------------------ display
-        // Screen state has exactly ONE owner (this class). The Options sheet only asks for
-        // changes; AspectMatchGuard keeps every canvas readable when the mode changes.
-
-        /// <summary>Every distinct usable mode the current display reports (deduped, sized).</summary>
         public List<ModeSize> SupportedModes()
         {
             var all = new List<ModeSize>();
@@ -120,12 +106,8 @@ namespace Hollowbrook.Core
 
         public ModeSize CurrentMode() => new ModeSize(Screen.width, Screen.height);
 
-        /// <summary>The resolutions the Options sheet offers: supported preferred heights plus
-        /// whatever mode the player is on right now.</summary>
         public List<ModeSize> MenuChoices() => DisplayPolicy.MenuChoices(SupportedModes(), CurrentMode());
 
-        /// <summary>Request a display change. Unsupported requests fall back to the nearest
-        /// usable mode instead of failing; failures keep the previous mode.</summary>
         public ModeSize SetDisplay(int w, int h, bool fullscreen, bool persist)
         {
             Current.Fullscreen = fullscreen;
@@ -138,7 +120,6 @@ namespace Hollowbrook.Core
             return want;
         }
 
-        /// <summary>Writes Current.* to the Screen. The single call site for SetResolution.</summary>
         public void ApplyCurrentDisplay(bool persist)
         {
             try
@@ -157,8 +138,6 @@ namespace Hollowbrook.Core
             Notify();
         }
 
-        /// <summary>Restore the saved display at launch. A preference this machine can no longer
-        /// honour (monitor swapped, projector…) is cleared rather than stranding the player.</summary>
         public void ApplyStoredDisplay()
         {
             if (Current.DisplayWidth <= 0 || Current.DisplayHeight <= 0) return; // no preference yet
@@ -174,7 +153,6 @@ namespace Hollowbrook.Core
             ApplyCurrentDisplay(false);
         }
 
-        /// <summary>Undo an unconfirmed change (the 15-second revert path).</summary>
         public void RestoreDisplaySnapshot(SettingsData snapshot)
         {
             if (snapshot == null) return;
@@ -184,7 +162,6 @@ namespace Hollowbrook.Core
             ApplyCurrentDisplay(false);
         }
 
-        // convenience accessors used across systems
         public float MasterVolume => Current.MasterVolume;
         public float MusicVolume => Current.MasterVolume * Current.MusicVolume;
         public float SfxVolume => Current.MasterVolume * Current.SfxVolume;

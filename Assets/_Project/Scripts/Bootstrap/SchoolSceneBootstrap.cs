@@ -5,9 +5,6 @@ using UnityEngine;
 
 namespace Hollowbrook.Bootstrap
 {
-    /// <summary>Scene B — school side-scroller: hallway + classrooms with clues, lights and
-    /// wandering anomalies, plus the classroom security-office door that leads to the
-    /// door-facing late-student check prototype.</summary>
     public class SchoolSceneBootstrap : MonoBehaviour
     {
         public static void Build(GameRoot root)

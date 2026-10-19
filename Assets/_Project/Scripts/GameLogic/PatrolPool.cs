@@ -3,12 +3,6 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    /// <summary>ONE definition of "anomalies still outstanding tonight" (master-prompt §3).
-    /// Seeded at shift start with the shift's anomaly count; patrol spawns draw from it
-    /// without consuming (an anomaly left uncaught stays outstanding and can knock at the
-    /// office door); dispelling or being caught resolves it; the security office consumes
-    /// outstanding kinds for its late arrivals. Serialised with the run so the pool
-    /// survives scene loads AND save/continue.</summary>
     [Serializable]
     public class PatrolPool
     {
@@ -23,17 +17,14 @@ namespace Hollowbrook.Logic
             if (kinds != null) _pending.AddRange(kinds);
         }
 
-        /// <summary>Kind for the next patrol spawn, without consuming it.</summary>
         public AnomalyBehaviorKind PeekKind(GameRng rng)
         {
             if (_pending.Count == 0) return (AnomalyBehaviorKind)rng.NextInt(0, 4);
             return _pending[rng.NextInt(0, _pending.Count)];
         }
 
-        /// <summary>Resolved = dispelled by light or caught the player: no longer outstanding.</summary>
         public void Resolve(AnomalyBehaviorKind kind) => _pending.Remove(kind);
 
-        /// <summary>The office admits an outstanding anomaly as a late arrival: consumes it.</summary>
         public bool TryTake(GameRng rng, out AnomalyBehaviorKind kind)
         {
             kind = AnomalyBehaviorKind.Blink;

@@ -2,13 +2,10 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    /// <summary>Objective document rules from the paper note / rulebook.
-    /// Kept pure and side-effect free so they are trivially testable.</summary>
     public static class IdRules
     {
         public const string Prefix = "HB-";
 
-        /// <summary>Required format: HB-YYYY-NNNN, YYYY in 2023..2027, NNNN in 0001..9999.</summary>
         public static bool IsFormatValid(string id)
         {
             if (string.IsNullOrEmpty(id)) return false;
@@ -35,20 +32,14 @@ namespace Hollowbrook.Logic
             return v.ExpirationDay < Content.ShiftDayNumber(shiftNumber);
         }
 
-        /// <summary>Registry lookup ("Scan" button / student database).</summary>
         public static bool DatabaseLookup(string id, ISet<string> registry)
         {
             return registry != null && !string.IsNullOrEmpty(id) && registry.Contains(id);
         }
 
-        /// <summary>Ground-truth evaluation of every objective discrepancy on a visitor.
-        /// A visitor is "clean" when this returns an empty list — used by tests to assert
-        /// fairness (legit visitors are always clean, anomalies never are).</summary>
         public static List<DefectType> EvaluateDocuments(VisitorData v, ISet<string> registry,
             PresentationLog playLog)
         {
-            // Shift-5 administrator: staff badges are not student IDs; the objective check is
-            // badge-vs-roster-memo (name + number) per the Night 5 rule addendum.
             if (v.IsAdministrator)
             {
                 var adminDefects = new List<DefectType>();
@@ -75,7 +66,6 @@ namespace Hollowbrook.Logic
 
         private static bool WindowPortraitIsSubtlyOff(VisitorData v)
         {
-            // Subtle = exactly one of hair/face/accessory differs (generated that way).
             int diffs = 0;
             if (v.WindowPortrait.HairStyle != v.IdPhoto.HairStyle) diffs++;
             if (v.WindowPortrait.FaceVariant != v.IdPhoto.FaceVariant) diffs++;

@@ -5,9 +5,6 @@ using UnityEngine;
 
 namespace Hollowbrook.Bootstrap
 {
-    /// <summary>Scene A — "That's Not My Neighbor" gameplay: the fixed inspection desk.
-    /// Checkpoint flow, HUD, dialogue, results, endings, sanity/scare FX. No world rooms here;
-    /// PATROL loads the School scene.</summary>
     public class CheckpointSceneBootstrap : MonoBehaviour
     {
         public static void Build(GameRoot root)
@@ -26,9 +23,6 @@ namespace Hollowbrook.Bootstrap
             root.MapScreen = CoreBootstrap.CreateView<MapView>(ui, "MapView", root);
             root.ShiftResults = CoreBootstrap.CreateView<ShiftResultsView>(ui, "ShiftResultsView", root);
             root.Ending = CoreBootstrap.CreateView<EndingView>(ui, "EndingView", root);
-            // ORDER MATTERS: Loading is an opaque click-blocking backdrop — it must be created
-            // BEFORE Dialogue (and everything else that overlays it), otherwise shift intros
-            // render invisibly behind it and clicks never reach the dialogue (v1.0.4 bug).
             root.Loading = CoreBootstrap.CreateView<LoadingView>(ui, "LoadingView", root);
             root.Dialogue = CoreBootstrap.CreateView<DialogueView>(ui, "DialogueView", root);
             root.PauseScreen = CoreBootstrap.CreateView<PauseView>(ui, "PauseView", root);

@@ -6,13 +6,8 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    /// <summary>Programmatic uGUI construction helpers. Everything visual in the game is
-    /// built through here so styling stays consistent (approved monochrome direction with
-    /// restrained red for interactive/danger elements) and text scaling is centrally
-    /// registered for the accessibility setting.</summary>
     public static class UIFactory
     {
-        // ---- approved palette: high-contrast monochrome + restrained red ----
         public static readonly Color Bg = new Color(0.035f, 0.035f, 0.04f);
         public static readonly Color PanelBase = new Color(0.09f, 0.09f, 0.10f);
         public static readonly Color PanelAlt = new Color(0.14f, 0.14f, 0.15f);
@@ -26,8 +21,6 @@ namespace Hollowbrook.UI
         public static readonly Color PaperInk = new Color(0.10f, 0.10f, 0.11f);
         public static readonly Color Glass = new Color(0.75f, 0.78f, 0.80f, 0.10f);
 
-        // ---- the ONE type scale and the ONE spacing unit for the whole menu family.
-        // Nothing else may hard-code label sizes or row gaps (Options rework, item 6).
         public const int TypeTitle = 30;
         public const int TypeSubtitle = 14;
         public const int TypeSection = 14;
@@ -40,7 +33,6 @@ namespace Hollowbrook.UI
         private static readonly Dictionary<Text, int> _baseSizes = new Dictionary<Text, int>();
         private static float _textScale = 1f;
 
-        /// <summary>2022.3 renamed the built-in font; fall back for other versions.</summary>
         public static Font GameFont
         {
             get
@@ -52,8 +44,6 @@ namespace Hollowbrook.UI
                 return _font;
             }
         }
-
-        // ---- canvases & layout ----
 
         public static Canvas CreateRootCanvas(string name, int sortingOrder, int refW, int refH)
         {
@@ -71,7 +61,6 @@ namespace Hollowbrook.UI
 
         public static RectTransform NewUI(Transform parent, string name)
         {
-            // typeof(RectTransform) in the ctor is the real-Unity-safe way to create UI nodes
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
             return (RectTransform)go.transform;
@@ -85,7 +74,6 @@ namespace Hollowbrook.UI
             rt.offsetMax = Vector2.zero;
         }
 
-        /// <summary>Anchor to a corner/edge with a fixed size and anchored position.</summary>
         public static void Anchor(RectTransform rt, Vector2 anchor, Vector2 size, Vector2 pos)
         {
             rt.anchorMin = anchor; rt.anchorMax = anchor;
@@ -103,7 +91,6 @@ namespace Hollowbrook.UI
             return img;
         }
 
-        /// <summary>Panel with a 2px border: border image behind, inner panel on top.</summary>
         public static RectTransform BorderedPanel(Transform parent, string name, Color fill, Color border, int thickness = 2)
         {
             var outer = Panel(parent, name + "_border", border).rectTransform;
@@ -114,8 +101,6 @@ namespace Hollowbrook.UI
             inner.offsetMax = new Vector2(-thickness, -thickness);
             return inner;
         }
-
-        // ---- text ----
 
         public static Text Label(Transform parent, string name, string text, int fontSize, Color color,
             TextAnchor anchor = TextAnchor.UpperLeft)
@@ -135,7 +120,6 @@ namespace Hollowbrook.UI
             return t;
         }
 
-        /// <summary>Called by GameRoot when the Text Scale accessibility setting changes.</summary>
         public static void ApplyTextScale(float multiplier)
         {
             _textScale = multiplier;
@@ -153,8 +137,6 @@ namespace Hollowbrook.UI
             for (int i = _texts.Count - 1; i >= 0; i--)
                 if (_texts[i] == null || _texts[i].gameObject == null) _texts.RemoveAt(i);
         }
-
-        // ---- buttons ----
 
         public static Button StandardButton(Transform parent, string name, string label, Action onClick,
             int width = 260, int height = 46, bool danger = false)
@@ -181,8 +163,6 @@ namespace Hollowbrook.UI
             return btn;
         }
 
-        /// <summary>FNAF-style menu entry: left-aligned label inside a wide bar, with a
-        /// restrained hover/focus color transition (no new art, same type scale as elsewhere).</summary>
         public static Button StandardButtonLeft(Transform parent, string name, string label, Action onClick,
             int width = 360, int height = 46, bool danger = false)
         {
@@ -231,21 +211,16 @@ namespace Hollowbrook.UI
                 b.targetGraphic.color = on ? PanelAlt : new Color(0.08f, 0.08f, 0.085f);
         }
 
-        // ---- sliders & toggles ----
-
         public static Slider SliderRow(Transform parent, string name, string labelText, float value,
             Action<float> onChanged, int width = 420)
         {
             var row = NewUI(parent, name);
             row.sizeDelta = new Vector2(width, 40);
 
-            // invisible full-row catcher so hover/feedback works anywhere on the row
             var rowBg = Panel(row, "rowbg", new Color(0f, 0f, 0f, 0f));
             AnchorsFull(rowBg.rectTransform);
             rowBg.raycastTarget = true;
 
-            // Left label column: left anchor + POSITIVE centre offset (the old negative
-            // offset pushed labels off-sheet, which is why volumes once showed bare tracks).
             float labW = width * 0.36f;
             var lab = Label(row, "label", labelText, 17, Ink);
             Anchor(lab.rectTransform, new Vector2(0f, 0.5f), new Vector2(labW, 30), new Vector2(labW / 2f, 0));
@@ -273,7 +248,6 @@ namespace Hollowbrook.UI
             var handle = handleImg.rectTransform;
             Anchor(handle, new Vector2(0.5f, 0.5f), new Vector2(14, 22), Vector2.zero);
 
-            // live value read-out, right of the track — immediate feedback while dragging
             float valW = width * 0.12f;
             var val = Label(row, "value", Percent(value), 15, InkDim, TextAnchor.MiddleRight);
             Anchor(val.rectTransform, new Vector2(0f, 0.5f), new Vector2(valW, 26),
@@ -300,7 +274,6 @@ namespace Hollowbrook.UI
 
         private static string Percent(float v) => Mathf.RoundToInt(Mathf.Clamp01(v) * 100f) + "%";
 
-        /// <summary>Pointer enter/exit feedback without a new component type per call site.</summary>
         public static void AddHover(GameObject go, UnityEngine.Events.UnityAction enter,
             UnityEngine.Events.UnityAction exit)
         {
@@ -322,7 +295,6 @@ namespace Hollowbrook.UI
             row.anchorMax = new Vector2(0.5f, 0.5f);
             row.sizeDelta = new Vector2(width, 36);
 
-            // invisible full-row raycast catcher so the whole row (label included) is clickable
             var rowBg = Panel(row, "rowbg", new Color(0f, 0f, 0f, 0f));
             AnchorsFull(rowBg.rectTransform);
             rowBg.raycastTarget = true;
@@ -333,7 +305,6 @@ namespace Hollowbrook.UI
             boxBorder.effectColor = Border;
             boxBorder.effectDistance = new Vector2(2, 2);
 
-            // unmistakable on/off: filled box + ON/OFF word (the old red X read as "error/close")
             var check = Label(box, "check", value ? "ON" : "OFF", 10,
                 value ? PanelBase : InkDim, TextAnchor.MiddleCenter);
             Anchor(check.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(24, 24), Vector2.zero);
@@ -364,8 +335,6 @@ namespace Hollowbrook.UI
                 () => { if (bgImg != null) bgImg.color = new Color(0f, 0f, 0f, 0f); });
             return toggle;
         }
-
-        // ---- layout groups ----
 
         public static VerticalLayoutGroup VStack(Transform parent, string name, int spacing,
             TextAnchor align = TextAnchor.UpperCenter, bool controlW = true, bool controlH = true,
@@ -406,11 +375,6 @@ namespace Hollowbrook.UI
             return le;
         }
 
-        // ---- left sheet (Options / Controls / Credits / Pause family) ----
-
-        /// <summary>Full-height left-anchored dossier sheet — the shared look for every
-        /// menu-family panel (minimal, horror-restrained, overlap-free by construction:
-        /// one column, fixed left edge, full height at any aspect ratio).</summary>
         public static RectTransform LeftSheet(Transform parent, string title, string subtitle,
             out RectTransform contentColumn)
         {
@@ -443,7 +407,6 @@ namespace Hollowbrook.UI
             return prt;
         }
 
-        /// <summary>Bottom-left action button inside a left sheet (consistent 40px gutter).</summary>
         public static Button SheetButton(RectTransform sheet, string name, string label, Action onClick,
             float centerX, bool danger = false, int width = 200)
         {
@@ -452,8 +415,6 @@ namespace Hollowbrook.UI
                 new Vector2(centerX, 40f));
             return b;
         }
-
-        // ---- misc ----
 
         public static Image Img(Transform parent, string name, Sprite sprite, Color? color = null, bool raycast = false)
         {
@@ -472,7 +433,6 @@ namespace Hollowbrook.UI
             return g;
         }
 
-        /// <summary>Full-screen dimmer used behind popups and pause.</summary>
         public static Image Dimmer(Transform parent, string name, float alpha)
         {
             var img = Panel(parent, name, new Color(0, 0, 0, alpha));

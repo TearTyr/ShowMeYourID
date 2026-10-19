@@ -7,8 +7,6 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
-    /// <summary>Base world interaction. The player prompt (E) is driven by proximity on the
-    /// X axis; <see cref="PlayerController"/> finds the nearest enabled interactable.</summary>
     public abstract class Interactable : MonoBehaviour
     {
         protected GameRoot R;
@@ -23,8 +21,6 @@ namespace Hollowbrook.World
         public float DistanceTo(Vector3 p) => Mathf.Abs(p.x - AnchorX);
     }
 
-    /// <summary>Left behind by a fully tracked (revealed) anomaly. Collecting it is the
-    /// proof-of-observation loop from master prompt §3; the count persists with the run.</summary>
     public class TokenPickup : Interactable
     {
         public void Init(GameRoot root, RoomInstance room, float x)
@@ -40,13 +36,12 @@ namespace Hollowbrook.World
             R.Session.TokensCollected++;
             if (Room != null) Room.Interactables.Remove(this);
             R.Bus.Publish(GameEvent.Of(EventIds.TokenCollected, R.Session.TokensCollected));
-            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_scan_ok", 0.6f, null));
+            R.Audio.PlaySfx("sfx_scan_ok", 0.6f);
             R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*you pocket the token - evidence*", 2.4f, null));
             Destroy(gameObject);
         }
     }
 
-    /// <summary>Door between rooms / back to the security checkpoint.</summary>
     public class Doorway : Interactable
     {
         public RoomId Target;
@@ -66,8 +61,6 @@ namespace Hollowbrook.World
         }
     }
 
-    /// <summary>Classroom 1's office door — opens the door-facing security-room prototype
-    /// (Scene B: admit late students, check the room for anomalies).</summary>
     public class SecurityDoorInteractable : Interactable
     {
         public void Init(GameRoot root, RoomInstance room, float x)
@@ -80,13 +73,11 @@ namespace Hollowbrook.World
         public override void Interact()
         {
             if (R.SecurityRoom == null) return;
-            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_door", 0.7f, null));
+            R.Audio.PlaySfx("sfx_door", 0.7f);
             R.OpenSecurityRoom();
         }
     }
 
-    /// <summary>Light switch: toggles the room rig between Off and Sweep.
-    /// Focus (flashlight) is toggled separately with F by the player.</summary>
     public class LightSwitchObject : Interactable
     {
         public void Init(GameRoot root, RoomInstance room, float x)
@@ -100,13 +91,10 @@ namespace Hollowbrook.World
         {
             if (Room.Light == null) return;
             Room.Light.SetMode(Room.Light.Mode == LightMode.Off ? LightMode.Sweep : LightMode.Off);
-            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_flicker"));
+            R.Audio.PlaySfx("sfx_flicker");
         }
     }
 
-    /// <summary>One of the ten environmental interactions. First inspection discovers the
-    /// clue (session-tracked: sanity cost, sequence, room investigation), later inspections
-    /// re-read it for free. A restrained red marker appears after discovery.</summary>
     public class ClueObject : Interactable
     {
         private string _clueKey;
@@ -127,7 +115,6 @@ namespace Hollowbrook.World
         {
             if (_def == null)
             {
-                // Session may have been replaced (new run) — refresh the definition lazily.
                 var fresh = ClueRegistry.Build();
                 foreach (var c in fresh) if (c.Key == _clueKey) { _def = c; break; }
             }
@@ -167,7 +154,6 @@ namespace Hollowbrook.World
             _marker.transform.localScale = new Vector3(0.14f, 0.14f, 1f);
         }
 
-        /// <summary>Restore discovered markers after Continue (views persist across runs).</summary>
         public void SyncFromSession()
         {
             bool found = false;

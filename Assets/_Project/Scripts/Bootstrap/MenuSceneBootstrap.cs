@@ -5,7 +5,6 @@ using UnityEngine;
 
 namespace Hollowbrook.Bootstrap
 {
-    /// <summary>Main menu scene bootstrap: menu + overlay screens only (minimal scene).</summary>
     public class MenuSceneBootstrap : MonoBehaviour
     {
         public static void Build(GameRoot root)

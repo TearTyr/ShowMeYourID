@@ -33,8 +33,6 @@ namespace Hollowbrook.Logic
         }
     }
 
-    /// <summary>Aggregate run state for all modes. Pure C# — the Unity layer observes and
-    /// mutates this through its methods only, so all rules stay testable headlessly.</summary>
     public class GameSession
     {
         public GameMode Mode = GameMode.Normal;
@@ -59,11 +57,7 @@ namespace Hollowbrook.Logic
         public ClueTracker Clues = new ClueTracker();
         public PatrolPool Pool = new PatrolPool();   // outstanding anomalies tonight
         public List<ShiftSummary> History = new List<ShiftSummary>();
-        /// <summary>Set when an ending/run result was reached; such saves must not offer Continue.</summary>
         public bool RunFinished = false;
-        /// <summary>Play-time presentation log for the current night/run. The checkpoint UI
-        /// records each visitor here AFTER their verdict; the scanner and duplicate rule read it.
-        /// Cleared at the start of every Normal shift ("tonight" scope).</summary>
         public PresentationLog TonightLog = new PresentationLog();
 
         public SanityStage SanityStage => SanityModel.StageFor(Sanity);
@@ -78,7 +72,6 @@ namespace Hollowbrook.Logic
             }
         }
 
-        /// <summary>Record a permanent verdict outcome (§2.4) and update all counters.</summary>
         public void RecordVerdict(InspectionRules.Outcome o)
         {
             if (o == null || o.Verdict == Verdict.None) return;
@@ -108,12 +101,10 @@ namespace Hollowbrook.Logic
             if (o.WasAdministrator && o.Verdict == Verdict.Reject)
             {
                 AdminRejected = true;
-                // Rejecting the administrator correctly is the climax — small recovery.
                 ApplySanity(+10f);
             }
         }
 
-        /// <summary>Negative deltas scale with the mode drain multiplier (Challenge = 2x).</summary>
         public void ApplySanity(float delta)
         {
             if (delta < 0) delta *= SanityModel.DrainMultiplier(Mode);
@@ -129,7 +120,6 @@ namespace Hollowbrook.Logic
 
         public void MarkRoomInvestigated(RoomId room) => Clues.MarkRoomInvestigated(room);
 
-        /// <summary>Endless/Challenge timer bookkeeping after a verdict.</summary>
         public float ApplyRunTimer(InspectionRules.Outcome o)
         {
             float delta;
@@ -162,7 +152,6 @@ namespace Hollowbrook.Logic
             AdminAllowed || Breaches >= EndingRules.LoseThreshold || FalseRejections >= EndingRules.LoseThreshold;
     }
 
-    /// <summary>Player settings (pure model; the Unity SettingsSystem persists + applies these).</summary>
     [Serializable]
     public class SettingsData
     {
@@ -189,8 +178,6 @@ namespace Hollowbrook.Logic
             TextScale + "," + B(ReduceMotion) + "," + B(PhotosensitivitySafe) + "," + B(Captions) +
             "," + B(Fullscreen) + "," + DisplayWidth + "," + DisplayHeight;
 
-        /// <summary>Tolerant by design: older saves carry 7 fields, newer ones 10. Anything
-        /// missing falls back to the defaults above instead of failing the whole load.</summary>
         public static SettingsData Decode(string s)
         {
             if (string.IsNullOrEmpty(s)) return null;
@@ -220,7 +207,6 @@ namespace Hollowbrook.Logic
         private static string B(bool b) => b ? "1" : "0";
     }
 
-    /// <summary>Meta records persisted alongside saves (best scores, endings seen).</summary>
     [Serializable]
     public class RecordsData
     {

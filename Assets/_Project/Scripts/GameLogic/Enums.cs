@@ -1,6 +1,3 @@
-// Show Me Your ID! — Twin Studio
-// Pure-C# gameplay logic. No UnityEngine dependency in this folder so the
-// rules can be executed and unit-tested headlessly (see Tools/Verification).
 namespace Hollowbrook.Logic
 {
     public enum GameMode { Normal, Endless, Challenge }
@@ -19,8 +16,6 @@ namespace Hollowbrook.Logic
 
     public enum QuestionId { Course, Year, Status, FirstClassroom }
 
-    /// <summary>Objective, detectable defects an anomalous visitor can carry.
-    /// Every anomaly has at least one; legitimate visitors have none (fairness invariant).</summary>
     public enum DefectType
     {
         None = 0,
@@ -37,8 +32,6 @@ namespace Hollowbrook.Logic
         BehaviorOddity,       // documents clean; questioning/behavior gives it away
     }
 
-    /// <summary>Delivery tone of an answer. Legit visitors always answer Normal (fair);
-    /// anomalies sometimes leak Hesitant/Flat/TooSmooth/Echoing.</summary>
     public enum ToneTag { Normal, Hesitant, Flat, TooSmooth, Echoing }
 
     public enum AnomalyBehavior

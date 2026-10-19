@@ -8,13 +8,6 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.World
 {
-    /// <summary>Scene B prototype — the security office, door-facing. Minimal but complete loop:
-    ///  1) late students knock; you verify their ID against tonight's late list + expiry rule
-    ///     and stamp Allow / Reject (3 students, immediate correctness feedback);
-    ///  2) you check around the room (three spots; one hides an anomaly — sting + sanity cost);
-    ///  3) return to the checkpoint scene.
-    /// Deliberately small and testable; verdicts here are prototype-local and do NOT touch the
-    /// story session counters.</summary>
     public class SecurityRoomView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -51,7 +44,6 @@ namespace Hollowbrook.World
                 16, UIFactory.InkDim, TextAnchor.MiddleCenter);
             UIFactory.Anchor(_doorState.rectTransform, new Vector2(0.5f, 1f), new Vector2(800, 26), new Vector2(0, -84));
 
-            // the door you face
             _doorArt = UIFactory.Img(transform, "door", ProceduralArt.Get("prop_door_security"));
             UIFactory.Anchor(_doorArt.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(220, 400), new Vector2(0, 60));
 
@@ -59,7 +51,6 @@ namespace Hollowbrook.World
             UIFactory.Anchor(_portrait.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(150, 186), new Vector2(0, 150));
             _portrait.gameObject.SetActive(false);
 
-            // ID card panel
             _docPanel = new GameObject("docpanel", typeof(RectTransform));
             _docPanel.transform.SetParent(transform, false);
             var docRt = (RectTransform)_docPanel.transform;
@@ -75,7 +66,6 @@ namespace Hollowbrook.World
             UIFactory.Anchor(_ruleLabel.rectTransform, new Vector2(0.5f, 1f), new Vector2(340, 40), new Vector2(0, -18));
             _docPanel.SetActive(false);
 
-            // verdict buttons
             _allowBtn = UIFactory.StandardButton(transform, "allow", "✓ ALLOW", () => Decide(Verdict.Allow), 150, 52);
             UIFactory.Anchor(_allowBtn.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(150, 52), new Vector2(-330, 60));
             _rejectBtn = UIFactory.StandardButton(transform, "reject", "✗ REJECT", () => Decide(Verdict.Reject), 150, 52, true);
@@ -86,7 +76,6 @@ namespace Hollowbrook.World
             _progress = UIFactory.Label(transform, "progress", "", 14, UIFactory.InkDim, TextAnchor.MiddleCenter);
             UIFactory.Anchor(_progress.rectTransform, new Vector2(0.5f, 0f), new Vector2(900, 24), new Vector2(0, 96));
 
-            // room-check phase buttons
             string[] spots = { "CHECK THE SHELVES", "CHECK THE WINDOW", "CHECK UNDER THE DESKS" };
             for (int i = 0; i < 3; i++)
             {
@@ -98,15 +87,13 @@ namespace Hollowbrook.World
 
             _returnBtn = UIFactory.StandardButton(transform, "ret", "RETURN TO THE CHECKPOINT ▸", () =>
             {
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_door", 0.7f, null));
+                R.Audio.PlaySfx("sfx_door", 0.7f);
                 R.ReturnToCheckpoint();
             }, 320, 48);
             UIFactory.Anchor(_returnBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(320, 48), new Vector2(0, 36));
 
             gameObject.SetActive(false);
         }
-
-        // ---------------------------------------------------------------- flow
 
         public void Show()
         {
@@ -121,7 +108,6 @@ namespace Hollowbrook.World
             _phase = Phase.Student;
             _correct = 0;
             _queue.Clear();
-            // seeded, and drawn from the SAME pool patrol anomalies come from
             _rng = new GameRng(R.Session.Seed + 977 + R.Session.Processed * 131 + R.Session.CurrentShift * 17);
             _queue.AddRange(PatrolRules.BuildLateQueue(R.Roster, R.CurrentShiftDef, R.Session.Pool, _rng));
             _anomalySpot = _rng.NextInt(0, 3);
@@ -137,7 +123,7 @@ namespace Hollowbrook.World
             _current = _queue[0];
             _queue.RemoveAt(0);
 
-            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_knock", 0.8f, null));
+            R.Audio.PlaySfx("sfx_knock", 0.8f);
             R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*three quick knocks on the office door*", 2.4f, null));
             _doorState.text = "A student slips in out of the dark. They hold out their ID.";
             _portrait.sprite = ProceduralArt.Portrait("sec", _current.WindowPortrait, 150, 186);
@@ -161,8 +147,6 @@ namespace Hollowbrook.World
         private void Decide(Verdict v)
         {
             if (_phase != Phase.Student || _current == null) return;
-            // the SAME rules engine as the checkpoint scores this verdict, and the verdict
-            // feeds the SAME story counters (false rejections / breaches)
             var outcome = InspectionRules.Apply(_current, v, PatrolRules.OfficeRule);
             R.Session.RecordVerdict(outcome);
             bool correct = outcome.Correct;
@@ -221,7 +205,7 @@ namespace Hollowbrook.World
             if (_phase != Phase.RoomCheck || _checked[idx]) return;
             _checked[idx] = true;
             UIFactory.SetButtonEnabled(_checkBtns[idx], false);
-            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_paper", 0.5f, null));
+            R.Audio.PlaySfx("sfx_paper", 0.5f);
 
             if (idx == _anomalySpot)
             {

@@ -4,10 +4,6 @@ using UnityEngine;
 
 namespace Hollowbrook.Bootstrap
 {
-    /// <summary>Procedural-first audio pipeline: every clip is synthesized at runtime into
-    /// the cache (no binary assets required). Music direction follows the approved document:
-    /// dark, minor-key, "E♭ minor over B♭" main theme with the documented progressions.
-    /// Upgrade path: drop real clips at Resources/Audio/&lt;key&gt; and they take priority.</summary>
     public static class ProceduralAudio
     {
         public const int Rate = 44100;
@@ -28,8 +24,6 @@ namespace Hollowbrook.Bootstrap
             else Debug.LogWarning("[ProceduralAudio] unknown clip key '" + key + "'");
             return built;
         }
-
-        // ---------------------------------------------------------------- synth core
 
         private static AudioClip Make(string key, float seconds, Func<float, float> fn, bool loopSeam = true)
         {
@@ -66,18 +60,14 @@ namespace Hollowbrook.Bootstrap
             return state[0];
         }
 
-        // E♭ minor palette (approved key: "KEY OF E FLAT MINOR OVER B FLAT")
         private const float Eb1 = 38.89f, Bb1 = 58.27f, Db2 = 69.30f, Gb2 = 46.25f * 2f;
         private const float Eb2 = 77.78f, Gb3 = 185.00f, Bb2 = 116.54f, Ab2 = 103.83f;
         private const float F2 = 87.31f, Cb2 = 61.74f, G2 = 98.00f, Db3 = 138.59f;
-
-        // ---------------------------------------------------------------- library
 
         private static AudioClip Build(string key)
         {
             switch (key)
             {
-                // ---- UI / checkpoint SFX ----
                 case "sfx_click":
                     return Make(key, 0.07f, t => Sine(880, t) * Env(t, 0.07f, 0.002f) * 0.5f, false);
                 case "sfx_ui_open":
@@ -156,7 +146,6 @@ namespace Hollowbrook.Bootstrap
                     return Make(key, 1.8f, t =>
                         Sine(330 + 110 * Mathf.Sign(Sine(2.4f, t)), t) * Env(t, 1.8f, 0.05f) * 0.5f, false);
 
-                // ---- music contexts (approved track list) ----
                 case "music_menu":       return MenuTheme();
                 case "music_checkpoint": return RadioNoiseLoop();
                 case "music_hallway":    return HallwayDrone();
@@ -173,7 +162,6 @@ namespace Hollowbrook.Bootstrap
             }
         }
 
-        // helper wrappers with per-sample noise (deterministic-ish, cheap)
         private static float NoiseAt(float t)
         {
             int seed = (int)(t * Rate);
@@ -197,11 +185,8 @@ namespace Hollowbrook.Bootstrap
             return LowPass(st, input, cutoff01);
         }
 
-        // ---- music beds -------------------------------------------------------
-
         private static AudioClip MenuTheme()
         {
-            // Documented progression: (Ebm/Bb) (Db/Ab) (Cb/G) (Db/Ab), then (Ebm/Bb) (Abm/Eb) (Bbm/F)
             float[][] bars =
             {
                 new[] { Bb1, Eb2, Gb3, Bb2 },            // Ebm over Bb
@@ -221,7 +206,6 @@ namespace Hollowbrook.Bootstrap
                 float v = 0;
                 foreach (var f in bars[bar])
                 {
-                    // slow-attack pad: detuned pair per note, bass two octaves lower (documented tip)
                     v += Sine(f * 0.25f, t) * 0.20f;                  // deep bass
                     v += Sine(f, t) * 0.075f + Sine(f * 1.003f, t) * 0.06f;
                 }
@@ -268,7 +252,6 @@ namespace Hollowbrook.Bootstrap
 
         private static AudioClip InvestigationBed()
         {
-            // sparse low plucks over air (Eb minor pentatonic: Eb Gb Ab Bb Db)
             float[] notes = { Eb2, Gb3 * 0.5f, Ab2 * 0.5f * 2f, Bb2, Db3 * 0.5f * 2f };
             return Make("music_investigation", 6f, t =>
             {
@@ -307,7 +290,6 @@ namespace Hollowbrook.Bootstrap
 
         private static AudioClip EndWin()
         {
-            // Ebm -> Gb resolution (relief)
             return Make("music_end_win", 9f, t =>
             {
                 bool resolved = t > 4.5f;
@@ -333,7 +315,6 @@ namespace Hollowbrook.Bootstrap
 
         private static AudioClip EndSecret()
         {
-            // shimmering Gb-major bells (truth revealed)
             float[] bells = { Gb3, Db3 * 2f, Bb2 * 2f, Eb2 * 4f, Ab2 * 2f };
             return Make("music_end_secret", 10f, t =>
             {

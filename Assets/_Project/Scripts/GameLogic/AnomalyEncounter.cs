@@ -2,8 +2,6 @@ using System;
 
 namespace Hollowbrook.Logic
 {
-    /// <summary>Roaming-anomaly encounter states (design doc §6). Kept pure so every
-    /// transition is unit-tested; the view layer only renders and forwards inputs.</summary>
     public enum AnomalyState
     {
         Roaming,     // moving between waypoints, minding its own business
@@ -36,7 +34,6 @@ namespace Hollowbrook.Logic
         public bool Threatening;    // inside threat range while not repelled/recovering
     }
 
-    /// <summary>One source of truth for the encounter state machine.</summary>
     public static class AnomalyEncounter
     {
         public static EncounterStep Step(AnomalyState state, float meter, float stateTimer,
@@ -53,7 +50,6 @@ namespace Hollowbrook.Logic
                     if (stateTimer >= t.RecoverSeconds) { r.State = AnomalyState.Roaming; r.JustRecovered = true; stateTimer = 0f; }
                     break;
                 case AnomalyState.Exposed:
-                    // sustained accurate light is what repels; losing the beam stalls, not resets
                     if (meter >= t.RepelMeter) { r.State = AnomalyState.Repelled; r.JustRepelled = true; stateTimer = 0f; }
                     else if (!focused || !batteryOk) { r.State = AnomalyState.Detected; stateTimer = 0f; }
                     break;

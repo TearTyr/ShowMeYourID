@@ -5,11 +5,6 @@ using UnityEngine;
 
 namespace Hollowbrook.Bootstrap
 {
-    /// <summary>Procedural-first art pipeline (per master-prompt architecture): every sprite
-    /// the game needs is generated at boot into a cache. High-contrast monochrome per the
-    /// approved art direction; red only on interactive/danger elements (drawn by UI layer).
-    /// If the team later ships real assets, drop them in Resources/Art/&lt;key&gt;.png and
-    /// they take priority (graceful upgrade path, same keys).</summary>
     public static class ProceduralArt
     {
         private static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>();
@@ -19,7 +14,6 @@ namespace Hollowbrook.Bootstrap
         public static Sprite Get(string key)
         {
             if (Cache.TryGetValue(key, out var s) && s != null) return s;
-            // upgrade path: real asset in Resources/Art wins over procedural
             try
             {
                 var tex = Resources.Load<Texture2D>("Art/" + key);
@@ -37,8 +31,6 @@ namespace Hollowbrook.Bootstrap
             if (built != null) Cache[built.name] = built;
             return built;
         }
-
-        // ---------------------------------------------------------------- canvas helpers
 
         private class Canvas2D
         {
@@ -155,8 +147,6 @@ namespace Hollowbrook.Bootstrap
 
         private static Color G(float v, float a = 1f) => new Color(v, v, v, a);
 
-        // ---------------------------------------------------------------- dispatcher
-
         private static Sprite Build(string key)
         {
             switch (key)
@@ -211,9 +201,6 @@ namespace Hollowbrook.Bootstrap
             }
         }
 
-        // ---------------------------------------------------------------- portraits
-
-        /// <summary>ID-photo / window-face portrait. Deterministic per Portrait descriptor.</summary>
         public static Sprite Portrait(string keyPrefix, Portrait p, int w = 168, int h = 208)
         {
             string key = keyPrefix + "_" + p.HairStyle + p.FaceVariant + p.Accessory + (p.Distorted ? "d" : "c");
@@ -224,14 +211,12 @@ namespace Hollowbrook.Bootstrap
             c.Noise(0.05f, key.GetHashCode());
             float cx = w / 2f, baseY = h * 0.98f;
 
-            // shoulders + neck + head (silhouette style)
             var skin = G(0.30f);
             c.FillEllipse(cx, baseY + h * 0.10f, w * 0.46f, h * 0.22f, skin);      // shoulders
             c.FillRect((int)(cx - w * 0.07f), (int)(h * 0.62f), (int)(w * 0.14f), (int)(h * 0.14f), skin); // neck
             float headCy = h * 0.47f, headRx = w * 0.27f, headRy = h * 0.24f;
             c.FillEllipse(cx, headCy, headRx, headRy, skin);                        // head
 
-            // hair variations
             var hair = G(0.12f);
             switch (p.HairStyle)
             {
@@ -265,7 +250,6 @@ namespace Hollowbrook.Bootstrap
                     break;
             }
 
-            // face variations: eyes / nose / mouth (light cuts in the silhouette)
             var eyeC = G(0.88f);
             float eyeY = headCy + headRy * (0.02f + (p.FaceVariant % 3) * 0.06f);
             float eyeSpread = headRx * (0.36f + (p.FaceVariant % 2) * 0.10f);
@@ -283,7 +267,6 @@ namespace Hollowbrook.Bootstrap
             }
             else c.FillEllipse(cx, mouthY, mouthW * 0.55f, headRy * 0.06f, G(0.62f));
 
-            // accessories
             switch (p.Accessory)
             {
                 case 1: // glasses
@@ -302,7 +285,6 @@ namespace Hollowbrook.Bootstrap
                     break;
             }
 
-            // anomaly distortion: glitch slices, offset eye, static patches, stretched mouth
             if (p.Distorted)
             {
                 var r = new System.Random(1349);
@@ -314,7 +296,6 @@ namespace Hollowbrook.Bootstrap
                     c.FillRect(r.Next(w), r.Next(h), 2 + r.Next(10), 1 + r.Next(2), G(r.Next(2) == 0 ? 0.95f : 0.05f, 0.8f));
             }
 
-            // photo frame edge (worn)
             for (int i = 0; i < w; i++) { c.Px[i] = G(0.25f); c.Px[(h - 1) * w + i] = G(0.25f); }
             for (int i = 0; i < h; i++) { c.Px[i * w] = G(0.25f); c.Px[i * w + w - 1] = G(0.25f); }
 
@@ -328,8 +309,6 @@ namespace Hollowbrook.Bootstrap
             for (float a = 0; a < Mathf.PI * 2; a += 0.06f)
                 c.FillRect((int)(cx + Mathf.Cos(a) * rx), (int)(cy + Mathf.Sin(a) * ry), 2, 2, col);
         }
-
-        // ---------------------------------------------------------------- simple pieces
 
         private static Sprite MakeSolid(Color c)
         {
@@ -398,8 +377,6 @@ namespace Hollowbrook.Bootstrap
             return c.ToSprite("light_cone", WorldPpu);
         }
 
-        // ------------------------------------------- moodboard pass (MOODBOARD SAMPLE #1):
-        // hand-drawn chalk/ink frames, facade, viewfinder. Deterministic jitter, monochrome.
         private static void RoughLine(Canvas2D c, System.Random r, int x0, int y0, int x1, int y1, float col, int thick)
         {
             int steps = Math.Max(Math.Abs(x1 - x0), Math.Abs(y1 - y0));
@@ -499,13 +476,10 @@ namespace Hollowbrook.Bootstrap
             return c.ToSprite("window_frame", UiPpu);
         }
 
-        // ---------------------------------------------------------------- backgrounds
-
         private static Sprite MakeMenuBg(int w, int h)
         {
             var c = new Canvas2D(w, h);
             c.GradientV(G(0.05f), G(0.13f));
-            // distant hallway perspective
             float vx = w * 0.5f, vy = h * 0.52f;
             c.FillRect(0, (int)(h * 0.72f), w, (int)(h * 0.28f), G(0.07f));           // floor
             for (int i = 0; i < 9; i++)                                                // wall panels
@@ -515,14 +489,12 @@ namespace Hollowbrook.Bootstrap
                 c.FillRect(x, (int)(vy - h * 0.30f * (1 - t)), 8 + (int)(30 * t), (int)(h * 0.55f * (1 - t) + h * 0.16f), G(0.10f + t * 0.04f));
                 c.FillRect(w - x - 8 - (int)(30 * t), (int)(vy - h * 0.30f * (1 - t)), 8 + (int)(30 * t), (int)(h * 0.55f * (1 - t) + h * 0.16f), G(0.10f + t * 0.04f));
             }
-            // ceiling lights
             for (int i = 1; i <= 4; i++)
             {
                 float t = i / 5f;
                 int lw = (int)(180 * (1 - t)) + 12, lh = Math.Max(3, (int)(10 * (1 - t)));
                 c.FillRect((int)(vx - lw / 2f), (int)(vy - h * 0.34f * (1 - t * 0.9f)), lw, lh, G(0.55f - t * 0.3f));
             }
-            // lone silhouette in the distance
             c.FillEllipse(vx, vy + h * 0.10f, 16, 52, G(0.015f));
             c.FillEllipse(vx, vy + h * 0.035f, 8, 9, G(0.015f));
             c.FillRect((int)vx - 2, (int)(vy + h * 0.028f), 4, 3, G(0.85f, 0.7f)); // single pale eye-glint
@@ -538,7 +510,6 @@ namespace Hollowbrook.Bootstrap
             int floorY = (int)(h * 0.74f);
             c.FillRect(0, floorY, w, h - floorY, G(0.07f));        // floor
             c.FillRect(0, floorY, w, 3, G(0.22f));                 // baseboard line
-            // lockers + doors along the wall
             var r = new System.Random(21);
             for (int x = 24; x < w - 100; x += 180)
             {
@@ -562,14 +533,12 @@ namespace Hollowbrook.Bootstrap
                     }
                 }
             }
-            // ceiling lights (some dark => flicker targets)
             for (int x = 60; x < w; x += 240)
             {
                 bool lit = r.Next(4) != 0;
                 c.FillRect(x, 18, 150, 12, G(lit ? 0.72f : 0.10f));
                 if (lit) c.BlendRect(x - 60, 30, 270, 200, G(0.5f, 0.05f));  // light pool
             }
-            // floor tiles
             for (int x = 0; x < w; x += 96) c.FillRect(x, floorY, 2, h - floorY, G(0.09f));
             c.Noise(0.045f, 5);
             c.Vignette(0.55f);
@@ -582,7 +551,6 @@ namespace Hollowbrook.Bootstrap
             c.GradientV(G(0.11f), G(0.15f));
             int floorY = (int)(h * 0.72f);
             c.FillRect(0, floorY, w, h - floorY, G(0.075f));
-            // back wall chalkboard
             int bx = room2 ? (int)(w * 0.52f) : (int)(w * 0.12f);
             c.FillRect(bx, (int)(h * 0.16f), (int)(w * 0.36f), (int)(h * 0.34f), G(0.16f));     // frame
             c.FillRect(bx + 8, (int)(h * 0.16f) + 8, (int)(w * 0.36f) - 16, (int)(h * 0.34f) - 16, G(0.055f)); // board
@@ -594,7 +562,6 @@ namespace Hollowbrook.Bootstrap
                 c.Line(sx, sy, sx + 30 + r.Next(90), sy + r.Next(-6, 7), G(0.5f, 0.5f), 2);
             }
             c.FillRect(bx + 8, (int)(h * 0.16f) + (int)(h * 0.34f) - 6, (int)(w * 0.36f) - 16, 6, G(0.25f)); // tray
-            // windows on the opposite wall
             int wx = room2 ? (int)(w * 0.06f) : (int)(w * 0.62f);
             for (int i = 0; i < 2; i++)
             {
@@ -603,10 +570,8 @@ namespace Hollowbrook.Bootstrap
                 c.FillRect(x + 8, (int)(h * 0.18f) + 8, 184, (int)(h * 0.36f) - 16, G(0.20f));  // night glass
                 c.FillRect(x + 96, (int)(h * 0.18f) + 8, 8, (int)(h * 0.36f) - 16, G(0.09f));   // mullion
                 c.FillRect(x + 8, (int)(h * 0.18f) + (int)(h * 0.18f), 184, 8, G(0.09f));
-                // faint yard + streetlight
                 c.FillEllipse(x + 150, (int)(h * 0.18f) + 40, 26, 26, G(0.30f, 0.5f));
             }
-            // desk rows (silhouettes)
             for (int row = 0; row < 3; row++)
                 for (int col = 0; col < 5; col++)
                 {
@@ -617,7 +582,6 @@ namespace Hollowbrook.Bootstrap
                     c.FillRect(x + 12, y + dh, 6, 30 - row * 4, G(0.10f));
                     c.FillRect(x + dw - 18, y + dh, 6, 30 - row * 4, G(0.10f));
                 }
-            // teacher desk + cabinet + clock
             c.FillRect(30, floorY - 96, 190, 96, G(0.12f));
             c.FillRect(38, floorY - 88, 174, 84, G(0.09f));
             c.FillRect(w - 150, floorY - 240, 120, 240, G(0.115f));
@@ -626,11 +590,9 @@ namespace Hollowbrook.Bootstrap
             c.FillEllipse(w / 2, (int)(h * 0.10f), 28, 28, G(0.75f));
             c.Line(w / 2, (int)(h * 0.10f), w / 2, (int)(h * 0.10f) - 18, G(0.1f), 3);   // hour hand
             c.Line(w / 2, (int)(h * 0.10f), w / 2 + 12, (int)(h * 0.10f) + 4, G(0.1f), 2); // minute at :47-ish
-            // door
             c.FillRect(w - 320, floorY - 300, 120, 300, G(0.13f));
             c.FillRect(w - 314, floorY - 294, 108, 288, G(0.095f));
             c.FillEllipse(w - 224, floorY - 150, 5, 5, G(0.5f));
-            // ceiling light
             c.FillRect(w / 2 - 160, 14, 320, 10, G(0.6f));
             c.BlendRect(w / 2 - 260, 24, 520, 240, G(0.5f, 0.05f));
             c.Noise(0.04f, room2 ? 12 : 8);
@@ -642,18 +604,14 @@ namespace Hollowbrook.Bootstrap
         {
             var c = new Canvas2D(w, h);
             c.Fill(G(0.06f));
-            // back wall + big observation window (where visitors appear)
             c.FillRect(0, 0, w, (int)(h * 0.66f), G(0.09f));
             int wx = (int)(w * 0.24f), wy = (int)(h * 0.08f), ww = (int)(w * 0.52f), wh = (int)(h * 0.44f);
             c.FillRect(wx - 12, wy - 12, ww + 24, wh + 24, G(0.16f));          // frame
             c.FillRect(wx, wy, ww, wh, G(0.22f));                              // glass (visitor drawn under UI glass tint)
             for (int i = 1; i <= 2; i++) c.FillRect(wx + ww * i / 3 - 3, wy, 6, wh, G(0.14f)); // bars
-            // hallway silhouette behind glass
             c.FillRect(wx, wy + (int)(wh * 0.72f), ww, wh - (int)(wh * 0.72f), G(0.17f));
-            // desk spanning the bottom
             c.FillRect(0, (int)(h * 0.66f), w, h - (int)(h * 0.66f), G(0.11f));
             c.FillRect(0, (int)(h * 0.66f), w, 6, G(0.24f));
-            // monitor + scanner + lamp on desk edges
             c.FillRect((int)(w * 0.03f), (int)(h * 0.52f), 150, 100, G(0.14f));
             c.FillRect((int)(w * 0.03f) + 8, (int)(h * 0.52f) + 8, 134, 78, G(0.30f));
             c.FillRect((int)(w * 0.03f) + 60, (int)(h * 0.52f) + 100, 30, 22, G(0.12f));
@@ -663,8 +621,6 @@ namespace Hollowbrook.Bootstrap
             c.Vignette(0.5f);
             return c.ToSprite("security_bg", UiPpu);
         }
-
-        // ---------------------------------------------------------------- props
 
         private static Sprite MakeDoor(int w, int h, bool security, bool chained = false)
         {
@@ -782,7 +738,6 @@ namespace Hollowbrook.Bootstrap
                 float a = i * Mathf.PI / 6f;
                 c.FillRect(half + (int)(Mathf.Sin(a) * (half - 14)) - 1, half - (int)(Mathf.Cos(a) * (half - 14)) - 1, 3, 3, G(0.15f));
             }
-            // stopped at 1:47 (the minute the closure order was signed)
             float ha = (1 + 47 / 60f) * Mathf.PI / 6f, ma = 47 * Mathf.PI / 30f;
             c.Line(half, half, half + (int)(Mathf.Sin(ha) * half * 0.45f), half - (int)(Mathf.Cos(ha) * half * 0.45f), G(0.1f), 4);
             c.Line(half, half, half + (int)(Mathf.Sin(ma) * half * 0.72f), half - (int)(Mathf.Cos(ma) * half * 0.72f), G(0.1f), 2);
@@ -830,8 +785,6 @@ namespace Hollowbrook.Bootstrap
             return c.ToSprite("prop_lostid", WorldPpu);
         }
 
-        // ---------------------------------------------------------------- characters
-
         private static Sprite MakeCustodian(int w, int h, int frame)
         {
             var c = new Canvas2D(w, h);
@@ -844,10 +797,8 @@ namespace Hollowbrook.Bootstrap
             c.FillRect((int)(cx - 15), (int)(h * 0.19f), 30, (int)(h * 0.34f), body); // torso (uniform)
             c.FillRect((int)(cx - 15), (int)(h * 0.24f), 30, 5, dark);      // belt line
             c.FillRect((int)(cx - 6), (int)(h * 0.21f), 10, 12, G(0.55f));  // ID badge on chest
-            // arms
             c.FillRect((int)(cx - 22), (int)(h * 0.21f), 7, (int)(h * 0.26f), body);
             c.FillRect((int)(cx + 15), (int)(h * 0.21f), 7, (int)(h * 0.26f), body);
-            // legs — 2-frame walk cycle
             int legTop = (int)(h * 0.53f), legH = (int)(h * 0.44f);
             if (frame == 0)
             {
@@ -907,7 +858,6 @@ namespace Hollowbrook.Bootstrap
                     c.FillEllipse(cx + 8, h * 0.27f, 2.4f, 3.2f, eye);
                     break;
             }
-            // static fringe (visual distortion for anomalies, per approved style)
             var r = new System.Random((int)kind * 977 + 13);
             for (int i = 0; i < 40; i++)
             {
@@ -917,8 +867,6 @@ namespace Hollowbrook.Bootstrap
             }
             return c.ToSprite("anomaly_" + kind.ToString().ToLowerInvariant(), WorldPpu);
         }
-
-        // ---------------------------------------------------------------- documents (UI)
 
         private static Sprite MakeIdCard(int w, int h)
         {
@@ -978,7 +926,6 @@ namespace Hollowbrook.Bootstrap
             c.Fill(G(0.74f));
             for (int y = 24; y < h - 20; y += 26) c.FillRect(18, y, w - 36, 2, G(0.5f));
             c.Noise(0.07f, 113);
-            // coffee ring + folded corner (worn institutional look)
             for (float a = 0; a < Mathf.PI * 2; a += 0.1f)
                 c.FillRect((int)(w * 0.78f + Mathf.Cos(a) * 26), (int)(h * 0.25f + Mathf.Sin(a) * 22), 3, 3, G(0.45f, 0.6f));
             for (int i = 0; i < 34; i++) c.FillRect(w - 34 + i / 2, i, 34 - i, 2, G(0.62f));
@@ -1019,7 +966,6 @@ namespace Hollowbrook.Bootstrap
             return c.ToSprite(check ? "icon_check" : "icon_x", UiPpu);
         }
 
-        /// <summary>Clears the cache (used on teardown / domain reload).</summary>
         public static void ClearCache()
         {
             foreach (var kv in Cache)

@@ -4,11 +4,6 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
-    /// <summary>Cursor-guided flashlight: a real limited-visibility mask (SpriteMask punching a
-    /// hole in the room darkness), a battery with per-mode drain/recovery, and the single
-    /// definition of "does the beam cover this world point". Screen→world conversion happens
-    /// every frame through the live camera, so the beam stays glued to the cursor through camera
-    /// follow, room changes and any resolution/aspect (world-space, no shader needed).</summary>
     public class FlashlightRig : MonoBehaviour
     {
         public LightMode Beam { get; private set; } = LightMode.Off;
@@ -37,7 +32,6 @@ namespace Hollowbrook.World
             ApplyBeam(LightMode.Off, true);
         }
 
-        /// <summary>Single source of truth for beam coverage (Focus reveals, Blink freezes).</summary>
         public bool ConeCovers(Vector3 worldPoint)
         {
             if (!BeamOn || _cone == null) return false;
@@ -56,7 +50,6 @@ namespace Hollowbrook.World
             TickBattery(Time.deltaTime);
         }
 
-        // F / LMB = Sweep, Q or RMB = Focus, L = Off (E stays interaction; no conflicts).
         private void ReadInput()
         {
             if (Input.GetKeyDown(KeyCode.F)) _latchSweep = !_latchSweep && !BatteryDead;
@@ -76,7 +69,6 @@ namespace Hollowbrook.World
             bool on = m != LightMode.Off && !BatteryDead;
             if (_mask != null) _mask.gameObject.SetActive(on);
             if (_cone != null) _cone.gameObject.SetActive(on);
-            // keep the room rig (ambient + events) as the broadcaster for mode changes
             var room = R.Views != null && R.Views.Current != null ? R.Views.Current.Light : null;
             if (room != null && !force)
             {
@@ -121,7 +113,7 @@ namespace Hollowbrook.World
                 BatteryDead = true;
                 ApplyBeam(LightMode.Off, false);
                 R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the flashlight dies — let it breathe*", 2.4f, null));
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_scan_error", 0.5f, null));
+                R.Audio.PlaySfx("sfx_scan_error", 0.5f);
             }
             else if (BatteryDead && Battery >= cfg.batteryRebootFraction)
             {

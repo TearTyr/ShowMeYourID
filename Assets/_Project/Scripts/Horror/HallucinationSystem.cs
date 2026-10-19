@@ -7,10 +7,6 @@ using UnityEngine;
 
 namespace Hollowbrook.Horror
 {
-    /// <summary>Hallucinations driven by the sanity stage (approved: sanity affects perception).
-    /// Exploration: phantom figures, knocks, whispers, phantom flickers. Checkpoint: whispers/
-    /// captions ONLY — hallucinations never alter documents or verdicts, keeping inspections
-    /// fair (essential information must stay trustworthy and readable).</summary>
     public class HallucinationSystem : MonoBehaviour
     {
         private GameRoot R;
@@ -56,7 +52,7 @@ namespace Hollowbrook.Horror
                     {
                         R.Bus.Publish(GameEvent.Of(EventIds.HallucinationTriggered, "whisper"));
                         R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, Whispers[Random.Range(0, Whispers.Length)], 3.2f, null));
-                        R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_static", 0.18f, null));
+                        R.Audio.PlaySfx("sfx_static", 0.18f);
                     }
                 }
             }
@@ -73,19 +69,19 @@ namespace Hollowbrook.Horror
                     R.Views.SpawnAnomaly(true);
                     break;
                 case 1:
-                    R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_knock", 0.6f, null));
+                    R.Audio.PlaySfx("sfx_knock", 0.6f);
                     R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*three slow knocks from inside the wall*", 2.8f, null));
                     break;
                 case 2:
                     R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, Whispers[Random.Range(0, Whispers.Length)], 3.2f, null));
-                    R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_static", 0.25f, null));
+                    R.Audio.PlaySfx("sfx_static", 0.25f);
                     break;
                 default: // phantom flicker (never a strobe; photosensitivity-safe by construction)
                 {
                     var light = R.Views.Current.Light;
                     if (light != null && light.Mode == LightMode.Sweep)
                     {
-                        R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_flicker", 0.4f, null));
+                        R.Audio.PlaySfx("sfx_flicker", 0.4f);
                         light.SetMode(LightMode.Off);
                         CancelInvoke(nameof(RestoreLights));
                         Invoke(nameof(RestoreLights), 0.5f);

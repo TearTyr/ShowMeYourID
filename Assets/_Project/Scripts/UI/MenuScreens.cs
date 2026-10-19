@@ -9,11 +9,6 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    /// <summary>Main menu — minimal, left-anchored, horror-restrained.
-    /// Game name top-left, options as a FNAF-style vertical list below it, everything else
-    /// is negative space with the hallway art breathing in it. No tagline, no logos, no
-    /// locked entries: NEW GAME / CONTINUE / SETTINGS / CREDITS / EXIT only.
-    /// F2 ×3 (≤1.5 s apart) erases save data behind a confirmation.</summary>
     public class MainMenuView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -36,7 +31,6 @@ namespace Hollowbrook.UI
             UIFactory.AnchorsFull(bg.rectTransform);
             bg.raycastTarget = true;
 
-            // deepened negative space + breathing vignette (atmosphere, not decoration)
             _shade = UIFactory.Img(transform, "shade", ProceduralArt.Get("solid_white"), new Color(0, 0, 0, 0.28f));
             UIFactory.AnchorsFull(_shade.rectTransform);
             _shade.raycastTarget = false;
@@ -44,18 +38,15 @@ namespace Hollowbrook.UI
             UIFactory.AnchorsFull(_vignette.rectTransform);
             _vignette.raycastTarget = false;
 
-            // game name — top-left, nothing else
             var titleA = UIFactory.Label(transform, "titleA", "SHOW ME YOUR", 40, UIFactory.InkDim, TextAnchor.UpperLeft);
             UIFactory.Anchor(titleA.rectTransform, new Vector2(0f, 1f), new Vector2(760, 56), new Vector2(440, -84));
             _titleB = UIFactory.Label(transform, "titleB", "ID!", 108, UIFactory.Ink, TextAnchor.UpperLeft);
             UIFactory.Anchor(_titleB.rectTransform, new Vector2(0f, 1f), new Vector2(420, 120), new Vector2(270, -196));
 
-            // the distant figure's eye-glint (menu_bg figure sits mid-frame, right of the list)
             _glint = UIFactory.Img(transform, "glint", ProceduralArt.Get("solid_white"), new Color(0.9f, 0.9f, 0.88f, 0f));
             UIFactory.Anchor(_glint.rectTransform, new Vector2(0.5f, 1f), new Vector2(6, 3), new Vector2(1, -325));
             _glint.raycastTarget = false;
 
-            // options — vertical list anchored left, below the title block
             var col = UIFactory.VStack(transform, "buttons", 8, TextAnchor.UpperLeft, false, false);
             var colRt = col.GetComponent<RectTransform>();
             UIFactory.Anchor(colRt, new Vector2(0f, 1f), new Vector2(360, 258), new Vector2(270, -419));
@@ -79,14 +70,13 @@ namespace Hollowbrook.UI
                 "Twin Studio · v1.0.6", 13, UIFactory.InkFaint, TextAnchor.LowerLeft);
             UIFactory.Anchor(footer.rectTransform, new Vector2(0f, 0f), new Vector2(900, 24), new Vector2(460, 14));
 
-            // feedback line (F2 reset prompts / confirmations)
             _menuNote = UIFactory.Label(transform, "note", "", 14, UIFactory.InkFaint, TextAnchor.MiddleLeft);
             UIFactory.Anchor(_menuNote.rectTransform, new Vector2(0f, 0f), new Vector2(900, 22), new Vector2(460, 46));
 
             gameObject.SetActive(false);
         }
 
-        private void Click() => R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_click", 0.8f, null));
+        private void Click() => R.Audio.PlaySfx("sfx_click", 0.8f);
 
         private void MenuButtonLeft(Transform parent, string label, UnityEngine.Events.UnityAction onClick,
             System.Action<Button> created, int w = 360, int h = 44, bool danger = false)
@@ -154,13 +144,12 @@ namespace Hollowbrook.UI
                 var c = _vignette.color; c.a = a; _vignette.color = c;
             }
 
-            // F2 ×3 data reset
             if (Input.GetKeyDown(KeyCode.F2))
             {
                 if (Time.unscaledTime - _f2Last > F2WindowSeconds) _f2Count = 0;
                 _f2Count++;
                 _f2Last = Time.unscaledTime;
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_glitch", 0.22f, null));
+                R.Audio.PlaySfx("sfx_glitch", 0.22f);
                 if (_f2Count < 3)
                 {
                     ShowNote("Data reset armed — press F2 " + (3 - _f2Count) + " more time" + (3 - _f2Count == 1 ? "" : "s") + " (" + _f2Count + "/3).");
@@ -186,7 +175,7 @@ namespace Hollowbrook.UI
                 string original = _titleB.text;
                 _titleB.text = "1D?";
                 _titleB.color = UIFactory.AccentBright;
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_glitch", 0.18f, null));
+                R.Audio.PlaySfx("sfx_glitch", 0.18f);
                 yield return new WaitForSecondsRealtime(0.11f);
                 _titleB.text = original;
                 _titleB.color = UIFactory.Ink;
@@ -214,7 +203,7 @@ namespace Hollowbrook.UI
                 yield return new WaitForSecondsRealtime(Random.Range(24f, 40f));
                 if (!gameObject.activeInHierarchy) continue;
                 if (R.Settings != null && (R.Settings.PhotosensitivitySafe || R.Settings.ReduceMotion)) continue;
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_static", 0.06f, null));
+                R.Audio.PlaySfx("sfx_static", 0.06f);
                 float t = 0f;
                 while (t < 0.55f)
                 {
@@ -228,8 +217,6 @@ namespace Hollowbrook.UI
         }
     }
 
-    /// <summary>Mode selection (future use — not reachable from the v1.0.6 menu; kept so the
-    /// structure accommodates additional modes later without menu rework).</summary>
     public class ModeSelectView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -253,7 +240,7 @@ namespace Hollowbrook.UI
 
             UIFactory.SheetButton(sheet, "back", "◂ BACK", () =>
             {
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_ui_close", 0.6f, null));
+                R.Audio.PlaySfx("sfx_ui_close", 0.6f);
                 R.SetState(AppViewState.MainMenu);
             }, 140);
 
@@ -274,7 +261,7 @@ namespace Hollowbrook.UI
             UIFactory.Anchor(best.rectTransform, new Vector2(1f, 0f), new Vector2(180, 24), new Vector2(-110, 40));
             var sel = UIFactory.StandardButton(card, "select", "BEGIN", () =>
             {
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_bell", 0.7f, null));
+                R.Audio.PlaySfx("sfx_bell", 0.7f);
                 onSelect();
             }, 140, 40);
             UIFactory.Anchor(sel.GetComponent<RectTransform>(), new Vector2(1f, 0.5f), new Vector2(140, 40), new Vector2(-90, 0));
@@ -292,10 +279,6 @@ namespace Hollowbrook.UI
         public void Hide() => gameObject.SetActive(false);
     }
 
-    /// <summary>Options — same left-sheet family, typography and restraint as the main menu.
-    /// Every control writes through <see cref="SettingsSystem"/> (the single owner of each
-    /// setting), applies immediately and persists to PlayerPrefs. Display changes carry a
-    /// 15-second KEEP/REVERT window so an unusable mode can never strand the player.</summary>
     public class SettingsView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -330,8 +313,6 @@ namespace Hollowbrook.UI
             col.sizeDelta = new Vector2(560f, 505f);
             col.anchoredPosition = new Vector2(320f, -364f);
 
-            // Scrollable viewport: content may grow with text size or window size, while the
-            // pinned CONTROLS/BACK buttons live OUTSIDE it, so nothing can overlap them.
             var viewport = UIFactory.NewUI(sheet, "optionsViewport");
             UIFactory.Anchor(viewport, new Vector2(0f, 1f), new Vector2(560f, 505f), new Vector2(320f, -364f));
             viewport.gameObject.AddComponent<Mask>().showMaskGraphic = false;
@@ -350,7 +331,6 @@ namespace Hollowbrook.UI
 
             var s = R.Settings;
 
-            // ---- AUDIO: no music slider on purpose — the game has no music mix to expose.
             Section(col, "AUDIO");
             _masterSlider = UIFactory.SliderRow(col, "master", "Master volume", s.Current.MasterVolume,
                 v => { if (!_refreshing) s.Apply(d => d.MasterVolume = v); }, 560);
@@ -362,7 +342,6 @@ namespace Hollowbrook.UI
                 v => { if (!_refreshing) s.Apply(d => d.SfxVolume = v); }, 560);
             UIFactory.Layout(_sfxSlider.GetComponent<RectTransform>(), 560, 34);
 
-            // ---- DISPLAY
             Section(col, "DISPLAY");
             _fullscreenToggle = UIFactory.ToggleRow(col, "fullscreen", "Fullscreen  (borderless)",
                 s.Current.Fullscreen, v =>
@@ -393,8 +372,6 @@ namespace Hollowbrook.UI
                 if (_resLabels[i] != null) _resLabels[i].fontSize = 14;
             }
 
-            // Kept OUT of the stacking column (anchored above the action buttons) so the
-            // 15-second revert window can appear without re-flowing the rows above it.
             _resNote = UIFactory.Label(col, "resnote", "", UIFactory.TypeSmall, UIFactory.InkDim,
                 TextAnchor.MiddleLeft);
             _resNote.rectTransform.sizeDelta = new Vector2(560f, 16f);
@@ -416,7 +393,6 @@ namespace Hollowbrook.UI
                 new Vector2(90, 28), new Vector2(455, 0));
             _displayNoteRow.gameObject.SetActive(false);
 
-            // ---- ACCESSIBILITY
             Section(col, "ACCESSIBILITY");
             var tsRow = UIFactory.NewUI(col, "textscale");
             UIFactory.Layout(tsRow, 560, 38);
@@ -444,7 +420,6 @@ namespace Hollowbrook.UI
             _toggles[2] = Toggle(col, "Captions for significant sounds",
                 s.Current.Captions, v => s.Apply(d => d.Captions = v));
 
-            // ---- DATA: same confirmation + reset path as the F2 x3 shortcut
             Section(col, "DATA");
             var dataRow = UIFactory.NewUI(col, "datarow");
             UIFactory.Layout(dataRow, 560, 40);
@@ -469,19 +444,18 @@ namespace Hollowbrook.UI
 
             UIFactory.SheetButton(sheet, "controls", "CONTROLS", () =>
             {
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_ui_open", 0.6f, null));
+                R.Audio.PlaySfx("sfx_ui_open", 0.6f);
                 R.OpenControls();
             }, 140);
             UIFactory.SheetButton(sheet, "back", "◂ BACK", () =>
             {
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_ui_close", 0.6f, null));
+                R.Audio.PlaySfx("sfx_ui_close", 0.6f);
                 R.CloseSettings();
             }, 360);
 
             gameObject.SetActive(false);
         }
 
-        // ------------------------------------------------------------------ helpers
         private static void Section(RectTransform col, string title)
         {
             var lab = UIFactory.Label(col, "sec_" + title, title, UIFactory.TypeSection, UIFactory.InkDim,
@@ -555,7 +529,6 @@ namespace Hollowbrook.UI
 
         private static string ModeText(ModeSize m) => m.W + "×" + m.H;
 
-        // ------------------------------------------------------------------ refresh
         public void Show()
         {
             gameObject.SetActive(true);
@@ -591,7 +564,6 @@ namespace Hollowbrook.UI
 
         public void Hide()
         {
-            // leaving with an unconfirmed display change = the change did not happen
             if (_displayBefore != null) CancelDisplay();
             gameObject.SetActive(false);
         }
@@ -633,7 +605,6 @@ namespace Hollowbrook.UI
             }
         }
 
-        /// <summary>Selected = filled/inverted; hover stays a subtle brighten (ColorBlock).</summary>
         private static void SetSelected(Button b, bool sel)
         {
             if (b == null) return;
@@ -656,7 +627,6 @@ namespace Hollowbrook.UI
         }
     }
 
-    /// <summary>Controls reference — same left-sheet family.</summary>
     public class ControlsView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -666,9 +636,6 @@ namespace Hollowbrook.UI
             R = root;
             var sheet = UIFactory.LeftSheet(transform, "CONTROLS", "Mouse at the desk. Keys in the dark.", out _);
 
-            // Verified against the gameplay scripts (PlayerController.cs:57-72,159,
-            // DialogueView.cs:156, CheckpointView.cs, SecurityRoomView.cs) — nothing here is
-            // aspirational: every line maps to a real input path.
             string body =
                 "CHECKPOINT (mouse)\n" +
                 "   Click documents, checklist rows, SCAN, questions, ALLOW / REJECT.\n" +
@@ -692,7 +659,7 @@ namespace Hollowbrook.UI
 
             UIFactory.SheetButton(sheet, "back", "◂ BACK", () =>
             {
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_ui_close", 0.6f, null));
+                R.Audio.PlaySfx("sfx_ui_close", 0.6f);
                 R.CloseControls();
             }, 140);
 
@@ -703,7 +670,6 @@ namespace Hollowbrook.UI
         public void Hide() { gameObject.SetActive(false); }
     }
 
-    /// <summary>Credits — same left-sheet family.</summary>
     public class CreditsView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -729,7 +695,7 @@ namespace Hollowbrook.UI
 
             UIFactory.SheetButton(sheet, "back", "◂ BACK", () =>
             {
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_ui_close", 0.6f, null));
+                R.Audio.PlaySfx("sfx_ui_close", 0.6f);
                 R.CloseCredits();
             }, 140);
 
@@ -740,7 +706,6 @@ namespace Hollowbrook.UI
         public void Hide() { gameObject.SetActive(false); }
     }
 
-    /// <summary>Pause — same left-sheet family (slides over whichever scene is running).</summary>
     public class PauseView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -765,7 +730,7 @@ namespace Hollowbrook.UI
         {
             var b = UIFactory.StandardButtonLeft(parent, label, label, () =>
             {
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_click", 0.7f, null));
+                R.Audio.PlaySfx("sfx_click", 0.7f);
                 onClick();
             }, 420, 46, danger);
             UIFactory.Layout(b.GetComponent<RectTransform>(), 420, 46);

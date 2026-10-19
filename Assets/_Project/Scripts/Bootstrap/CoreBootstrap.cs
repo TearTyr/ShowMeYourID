@@ -9,8 +9,6 @@ using UnityEngine.UI;   // CanvasScaler (used in NewCanvas) lives in UnityEngine
 
 namespace Hollowbrook.Bootstrap
 {
-    /// <summary>Scene names. Scene loading is centralized here so new gameplay modes can be
-    /// added later by registering a scene + bootstrap without touching the menu.</summary>
     public static class SceneRouter
     {
         public const string Menu = "MainMenu";
@@ -24,15 +22,11 @@ namespace Hollowbrook.Bootstrap
         {
             if (!IsRegistered(sceneName))
                 Debug.LogError("[SceneRouter] refusing unknown scene '" + sceneName + "'.");
-            Debug.Log("[Flow] scene load requested: " + sceneName);
-            Debug.Log("[SceneRouter] loading scene: " + sceneName);
+            Debug.Log("[Flow] loading scene: " + sceneName);
             SceneManager.LoadScene(sceneName);
         }
     }
 
-    /// <summary>Persistent core (survives scene loads): GameRoot + services + audio +
-    /// EventSystem + camera, all DontDestroyOnLoad. Each scene bootstrap then builds only
-    /// its own canvases/views under a per-scene root that Unity unloads normally.</summary>
     public static class CoreBootstrap
     {
         public static EventSystem CreatedEventSystem { get; private set; }
@@ -64,7 +58,6 @@ namespace Hollowbrook.Bootstrap
             esGo.AddComponent<StandaloneInputModule>();
             Object.DontDestroyOnLoad(esGo);
 
-            // single persistent camera
             var camGo = new GameObject("MainCamera");
             camGo.tag = "MainCamera";
             var cam = camGo.AddComponent<Camera>();
@@ -80,8 +73,6 @@ namespace Hollowbrook.Bootstrap
             return root;
         }
 
-        /// <summary>Destroys the previous scene root (headless: deactivates it) and creates a
-        /// fresh container for the incoming scene's views.</summary>
         public static GameObject BeginSceneRoot(string sceneName)
         {
             if (CurrentSceneRoot != null) Object.Destroy(CurrentSceneRoot);
@@ -89,8 +80,6 @@ namespace Hollowbrook.Bootstrap
             return CurrentSceneRoot;
         }
 
-            /// <summary>Wraps a scene Build so a throwing bootstrap can never leave a dead,
-            /// half-built scene with no explanation: log, notify, fall back to the menu.</summary>
         public static void SafeBuild(string sceneName, System.Action build)
         {
             try { build(); }
@@ -118,8 +107,6 @@ namespace Hollowbrook.Bootstrap
             return canvas;
         }
 
-        /// <summary>Safety net: if Play starts in a scene without any bootstrap object
-        /// (e.g. Unity's default SampleScene), route to the menu instead of a dead screen.</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureBootstrappedScene()
         {
@@ -135,32 +122,6 @@ namespace Hollowbrook.Bootstrap
             var view = rt.gameObject.AddComponent<T>();
             (view as Core.IScreenView)?.Init(root);
             return view;
-        }
-    }
-
-    /// <summary>Maps scene names to builder delegates. Used by headless verification to
-    /// simulate SceneManager.LoadScene; in the real editor each scene's bootstrap object
-    /// runs the same Build from Awake.</summary>
-    public static class SceneBootstrapRegistry
-    {
-        private static Dictionary<string, System.Action> _map;
-
-        private static void Ensure()
-        {
-            if (_map != null) return;
-            _map = new Dictionary<string, System.Action>
-            {
-                { SceneRouter.Menu, () => MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore()) },
-                { SceneRouter.Checkpoint, () => CheckpointSceneBootstrap.Build(CoreBootstrap.EnsureCore()) },
-                { SceneRouter.School, () => SchoolSceneBootstrap.Build(CoreBootstrap.EnsureCore()) },
-            };
-        }
-
-        public static void SimulateLoad(string sceneName)
-        {
-            Ensure();
-            if (_map.TryGetValue(sceneName, out var build)) build();
-            else Debug.LogError("[SceneBootstrapRegistry] no bootstrap registered for scene '" + sceneName + "'");
         }
     }
 }

@@ -1,15 +1,5 @@
 namespace Hollowbrook.Logic
 {
-    /// <summary>Ending evaluation (approved conditions + documented conflict resolutions C3/C4).
-    /// Priority: Lose > Secret > Win.
-    ///  • Lose "Another Custodian": 3 anomaly breaches OR 3 false rejections; allowing the
-    ///    Shift-5 administrator is an immediate loss (C3 — the anomalies reach the
-    ///    identification system; leaving this undefined would create a state with no ending).
-    ///  • Secret "The Truth Behind Hollowbrook": all ten environmental interactions discovered,
-    ///    intended sequence intact, Hallway + Classroom 1 + Classroom 2 investigated.
-    ///  • Win "Surviving Hollowbrook": all five shifts completed with fewer than 3 false
-    ///    rejections and fewer than 3 breaches, and the administrator rejected.
-    /// </summary>
     public static class EndingRules
     {
         public const int LoseThreshold = 3;
@@ -23,7 +13,6 @@ namespace Hollowbrook.Logic
 
         public static Evaluation Evaluate(GameSession s)
         {
-            // Lose conditions are checked first and can fire mid-run (C4).
             if (s.AdminAllowed)
                 return Result(EndingType.Lose, "admin_breach",
                     "You let the administrator through. It walked straight to the server room, and the identification system came online. By morning the district had already replaced you.");
@@ -45,8 +34,6 @@ namespace Hollowbrook.Logic
             return Result(EndingType.None, "continue", "");
         }
 
-        /// <summary>Exhibition night resolution: the same Lose conditions, otherwise the demo
-        /// closes as a survived night. Secret still wins over the demo card if someone chases clues.</summary>
         public static Evaluation EvaluateExhibition(GameSession s)
         {
             var lose = Evaluate(s);
@@ -62,8 +49,6 @@ namespace Hollowbrook.Logic
             new Evaluation { Ending = t, ReasonKey = key, ReasonText = text };
     }
 
-    /// <summary>Endless mode rules: continuous inspections against a shrinking clock.
-    /// Correctly rejecting an anomaly adds time; the anomaly rate ramps.</summary>
     public static class EndlessRules
     {
         public const float StartSeconds = 150f;
@@ -91,8 +76,6 @@ namespace Hollowbrook.Logic
         }
     }
 
-    /// <summary>Challenge mode: endless-style run + unpredictable rule changes,
-    /// doubled sanity drain, doubled base score (approved spec).</summary>
     public static class ChallengeRules
     {
         public const int VisitorsPerRuleWave = 4;
@@ -101,7 +84,6 @@ namespace Hollowbrook.Logic
 
         public static RuleMutationDef RollMutation(int waveIndex, GameRng rng)
         {
-            // Wave 0 is always clean; later waves rotate through the mutation pool.
             if (waveIndex <= 0) return ShiftPlan.ChallengeMutations[0];
             int idx = rng.NextInt(1, ShiftPlan.ChallengeMutations.Length);
             return ShiftPlan.ChallengeMutations[idx];

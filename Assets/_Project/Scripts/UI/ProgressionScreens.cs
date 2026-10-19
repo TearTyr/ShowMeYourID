@@ -8,9 +8,6 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    /// <summary>School map (approved: shows hallway and classrooms, guides investigation,
-    /// doubles as fast travel between areas). Discovered findings are marked per room; the
-    /// sealed server room is shown but unreachable — as the story intends.</summary>
     public class MapView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -30,14 +27,12 @@ namespace Hollowbrook.UI
             UIFactory.Anchor(sheet, new Vector2(0.5f, 0.5f), new Vector2(940, 500), new Vector2(0, 10));
             _sheet = sheet;
 
-            // schematic layout
             RoomBox(sheet, new Vector2(-360, 90), new Vector2(170, 130), "SECURITY\nCheckpoint", RoomId.Security, out _);
             RoomBox(sheet, new Vector2(-60, 90), new Vector2(430, 110), "MAIN HALLWAY", RoomId.Hallway, out _);
             RoomBox(sheet, new Vector2(-110, 210), new Vector2(200, 120), "CLASSROOM 1\nRoom 101", RoomId.Classroom1, out _);
             RoomBox(sheet, new Vector2(120, -30), new Vector2(200, 120), "CLASSROOM 2\nRoom 202", RoomId.Classroom2, out _);
             RoomBox(sheet, new Vector2(330, 90), new Vector2(180, 130), "SERVER /\nIDENTIFICATION ROOM\n— SEALED —", RoomId.Security, out _, sealedRoom: true);
 
-            // connectors
             Line(sheet, new Vector2(-275, 90), new Vector2(-175, 90));
             Line(sheet, new Vector2(-110, 145), new Vector2(-110, 150));
             Line(sheet, new Vector2(20, 145), new Vector2(20, 30));
@@ -86,7 +81,7 @@ namespace Hollowbrook.UI
                 RoomId captured = target;
                 btn.onClick.AddListener(() =>
                 {
-                    R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_ui_close", 0.5f, null));
+                    R.Audio.PlaySfx("sfx_ui_close", 0.5f);
                     R.TravelViaMap(captured);
                 });
             }
@@ -106,12 +101,10 @@ namespace Hollowbrook.UI
             var sheet = _sheet;
             if (sheet == null) return;
 
-            // YOU ARE HERE
             RoomId here = R.State == AppViewState.Exploration && R.Views != null && R.Views.Current != null
                 ? R.Views.Current.Id : RoomId.Security;
             _hereMarker.anchoredPosition = HerePos(here);
 
-            // clue dots per room
             var roomCounts = new Dictionary<RoomId, int>();
             foreach (var key in R.Session.Clues.FoundKeys)
             {
@@ -160,7 +153,6 @@ namespace Hollowbrook.UI
         public void Hide() => gameObject.SetActive(false);
     }
 
-    /// <summary>Between-shifts summary (approved core loop: Shift Results screen).</summary>
     public class ShiftResultsView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -182,7 +174,7 @@ namespace Hollowbrook.UI
             UIFactory.Anchor(_rating.rectTransform, new Vector2(0.5f, 0f), new Vector2(700, 34), new Vector2(0, 92));
             var cont = UIFactory.StandardButton(panel, "cont", "CONTINUE ▸", () =>
             {
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_click", 0.8f, null));
+                R.Audio.PlaySfx("sfx_click", 0.8f);
                 R.AdvanceToNextShift();
             }, 240, 46);
             UIFactory.Anchor(cont.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(240, 46), new Vector2(0, 36));
@@ -217,8 +209,6 @@ namespace Hollowbrook.UI
         public void Hide() => gameObject.SetActive(false);
     }
 
-    /// <summary>Ending screen (approved UI): ending title, description, decision summary,
-    /// final result, endings-seen badges; also hosts Endless/Challenge run results.</summary>
     public class EndingView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -262,13 +252,13 @@ namespace Hollowbrook.UI
 
             var menu = UIFactory.StandardButton(transform, "menu", "MAIN MENU", () =>
             {
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_ui_close", 0.7f, null));
+                R.Audio.PlaySfx("sfx_ui_close", 0.7f);
                 R.QuitToMenu(false);
             }, 220, 46);
             UIFactory.Anchor(menu.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(220, 46), new Vector2(-120, 38));
             _again = UIFactory.StandardButton(transform, "again", "PLAY AGAIN", () =>
             {
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_bell", 0.7f, null));
+                R.Audio.PlaySfx("sfx_bell", 0.7f);
                 R.StartNewGame(_lastMode);
             }, 220, 46);
             UIFactory.Anchor(_again.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(220, 46), new Vector2(120, 38));

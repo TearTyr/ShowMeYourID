@@ -8,7 +8,6 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    /// <summary>One dialogue beat (approved dialogue UI: box, speaker name, text, continue).</summary>
     public class DialogueLine
     {
         public string Speaker = "";
@@ -16,9 +15,6 @@ namespace Hollowbrook.UI
         public string PortraitSpriteKey; // optional procedural portrait key
     }
 
-    /// <summary>Typewriter dialogue box used for shift intros, clue inspections, the
-    /// administrator encounter and radio chatter. Advance: click / Space / Enter / E.
-    /// Reduced Motion shows text instantly.</summary>
     public class DialogueView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -118,7 +114,7 @@ namespace Hollowbrook.UI
                     if (tick <= 0f && n < _fullText.Length && n % 3 == 0)
                     {
                         tick = 0.09f;
-                        R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_click", 0.10f, null));
+                        R.Audio.PlaySfx("sfx_click", 0.10f);
                     }
                 }
                 yield return null;
@@ -141,7 +137,6 @@ namespace Hollowbrook.UI
             }
             _qIndex++;
             if (_qIndex < _queue.Count) { ShowCurrent(); return; }
-            // queue finished
             IsActive = false;
             HideVisuals();
             var cb = _onDone;

@@ -2,7 +2,6 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    /// <summary>The approved five-shift Normal progression (4/6/7/8/8+admin).</summary>
     public static class ShiftPlan
     {
         public const int TotalShifts = 5;
@@ -64,9 +63,6 @@ namespace Hollowbrook.Logic
             };
         }
 
-        /// <summary>The 5-10 minute booth cut: one night, four visitors, one anomaly with an
-        /// honest (non-subtle) tell, behaviour oddity allowed so questioning matters. Same rules
-        /// engine, same fairness invariants - only the roster shape is curated.</summary>
         public static ShiftDef ExhibitionDef()
         {
             return new ShiftDef
@@ -106,9 +102,6 @@ namespace Hollowbrook.Logic
         };
     }
 
-    /// <summary>Pure sanity model. Sanity is atmosphere/perception, not a health bar:
-    /// it never directly ends the run (per the approved concept), but low sanity drives
-    /// hallucinations, distortion, and scare frequency.</summary>
     public static class SanityModel
     {
         public const float Max = 100f;
@@ -122,7 +115,6 @@ namespace Hollowbrook.Logic
             return SanityStage.Breaking;
         }
 
-        /// <summary>Chance per ambient tick (1s) that a hallucination fires at this stage.</summary>
         public static float HallucinationChancePerSecond(SanityStage stage)
         {
             switch (stage)
@@ -134,14 +126,11 @@ namespace Hollowbrook.Logic
             }
         }
 
-        /// <summary>Recovery while stationed in the lit security room (per second).</summary>
         public const float SecurityRoomRecoveryPerSecond = 1.2f;
-        /// <summary>Drain while inside an unlit room (per second).</summary>
         public const float DarknessDrainPerSecond = 0.6f;
 
         public static float Clamp(float v) => v < Min ? Min : (v > Max ? Max : v);
 
-        /// <summary>Mode multipliers: Challenge mode drains sanity faster (approved spec).</summary>
         public static float DrainMultiplier(GameMode mode) => mode == GameMode.Challenge ? 2f : 1f;
     }
 }

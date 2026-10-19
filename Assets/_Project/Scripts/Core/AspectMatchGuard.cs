@@ -4,30 +4,18 @@ using UnityEngine.UI;   // CanvasScaler lives in UnityEngine.UI (com.unity.ugui)
 
 namespace Hollowbrook.Core
 {
-    /// <summary>Keeps every canvas at or above the 1280×720 reference rectangle on ANY
-    /// aspect ratio, which is what guarantees "no overlap / no clipping / no shrinking":
-    ///  • wider than 16:9  => match height (extra width becomes negative space);
-    ///  • narrower than 16:9 => match width (extra height becomes negative space).
-    /// Attached automatically to every canvas by CoreBootstrap.</summary>
     public class AspectMatchGuard : MonoBehaviour
     {
         private CanvasScaler _scaler;
         private int _w, _h;
-
-        /// <summary>Test hook: headless suites enumerate live guards.</summary>
-        public static readonly System.Collections.Generic.List<AspectMatchGuard> Instances =
-            new System.Collections.Generic.List<AspectMatchGuard>();
 
         public const float ReferenceAspect = 1280f / 720f;
 
         public void Init(CanvasScaler scaler)
         {
             _scaler = scaler;
-            Instances.Add(this);
             Apply();
         }
-
-        private void OnDestroy() => Instances.Remove(this);
 
         private void Update()
         {
@@ -42,7 +30,6 @@ namespace Hollowbrook.Core
             _scaler.matchWidthOrHeight = aspect > ReferenceAspect ? 1f : 0f;
         }
 
-        /// <summary>Visible reference-space size under the current match setting.</summary>
         public Vector2 VisibleReferenceSize()
         {
             float scale = _scaler != null && _scaler.matchWidthOrHeight > 0.5f

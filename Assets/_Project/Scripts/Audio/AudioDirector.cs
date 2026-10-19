@@ -6,10 +6,6 @@ using UnityEngine;
 
 namespace Hollowbrook.Audio
 {
-    /// <summary>Central audio service. Gameplay code never touches AudioSource directly:
-    /// it publishes SfxRequested / MusicContextRequested on the EventBus (decoupled,
-    /// per master-prompt architecture). Volumes come live from SettingsSystem; significant
-    /// sounds also emit CaptionRequested for the accessibility caption bar.</summary>
     public class AudioDirector : MonoBehaviour
     {
         private EventBus _bus;
@@ -22,7 +18,6 @@ namespace Hollowbrook.Audio
         private readonly List<EventSubscription> _subs = new List<EventSubscription>();
         private readonly HashSet<string> _missingWarned = new HashSet<string>();
 
-        /// <summary>key => caption text for significant audio events (accessibility).</summary>
         private static readonly Dictionary<string, string> Captions = new Dictionary<string, string>
         {
             { "sfx_knock", "*KNOCK  KNOCK  KNOCK*" },
@@ -60,8 +55,6 @@ namespace Hollowbrook.Audio
                 _sfxPool[i].loop = false;
             }
 
-            _subs.Add(bus.Subscribe(EventIds.SfxRequested, OnSfx));
-            _subs.Add(bus.Subscribe(EventIds.MusicContextRequested, OnMusic));
             _subs.Add(bus.Subscribe(EventIds.SettingsChanged, OnSettings));
             ApplyVolumes();
         }
@@ -70,13 +63,6 @@ namespace Hollowbrook.Audio
         {
             foreach (var s in _subs) s?.Dispose();
             _subs.Clear();
-        }
-
-        private void OnSfx(GameEvent e)
-        {
-            if (string.IsNullOrEmpty(e.Text)) return;
-            float vol = e.Value > 0f ? e.Value : 1f;
-            PlaySfx(e.Text, vol);
         }
 
         public void PlaySfx(string key, float volume = 1f)
@@ -92,16 +78,14 @@ namespace Hollowbrook.Audio
             _poolIndex = (_poolIndex + 1) % _sfxPool.Length;
             src.clip = clip;
             src.volume = Mathf.Clamp01(volume * (_settings != null ? _settings.SfxVolume : 0.8f));
-            src.pitch = 1f + (ProceduralAudio.Get(key).length > 0.4f ? 0f : (Random.value - 0.5f) * 0.06f);
+            src.pitch = 1f + (clip.length > 0.4f ? 0f : (Random.value - 0.5f) * 0.06f);
             src.Play();
 
             if (_settings != null && _settings.Captions && Captions.TryGetValue(key, out var caption))
                 _bus?.Publish(GameEvent.Of(EventIds.CaptionRequested, caption, 2.6f, null));
         }
 
-        private void OnMusic(GameEvent e) => PlayMusic(e.Text ?? "");
 
-        /// <summary>Crossfades to a music context ("menu", "checkpoint", "hallway", …, "" = silence).</summary>
         public void PlayMusic(string contextKey)
         {
             string clipKey = string.IsNullOrEmpty(contextKey) ? "" : "music_" + contextKey;

@@ -2,9 +2,6 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    /// <summary>The ten environmental interactions (§2.6) that drive the secret ending.
-    /// Intended sequence = the document's own listing order (conflict C5); each clue's
-    /// ChainHint points to the next so the order is discoverable in-game.</summary>
     public static class ClueRegistry
     {
         public static List<ClueDef> Build()
@@ -63,7 +60,6 @@ namespace Hollowbrook.Logic
         public ClueDef Def;
     }
 
-    /// <summary>Tracks clue discovery, the intended-sequence condition, and room investigation.</summary>
     public class ClueTracker
     {
         private readonly Dictionary<string, ClueDef> _byKey = new Dictionary<string, ClueDef>();
@@ -114,15 +110,12 @@ namespace Hollowbrook.Logic
 
         public bool AllFound => _found.Count >= _byKey.Count;
 
-        /// <summary>Secret-ending investigation condition: all ten interactions, intended
-        /// sequence intact, and Hallway + Classroom 1 + Classroom 2 all investigated.</summary>
         public bool SecretConditionsMet =>
             AllFound && OrderIntact &&
             _investigatedRooms.Contains(RoomId.Hallway) &&
             _investigatedRooms.Contains(RoomId.Classroom1) &&
             _investigatedRooms.Contains(RoomId.Classroom2);
 
-        // --- save support ---
         public List<string> SaveFound() { var l = new List<string>(_found); l.Sort(System.StringComparer.Ordinal); return l; }
         public void LoadFound(IEnumerable<string> keys)
         {
@@ -134,7 +127,6 @@ namespace Hollowbrook.Logic
                 _found.Add(k);
                 if (_byKey[k].Order == _nextInSequence) _nextInSequence++;
             }
-            // Replaying found keys cannot restore sequence state; the save stores it separately.
         }
         public List<string> SaveRooms()
         {

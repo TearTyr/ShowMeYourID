@@ -6,10 +6,6 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
-    /// <summary>2D side-scroll custodian movement (approved §2.5): walk/run left-right,
-    /// interact (E), flashlight (F), map (M), pause (Esc). No physics dependency — position
-    /// is clamped to the room bounds every frame, so the player can never leave a room or
-    /// get stuck (movement recovery is built into PlaceInRoom + clamping).</summary>
     public class PlayerController : MonoBehaviour
     {
         private GameRoot R;
@@ -54,7 +50,6 @@ namespace Hollowbrook.World
 
             bool dialogueOpen = R.Dialogue != null && R.Dialogue.IsActive;
 
-            // Esc toggles pause (and unpauses from exploration); dialogue blocks movement only
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 if (R.Paused) R.TogglePause(false);
@@ -98,7 +93,7 @@ namespace Hollowbrook.World
             if (_stepTimer <= 0f)
             {
                 _stepTimer = running ? 0.30f : 0.45f;
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_footstep", 0.30f, null));
+                R.Audio.PlaySfx("sfx_footstep", 0.30f);
             }
             _animTimer -= dt;
             if (_animTimer <= 0f)
@@ -119,7 +114,7 @@ namespace Hollowbrook.World
         {
             _flashlight = !_flashlight;
             if (_room != null && _room.Light != null) _room.Light.ToggleFocus(_flashlight);
-            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_click", 0.5f, null));
+            R.Audio.PlaySfx("sfx_click", 0.5f);
             UpdateCone();
         }
 
@@ -132,10 +127,8 @@ namespace Hollowbrook.World
             _cone.transform.localScale = new Vector3(_faceDir * 0.78f, 0.72f, 1f);
         }
 
-        /// <summary>Does the flashlight cone cover this world point? (Focus-mode reveal / Blink freeze.)</summary>
         public bool ConeCovers(Vector3 worldPoint)
         {
-            // the rig is the single source of truth for the beam; this stays as a proxy
             if (R != null && R.Views != null && R.Views.Flashlight != null)
                 return R.Views.Flashlight.ConeCovers(worldPoint);
             if (!_flashlight || _room == null) return false;

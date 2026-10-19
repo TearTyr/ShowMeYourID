@@ -5,10 +5,6 @@ using UnityEngine;
 
 namespace Hollowbrook.Core
 {
-    /// <summary>File-backed save/load (Application.persistentDataPath). The format itself is
-    /// the pure-logic <see cref="SaveFormat"/> (versioned, checksum-guarded, round-trip
-    /// tested). Every read path is exception-safe: a missing/corrupt save reports "no save"
-    /// instead of throwing, so the main menu can never get stuck on a bad Continue.</summary>
     public class SaveSystem
     {
         private const string FileName = "hollowbrook_save.txt";
@@ -75,7 +71,6 @@ namespace Hollowbrook.Core
             }
         }
 
-        /// <summary>Returns null when there is no usable save.</summary>
         public SaveGame Read()
         {
             try

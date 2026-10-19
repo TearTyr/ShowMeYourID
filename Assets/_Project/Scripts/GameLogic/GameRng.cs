@@ -2,9 +2,6 @@ using System;
 
 namespace Hollowbrook.Logic
 {
-    /// <summary>Deterministic RNG wrapper. Same seed => same roster/events, which
-    /// makes saves reproducible (rosters regenerate identically on Continue) and
-    /// tests stable.</summary>
     public sealed class GameRng
     {
         private readonly Random _rand;
@@ -33,7 +30,6 @@ namespace Hollowbrook.Logic
             return items[_rand.Next(items.Length)];
         }
 
-        /// <summary>Fisher–Yates shuffle in place.</summary>
         public void Shuffle<T>(System.Collections.Generic.List<T> list)
         {
             for (int i = list.Count - 1; i > 0; i--)

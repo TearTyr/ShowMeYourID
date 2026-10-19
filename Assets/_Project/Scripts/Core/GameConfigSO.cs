@@ -2,11 +2,6 @@ using UnityEngine;
 
 namespace Hollowbrook.Core
 {
-    /// <summary>Tuning data as a ScriptableObject (per master-prompt architecture).
-    /// The bootstrap tries Resources.Load first and falls back to a procedural default
-    /// instance, so the game always boots even with no .asset files present.
-    /// Gameplay RULES live in the pure-logic layer (Hollowbrook.Logic) — this asset only
-    /// carries presentation/pacing knobs designers may want to tweak in the editor.</summary>
     [CreateAssetMenu(fileName = "GameConfig", menuName = "ShowMeYourID/Game Config")]
     public class GameConfigSO : ScriptableObject
     {

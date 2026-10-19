@@ -5,13 +5,6 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
-    /// <summary>Per-room light rig. Modes (master-prompt spec):
-    ///  • Off    — dark; sanity drains; Blink anomalies move; CoverHug is a faint shape.
-    ///  • Sweep  — fluorescent default with rare flicker events; safe-ish.
-    ///  • Focus  — the custodian's flashlight follows the player; reveals CoverHug,
-    ///             freezes Blink inside the cone; small sanity comfort.
-    /// Darkness never hides essential information: interactable prompts and the HUD live
-    /// on the UI canvas above this overlay (approved readability requirement).</summary>
     public class LightController : MonoBehaviour
     {
         public LightMode Mode { get; private set; } = LightMode.Sweep;
@@ -45,7 +38,6 @@ namespace Hollowbrook.World
 
         private LightMode _lastNonFocus = LightMode.Sweep;
 
-        /// <summary>F (flashlight) toggles Focus without losing the room's switch state.</summary>
         public void ToggleFocus(bool on)
         {
             SetMode(on ? LightMode.Focus : _lastNonFocus);
@@ -76,7 +68,7 @@ namespace Hollowbrook.World
             bool photoSafe = R.Settings != null && R.Settings.PhotosensitivitySafe;
             int pulses = photoSafe ? 2 : 4;
             float baseAlpha = 0.12f;
-            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_flicker", 0.5f, null));
+            R.Audio.PlaySfx("sfx_flicker", 0.5f);
             for (int i = 0; i < pulses; i++)
             {
                 // gentle dim (never a hard strobe; photosensitivity guard caps contrast)

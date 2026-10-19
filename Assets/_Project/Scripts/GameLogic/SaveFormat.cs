@@ -4,7 +4,6 @@ using System.Text;
 
 namespace Hollowbrook.Logic
 {
-    /// <summary>A complete save payload: run session + settings + meta records.</summary>
     public class SaveGame
     {
         public GameSession Session = new GameSession();
@@ -13,11 +12,6 @@ namespace Hollowbrook.Logic
         public string SavedAtLabel = ""; // human-readable, informational only
     }
 
-    /// <summary>Versioned, line-based save format with a checksum guard.
-    /// Deliberately hand-rolled (instead of JsonUtility) so the exact same code runs in
-    /// Unity and in the headless test runner — round-trip verified by tests.
-    /// Corrupt/truncated/unknown-version files deserialize to null; callers fall back to
-    /// "no save" instead of throwing (no stuck states).</summary>
     public static class SaveFormat
     {
         public const string Header = "SMYIDSAVE";
@@ -77,7 +71,6 @@ namespace Hollowbrook.Logic
             if (head.Length != 2 || head[0] != Header) return null;
             if (!int.TryParse(head[1], out int ver) || ver != Version) return null;
 
-            // checksum guard — body is every line INCLUDING the header (matches Serialize)
             string checksumLine = null;
             var body = new StringBuilder();
             for (int i = 0; i < lines.Length; i++)
@@ -154,7 +147,6 @@ namespace Hollowbrook.Logic
             return save;
         }
 
-        // --- helpers ---
         private static void KV(StringBuilder sb, string key, string value) =>
             sb.Append(key).Append('=').Append(value ?? "").Append('\n');
 

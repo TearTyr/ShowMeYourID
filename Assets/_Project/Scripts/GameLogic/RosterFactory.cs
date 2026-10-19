@@ -3,25 +3,11 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    /// <summary>Generates shift rosters and endless/challenge visitors from a seed.
-    /// Fairness invariants (asserted by the headless test suite):
-    ///  • every legitimate visitor has zero objective document defects, is in the registry,
-    ///    answers truthfully with Normal tone, and is never flagged as a duplicate;
-    ///  • every anomaly carries at least one defect that is detectable with the checkpoint
-    ///    tools (documents, scan, photo comparison, or ≤2 questions);
-    ///  • generation is deterministic for a given seed, so saves resume identically.
-    /// Duplicate-ID evidence uses <see cref="PresentationLog"/> ("tonight" scope in Normal mode).
-    /// The ID-number defect family {IdFormatInvalid, NotInDatabase, DuplicateId} is mutually
-    /// exclusive per visitor so defects never invalidate each other.
-    /// </summary>
     public class RosterFactory
     {
         private readonly List<StudentIdentity> _canon;
         private readonly HashSet<string> _registry = new HashSet<string>();
         private readonly GameRng _rng;
-        // Generation-time log: mirrors what the play-time session log will contain at each
-        // visitor's turn (entries 0..i-1). Used only to build DuplicateId evidence. The UI
-        // scanner reads the SESSION's play log (recorded after each verdict) instead.
         private readonly PresentationLog _genLog = new PresentationLog();
 
         public IReadOnlyList<StudentIdentity> Canon => _canon;
@@ -34,8 +20,6 @@ namespace Hollowbrook.Logic
             _canon = Content.BuildStudentRoster();
             foreach (var s in _canon) _registry.Add(s.IdNumber);
         }
-
-        // ---------------------------------------------------------------- Normal mode
 
         public List<VisitorData> GenerateShift(ShiftDef shift)
         {
@@ -81,12 +65,8 @@ namespace Hollowbrook.Logic
             return slots;
         }
 
-        // ---------------------------------------------------------------- builders
-
         private VisitorData BuildLegit(StudentIdentity id, ShiftDef shift)
         {
-            // Shift 0 = endless/challenge run: near-expiry legit IDs are allowed there too so
-            // the Challenge "strict expiry" rule mutation has cases to act on.
             bool nearExpiry = (shift.Number >= 2 || shift.Number == 0) && _rng.Chance(0.25f);
             int expDay = nearExpiry
                 ? Content.DayNumberOfDate(2026, 11, 20 + _rng.NextInt(0, 20))
@@ -260,8 +240,6 @@ namespace Hollowbrook.Logic
                 }
                 case DefectType.DuplicateId:
                 {
-                    // Recycle an ID number already presented tonight with a DIFFERENT card:
-                    // the visitor keeps their own name/photo but carries someone else's number.
                     var candidates = new List<string>();
                     foreach (var sid in _genLog.PresentedIds())
                     {
@@ -300,9 +278,6 @@ namespace Hollowbrook.Logic
 
         private void BuildAnswers(VisitorData v, StudentIdentity id, bool truthful, bool behaviorOnly = false)
         {
-            // Course / Year / Status describe what the visitor *claims*; anomalies answer from
-            // their cover story (their ID), so questioning alone does not expose document
-            // defects — it exposes BehaviorOddity and adds evidence when ID/record disagree.
             string courseAnswer = truthful ? id.CourseString : Content.Courses[v.IdCourseIndex];
             string yearAnswer = truthful ? id.YearString : Content.YearNames[v.IdYearLevel - 1];
             string statusAnswer = (truthful ? id.IsTransferee : v.IdIsTransferee) ? "Transferee" : "Regular";
@@ -313,7 +288,6 @@ namespace Hollowbrook.Logic
 
             if (behaviorOnly)
             {
-                // Doesn't know the real schedule — this is how BehaviorOddity is caught.
                 string[] wrong =
                 {
                     "Room… 204? I don't remember exactly.",
@@ -351,13 +325,8 @@ namespace Hollowbrook.Logic
             return ToneTag.Normal;
         }
 
-        // ---------------------------------------------------------------- Shift-5 administrator (C3)
-
-        /// <summary>Identity draw for callers that assemble their own queues (office late list).</summary>
         public StudentIdentity PickIdentity(GameRng rng) => _canon[rng.NextInt(0, _canon.Count)];
 
-        /// <summary>Late-arrival build for the security office: the SAME builders as the
-        /// checkpoint roster, so the fairness invariants hold at the door too.</summary>
         public VisitorData BuildLateStudent(StudentIdentity id, ShiftDef shift, bool anomaly)
         {
             var v = anomaly ? BuildAnomaly(id, shift) : BuildLegit(id, shift);
@@ -400,10 +369,6 @@ namespace Hollowbrook.Logic
             return v;
         }
 
-        // ---------------------------------------------------------------- Endless / Challenge
-
-        /// <summary>Difficulty ramps with the number already processed. The presentation log
-        /// spans the whole run; legitimate returners (same card) are never flagged.</summary>
         public VisitorData GenerateRunVisitor(int processedSoFar)
         {
             float anomalyChance = Math.Min(0.15f + processedSoFar * 0.02f, 0.6f);
@@ -426,8 +391,6 @@ namespace Hollowbrook.Logic
             return v;
         }
 
-        // ---------------------------------------------------------------- scan UI helper
-
         public class ScanResult
         {
             public bool FormatValid;
@@ -438,9 +401,6 @@ namespace Hollowbrook.Logic
             public string Display;
         }
 
-        /// <summary>What the checkpoint scanner reports for the visitor currently at the window.
-        /// Reads the play-time log (presentations recorded after each completed verdict), so the
-        /// visitor being scanned is never compared against their own entry.</summary>
         public ScanResult Scan(VisitorData v, PresentationLog playLog)
         {
             var r = new ScanResult();
@@ -457,9 +417,6 @@ namespace Hollowbrook.Logic
                 r.Display = "SYSTEM ERROR — UNREADABLE ID NUMBER";
                 return r;
             }
-            // Duplicate/returner evidence is computed BEFORE the registry early-return, so an
-            // unregistered ("ghost") ID that was already presented tonight with a different card
-            // still shows the warning — otherwise the scanner reports less than the results banner.
             bool presented = playLog != null && playLog.WasPresented(v.IdNumber);
             r.DuplicateTonight = playLog != null && playLog.WasPresentedWithDifferentCard(v.IdNumber, v.IdPhoto);
             r.ReturningStudent = presented && !r.DuplicateTonight;

@@ -2,10 +2,6 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    /// <summary>The questioning mechanic (§2.3). Four question types are available;
-    /// at most <see cref="Content.MaxQuestionsPerInspection"/> may be asked per inspection
-    /// (conflict C1 resolution — the approved gameplay section and both testing checklists
-    /// specify 1–2 questions).</summary>
     public static class QuestionSystem
     {
         public static readonly QuestionId[] All =
@@ -30,7 +26,6 @@ namespace Hollowbrook.Logic
             return new Answer { Text = "…", Tone = ToneTag.Flat, ContradictsDocuments = false };
         }
 
-        /// <summary>Per-inspection budget tracker.</summary>
         public class Budget
         {
             private readonly HashSet<QuestionId> _asked = new HashSet<QuestionId>();
@@ -55,8 +50,6 @@ namespace Hollowbrook.Logic
         }
     }
 
-    /// <summary>Evaluates the player's Allow/Reject decision against ground truth.
-    /// Decisions are permanent (§2.4).</summary>
     public static class InspectionRules
     {
         public class Outcome
@@ -71,7 +64,6 @@ namespace Hollowbrook.Logic
             public List<string> RevealedDefects = new List<string>();
         }
 
-        /// <summary>The verdict the rules require, given any active Challenge rule mutation.</summary>
         public static Verdict ExpectedVerdict(VisitorData v, RuleMutationDef activeMutation)
         {
             if (activeMutation != null && activeMutation.ForcesReject(v)) return Verdict.Reject;

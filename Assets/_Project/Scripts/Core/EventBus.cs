@@ -2,8 +2,6 @@ using System;
 
 namespace Hollowbrook.Core
 {
-    /// <summary>Lightweight event payload. One struct for all bus traffic keeps the
-    /// EventBus allocation-free and the handler signature uniform.</summary>
     public struct GameEvent
     {
         public string Id;
@@ -23,9 +21,6 @@ namespace Hollowbrook.Core
         public override string ToString() => "GameEvent(" + Id + ")";
     }
 
-    /// <summary>Subscribe handle. Dispose (or keep and let owners dispose in OnDestroy)
-    /// to unsubscribe — every subscribing view MUST dispose its handles to avoid leaks
-    /// and callbacks into destroyed objects.</summary>
     public sealed class EventSubscription : IDisposable
     {
         private EventBus _bus;
@@ -43,9 +38,6 @@ namespace Hollowbrook.Core
         }
     }
 
-    /// <summary>String-id publish/subscribe bus (per master-prompt architecture).
-    /// Main-thread only. Handlers that throw are logged and skipped so one broken
-    /// subscriber can never wedge the game loop.</summary>
     public sealed class EventBus
     {
         private readonly System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<Action<GameEvent>>> _subs
@@ -72,7 +64,6 @@ namespace Hollowbrook.Core
         {
             if (string.IsNullOrEmpty(e.Id)) return;
             if (!_subs.TryGetValue(e.Id, out var list) || list.Count == 0) return;
-            // snapshot: handlers may (un)subscribe during publish
             var snapshot = list.ToArray();
             foreach (var h in snapshot)
             {
@@ -86,7 +77,6 @@ namespace Hollowbrook.Core
 
         public void Publish(string id) => Publish(GameEvent.Of(id));
 
-        /// <summary>Drop every subscription (used when tearing down a run).</summary>
         public void Clear() => _subs.Clear();
 
         public int SubscriberCount(string id) => _subs.TryGetValue(id, out var l) ? l.Count : 0;

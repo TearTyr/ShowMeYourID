@@ -3,8 +3,6 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    /// <summary>Procedural portrait descriptor (rendered by ProceduralArt on the Unity side).
-    /// Monochrome silhouette style per the approved art direction.</summary>
     [Serializable]
     public struct Portrait
     {
@@ -19,7 +17,6 @@ namespace Hollowbrook.Logic
         public override bool Equals(object obj) => obj is Portrait p && p == this;
         public override int GetHashCode() => (HairStyle * 31 + FaceVariant) * 31 + Accessory;
 
-        /// <summary>Obvious mismatch: everything differs. Used for PhotoMismatch.</summary>
         public Portrait Swapped() => new Portrait
         {
             HairStyle = (HairStyle + 3) % 6,
@@ -28,7 +25,6 @@ namespace Hollowbrook.Logic
             Distorted = Distorted,
         };
 
-        /// <summary>Single-feature mismatch. Used for PhotoSubtleMismatch (shift 3+).</summary>
         public Portrait SubtleVariant(GameRng rng)
         {
             var p = this;
@@ -41,8 +37,6 @@ namespace Hollowbrook.Logic
         }
     }
 
-    /// <summary>One of the 14 unique students (8 core + 6 variations) from the asset plan.
-    /// Identities are reused across shifts; anomalies wear existing identities.</summary>
     [Serializable]
     public class StudentIdentity
     {
@@ -63,20 +57,14 @@ namespace Hollowbrook.Logic
             (FirstClassroom == RoomId.Classroom1 ? "Room 101" : "Room 202") + " · " + FirstClassSubject;
     }
 
-    /// <summary>Answer to one question, with delivery tone.</summary>
     [Serializable]
     public struct Answer
     {
         public string Text;
         public ToneTag Tone;
-        /// <summary>True when the answer contradicts the visitor's presented documents
-        /// (objective ground truth used by tests and the results summary).</summary>
         public bool ContradictsDocuments;
     }
 
-    /// <summary>A person at the window. Legitimate visitors exactly match a StudentIdentity
-    /// (zero defects). Anomalies carry 1+ defects; <see cref="IsAnomaly"/> is ground truth
-    /// and must never be exposed to UI code directly.</summary>
     [Serializable]
     public class VisitorData
     {
@@ -109,7 +97,6 @@ namespace Hollowbrook.Logic
 
         public bool PhotoMatches => WindowPortrait == IdPhoto;
 
-        /// <summary>Ground-truth discrepancy list shown on the results banner after the verdict.</summary>
         public List<string> DescribeDefects()
         {
             var lines = new List<string>();
@@ -135,8 +122,6 @@ namespace Hollowbrook.Logic
         }
     }
 
-    /// <summary>One of the ten environmental interactions (§2.6). The listing order in the
-    /// source document is the intended sequence for the secret ending (conflict C5).</summary>
     [Serializable]
     public class ClueDef
     {
@@ -150,7 +135,6 @@ namespace Hollowbrook.Logic
         public bool IsScare;         // triggers a scare/stinger event
     }
 
-    /// <summary>One night of Normal mode.</summary>
     [Serializable]
     public class ShiftDef
     {
@@ -169,8 +153,6 @@ namespace Hollowbrook.Logic
         public bool ExplorationFocus;    // shift 4 nudges investigation
     }
 
-    /// <summary>Challenge-mode rule mutation: an official temporary policy change that
-    /// flips the correct verdict for some legitimate visitors ("unpredictable rule changes").</summary>
     [Serializable]
     public class RuleMutationDef
     {
@@ -179,7 +161,6 @@ namespace Hollowbrook.Logic
 
         public RuleMutationDef(string key, string text) { Key = key; RuleText = text; }
 
-        /// <summary>True when this mutation forces rejection of an otherwise-legit visitor.</summary>
         public bool ForcesReject(VisitorData v)
         {
             switch (Key)
@@ -195,7 +176,6 @@ namespace Hollowbrook.Logic
         }
     }
 
-    /// <summary>Static content pools shared by generation, UI and tests.</summary>
     public static class Content
     {
         public const int TotalStudents = 14;          // 8 core + 6 variations (approved asset plan)
@@ -209,21 +189,15 @@ namespace Hollowbrook.Logic
 
         public static readonly string[] YearNames = { "1st Year", "2nd Year", "3rd Year", "4th Year" };
 
-        // Five consecutive nights. The school is finishing the term before permanent closure.
         public static readonly string[] ShiftDates =
         {
             "Mon · Nov 2", "Tue · Nov 3", "Wed · Nov 4", "Thu · Nov 5", "Fri · Nov 6",
         };
 
-        /// <summary>Absolute day number for the given shift night (1..5). Day 1 = 2026-11-02.
-        /// Used for expiration comparisons without pulling in DateTime parsing.</summary>
         public static int ShiftDayNumber(int shift) => 1000 + shift; // arbitrary monotonic base
 
         public static int DayNumberOfDate(int year, int month, int day)
         {
-            // Only dates in the story window matter; map them onto the same monotonic axis.
-            // 2026-11-02 == ShiftDayNumber(1) == 1001. 30-day months approximation is fine
-            // because all comparisons are order-based and dates come from this function.
             int y = year - 2026, m = month, d = day;
             return 1001 + (y * 360 + (m - 11) * 30 + (d - 2));
         }
@@ -231,12 +205,10 @@ namespace Hollowbrook.Logic
         public static string DisplayDate(int year, int month, int day) =>
             year.ToString("D4") + "-" + month.ToString("D2") + "-" + day.ToString("D2");
 
-        /// <summary>The 14 unique students. Deterministic (no RNG) so all systems share one canon.</summary>
         public static List<StudentIdentity> BuildStudentRoster()
         {
             string[,] core =
             {
-                // name,            year, course, transferee, hair, face, acc, room(1/2), subject
                 { "Ana Delgado",     "3", "0", "0", "0", "0", "1", "1", "Data Structures" },
                 { "Marco Reyes",     "2", "4", "0", "1", "1", "0", "2", "Criminal Law" },
                 { "Liza Santos",     "4", "1", "0", "2", "2", "1", "1", "Taxation Review" },
@@ -245,7 +217,6 @@ namespace Hollowbrook.Logic
                 { "Carlo Mendoza",   "2", "0", "0", "5", "5", "0", "2", "Networking" },
                 { "Trisha Ramos",    "4", "2", "0", "0", "3", "2", "1", "Media Ethics" },
                 { "Miguel Bautista", "1", "5", "1", "1", "4", "0", "2", "Intro Psychology" },
-                // 6 extra variations
                 { "Grace Lim",       "3", "6", "0", "2", "5", "1", "1", "Genetics" },
                 { "Paolo Soriano",   "2", "1", "1", "3", "0", "0", "2", "Bookkeeping" },
                 { "Kim Alonzo",      "4", "4", "0", "4", "1", "3", "1", "Forensics" },
@@ -258,7 +229,6 @@ namespace Hollowbrook.Logic
             for (int i = 0; i < TotalStudents; i++)
             {
                 int year = int.Parse(core[i, 1]);
-                // Enrollment year is consistent with year level for the 2026–27 term (flavor rule).
                 int enrollYear = 2027 - year;
                 var id = new StudentIdentity
                 {

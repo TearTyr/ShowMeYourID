@@ -8,16 +8,10 @@ using UnityEngine;
 
 namespace Hollowbrook.Horror
 {
-    /// <summary>A wandering anomaly inside a room (approved: "may find wandering anomalies",
-    /// "anomalies can appear anytime"). Behavior strategies implement the master-prompt set:
-    /// Blink, Slide, Sprint, CoverHug. Anomalies never kill — the lose conditions are
-    /// decision-based only; being caught costs sanity + a scare + repositioning (evasion is
-    /// always possible via doors, lights and the flashlight).</summary>
     public class WanderingAnomaly : MonoBehaviour
     {
         private GameRoot R;
         private RoomInstance _room;
-        private AnomalyBehavior _behavior;
         private SpriteRenderer _sr;
         private float _lifetime;
         private bool _sightedPenaltyApplied;
@@ -53,20 +47,14 @@ namespace Hollowbrook.Horror
                 ? new Vector3(spawn.x, floorY + 4.6f, 0)
                 : new Vector3(spawn.x, floorY + 2.4f, 0);
 
-            switch (kind)
-            {
-                case AnomalyBehaviorKind.Blink: _behavior = new BlinkBehavior(); break;
-                case AnomalyBehaviorKind.Slide: _behavior = new SlideBehavior(); break;
-                case AnomalyBehaviorKind.Sprint: _behavior = new SprintBehavior(); break;
-                default: _behavior = new CoverHugBehavior(); break;
-            }
-            _behavior.Attach(this, root, room, _sr);
-            _lifetime = hallucination ? 6.5f : _behavior.Lifetime;
+            _telegraph = R.Config.sprintTelegraphSeconds;
+            PickTarget(Vector3.zero);
+            _lifetime = hallucination ? 6.5f : 18f;
 
             if (!hallucination)
             {
-                root.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_glitch", 0.55f, null));
-                root.Bus.Publish(GameEvent.Of(EventIds.MusicContextRequested, "anomaly"));
+                root.Audio.PlaySfx("sfx_glitch", 0.55f);
+                root.Audio.PlayMusic("anomaly");
             }
         }
 
@@ -86,7 +74,7 @@ namespace Hollowbrook.Horror
             Vector3 playerPos = R.Views != null && R.Views.Player != null
                 ? R.Views.Player.transform.localPosition : Vector3.zero;
 
-            if (!dialogueOpen && !_revealed) _behavior.Tick(dt, playerPos);
+            if (!dialogueOpen && !_revealed) MoveBehavior(dt, playerPos);
 
             TickTracking(dt, dialogueOpen);
             TickStates(dt);
@@ -95,7 +83,6 @@ namespace Hollowbrook.Horror
 
             if (!IsHallucination)
             {
-                // proximity dread: slow sanity drain when it is close
                 float d = Mathf.Abs(playerPos.x - transform.localPosition.x);
                 if (d < 3.2f)
                 {
@@ -107,7 +94,6 @@ namespace Hollowbrook.Horror
                         R.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, R.Session.Sanity));
                     }
                 }
-                // first clear sighting costs a chunk of sanity
                 if (!_sightedPenaltyApplied && d < 5f)
                 {
                     _sightedPenaltyApplied = true;
@@ -118,9 +104,6 @@ namespace Hollowbrook.Horror
             }
         }
 
-        /// <summary>Master prompt §3/§4: hold an anomaly in the light and the haze solidifies
-        /// toward ink; a full meter reveals/dispels it and leaves a token. The same beam held
-        /// on a hallucination for half a second proves it was never there.</summary>
         private void TickTracking(float dt, bool dialogueOpen)
         {
             if (dialogueOpen || R == null || R.Views == null) return;
@@ -164,12 +147,11 @@ namespace Hollowbrook.Horror
                 R.Bus.Publish(GameEvent.Of(EventIds.AnomalyRevealed, Kind));
                 R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested,
                     "*the light holds it still - it is solid now*", 2.6f, null));
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_stinger", 0.5f, null));
+                R.Audio.PlaySfx("sfx_stinger", 0.5f);
                 DropToken();
             }
         }
 
-        /// <summary>Proof-of-observation pickup (spec §3 "leaves a Token").</summary>
         private void DropToken()
         {
             if (_room == null || transform.parent == null) return;
@@ -186,9 +168,6 @@ namespace Hollowbrook.Horror
             _room.Interactables.Add(pick);
         }
 
-        /// <summary>Roam / Stalk / Detected / Exposed / Repelled / Recovering — the encounter
-        /// state machine (design §6). Decisions live in GameLogic.AnomalyEncounter; this view
-        /// only reads light/battery/distance and renders the consequences.</summary>
         private void TickStates(float dt)
         {
             if (IsHallucination || R == null || R.Views == null) return;
@@ -209,7 +188,7 @@ namespace Hollowbrook.Horror
                 ShowFace();
                 R.Bus.Publish(GameEvent.Of(EventIds.AnomalyStateChanged, _state.ToString()));
                 R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*under the beam the face is WRONG*", 2.6f, null));
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_glitch", 0.6f, null));
+                R.Audio.PlaySfx("sfx_glitch", 0.6f);
             }
             if (step.JustRepelled)
             {
@@ -217,14 +196,14 @@ namespace Hollowbrook.Horror
                 DropToken();
                 R.Bus.Publish(GameEvent.Of(EventIds.AnomalyStateChanged, _state.ToString()));
                 R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it tears itself away from the light*", 2.6f, null));
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_stinger", 0.7f, null));
+                R.Audio.PlaySfx("sfx_stinger", 0.7f);
                 if (R.Views != null) R.Views.ScheduleReturn(Kind);
             }
             if (step.Threatening && !_threatTold)
             {
                 _threatTold = true;
                 R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*footsteps, close, behind you*", 2.2f, null));
-                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_heartbeat", 0.7f, null));
+                R.Audio.PlaySfx("sfx_heartbeat", 0.7f);
             }
             if (!step.Threatening) _threatTold = false;
         }
@@ -241,8 +220,6 @@ namespace Hollowbrook.Horror
             _face.sortingOrder = 81;
         }
 
-        /// <summary>Alpha/order rules: silhouettes under darkness; CoverHug only truly revealed
-        /// by the Focus beam; hallucinations are translucent.</summary>
         public void TickVisibility()
         {
             if (_sr == null) return;
@@ -253,7 +230,7 @@ namespace Hollowbrook.Horror
                 return;
             }
             bool illuminated = R.Views != null && R.Views.IsIlluminated(transform.localPosition);
-            float alpha = _behavior.BaseAlpha;
+            float alpha = Kind == AnomalyBehaviorKind.CoverHug ? 0.35f : 0.92f;
             int order = 40;
             if (IsHallucination) alpha = 0.45f;
             if (illuminated) { alpha = Mathf.Max(alpha, 0.95f); order = 71; }
@@ -266,7 +243,6 @@ namespace Hollowbrook.Horror
             }
         }
 
-        /// <summary>Called by behaviors when they touch the player.</summary>
         public void CatchPlayer()
         {
             if (IsHallucination) { Despawn(true); return; }
@@ -275,7 +251,6 @@ namespace Hollowbrook.Horror
             R.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, R.Session.Sanity));
             R.Bus.Publish(GameEvent.Of(EventIds.AnomalyCaught, Kind));
             if (R.Scares != null) R.Scares.Capture(Kind);
-            // evasion recovery: the player ends up back at the room entrance, unharmed but shaken
             if (R.Views != null && R.Views.Player != null)
                 R.Views.Player.PlaceInRoom(_room, _room.PlayerSpawn);
             Despawn(true);
@@ -289,200 +264,51 @@ namespace Hollowbrook.Horror
                     GameRoot.MusicForRoom(_room != null ? _room.Id : RoomId.Hallway)));
             Destroy(gameObject);
         }
-    }
 
-    // ------------------------------------------------------------------ behaviors
+    // one script, one switch: the four evasion patterns (was four strategy classes)
+    private float _targetX;
+    private float _telegraph;
 
-    public abstract class AnomalyBehavior
+    private void MoveBehavior(float dt, Vector3 playerPos)
     {
-        protected WanderingAnomaly Body;
-        protected GameRoot R;
-        protected RoomInstance Room;
-        protected SpriteRenderer Sr;
-        public virtual float Lifetime => 18f;
-        public virtual float BaseAlpha => 0.92f;
-
-        public void Attach(WanderingAnomaly body, GameRoot root, RoomInstance room, SpriteRenderer sr)
+        var p = transform.localPosition;
+        float speed = 1.1f;
+        if (Kind == AnomalyBehaviorKind.Blink)
         {
-            Body = body; R = root; Room = room; Sr = sr;
-            OnInit();
+            if (!Observed()) p.x = Mathf.MoveTowards(p.x, playerPos.x, speed * dt);   // moves only unseen
         }
-        protected virtual void OnInit() { }
-        public abstract void Tick(float dt, Vector3 playerPos);
-
-        protected float FloorY => -2.4f;
-        protected bool Observed()
+        else if (Kind == AnomalyBehaviorKind.Slide)
         {
-            // "Observed" = room lights on (Sweep) or inside the flashlight cone (Focus).
-            if (Room != null && Room.Light != null && Room.Light.Mode == LightMode.Sweep) return true;
-            return R.Views != null && R.Views.IsIlluminated(Body.transform.localPosition);
+            p.x = Mathf.MoveTowards(p.x, _targetX, speed * 0.8f * dt);
+            if (Mathf.Abs(p.x - _targetX) < 0.2f) PickTarget(playerPos);
         }
-        protected void MoveTowards(float targetX, float speed, float dt)
+        else if (Kind == AnomalyBehaviorKind.Sprint)
         {
-            var p = Body.transform.localPosition;
-            p.x = Mathf.MoveTowards(p.x, targetX, speed * dt);
-            Body.transform.localPosition = p;
+            _telegraph -= dt;
+            if (_telegraph <= 0f) p.x = Mathf.MoveTowards(p.x, playerPos.x, 4.5f * dt);
         }
+        else // CoverHug: ceiling lurker, only the Focus beam finds it
+        {
+            p.y = Mathf.MoveTowards(p.y, -0.6f, 0.4f * dt);
+            p.x = Mathf.MoveTowards(p.x, _targetX, speed * 0.5f * dt);
+            if (Mathf.Abs(p.x - _targetX) < 0.2f) PickTarget(playerPos);
+        }
+        p.y = Mathf.Clamp(p.y, -2.6f, -0.4f);
+        transform.localPosition = p;
     }
 
-    /// <summary>BLINK — motionless while observed; closes distance only in darkness
-    /// (matches the approved teaser: "whenever the light goes out, the student moves closer").
-    /// Contact in the dark = caught.</summary>
-    public class BlinkBehavior : AnomalyBehavior
+    private void PickTarget(Vector3 playerPos)
     {
-        public override float Lifetime => 26f;
-        private float _jitter;
-
-        public override void Tick(float dt, Vector3 playerPos)
-        {
-            if (Observed())
-            {
-                // frozen — micro-jitter unless reduced motion
-                _jitter += dt;
-                if (R.Settings == null || !R.Settings.ReduceMotion)
-                {
-                    var p = Body.transform.localPosition;
-                    p.y = FloorY + 2.4f + Mathf.Sin(_jitter * 30f) * 0.012f;
-                    Body.transform.localPosition = p;
-                }
-                return;
-            }
-            MoveTowards(playerPos.x, 1.15f, dt);
-            if (Mathf.Abs(playerPos.x - Body.transform.localPosition.x) < 0.9f &&
-                Mathf.Abs(playerPos.y - Body.transform.localPosition.y) < 2.2f)
-                Body.CatchPlayer();
-        }
+        float half = _room != null ? _room.HalfWidth : 10f;
+        _targetX = UnityEngine.Random.Range(-half + 1f, half - 1f);
+        if (Mathf.Abs(_targetX - playerPos.x) < 2f) _targetX = -_targetX;
+        if (Kind == AnomalyBehaviorKind.Sprint) _telegraph = R.Config.sprintTelegraphSeconds;
     }
 
-    /// <summary>SLIDE — glides across the room ignoring observation and geometry; harmless on
-    /// its own (proximity dread handled by the entity) but deeply wrong to watch.</summary>
-    public class SlideBehavior : AnomalyBehavior
+    private bool Observed()
     {
-        public override float Lifetime => 15f;
-        public override float BaseAlpha => 0.60f;
-        private float _dir;
-
-        protected override void OnInit()
-        {
-            _dir = Random.value < 0.5f ? -1f : 1f;
-        }
-
-        public override void Tick(float dt, Vector3 playerPos)
-        {
-            var p = Body.transform.localPosition;
-            p.x += _dir * 0.85f * dt;
-            p.y = FloorY + 2.4f + Mathf.Sin(Time.time * 1.4f) * 0.05f;
-            if (p.x > Room.HalfWidth - 0.8f || p.x < -Room.HalfWidth + 0.8f) _dir = -_dir; // glides "through" walls visually at the seam
-            Body.transform.localPosition = p;
-        }
+        if (_room != null && _room.Light != null && _room.Light.Mode == LightMode.Sweep) return true;
+        return R.Views != null && R.Views.IsIlluminated(transform.localPosition);
     }
-
-    /// <summary>SPRINT — stands far away, glitches (telegraph), then bursts past the player.
-    /// Never catches; the pass-by is the scare (sanity handled here, respects Reduced Motion:
-    /// no camera shake, slower burst).</summary>
-    public class SprintBehavior : AnomalyBehavior
-    {
-        public override float Lifetime => 12f;
-        private enum Phase { Wait, Dash, Done }
-        private Phase _phase = Phase.Wait;
-        private float _timer;
-        private float _dashDir;
-        private bool _passed;
-
-        protected override void OnInit()
-        {
-            _timer = 1.0f + Random.value * 1.5f;
-        }
-
-        public override void Tick(float dt, Vector3 playerPos)
-        {
-            switch (_phase)
-            {
-                case Phase.Wait:
-                    _timer -= dt;
-                    if (_timer <= 0.35f && _timer + dt > 0.35f)
-                        R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_glitch", 0.8f, null)); // telegraph
-                    if (_timer <= 0f)
-                    {
-                        _phase = Phase.Dash;
-                        _dashDir = playerPos.x >= Body.transform.localPosition.x ? 1f : -1f;
-                        R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_stinger", 0.9f, null));
-                        if (R.Scares != null) R.Scares.Shake(0.35f);
-                    }
-                    break;
-                case Phase.Dash:
-                {
-                    float speed = (R.Settings != null && R.Settings.ReduceMotion) ? 7f : 13.5f;
-                    var dp = Body.transform.localPosition;
-                    dp.x += _dashDir * speed * dt;
-                    Body.transform.localPosition = dp;
-                    if (!_passed && Mathf.Abs(playerPos.x - Body.transform.localPosition.x) < 1.4f)
-                    {
-                        _passed = true;
-                        R.Session.ApplySanity(-10f);
-                        R.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, R.Session.Sanity));
-                        R.Bus.Publish(GameEvent.Of(EventIds.ScareTriggered, "sprint_pass"));
-                        if (R.Scares != null) R.Scares.Shake(0.5f);
-                    }
-                    if (Mathf.Abs(Body.transform.localPosition.x) > Room.HalfWidth + 1f)
-                    {
-                        _phase = Phase.Done;
-                        Body.Despawn(false);
-                    }
-                    break;
-                }
-            }
-        }
-
-    }
-
-    /// <summary>COVERHUG — clings near the ceiling in dim spots, barely visible without the
-    /// flashlight; standing under it too long = caught. Shining the Focus beam on it makes it
-    /// recoil (light is the player's tool — approved evasion system).</summary>
-    public class CoverHugBehavior : AnomalyBehavior
-    {
-        public override float Lifetime => 30f;
-        public override float BaseAlpha => 0.16f;
-        private float _underTimer;
-        private float _recoilTimer;
-
-        public override void Tick(float dt, Vector3 playerPos)
-        {
-            bool illuminated = R.Views != null && R.Views.IsIlluminated(Body.transform.localPosition);
-            var p = Body.transform.localPosition;
-
-            if (illuminated)
-            {
-                _recoilTimer += dt;
-                _underTimer = Mathf.Max(0f, _underTimer - dt * 2f);
-                if (_recoilTimer > 1.4f)
-                {
-                    // recoils away from the beam along the ceiling
-                    float away = playerPos.x > p.x ? -1f : 1f;
-                    p.x = Mathf.Clamp(p.x + away * 3.2f, -Room.HalfWidth + 1f, Room.HalfWidth - 1f);
-                    Body.transform.localPosition = p;
-                    _recoilTimer = 0f;
-                    R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_glitch", 0.5f, null));
-                }
-                return;
-            }
-            _recoilTimer = 0f;
-
-            bool under = Mathf.Abs(playerPos.x - p.x) < 1.4f;
-            _underTimer = under ? _underTimer + dt : Mathf.Max(0f, _underTimer - dt * 0.7f);
-
-            if (under && _underTimer > 0.4f && _underTimer < 0.4f + dt * 2f)
-                R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*something above you is breathing*", 2.5f, null));
-
-            float catchSeconds = R.Config != null ? R.Config.coverHugCatchSeconds : 2.6f;
-            if (_underTimer >= catchSeconds) Body.CatchPlayer();
-
-            // slow ceiling drift toward the player when the room is dark
-            if (Room.Light != null && Room.Light.Mode == LightMode.Off)
-            {
-                p.x = Mathf.MoveTowards(p.x, playerPos.x, 0.5f * dt);
-                Body.transform.localPosition = p;
-            }
-        }
-    }
+}
 }
