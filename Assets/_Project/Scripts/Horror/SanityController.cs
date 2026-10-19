@@ -96,8 +96,7 @@ namespace Hollowbrook.Horror
                 if (_heartbeatTimer <= 0f)
                 {
                     _heartbeatTimer = stage == SanityStage.Breaking ? 0.85f : 1.5f;
-                    R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_heartbeat",
-                        stage == SanityStage.Breaking ? 0.75f : 0.4f, null));
+                    R.Audio.PlaySfx("sfx_heartbeat", stage == SanityStage.Breaking ? 0.75f : 0.4f);
                 }
             }
         }

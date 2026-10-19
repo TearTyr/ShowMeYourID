@@ -58,7 +58,7 @@ namespace Hollowbrook.Horror
                 Distorted = true,
             };
             _face.sprite = ProceduralArt.Portrait("scare", distorted, 280, 320);
-            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_scare", photoSafe ? 0.45f : 0.9f, null));
+            R.Audio.PlaySfx("sfx_scare", photoSafe ? 0.45f : 0.9f);
             R.Bus.Publish(GameEvent.Of(EventIds.ScareTriggered, "capture_" + kind));
             if (!reduce) Shake(0.6f);
             StartCoroutine(CaptureRoutine(photoSafe, reduce));
@@ -116,7 +116,7 @@ namespace Hollowbrook.Horror
                 R.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, R.Session.Sanity));
             }
             bool photoSafe = R.Settings != null && R.Settings.PhotosensitivitySafe;
-            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_stinger", photoSafe ? 0.4f : 0.7f, null));
+            R.Audio.PlaySfx("sfx_stinger", photoSafe ? 0.4f : 0.7f);
             R.Bus.Publish(GameEvent.Of(EventIds.ScareTriggered, kind));
             StartCoroutine(StaticBurst(photoSafe ? 0.10f : 0.22f));
         }

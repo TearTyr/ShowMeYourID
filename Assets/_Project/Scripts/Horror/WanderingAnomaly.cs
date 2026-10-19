@@ -260,8 +260,7 @@ namespace Hollowbrook.Horror
         {
             if (R != null && R.Views != null) R.Views.OnAnomalyGone(this);
             if (R != null && !IsHallucination)
-                R.Bus.Publish(GameEvent.Of(EventIds.MusicContextRequested,
-                    GameRoot.MusicForRoom(_room != null ? _room.Id : RoomId.Hallway)));
+                R.Audio.PlayMusic(GameRoot.MusicForRoom(_room != null ? _room.Id : RoomId.Hallway));
             Destroy(gameObject);
         }
 

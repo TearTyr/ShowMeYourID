@@ -154,8 +154,7 @@ namespace Hollowbrook.World
             R.Bus.Publish(GameEvent.Of(EventIds.VerdictStamped, v));
             R.Bus.Publish(GameEvent.Of(EventIds.VisitorResolved, outcome));
             R.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, R.Session.Sanity));
-            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested,
-                v == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 0.9f, null));
+            R.Audio.PlaySfx(v == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 0.9f);
 
             var fb = new System.Text.StringBuilder();
             fb.Append(correct ? "CORRECT. " : "MISTAKE. ");

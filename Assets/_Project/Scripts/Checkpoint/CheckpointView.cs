@@ -307,7 +307,7 @@ namespace Hollowbrook.Checkpoint
         {
             bool on = !go.activeSelf;
             go.SetActive(on);
-            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, on ? "sfx_ui_open" : "sfx_ui_close", 0.5f, null));
+            R.Audio.PlaySfx(on ? "sfx_ui_open" : "sfx_ui_close", 0.5f);
             if (on && go == _notesRoot) RefreshNotes();
         }
 
@@ -683,8 +683,7 @@ namespace Hollowbrook.Checkpoint
             _monitorOutput.color = res.FoundInDatabase && !res.DuplicateTonight
                 ? new Color(0.55f, 0.75f, 0.55f)
                 : new Color(0.85f, 0.35f, 0.35f);
-            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested,
-                res.FormatValid && res.FoundInDatabase && !res.DuplicateTonight ? "sfx_scan_ok" : "sfx_scan_error", 0.8f, null));
+            R.Audio.PlaySfx(res.FormatValid && res.FoundInDatabase && !res.DuplicateTonight ? "sfx_scan_ok" : "sfx_scan_error", 0.8f);
             R.Bus.Publish(GameEvent.Of(EventIds.ScanPerformed, res));
         }
 
@@ -708,8 +707,7 @@ namespace Hollowbrook.Checkpoint
             var mutation = R.Session.Mode == GameMode.Challenge ? R.Session.ActiveMutation : null;
             var outcome = InspectionRules.Apply(_current, verdict, mutation);
 
-            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested,
-                verdict == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 1f, null));
+            R.Audio.PlaySfx(verdict == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 1f);
             R.Bus.Publish(GameEvent.Of(EventIds.VerdictStamped, outcome));
             if (_stampOverlay != null) StartCoroutine(StampPunch(verdict));
 

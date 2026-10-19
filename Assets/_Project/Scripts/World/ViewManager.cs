@@ -283,7 +283,7 @@ namespace Hollowbrook.World
             Player.PlaceInRoom(room, spawn);
             R.Session.MarkRoomInvestigated(id);
             R.Bus.Publish(GameEvent.Of(EventIds.RoomEntered, id));
-            R.Bus.Publish(GameEvent.Of(EventIds.MusicContextRequested, GameRoot.MusicForRoom(id)));
+            R.Audio.PlayMusic(GameRoot.MusicForRoom(id));
             _spawnCooldown = 5f;
         }
 

@@ -121,7 +121,7 @@ namespace Hollowbrook.World
             if (_def == null) { Debug.LogWarning("[Clue] unknown clue key " + _clueKey); return; }
 
             var res = R.Session.DiscoverClue(_clueKey);
-            R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, res.FirstTime ? "sfx_pickup" : "sfx_paper"));
+            R.Audio.PlaySfx(res.FirstTime ? "sfx_pickup" : "sfx_paper", 1f);
 
             var lines = new System.Collections.Generic.List<DialogueLine>
             {
