@@ -25,6 +25,8 @@ namespace Hollowbrook.UI
         private GameObject _trackBar;
         private Image _trackFill;
         private Text _stageLabel;
+        private GameObject _batteryBar;
+        private Image _batteryFill;
         private float _toastUntil;
         private readonly List<EventSubscription> _subs = new List<EventSubscription>();
 
@@ -66,6 +68,20 @@ namespace Hollowbrook.UI
             _trackBar = tbg.gameObject;
             _trackBar.SetActive(false);
 
+            var bbg = UIFactory.Panel(transform, "batterybg", new Color(0.05f, 0.05f, 0.06f, 0.85f)).rectTransform;
+            UIFactory.Anchor(bbg, new Vector2(0, 1), new Vector2(240, 26), new Vector2(132, -176));
+            var bcap = UIFactory.Label(bbg, "cap", "LIGHT", 12, UIFactory.InkDim, TextAnchor.MiddleLeft);
+            UIFactory.Anchor(bcap.rectTransform, new Vector2(0, 1), new Vector2(80, 16), new Vector2(46, -5));
+            var btrack = UIFactory.Panel(bbg, "track", new Color(0.12f, 0.12f, 0.13f)).rectTransform;
+            UIFactory.Anchor(btrack, new Vector2(0, 0), new Vector2(216, 8), new Vector2(120, 9));
+            _batteryFill = UIFactory.Img(btrack, "fill", ProceduralArt.Get("solid_white"), UIFactory.InkDim);
+            _batteryFill.rectTransform.anchorMin = new Vector2(0, 0);
+            _batteryFill.rectTransform.anchorMax = new Vector2(1, 1);
+            _batteryFill.rectTransform.pivot = new Vector2(0, 0.5f);
+            _batteryFill.rectTransform.offsetMin = Vector2.zero;
+            _batteryFill.rectTransform.offsetMax = Vector2.zero;
+            _batteryBar = bbg.gameObject;
+
             // findings counter (top-right under the clock)
             _findings = UIFactory.Label(transform, "findings", "FINDINGS 0/10", 15, UIFactory.InkDim, TextAnchor.MiddleRight);
             UIFactory.Anchor(_findings.rectTransform, new Vector2(1, 1), new Vector2(240, 24), new Vector2(-150, -64));
@@ -104,6 +120,7 @@ namespace Hollowbrook.UI
             _subs.Add(root.Bus.Subscribe(EventIds.TrackingChanged, e => SetTracking(e.Value)));
             _subs.Add(root.Bus.Subscribe(EventIds.AnomalyRevealed, e => SetTracking(0f)));
             _subs.Add(root.Bus.Subscribe(EventIds.TokenCollected, e => RefreshFindings()));
+            _subs.Add(root.Bus.Subscribe(EventIds.BatteryChanged, e => SetBattery(e.Value)));
             _subs.Add(root.Bus.Subscribe(EventIds.RoomEntered, e => RefreshRoom()));
             _subs.Add(root.Bus.Subscribe(EventIds.LightModeChanged, e => RefreshRoom()));
             _objective.text = root.ObjectiveText ?? "";   // HUD may be built after the publish
@@ -145,6 +162,17 @@ namespace Hollowbrook.UI
                 _stageLabel.text = stage.ToString().ToUpperInvariant();
                 _stageLabel.color = stage == SanityStage.Breaking ? UIFactory.AccentBright :
                                     stage == SanityStage.Shaken ? new Color(0.75f, 0.45f, 0.2f) : UIFactory.InkFaint;
+            }
+        }
+
+        private void SetBattery(float v)
+        {
+            if (_batteryBar == null) return;
+            _batteryBar.SetActive(true);
+            if (_batteryFill != null)
+            {
+                _batteryFill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(v), 1f);
+                _batteryFill.color = v <= 0.2f ? UIFactory.AccentBright : UIFactory.InkDim;
             }
         }
 

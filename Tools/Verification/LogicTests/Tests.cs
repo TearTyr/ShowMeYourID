@@ -52,6 +52,8 @@ namespace SMYID.Tests
             TestPresentationLog();
             TestFullPlaythroughs();
             TestOfficeRulesAndPool();
+            TestAnomalyEncounterStates();
+            TestExhibitionCut();
         }
 
         static void TestOfficeRulesAndPool()
@@ -124,6 +126,74 @@ namespace SMYID.Tests
             p2.Decode(p.Encode());
             Check(p2.Pending == p.Pending && p2.PendingList[0] == p.PendingList[0], "pool survives encode/decode (save)");
             Check(!new PatrolPool().TryTake(new GameRng(1), out taken), "empty pool takes nothing");
+        }
+
+        static void TestAnomalyEncounterStates()
+        {
+            Section("Anomaly encounter state machine (roam/stalk/detect/expose/repel/recover)");
+            var t = EncounterTuning.Default;
+            EncounterStep Step(AnomalyState st, float meter, float timer, bool lit, bool foc, float dist, float dt = 0.1f)
+                => AnomalyEncounter.Step(st, meter, timer, lit, foc, true, dist, dt, t);
+
+            Check(Step(AnomalyState.Roaming, 0f, 0f, false, false, 9f).State == AnomalyState.Roaming, "dark + unlit => roaming");
+            Check(Step(AnomalyState.Roaming, 0f, 0f, true, false, 9f).State == AnomalyState.Detected, "illuminated => detected");
+            Check(Step(AnomalyState.Roaming, 0.3f, 0f, false, false, 9f).State == AnomalyState.Stalking, "half-tracked in the dark => stalking");
+            var ex = Step(AnomalyState.Detected, 0.8f, 0f, true, true, 9f);
+            Check(ex.State == AnomalyState.Exposed && ex.JustExposed, "sustained focus past 0.55 => exposed (face reveal)");
+            Check(Step(AnomalyState.Exposed, 0.8f, 0f, true, false, 9f).State == AnomalyState.Detected,
+                "losing the beam stalls exposure back to detected (no punishment wipe)");
+            var rep = Step(AnomalyState.Exposed, 1f, 0.2f, true, true, 9f);
+            Check(rep.State == AnomalyState.Repelled && rep.JustRepelled, "full meter under focus => repelled");
+            Check(Step(AnomalyState.Repelled, 1f, t.ExposedBeatSeconds - 0.1f, true, true, 9f).State == AnomalyState.Repelled,
+                "repel beat holds briefly");
+            Check(Step(AnomalyState.Repelled, 1f, t.ExposedBeatSeconds, false, false, 9f).State == AnomalyState.Recovering,
+                "after the beat it leaves the stage (recovering)");
+            var rec = Step(AnomalyState.Recovering, 0f, t.RecoverSeconds, false, false, 9f);
+            Check(rec.State == AnomalyState.Roaming && rec.JustRecovered, "after recovery it may roam again");
+            Check(Step(AnomalyState.Stalking, 0.2f, 0f, false, false, 1.0f).Threatening, "close + active => threatening (telegraph)");
+            Check(!Step(AnomalyState.Stalking, 0.2f, 0f, false, false, 5f).Threatening, "far => not threatening");
+            Check(!Step(AnomalyState.Repelled, 1f, 0f, false, false, 1.0f).Threatening, "repelled => not threatening");
+            Check(!Step(AnomalyState.Detected, 0.6f, 0f, true, true, 1.0f, 0.1f).JustRepelled, "no instant-kill repel from one frame");
+        }
+
+        static void TestExhibitionCut()
+        {
+            Section("Exhibition cut (5-10 minute booth night) + smart questioning invariants");
+            var ex = ShiftPlan.ExhibitionDef();
+            Check(ex.VisitorCount == 4 && ex.AnomalyCount == 1, "exhibition night = 4 visitors, 1 anomaly");
+            Check(!ex.SubtleDefectsAllowed && ex.BehaviorOddityAllowed,
+                "exhibition tell is honest (no subtle photo) but behaviour/voice matters");
+            Check(ex.MaxDefectsPerAnomaly >= 1, "the anomaly stays catchable on paper or voice");
+
+            // fairness of the exhibition roster through the real factory
+            for (int seed = 1; seed <= 25; seed++)
+            {
+                var rf = new RosterFactory(seed);
+                var q = rf.GenerateShift(ex);
+                Check(q.Count(v => v.IsAnomaly) == 1, "seed " + seed + ": exactly one anomaly at the booth");
+                foreach (var v in q)
+                {
+                    if (v.IsAnomaly)
+                    {
+                        bool paper = IdRules.EvaluateDocuments(v, rf.Registry, new PresentationLog()).Count > 0;
+                        bool voice = v.Answers.Values.Any(a => a.ContradictsDocuments || a.Tone != ToneTag.Normal);
+                        Check(paper || voice, "seed " + seed + ": booth anomaly detectable by papers OR voice");
+                    }
+                    else
+                    {
+                        Check(v.Answers.Values.All(a => !a.ContradictsDocuments && a.Tone == ToneTag.Normal),
+                            "seed " + seed + ": legit answers never contradict and never sound odd");
+                    }
+                }
+            }
+
+            var s = new GameSession { Mode = GameMode.Normal, CompletedShifts = 1 };
+            Check(EndingRules.EvaluateExhibition(s).ReasonKey == "exhibition", "clean booth night closes as demo complete");
+            Check(EndingRules.EvaluateExhibition(new GameSession { Breaches = 3, CompletedShifts = 1 }).Ending == EndingType.Lose,
+                "Lose still outranks the demo card");
+            var secretS = new GameSession { CompletedShifts = 1 };
+            foreach (var c in ClueRegistry.Build().OrderBy(c => c.Order)) secretS.Clues.Discover(c.Key);
+            Check(EndingRules.EvaluateExhibition(secretS).Ending == EndingType.Secret, "secret still reachable in the cut");
         }
 
         // ------------------------------------------------------------ helpers

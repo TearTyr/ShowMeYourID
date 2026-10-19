@@ -25,11 +25,29 @@ namespace Hollowbrook.Core
         public float roomHalfWidthHallway = 14f;
         public float roomHalfWidthClassroom = 9f;
 
+        [Header("Flashlight battery")]
+        [Tooltip("Percent per second while the wide Sweep beam is on.")]
+        public float batteryDrainSweepPerSecond = 2.5f;
+        [Tooltip("Percent per second while the tight Focus beam is on.")]
+        public float batteryDrainFocusPerSecond = 6f;
+        [Tooltip("Percent per second recovered in darkness with the beam off.")]
+        public float batteryRecoverOffPerSecond = 4f;
+        [Tooltip("Percent per second recovered with the beam off in a lit (safe) room.")]
+        public float batteryRecoverLitPerSecond = 8f;
+        [Tooltip("Charge needed before a dead beam can switch on again (no soft-lock).")]
+        [Range(0f, 1f)] public float batteryRebootFraction = 0.2f;
+
         [Header("Horror pacing")]
         [Tooltip("Base chance per second that a wandering anomaly spawns in an entered room (shift-scaled).")]
         public float anomalySpawnChancePerSecond = 0.05f;
         public float coverHugCatchSeconds = 2.6f;
         public float sprintTelegraphSeconds = 0.9f;
+
+        [Header("Exhibition (5-10 minute booth cut)")]
+        [Tooltip("One curated night (4 visitors, 1 anomaly) then the demo closes. Off = full five-shift story.")]
+        public bool exhibitionMode = true;
+        public float exhibitionBannerSeconds = 2.2f;
+        public float exhibitionBetweenVisitors = 1.0f;
 
         [Header("Shift clock")]
         [Tooltip("In-story minutes per real second while a shift is running, in ANY scene.")]

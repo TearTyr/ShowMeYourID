@@ -16,6 +16,7 @@ namespace Hollowbrook.World
         public GameObject Root;
         public float HalfWidth;
         public LightController Light;
+        public SpriteRenderer Darkness;
         public List<Interactable> Interactables = new List<Interactable>();
         public List<Vector3> AnomalySpawnPoints = new List<Vector3>();
         public Vector3 PlayerSpawn;
@@ -37,6 +38,7 @@ namespace Hollowbrook.World
         public PlayerController Player { get; private set; }
         public bool Transitioning { get; private set; }
         private Hollowbrook.Logic.GameRng _patrolRng;
+        public FlashlightRig Flashlight { get; private set; }
         private int _anomaliesInside; // anomalies let through the checkpoint heighten the school
         private float _spawnCooldown = 6f;
         private WanderingAnomaly _liveAnomaly;
@@ -170,6 +172,10 @@ namespace Hollowbrook.World
             lightCtl.Init(R, room, dark.GetComponent<SpriteRenderer>(),
                 id == RoomId.Classroom2 ? LightMode.Off : LightMode.Sweep);
             room.Light = lightCtl;
+            room.Darkness = dark.GetComponent<SpriteRenderer>();
+            // the darkness is punched out wherever the flashlight mask is: real limited
+            // visibility without shaders; with no active mask it renders normally
+            room.Darkness.maskInteraction = SpriteMaskInteraction.VisibleOutsideMask;
 
             _rooms[id] = room;
             root.SetActive(false);
@@ -223,6 +229,17 @@ namespace Hollowbrook.World
 
         public void ShowWorld()
         {
+            if (Flashlight == null && _cam != null)
+            {
+                var rigGo = new GameObject("FlashlightRig");
+                rigGo.transform.SetParent(transform, false);
+                Flashlight = rigGo.AddComponent<FlashlightRig>();
+                var coneGo = SpriteGO(rigGo.transform, "beam", ProceduralArt.Get("light_cone"),
+                    new Vector3(0, 0, -0.5f), 71);
+                var cone = coneGo.GetComponent<SpriteRenderer>();
+                cone.color = new Color(1f, 0.96f, 0.85f, 0.30f);
+                Flashlight.Init(R, _cam, cone);
+            }
             _worldRoot.SetActive(true);
             if (Current == null) EnterRoomImmediate(RoomId.Hallway, null);
         }
@@ -393,6 +410,19 @@ namespace Hollowbrook.World
             if (hallucination) return;
             _liveAnomaly = an;
             R.Bus.Publish(GameEvent.Of(EventIds.AnomalySighted, kind));
+        }
+
+        /// <summary>Recovering happens off-stage: after the tuning cooldown the same kind may
+        /// roam again (in whatever room the player is in by then — it followed you).</summary>
+        public void ScheduleReturn(AnomalyBehaviorKind kind)
+        {
+            StartCoroutine(ReturnRoutine(kind));
+        }
+
+        private System.Collections.IEnumerator ReturnRoutine(AnomalyBehaviorKind kind)
+        {
+            yield return new WaitForSeconds(EncounterTuning.Default.RecoverSeconds);
+            if (R != null && !R.Paused && Current != null) SpawnAnomaly(false);
         }
 
         public void OnAnomalyGone(WanderingAnomaly a)

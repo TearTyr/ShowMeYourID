@@ -64,6 +64,27 @@ namespace Hollowbrook.Logic
             };
         }
 
+        /// <summary>The 5-10 minute booth cut: one night, four visitors, one anomaly with an
+        /// honest (non-subtle) tell, behaviour oddity allowed so questioning matters. Same rules
+        /// engine, same fairness invariants - only the roster shape is curated.</summary>
+        public static ShiftDef ExhibitionDef()
+        {
+            return new ShiftDef
+            {
+                Number = 1,
+                DateLabel = Content.ShiftDates[0],
+                VisitorCount = 4, AnomalyCount = 1, HasAdministrator = false,
+                Title = "Exhibition Night",
+                Objective = "One short night: check the papers, ask when in doubt, stamp once. " +
+                            "One of the four is not a student - the papers or the voice will give it away.",
+                RuleNoteAddendum = "EXHIBITION - Verify: ID format (HB-YYYY-NNNN), photo vs the face at the " +
+                            "window, expiration, year, course, Regular/Transferee. Up to 2 questions. " +
+                            "A answer marked 'papers disagree' or an odd voice is grounds to call the principal.",
+                MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = false,
+                DuplicateIdsAllowed = false, BehaviorOddityAllowed = true, ExplorationFocus = false,
+            };
+        }
+
         public static ShiftDef Get(int number)
         {
             var all = Build();

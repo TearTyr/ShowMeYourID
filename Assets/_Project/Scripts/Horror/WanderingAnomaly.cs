@@ -23,6 +23,11 @@ namespace Hollowbrook.Horror
         private bool _sightedPenaltyApplied;
         private float _sanityTickTimer;
         private float _track;             // 0..1 tracking meter (TrackingPolicy)
+        private AnomalyState _state = AnomalyState.Roaming;
+        private float _stateTimer;
+        private bool _threatTold;
+        private SpriteRenderer _face;
+        public AnomalyState State => _state;
         private float _trackThrottle;     // HUD event throttle
         private bool _revealed;           // fully tracked: solid, inert, about to dispel
         private float _revealBeat;
@@ -84,6 +89,7 @@ namespace Hollowbrook.Horror
             if (!dialogueOpen && !_revealed) _behavior.Tick(dt, playerPos);
 
             TickTracking(dt, dialogueOpen);
+            TickStates(dt);
 
             TickVisibility();
 
@@ -178,6 +184,61 @@ namespace Hollowbrook.Horror
             var pick = go.AddComponent<TokenPickup>();
             pick.Init(R, _room, p.x);
             _room.Interactables.Add(pick);
+        }
+
+        /// <summary>Roam / Stalk / Detected / Exposed / Repelled / Recovering — the encounter
+        /// state machine (design §6). Decisions live in GameLogic.AnomalyEncounter; this view
+        /// only reads light/battery/distance and renders the consequences.</summary>
+        private void TickStates(float dt)
+        {
+            if (IsHallucination || R == null || R.Views == null) return;
+            var rig = R.Views.Flashlight;
+            bool focused = rig != null && rig.Beam == LightMode.Focus && rig.BeamOn && rig.ConeCovers(transform.localPosition);
+            bool cone = rig != null && rig.BeamOn && rig.ConeCovers(transform.localPosition);
+            bool litRoom = _room != null && _room.Light != null && _room.Light.Mode == LightMode.Sweep;
+            var player = R.Views.Player != null ? R.Views.Player.transform.localPosition : Vector3.zero;
+            float dist = Vector3.Distance(player, transform.localPosition);
+            var tuning = EncounterTuning.Default;
+            var step = AnomalyEncounter.Step(_state, _track, _stateTimer, cone || litRoom, focused,
+                rig == null || !rig.BatteryDead, dist, dt, tuning);
+            _stateTimer = step.State == _state ? _stateTimer + dt : 0f;
+            _state = step.State;
+
+            if (step.JustExposed)
+            {
+                ShowFace();
+                R.Bus.Publish(GameEvent.Of(EventIds.AnomalyStateChanged, _state.ToString()));
+                R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*under the beam the face is WRONG*", 2.6f, null));
+                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_glitch", 0.6f, null));
+            }
+            if (step.JustRepelled)
+            {
+                WasRevealed = true;          // pool: resolved; token drops below
+                DropToken();
+                R.Bus.Publish(GameEvent.Of(EventIds.AnomalyStateChanged, _state.ToString()));
+                R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it tears itself away from the light*", 2.6f, null));
+                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_stinger", 0.7f, null));
+                if (R.Views != null) R.Views.ScheduleReturn(Kind);
+            }
+            if (step.Threatening && !_threatTold)
+            {
+                _threatTold = true;
+                R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*footsteps, close, behind you*", 2.2f, null));
+                R.Bus.Publish(GameEvent.Of(EventIds.SfxRequested, "sfx_heartbeat", 0.7f, null));
+            }
+            if (!step.Threatening) _threatTold = false;
+        }
+
+        private void ShowFace()
+        {
+            if (_face != null || _sr == null) return;
+            var go = new GameObject("ExposedFace");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = new Vector3(0f, 0.55f, -0.1f);
+            _face = go.AddComponent<SpriteRenderer>();
+            _face.sprite = ProceduralArt.Portrait("anom", new Portrait { HairStyle = 2, FaceVariant = 4, Accessory = 0, Distorted = true }, 96, 120);
+            _face.color = new Color(0.9f, 0.9f, 0.88f);
+            _face.sortingOrder = 81;
         }
 
         /// <summary>Alpha/order rules: silhouettes under darkness; CoverHug only truly revealed

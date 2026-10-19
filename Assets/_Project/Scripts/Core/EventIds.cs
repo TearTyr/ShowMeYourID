@@ -51,5 +51,7 @@ namespace Hollowbrook.Core
         public const string TrackingChanged = "anomaly.tracking";    // Value: 0..1 meter
         public const string AnomalyRevealed = "anomaly.revealed";    // Data: kind / "hallucination"
         public const string TokenCollected = "anomaly.token";      // Value: tokens held this run
+        public const string BatteryChanged = "light.battery";      // Value: 0..1 charge
+        public const string AnomalyStateChanged = "anomaly.state"; // Data: AnomalyState name
     }
 }

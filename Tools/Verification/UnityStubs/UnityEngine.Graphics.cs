@@ -101,6 +101,16 @@ namespace UnityEngine
         public Bounds bounds => new Bounds(Vector3.zero, Vector3.one);
     }
 
+    public enum SpriteMaskInteraction { None = 0, VisibleInsideMask = 1, VisibleOutsideMask = 2 }
+
+    public class SpriteMask : Behaviour
+    {
+        public Sprite sprite;
+        public bool isCustomRangeActive;
+        public int frontSortingOrder;
+        public int backSortingOrder;
+    }
+
     public class SpriteRenderer : Renderer
     {
         public Sprite sprite;
@@ -109,6 +119,7 @@ namespace UnityEngine
         public DrawMode drawMode = DrawMode.Simple;
         public Vector2 size = Vector2.one;
         public enum DrawMode { Simple = 0, Sliced = 1, Tiled = 2 }
+        public SpriteMaskInteraction maskInteraction = SpriteMaskInteraction.None;
     }
 
     public enum CameraClearFlags { Skybox = 1, SolidColor = 2, Depth = 3, Nothing = 4 }

@@ -182,6 +182,12 @@ namespace Hollowbrook.Bootstrap
                 case "prop_cabinet": return MakeCabinet(160, 272);
                 case "prop_clock": return MakeClock(112);
                 case "token": return MakeClock(28);   // pocket-watch token left by a revealed anomaly
+                case "rough_panel": return MakeRoughPanel(256, 192, 0.88f);
+                case "rough_panel_dark": return MakeRoughPanel(256, 192, 0.16f);
+                case "rough_circle": return MakeRoughCircle(128);
+                case "school_facade": return MakeSchoolFacade(300, 150);
+                case "camera_frame": return MakeCameraFrame(252, 150);
+                case "window_frame": return MakeWindowFrame(470, 340);
                 case "prop_photoframe": return MakePhotoFrame(144, 108);
                 case "prop_lightfixture": return MakeLightFixture(208, 40);
                 case "prop_lostid": return MakeLostId(56, 36);
@@ -390,6 +396,107 @@ namespace Hollowbrook.Bootstrap
                 }
             }
             return c.ToSprite("light_cone", WorldPpu);
+        }
+
+        // ------------------------------------------- moodboard pass (MOODBOARD SAMPLE #1):
+        // hand-drawn chalk/ink frames, facade, viewfinder. Deterministic jitter, monochrome.
+        private static void RoughLine(Canvas2D c, System.Random r, int x0, int y0, int x1, int y1, float col, int thick)
+        {
+            int steps = Math.Max(Math.Abs(x1 - x0), Math.Abs(y1 - y0));
+            for (int i = 0; i <= steps; i++)
+            {
+                float t = steps == 0 ? 0f : i / (float)steps;
+                int x = (int)(x0 + (x1 - x0) * t) + r.Next(-1, 2);
+                int y = (int)(y0 + (y1 - y0) * t) + r.Next(-1, 2);
+                for (int d = 0; d < thick; d++)
+                {
+                    int yy = y + d;
+                    if (x >= 0 && yy >= 0 && x < c.W && yy < c.H)
+                        c.Px[yy * c.W + x] = new Color(col, col, col * 0.97f, 1f);
+                }
+            }
+        }
+
+        private static Sprite MakeRoughPanel(int w, int h, float paper)
+        {
+            var c = new Canvas2D(w, h);
+            var r = new System.Random(77);
+            c.FillRect(0, 0, w, h, G(paper));
+            RoughLine(c, r, 2, 2, w - 3, 3, 0.07f, 3);
+            RoughLine(c, r, w - 3, 2, w - 3, h - 3, 0.07f, 3);
+            RoughLine(c, r, w - 3, h - 3, 2, h - 3, 0.07f, 3);
+            RoughLine(c, r, 2, h - 3, 2, 2, 0.07f, 3);
+            RoughLine(c, r, 6, 7, w - 7, 7, 0.18f, 1);
+            RoughLine(c, r, 7, 6, 7, h - 7, 0.18f, 1);
+            return c.ToSprite("rough_panel", UiPpu);
+        }
+
+        private static Sprite MakeRoughCircle(int d)
+        {
+            var c = new Canvas2D(d, d);
+            var r = new System.Random(91);
+            float rad = d / 2f - 4f;
+            for (int y = 0; y < d; y++)
+                for (int x = 0; x < d; x++)
+                {
+                    float dist = Mathf.Sqrt((x - d / 2f) * (x - d / 2f) + (y - d / 2f) * (y - d / 2f));
+                    if (dist <= rad) c.Px[y * d + x] = G(0.88f);
+                    if (dist <= rad && dist > rad - 3f + r.Next(-1, 2)) c.Px[y * d + x] = G(0.08f);
+                }
+            return c.ToSprite("rough_circle", UiPpu);
+        }
+
+        private static Sprite MakeSchoolFacade(int w, int h)
+        {
+            var c = new Canvas2D(w, h);
+            var r = new System.Random(5);
+            c.FillRect(0, 0, w, h, G(0.06f));
+            c.FillRect(w / 2 - 60, h / 2 - 60, 120, 110, G(0.85f));          // central block
+            c.FillRect(w / 2 - 130, h / 2 - 30, 70, 80, G(0.80f));          // wings
+            c.FillRect(w / 2 + 60, h / 2 - 30, 70, 80, G(0.80f));
+            for (int i = 0; i < 4; i++)                                      // windows
+                for (int j = 0; j < 3; j++)
+                    c.FillRect(w / 2 - 48 + i * 26, h / 2 - 48 + j * 30, 12, 18, G(0.10f));
+            for (int i = 0; i < 3; i++)
+            {
+                c.FillRect(w / 2 - 120 + i * 22, h / 2 - 18 + (i % 2) * 22, 10, 16, G(0.12f));
+                c.FillRect(w / 2 + 70 + i * 22, h / 2 - 18 + (i % 2) * 22, 10, 16, G(0.12f));
+            }
+            for (int a = 0; a < 40; a++)                                     // clock
+            {
+                float t = a / 40f * Mathf.PI * 2f;
+                int x = (int)(w / 2 + Mathf.Cos(t) * 14), y = (int)(h / 2 - 74 + Mathf.Sin(t) * 14);
+                if (x >= 0 && y >= 0 && x < w && y < h) c.Px[y * w + x] = G(0.10f);
+            }
+            c.FillRect(w / 2 - 1, h / 2 - 84, 2, 10, G(0.10f));
+            RoughLine(c, r, 4, h - 6, w - 4, h - 6, 0.85f, 2);               // ground chalk line
+            return c.ToSprite("school_facade", UiPpu);
+        }
+
+        private static Sprite MakeCameraFrame(int w, int h)
+        {
+            var c = new Canvas2D(w, h);
+            var r = new System.Random(31);
+            int L = 26;
+            RoughLine(c, r, 4, 4, 4 + L, 4, 0.9f, 3); RoughLine(c, r, 4, 4, 4, 4 + L, 0.9f, 3);
+            RoughLine(c, r, w - 5, 4, w - 5 - L, 4, 0.9f, 3); RoughLine(c, r, w - 5, 4, w - 5, 4 + L, 0.9f, 3);
+            RoughLine(c, r, 4, h - 5, 4 + L, h - 5, 0.9f, 3); RoughLine(c, r, 4, h - 5, 4, h - 5 - L, 0.9f, 3);
+            RoughLine(c, r, w - 5, h - 5, w - 5 - L, h - 5, 0.9f, 3); RoughLine(c, r, w - 5, h - 5, w - 5, h - 5 - L, 0.9f, 3);
+            return c.ToSprite("camera_frame", UiPpu);
+        }
+
+        private static Sprite MakeWindowFrame(int w, int h)
+        {
+            var c = new Canvas2D(w, h);
+            var r = new System.Random(17);
+            c.FillRect(0, 0, w, h, G(0.05f));
+            c.FillRect(10, 10, w - 20, h - 20, G(0.13f));     // the dark beyond the glass
+            RoughLine(c, r, 4, 4, w - 5, 5, 0.82f, 4);
+            RoughLine(c, r, w - 5, 4, w - 5, h - 5, 0.82f, 4);
+            RoughLine(c, r, w - 5, h - 5, 4, h - 5, 0.82f, 4);
+            RoughLine(c, r, 4, h - 5, 4, 4, 0.82f, 4);
+            RoughLine(c, r, w / 2, 10, w / 2, h - 10, 0.75f, 3);   // mullion
+            return c.ToSprite("window_frame", UiPpu);
         }
 
         // ---------------------------------------------------------------- backgrounds

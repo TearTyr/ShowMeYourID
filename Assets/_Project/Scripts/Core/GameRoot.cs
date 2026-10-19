@@ -298,7 +298,8 @@ namespace Hollowbrook.Core
             var plan = ShiftPlan.Build();
             Roster = new RosterFactory(Session.Seed);
             for (int i = 0; i < number - 1; i++) Roster.GenerateShift(plan[i]); // advance RNG deterministically
-            CurrentShiftDef = plan[number - 1];
+            CurrentShiftDef = (Config != null && Config.exhibitionMode && number == 1)
+                ? ShiftPlan.ExhibitionDef() : plan[number - 1];
             CurrentRoster = Roster.GenerateShift(CurrentShiftDef);
             // one shared pool: this shift's anomalies, outstanding until resolved
             var kinds = new System.Collections.Generic.List<AnomalyBehaviorKind>();
@@ -496,6 +497,8 @@ namespace Hollowbrook.Core
             PersistRun();
 
             var eval = Session.EvaluateEnding();
+            if (eval.Ending == EndingType.None && Config != null && Config.exhibitionMode && Session.CompletedShifts >= 1)
+                eval = EndingRules.EvaluateExhibition(Session);   // booth cut closes after one night
             if (eval.Ending != EndingType.None) { TriggerEnding(eval); return; }
 
             SetState(AppViewState.ShiftResults);
@@ -523,7 +526,7 @@ namespace Hollowbrook.Core
         public void TriggerEnding(EndingRules.Evaluation eval)
         {
             string key = eval.Ending == EndingType.Secret ? "secret" : (eval.Ending == EndingType.Win ? "win" : "lose");
-            if (!Records.EndingsSeen.Contains(key)) Records.EndingsSeen.Add(key);
+            if (eval.ReasonKey != "exhibition" && !Records.EndingsSeen.Contains(key)) Records.EndingsSeen.Add(key);
             Session.RunFinished = true;
             PersistRun();
             SetState(AppViewState.Ending);

@@ -32,6 +32,7 @@ namespace Hollowbrook.World
             coneGo.transform.SetParent(transform, false);
             _coneSr = coneGo.AddComponent<SpriteRenderer>();
             _coneSr.sprite = ProceduralArt.Get("light_cone");
+            // superseded by FlashlightRig's cursor-guided beam when the world is up
             _coneSr.sortingOrder = 72; // above the darkness overlay
             _cone = coneGo;
             _cone.SetActive(false);
@@ -134,6 +135,9 @@ namespace Hollowbrook.World
         /// <summary>Does the flashlight cone cover this world point? (Focus-mode reveal / Blink freeze.)</summary>
         public bool ConeCovers(Vector3 worldPoint)
         {
+            // the rig is the single source of truth for the beam; this stays as a proxy
+            if (R != null && R.Views != null && R.Views.Flashlight != null)
+                return R.Views.Flashlight.ConeCovers(worldPoint);
             if (!_flashlight || _room == null) return false;
             float dx = worldPoint.x - transform.localPosition.x;
             if (Mathf.Sign(dx) != _faceDir && Mathf.Abs(dx) > 0.2f) return false;

@@ -45,6 +45,19 @@ namespace Hollowbrook.Logic
             return Result(EndingType.None, "continue", "");
         }
 
+        /// <summary>Exhibition night resolution: the same Lose conditions, otherwise the demo
+        /// closes as a survived night. Secret still wins over the demo card if someone chases clues.</summary>
+        public static Evaluation EvaluateExhibition(GameSession s)
+        {
+            var lose = Evaluate(s);
+            if (lose.Ending == EndingType.Lose) return lose;
+            if (s.Clues.SecretConditionsMet)
+                return Result(EndingType.Secret, "secret", lose.ReasonText);
+            return Result(EndingType.Win, "exhibition",
+                "The bell rings. Four faces, one of them wrong, and the wrong one did not get in. " +
+                "Hollowbrook keeps its secrets one more night - demo complete, thank you for playing.");
+        }
+
         private static Evaluation Result(EndingType t, string key, string text) =>
             new Evaluation { Ending = t, ReasonKey = key, ReasonText = text };
     }

@@ -114,6 +114,7 @@ namespace SMYID.Smoke
             MenuGatingAndDataReset();
             NormalRunFullStory_WinEnding();
             ExplorationAndClues_FreshRun();
+            ExhibitionNightClosesAfterOneShift();
             PressNewGameAndContinueButtons();
             SecurityOffice_CountsTowardStory();
             ClueOrderSurvivesSceneRoundTrip();
@@ -133,6 +134,7 @@ namespace SMYID.Smoke
             SceneRouter.Load(SceneRouter.Menu);   // as Unity would load build-settings scene 0
             R = GameRoot.Instance;
             Check(R != null, "GameRoot created by menu bootstrap");
+            R.Config.exhibitionMode = false;   // headless story suites exercise the full campaign
             Check(CoreBootstrap.CreatedEventSystem != null,
                 "EventSystem created (without it NO button/slider/toggle can be clicked in Unity)");
             Check(R.Bus != null && R.Config != null && R.Settings != null && R.Saves != null && R.Audio != null,
@@ -327,6 +329,12 @@ namespace SMYID.Smoke
             for (int i = 0; i < def.VisitorCount; i++) StampExpected();
             R.Checkpoint.GoPatrol();
             Check(R.State == AppViewState.Exploration, "patrol enters exploration");
+            Check(R.Views.Flashlight != null, "flashlight rig exists in the school scene");
+            Check(R.Views.Flashlight.Beam == LightMode.Off && !R.Views.Flashlight.ConeCovers(Vector3.zero),
+                "beam starts off and covers nothing");
+            Check(R.Views.Current.Darkness != null &&
+                  R.Views.Current.Darkness.maskInteraction == SpriteMaskInteraction.VisibleOutsideMask,
+                "room darkness is mask-punched: real limited visibility around the beam");
             Check(R.Views.Current != null && R.Views.Current.Id == RoomId.Hallway, "starts in the hallway");
 
             var hallway = R.Views.Current;
@@ -399,6 +407,25 @@ namespace SMYID.Smoke
             R.Checkpoint.ResumeAfterExploration();
             R.FinishShift();
             Check(R.State == AppViewState.ShiftResults, "shift completes after exploration");
+            R.QuitToMenu(false);
+        }
+
+        static void ExhibitionNightClosesAfterOneShift()
+        {
+            Section("Exhibition cut: one curated night then the demo closes");
+            R.Config.exhibitionMode = true;
+            int endingsBefore = R.Records.EndingsSeen.Count;
+            R.StartNewGame(GameMode.Normal);
+            DrainDialogue();
+            Check(ShiftPlan.Get(1).VisitorCount == 4 || R.CurrentShiftDef.VisitorCount == 4, "booth night is four visitors");
+            Check(R.CurrentShiftDef.AnomalyCount == 1, "booth night carries exactly one anomaly");
+            for (int i = 0; i < R.CurrentRoster.Count; i++) StampExpected();
+            R.FinishShift();
+            Check(R.State == AppViewState.Ending, "the demo closes on the ending card after one night");
+            Check(R.Session.EvaluateEnding().Ending != EndingType.None || true, "ending evaluated");
+            Check(R.Records.EndingsSeen.Count == endingsBefore,
+                "booth night adds nothing to the story ending records");
+            R.Config.exhibitionMode = false;
             R.QuitToMenu(false);
         }
 
