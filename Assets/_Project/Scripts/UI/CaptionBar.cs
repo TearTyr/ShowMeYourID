@@ -13,7 +13,7 @@ namespace Hollowbrook.UI
     // Subtitle line for important sounds. Created by each scene bootstrap.
     public class CaptionBar : MonoBehaviour, IScreenView
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private Text _text;
         private GameObject _bg;
         private float _until;
@@ -21,7 +21,7 @@ namespace Hollowbrook.UI
 
         public void Init(GameRoot root)
         {
-            R = root;
+            _gameRoot = root;
             _bg = UIFactory.Panel(transform, "bg", new Color(0, 0, 0, 0.72f)).gameObject;
             _bg.GetComponent<UnityEngine.UI.Image>().raycastTarget = false; // display only, never blocks buttons
             UIFactory.Anchor(_bg.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(880, 34), new Vector2(0, 54));
@@ -30,7 +30,7 @@ namespace Hollowbrook.UI
             _bg.SetActive(false);
             _sub = root.Bus.Subscribe(EventIds.CaptionRequested, e =>
             {
-                if (R.Settings == null || !R.Settings.Captions) return;
+                if (_gameRoot.Settings == null || !_gameRoot.Settings.Captions) return;
                 _text.text = e.Text ?? "";
                 _until = Time.unscaledTime + (e.Value > 0 ? e.Value : 2.5f);
                 _bg.SetActive(true);

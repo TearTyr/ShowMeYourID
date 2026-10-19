@@ -8,7 +8,6 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    // Part of the ui folder.
     public class DialogueLine
     {
         public string Speaker = "";
@@ -19,7 +18,7 @@ namespace Hollowbrook.UI
     // Click-through dialogue box with typewriter text. Created by each scene bootstrap.
     public class DialogueView : MonoBehaviour, IScreenView
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private GameObject _panel;
         private Text _speaker, _text, _continue;
         private Image _dim;
@@ -35,7 +34,7 @@ namespace Hollowbrook.UI
 
         public void Init(GameRoot root)
         {
-            R = root;
+            _gameRoot = root;
             _dim = UIFactory.Dimmer(transform, "dim", 0.35f);
             _dim.raycastTarget = true;
 
@@ -93,7 +92,7 @@ namespace Hollowbrook.UI
                 _portrait.sprite = ProceduralArt.Get(line.PortraitSpriteKey);
                 _portrait.gameObject.SetActive(_portrait.sprite != null);
             }
-            bool instant = R.Settings != null && R.Settings.ReduceMotion;
+            bool instant = _gameRoot.Settings != null && _gameRoot.Settings.ReduceMotion;
             _typed = instant ? _fullText.Length : 0f;
             _text.text = instant ? _fullText : "";
             _typing = !instant;
@@ -103,7 +102,7 @@ namespace Hollowbrook.UI
 
         private IEnumerator TypeRoutine()
         {
-            float cps = R.Config != null ? R.Config.dialogueCharsPerSecond : 42f;
+            float cps = _gameRoot.Config != null ? _gameRoot.Config.dialogueCharsPerSecond : 42f;
             float tick = 0f;
             while (_typing && _typed < _fullText.Length)
             {
@@ -116,7 +115,7 @@ namespace Hollowbrook.UI
                     if (tick <= 0f && n < _fullText.Length && n % 3 == 0)
                     {
                         tick = 0.09f;
-                        R.Audio.PlaySfx("sfx_click", 0.10f);
+                        _gameRoot.Audio.PlaySfx("sfx_click", 0.10f);
                     }
                 }
                 yield return null;
@@ -150,7 +149,7 @@ namespace Hollowbrook.UI
         private void Update()
         {
             if (!IsActive) return;
-            if (R != null && R.Paused) return; // no dialogue advance while paused
+            if (_gameRoot != null && _gameRoot.Paused) return; // no dialogue advance while paused
             if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.E))
                 Advance();
         }

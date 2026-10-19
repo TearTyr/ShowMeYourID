@@ -13,11 +13,11 @@ namespace Hollowbrook.UI
     // Static credits sheet. Created by MenuSceneBootstrap.
     public class CreditsView : MonoBehaviour, IScreenView
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
 
         public void Init(GameRoot root)
         {
-            R = root;
+            _gameRoot = root;
             var sheet = UIFactory.LeftSheet(transform, "CREDITS", "A Twin Studio game.", out _);
 
             string body =
@@ -36,8 +36,8 @@ namespace Hollowbrook.UI
 
             UIFactory.SheetButton(sheet, "back", "◂ BACK", () =>
             {
-                R.Audio.PlaySfx("sfx_ui_close", 0.6f);
-                R.CloseCredits();
+                _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.6f);
+                _gameRoot.CloseCredits();
             }, 140);
 
             gameObject.SetActive(false);

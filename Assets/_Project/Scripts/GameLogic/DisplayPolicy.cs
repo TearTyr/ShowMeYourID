@@ -4,7 +4,6 @@ using System.Collections.Generic;
 namespace Hollowbrook.Logic
 {
     [Serializable]
-    // Part of the gamelogic folder.
     public struct ModeSize : IEquatable<ModeSize>
     {
         public int W;
@@ -20,7 +19,6 @@ namespace Hollowbrook.Logic
         public float Aspect => H > 0 ? (float)W / H : 0f;
     }
 
-    // Part of the gamelogic folder.
     public static class DisplayPolicy
     {
         public const int RevertSeconds = 15;

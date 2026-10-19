@@ -4,7 +4,6 @@ using System.Text;
 
 namespace Hollowbrook.Logic
 {
-    // Part of the gamelogic folder.
     public class SaveGame
     {
         public GameSession Session = new GameSession();
@@ -13,7 +12,6 @@ namespace Hollowbrook.Logic
         public string SavedAtLabel = ""; // human-readable, informational only
     }
 
-    // Part of the gamelogic folder.
     public static class SaveFormat
     {
         public const string Header = "SMYIDSAVE";

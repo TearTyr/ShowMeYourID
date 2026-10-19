@@ -13,11 +13,11 @@ namespace Hollowbrook.UI
     // Static key-reference sheet. Created by each scene bootstrap.
     public class ControlsView : MonoBehaviour, IScreenView
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
 
         public void Init(GameRoot root)
         {
-            R = root;
+            _gameRoot = root;
             var sheet = UIFactory.LeftSheet(transform, "CONTROLS", "Mouse at the desk. Keys in the dark.", out _);
 
             string body =
@@ -43,8 +43,8 @@ namespace Hollowbrook.UI
 
             UIFactory.SheetButton(sheet, "back", "◂ BACK", () =>
             {
-                R.Audio.PlaySfx("sfx_ui_close", 0.6f);
-                R.CloseControls();
+                _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.6f);
+                _gameRoot.CloseControls();
             }, 140);
 
             gameObject.SetActive(false);

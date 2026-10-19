@@ -13,7 +13,7 @@ namespace Hollowbrook.UI
     // The left-column main menu, F2 reset and its ambience. Created by MenuSceneBootstrap.
     public class MainMenuView : MonoBehaviour, IScreenView
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private Button _continueBtn;
         private Button _newGameBtn;
         private Text _titleB;
@@ -28,7 +28,7 @@ namespace Hollowbrook.UI
 
         public void Init(GameRoot root)
         {
-            R = root;
+            _gameRoot = root;
             var bg = UIFactory.Img(transform, "bg", ProceduralArt.Get("menu_bg"));
             UIFactory.AnchorsFull(bg.rectTransform);
             bg.raycastTarget = true;
@@ -57,15 +57,15 @@ namespace Hollowbrook.UI
             {
                 Debug.Log("[Flow] NEW GAME clicked");
                 Click();
-                R.StartNewGame(GameMode.Normal);   // the only active gameplay entry
+                _gameRoot.StartNewGame(GameMode.Normal);   // the only active gameplay entry
             }, b => { Emphasize(b); _newGameBtn = b; }, 360, 50);
-            MenuButtonLeft(col.transform, "CONTINUE", () => { Click(); R.ContinueGame(); }, b => _continueBtn = b, 360, 44);
-            MenuButtonLeft(col.transform, "SETTINGS", () => { Click(); R.OpenSettings(); }, null, 360, 44);
-            MenuButtonLeft(col.transform, "CREDITS", () => { Click(); R.OpenCredits(); }, null, 360, 44);
+            MenuButtonLeft(col.transform, "CONTINUE", () => { Click(); _gameRoot.ContinueGame(); }, b => _continueBtn = b, 360, 44);
+            MenuButtonLeft(col.transform, "SETTINGS", () => { Click(); _gameRoot.OpenSettings(); }, null, 360, 44);
+            MenuButtonLeft(col.transform, "CREDITS", () => { Click(); _gameRoot.OpenCredits(); }, null, 360, 44);
             MenuButtonLeft(col.transform, "EXIT", () =>
             {
                 Click();
-                R.Confirm.Ask("EXIT?", "Save and quit to desktop?", () => R.QuitApplication());
+                _gameRoot.Confirm.Ask("EXIT?", "Save and quit to desktop?", () => _gameRoot.QuitApplication());
             }, null, 360, 44, danger: true);
 
             var footer = UIFactory.Label(transform, "footer",
@@ -78,7 +78,7 @@ namespace Hollowbrook.UI
             gameObject.SetActive(false);
         }
 
-        private void Click() => R.Audio.PlaySfx("sfx_click", 0.8f);
+        private void Click() => _gameRoot.Audio.PlaySfx("sfx_click", 0.8f);
 
         private void MenuButtonLeft(Transform parent, string label, UnityEngine.Events.UnityAction onClick,
             System.Action<Button> created, int w = 360, int h = 44, bool danger = false)
@@ -126,12 +126,12 @@ namespace Hollowbrook.UI
 
         public void RefreshContinue()
         {
-            if (_continueBtn != null) UIFactory.SetButtonEnabled(_continueBtn, R.HasSave());
+            if (_continueBtn != null) UIFactory.SetButtonEnabled(_continueBtn, _gameRoot.HasSave());
         }
 
         private void Update()
         {
-            if (R == null) return;
+            if (_gameRoot == null) return;
 
             if (_noteUntil > 0f && Time.unscaledTime > _noteUntil)
             {
@@ -141,7 +141,7 @@ namespace Hollowbrook.UI
 
             if (_vignette != null)
             {
-                bool reduce = R.Settings != null && R.Settings.ReduceMotion;
+                bool reduce = _gameRoot.Settings != null && _gameRoot.Settings.ReduceMotion;
                 float a = reduce ? 0.38f : 0.34f + 0.05f * Mathf.Sin(Time.unscaledTime * 0.55f);
                 var c = _vignette.color; c.a = a; _vignette.color = c;
             }
@@ -151,7 +151,7 @@ namespace Hollowbrook.UI
                 if (Time.unscaledTime - _f2Last > F2WindowSeconds) _f2Count = 0;
                 _f2Count++;
                 _f2Last = Time.unscaledTime;
-                R.Audio.PlaySfx("sfx_glitch", 0.22f);
+                _gameRoot.Audio.PlaySfx("sfx_glitch", 0.22f);
                 if (_f2Count < 3)
                 {
                     ShowNote("Data reset armed — press F2 " + (3 - _f2Count) + " more time" + (3 - _f2Count == 1 ? "" : "s") + " (" + _f2Count + "/3).");
@@ -159,7 +159,7 @@ namespace Hollowbrook.UI
                 else
                 {
                     _f2Count = 0;
-                    R.RequestDataReset(() =>
+                    _gameRoot.RequestDataReset(() =>
                     {
                         RefreshContinue();
                         ShowNote("All save data erased.");
@@ -177,7 +177,7 @@ namespace Hollowbrook.UI
                 string original = _titleB.text;
                 _titleB.text = "1D?";
                 _titleB.color = UIFactory.AccentBright;
-                R.Audio.PlaySfx("sfx_glitch", 0.18f);
+                _gameRoot.Audio.PlaySfx("sfx_glitch", 0.18f);
                 yield return new WaitForSecondsRealtime(0.11f);
                 _titleB.text = original;
                 _titleB.color = UIFactory.Ink;
@@ -190,8 +190,8 @@ namespace Hollowbrook.UI
             {
                 yield return new WaitForSecondsRealtime(UnityEngine.Random.Range(7f, 15f));
                 if (!gameObject.activeInHierarchy || _glint == null) continue;
-                if (R.Settings != null && R.Settings.ReduceMotion) continue;
-                float peak = R.Settings != null && R.Settings.PhotosensitivitySafe ? 0.45f : 0.85f;
+                if (_gameRoot.Settings != null && _gameRoot.Settings.ReduceMotion) continue;
+                float peak = _gameRoot.Settings != null && _gameRoot.Settings.PhotosensitivitySafe ? 0.45f : 0.85f;
                 var c = _glint.color; c.a = peak; _glint.color = c;
                 yield return new WaitForSecondsRealtime(0.14f);
                 c = _glint.color; c.a = 0f; _glint.color = c;
@@ -204,8 +204,8 @@ namespace Hollowbrook.UI
             {
                 yield return new WaitForSecondsRealtime(UnityEngine.Random.Range(24f, 40f));
                 if (!gameObject.activeInHierarchy) continue;
-                if (R.Settings != null && (R.Settings.PhotosensitivitySafe || R.Settings.ReduceMotion)) continue;
-                R.Audio.PlaySfx("sfx_static", 0.06f);
+                if (_gameRoot.Settings != null && (_gameRoot.Settings.PhotosensitivitySafe || _gameRoot.Settings.ReduceMotion)) continue;
+                _gameRoot.Audio.PlaySfx("sfx_static", 0.06f);
                 float t = 0f;
                 while (t < 0.55f)
                 {

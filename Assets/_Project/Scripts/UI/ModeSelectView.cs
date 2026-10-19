@@ -13,29 +13,29 @@ namespace Hollowbrook.UI
     // Mode picker kept for later use. Created by MenuSceneBootstrap.
     public class ModeSelectView : MonoBehaviour, IScreenView
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private Text _endlessBest, _challengeBest;
 
         public void Init(GameRoot root)
         {
-            R = root;
+            _gameRoot = root;
             UIFactory.Dimmer(transform, "dim", 0.88f);
             var sheet = UIFactory.LeftSheet(transform, "SELECT ASSIGNMENT", "The contract, or the long night.", out var col);
 
             BuildCard(sheet, new Vector2(320, -180), "NORMAL — THE CONTRACT",
                 "Five nights at Hollowbrook. Verify students, keep anomalies out, investigate the school.",
-                () => R.StartNewGame(GameMode.Normal), out _);
+                () => _gameRoot.StartNewGame(GameMode.Normal), out _);
             BuildCard(sheet, new Vector2(320, -330), "ENDLESS WATCH",
                 "One long night at the window. Correct calls buy seconds; the clock is the only boss.",
-                () => R.StartNewGame(GameMode.Endless), out _endlessBest);
+                () => _gameRoot.StartNewGame(GameMode.Endless), out _endlessBest);
             BuildCard(sheet, new Vector2(320, -480), "CHALLENGE PROTOCOL",
                 "Shifting district rules, doubled sanity drain, doubled score.",
-                () => R.StartNewGame(GameMode.Challenge), out _challengeBest);
+                () => _gameRoot.StartNewGame(GameMode.Challenge), out _challengeBest);
 
             UIFactory.SheetButton(sheet, "back", "◂ BACK", () =>
             {
-                R.Audio.PlaySfx("sfx_ui_close", 0.6f);
-                R.SetState(AppViewState.MainMenu);
+                _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.6f);
+                _gameRoot.SetState(AppViewState.MainMenu);
             }, 140);
 
             gameObject.SetActive(false);
@@ -55,7 +55,7 @@ namespace Hollowbrook.UI
             UIFactory.Anchor(best.rectTransform, new Vector2(1f, 0f), new Vector2(180, 24), new Vector2(-110, 40));
             var sel = UIFactory.StandardButton(card, "select", "BEGIN", () =>
             {
-                R.Audio.PlaySfx("sfx_bell", 0.7f);
+                _gameRoot.Audio.PlaySfx("sfx_bell", 0.7f);
                 onSelect();
             }, 140, 40);
             UIFactory.Anchor(sel.GetComponent<RectTransform>(), new Vector2(1f, 0.5f), new Vector2(140, 40), new Vector2(-90, 0));
@@ -65,7 +65,7 @@ namespace Hollowbrook.UI
         public void Show()
         {
             gameObject.SetActive(true);
-            var rec = R.Records;
+            var rec = _gameRoot.Records;
             if (_endlessBest != null) _endlessBest.text = rec != null && rec.EndlessBest > 0 ? "BEST " + rec.EndlessBest : "";
             if (_challengeBest != null) _challengeBest.text = rec != null && rec.ChallengeBest > 0 ? "BEST " + rec.ChallengeBest : "";
         }

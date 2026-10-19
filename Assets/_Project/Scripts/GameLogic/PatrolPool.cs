@@ -4,7 +4,6 @@ using System.Collections.Generic;
 namespace Hollowbrook.Logic
 {
     [Serializable]
-    // Part of the gamelogic folder.
     public class PatrolPool
     {
         private readonly List<AnomalyBehaviorKind> _pending = new List<AnomalyBehaviorKind>();

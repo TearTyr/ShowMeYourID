@@ -11,7 +11,7 @@ namespace Hollowbrook.Horror
     // Stingers and jumpscares with accessibility guards. Created by each scene bootstrap.
     public class ScareSystem : MonoBehaviour
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private Canvas _canvas;
         private Image _black;
         private Image _face;
@@ -21,7 +21,7 @@ namespace Hollowbrook.Horror
 
         public void Init(GameRoot root, Canvas scareCanvas)
         {
-            R = root;
+            _gameRoot = root;
             _canvas = scareCanvas;
 
             var blackRt = UIFactory.NewUI(_canvas.transform, "Black");
@@ -48,8 +48,8 @@ namespace Hollowbrook.Horror
         {
             if (Time.unscaledTime < _cooldownUntil) return;
             _cooldownUntil = Time.unscaledTime + 3f;
-            bool photoSafe = R.Settings != null && R.Settings.PhotosensitivitySafe;
-            bool reduce = R.Settings != null && R.Settings.ReduceMotion;
+            bool photoSafe = _gameRoot.Settings != null && _gameRoot.Settings.PhotosensitivitySafe;
+            bool reduce = _gameRoot.Settings != null && _gameRoot.Settings.ReduceMotion;
 
             var distorted = new Portrait
             {
@@ -59,8 +59,8 @@ namespace Hollowbrook.Horror
                 Distorted = true,
             };
             _face.sprite = ProceduralArt.Portrait("scare", distorted, 280, 320);
-            R.Audio.PlaySfx("sfx_scare", photoSafe ? 0.45f : 0.9f);
-            R.Bus.Publish(GameEvent.Of(EventIds.ScareTriggered, "capture_" + kind));
+            _gameRoot.Audio.PlaySfx("sfx_scare", photoSafe ? 0.45f : 0.9f);
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.ScareTriggered, "capture_" + kind));
             if (!reduce) Shake(0.6f);
             StartCoroutine(CaptureRoutine(photoSafe, reduce));
         }
@@ -113,12 +113,12 @@ namespace Hollowbrook.Horror
             _cooldownUntil = Time.unscaledTime + 1.5f;
             if (sanityHit > 0f)
             {
-                R.Session.ApplySanity(-sanityHit);
-                R.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, R.Session.Sanity));
+                _gameRoot.Session.ApplySanity(-sanityHit);
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, _gameRoot.Session.Sanity));
             }
-            bool photoSafe = R.Settings != null && R.Settings.PhotosensitivitySafe;
-            R.Audio.PlaySfx("sfx_stinger", photoSafe ? 0.4f : 0.7f);
-            R.Bus.Publish(GameEvent.Of(EventIds.ScareTriggered, kind));
+            bool photoSafe = _gameRoot.Settings != null && _gameRoot.Settings.PhotosensitivitySafe;
+            _gameRoot.Audio.PlaySfx("sfx_stinger", photoSafe ? 0.4f : 0.7f);
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.ScareTriggered, kind));
             StartCoroutine(StaticBurst(photoSafe ? 0.10f : 0.22f));
         }
 
@@ -134,16 +134,16 @@ namespace Hollowbrook.Horror
 
         public void Shake(float strength)
         {
-            if (R.Settings != null && R.Settings.ReduceMotion) return;
-            if (R.MainCamera == null) return;
+            if (_gameRoot.Settings != null && _gameRoot.Settings.ReduceMotion) return;
+            if (_gameRoot.MainCamera == null) return;
             if (_shakeRoutine != null) StopCoroutine(_shakeRoutine);
             _shakeRoutine = StartCoroutine(ShakeRoutine(strength));
         }
 
         private IEnumerator ShakeRoutine(float strength)
         {
-            if (R.Views == null) yield break;
-            var target = R.Views.transform;
+            if (_gameRoot.Views == null) yield break;
+            var target = _gameRoot.Views.transform;
             float t = 0f;
             float dur = 0.45f;
             while (t < dur)

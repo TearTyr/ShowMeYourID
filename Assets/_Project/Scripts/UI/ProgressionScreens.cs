@@ -8,10 +8,9 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    // Part of the ui folder.
     public class MapView : MonoBehaviour, IScreenView
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private RectTransform _hereMarker;
         private RectTransform _sheet;
         private readonly List<GameObject> _clueDots = new List<GameObject>();
@@ -19,7 +18,7 @@ namespace Hollowbrook.UI
 
         public void Init(GameRoot root)
         {
-            R = root;
+            _gameRoot = root;
             UIFactory.Dimmer(transform, "dim", 0.86f);
             var head = UIFactory.Label(transform, "head", "HOLLOWBROOK COLLEGE — GROUND FLOOR", 28, UIFactory.Ink, TextAnchor.MiddleCenter);
             UIFactory.Anchor(head.rectTransform, new Vector2(0.5f, 1f), new Vector2(800, 40), new Vector2(0, -64));
@@ -51,7 +50,7 @@ namespace Hollowbrook.UI
             _hint = UIFactory.Label(transform, "hint", "", 15, UIFactory.InkDim, TextAnchor.MiddleCenter);
             UIFactory.Anchor(_hint.rectTransform, new Vector2(0.5f, 0f), new Vector2(900, 26), new Vector2(0, 74));
 
-            var close = UIFactory.StandardButton(transform, "close", "CLOSE [M]", () => R.CloseMap(), 180, 42);
+            var close = UIFactory.StandardButton(transform, "close", "CLOSE [M]", () => _gameRoot.CloseMap(), 180, 42);
             UIFactory.Anchor(close.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(180, 42), new Vector2(0, 34));
 
             gameObject.SetActive(false);
@@ -82,8 +81,8 @@ namespace Hollowbrook.UI
                 RoomId captured = target;
                 btn.onClick.AddListener(() =>
                 {
-                    R.Audio.PlaySfx("sfx_ui_close", 0.5f);
-                    R.TravelViaMap(captured);
+                    _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.5f);
+                    _gameRoot.TravelViaMap(captured);
                 });
             }
         }
@@ -102,14 +101,14 @@ namespace Hollowbrook.UI
             var sheet = _sheet;
             if (sheet == null) return;
 
-            RoomId here = R.State == AppViewState.Exploration && R.Views != null && R.Views.Current != null
-                ? R.Views.Current.Id : RoomId.Security;
+            RoomId here = _gameRoot.State == AppViewState.Exploration && _gameRoot.Views != null && _gameRoot.Views.Current != null
+                ? _gameRoot.Views.Current.Id : RoomId.Security;
             _hereMarker.anchoredPosition = HerePos(here);
 
             var roomCounts = new Dictionary<RoomId, int>();
-            foreach (var key in R.Session.Clues.FoundKeys)
+            foreach (var key in _gameRoot.Session.Clues.FoundKeys)
             {
-                var def = R.Session.Clues.Get(key);
+                var def = _gameRoot.Session.Clues.Get(key);
                 if (def == null) continue;
                 int idx = roomCounts.TryGetValue(def.Room, out var c) ? c : 0;
                 roomCounts[def.Room] = idx + 1;
@@ -126,7 +125,7 @@ namespace Hollowbrook.UI
                 _clueDots.Add(dotGo);
             }
 
-            bool exploring = R.State == AppViewState.Exploration;
+            bool exploring = _gameRoot.State == AppViewState.Exploration;
             _hint.text = exploring
                 ? "Click a room to move there. Red dots are findings you have discovered."
                 : "From the checkpoint the map is reference only — use PATROL HALLWAY to investigate.";
@@ -147,22 +146,21 @@ namespace Hollowbrook.UI
         {
             if (gameObject.activeInHierarchy && (Input.GetKeyDown(KeyCode.M) || Input.GetKeyDown(KeyCode.Escape)))
             {
-                if (R.State == AppViewState.Map) R.CloseMap();
+                if (_gameRoot.State == AppViewState.Map) _gameRoot.CloseMap();
             }
         }
 
         public void Hide() => gameObject.SetActive(false);
     }
 
-    // Part of the ui folder.
     public class ShiftResultsView : MonoBehaviour, IScreenView
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private Text _title, _body, _rating;
 
         public void Init(GameRoot root)
         {
-            R = root;
+            _gameRoot = root;
             UIFactory.Dimmer(transform, "dim", 0.9f);
             var panel = UIFactory.BorderedPanel(transform, "panel", new Color(0.05f, 0.05f, 0.06f, 0.98f), UIFactory.Border, 2);
             UIFactory.Anchor(panel, new Vector2(0.5f, 0.5f), new Vector2(760, 540), Vector2.zero);
@@ -176,8 +174,8 @@ namespace Hollowbrook.UI
             UIFactory.Anchor(_rating.rectTransform, new Vector2(0.5f, 0f), new Vector2(700, 34), new Vector2(0, 92));
             var cont = UIFactory.StandardButton(panel, "cont", "CONTINUE ▸", () =>
             {
-                R.Audio.PlaySfx("sfx_click", 0.8f);
-                R.AdvanceToNextShift();
+                _gameRoot.Audio.PlaySfx("sfx_click", 0.8f);
+                _gameRoot.AdvanceToNextShift();
             }, 240, 46);
             UIFactory.Anchor(cont.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(240, 46), new Vector2(0, 36));
             gameObject.SetActive(false);
@@ -211,10 +209,9 @@ namespace Hollowbrook.UI
         public void Hide() => gameObject.SetActive(false);
     }
 
-    // Part of the ui folder.
     public class EndingView : MonoBehaviour, IScreenView
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private Text _title, _desc, _summary;
         private Text[] _badges = new Text[3];
         private Button _again;
@@ -226,7 +223,7 @@ namespace Hollowbrook.UI
 
         public void Init(GameRoot root)
         {
-            R = root;
+            _gameRoot = root;
             var bg = UIFactory.Panel(transform, "bg", Color.black);
             UIFactory.AnchorsFull(bg.rectTransform);
 
@@ -255,14 +252,14 @@ namespace Hollowbrook.UI
 
             var menu = UIFactory.StandardButton(transform, "menu", "MAIN MENU", () =>
             {
-                R.Audio.PlaySfx("sfx_ui_close", 0.7f);
-                R.QuitToMenu(false);
+                _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.7f);
+                _gameRoot.QuitToMenu(false);
             }, 220, 46);
             UIFactory.Anchor(menu.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(220, 46), new Vector2(-120, 38));
             _again = UIFactory.StandardButton(transform, "again", "PLAY AGAIN", () =>
             {
-                R.Audio.PlaySfx("sfx_bell", 0.7f);
-                R.StartNewGame(_lastMode);
+                _gameRoot.Audio.PlaySfx("sfx_bell", 0.7f);
+                _gameRoot.StartNewGame(_lastMode);
             }, 220, 46);
             UIFactory.Anchor(_again.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(220, 46), new Vector2(120, 38));
 

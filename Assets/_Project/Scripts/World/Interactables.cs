@@ -9,7 +9,7 @@ namespace Hollowbrook.World
 {
     public abstract class Interactable : MonoBehaviour
     {
-        protected GameRoot R;
+        protected GameRoot _gameRoot;
         protected RoomInstance Room;
         public string Prompt = "Inspect";
         public float AnchorX;
@@ -21,72 +21,68 @@ namespace Hollowbrook.World
         public float DistanceTo(Vector3 p) => Mathf.Abs(p.x - AnchorX);
     }
 
-    // Part of the world folder.
     public class TokenPickup : Interactable
     {
         public void Init(GameRoot root, RoomInstance room, float x)
         {
-            R = root; Room = room; AnchorX = x;
+            _gameRoot = root; Room = room; AnchorX = x;
             Prompt = "Collect token [E]";
             Art = GetComponent<SpriteRenderer>();
         }
 
         public override void Interact()
         {
-            if (R == null || R.Session == null) return;
-            R.Session.TokensCollected++;
+            if (_gameRoot == null || _gameRoot.Session == null) return;
+            _gameRoot.Session.TokensCollected++;
             if (Room != null) Room.Interactables.Remove(this);
-            R.Bus.Publish(GameEvent.Of(EventIds.TokenCollected, R.Session.TokensCollected));
-            R.Audio.PlaySfx("sfx_scan_ok", 0.6f);
-            R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*you pocket the token - evidence*", 2.4f, null));
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.TokenCollected, _gameRoot.Session.TokensCollected));
+            _gameRoot.Audio.PlaySfx("sfx_scan_ok", 0.6f);
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*you pocket the token - evidence*", 2.4f, null));
             Destroy(gameObject);
         }
     }
 
-    // Part of the world folder.
     public class Doorway : Interactable
     {
         public RoomId Target;
 
         public void Init(GameRoot root, RoomInstance room, string label, RoomId target, float x)
         {
-            R = root; Room = room; Target = target; AnchorX = x;
+            _gameRoot = root; Room = room; Target = target; AnchorX = x;
             Prompt = target == RoomId.Security ? "Return to Security [E]" : "Enter " + label + " [E]";
             Art = GetComponent<SpriteRenderer>();
         }
 
         public override void Interact()
         {
-            if (R.Views.Transitioning) return;
-            if (Target == RoomId.Security) R.Views.ReturnToSecurity();
-            else R.Views.EnterRoom(Target);
+            if (_gameRoot.Views.Transitioning) return;
+            if (Target == RoomId.Security) _gameRoot.Views.ReturnToSecurity();
+            else _gameRoot.Views.EnterRoom(Target);
         }
     }
 
-    // Part of the world folder.
     public class SecurityDoorInteractable : Interactable
     {
         public void Init(GameRoot root, RoomInstance room, float x)
         {
-            R = root; Room = room; AnchorX = x;
+            _gameRoot = root; Room = room; AnchorX = x;
             Prompt = "Security Office [E]";
             Art = GetComponent<SpriteRenderer>();
         }
 
         public override void Interact()
         {
-            if (R.SecurityRoom == null) return;
-            R.Audio.PlaySfx("sfx_door", 0.7f);
-            R.OpenSecurityRoom();
+            if (_gameRoot.SecurityRoom == null) return;
+            _gameRoot.Audio.PlaySfx("sfx_door", 0.7f);
+            _gameRoot.OpenSecurityRoom();
         }
     }
 
-    // Part of the world folder.
     public class LightSwitchObject : Interactable
     {
         public void Init(GameRoot root, RoomInstance room, float x)
         {
-            R = root; Room = room; AnchorX = x;
+            _gameRoot = root; Room = room; AnchorX = x;
             Prompt = "Light switch [E]";
             Art = GetComponent<SpriteRenderer>();
         }
@@ -95,11 +91,10 @@ namespace Hollowbrook.World
         {
             if (Room.Light == null) return;
             Room.Light.SetMode(Room.Light.Mode == LightMode.Off ? LightMode.Sweep : LightMode.Off);
-            R.Audio.PlaySfx("sfx_flicker");
+            _gameRoot.Audio.PlaySfx("sfx_flicker");
         }
     }
 
-    // Part of the world folder.
     public class ClueObject : Interactable
     {
         private string _clueKey;
@@ -110,7 +105,7 @@ namespace Hollowbrook.World
 
         public void Init(GameRoot root, RoomInstance room, string clueKey, string label, float x)
         {
-            R = root; Room = room; AnchorX = x;
+            _gameRoot = root; Room = room; AnchorX = x;
             _clueKey = clueKey;
             _def = root.Session.Clues.Get(clueKey); // def content is static; tracker state lives in session
             Prompt = "Inspect " + label + " [E]";
@@ -125,8 +120,8 @@ namespace Hollowbrook.World
             }
             if (_def == null) { Debug.LogWarning("[Clue] unknown clue key " + _clueKey); return; }
 
-            var res = R.Session.DiscoverClue(_clueKey);
-            R.Audio.PlaySfx(res.FirstTime ? "sfx_pickup" : "sfx_paper", 1f);
+            var res = _gameRoot.Session.DiscoverClue(_clueKey);
+            _gameRoot.Audio.PlaySfx(res.FirstTime ? "sfx_pickup" : "sfx_paper", 1f);
 
             var lines = new System.Collections.Generic.List<DialogueLine>
             {
@@ -135,14 +130,14 @@ namespace Hollowbrook.World
             if (res.FirstTime)
             {
                 lines.Add(new DialogueLine { Speaker = "NOTE TO SELF", Text = _def.ChainHint });
-                R.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    "FINDING " + R.Session.Clues.FoundCount + "/10 — " + _def.Display));
-                R.Bus.Publish(GameEvent.Of(EventIds.ClueDiscovered, res));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
+                    "FINDING " + _gameRoot.Session.Clues.FoundCount + "/10 — " + _def.Display));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.ClueDiscovered, res));
                 AddMarker();
-                if (_def.IsScare && R.Scares != null)
-                    R.Scares.Stinger("clue_" + _clueKey, 0f); // sanity already applied by DiscoverClue
+                if (_def.IsScare && _gameRoot.Scares != null)
+                    _gameRoot.Scares.Stinger("clue_" + _clueKey, 0f); // sanity already applied by DiscoverClue
             }
-            if (R.Dialogue != null) R.Dialogue.Play(lines, null);
+            if (_gameRoot.Dialogue != null) _gameRoot.Dialogue.Play(lines, null);
         }
 
         private void AddMarker()
@@ -162,7 +157,7 @@ namespace Hollowbrook.World
         public void SyncFromSession()
         {
             bool found = false;
-            foreach (var k in R.Session.Clues.FoundKeys) if (k == _clueKey) { found = true; break; }
+            foreach (var k in _gameRoot.Session.Clues.FoundKeys) if (k == _clueKey) { found = true; break; }
             if (found && !_discovered) AddMarker();
         }
     }

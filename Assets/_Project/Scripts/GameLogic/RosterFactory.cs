@@ -3,7 +3,6 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    // Part of the gamelogic folder.
     public class RosterFactory
     {
         private readonly List<StudentIdentity> _canon;

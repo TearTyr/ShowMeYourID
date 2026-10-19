@@ -10,7 +10,7 @@ namespace Hollowbrook.Horror
     // False entities at low sanity. Created by SchoolSceneBootstrap.
     public class HallucinationSystem : MonoBehaviour
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private float _exploreAcc;
         private float _checkpointAcc;
         private static readonly string[] Whispers =
@@ -23,16 +23,16 @@ namespace Hollowbrook.Horror
             "(static shapes a name you almost recognize)",
         };
 
-        public void Init(GameRoot root) { R = root; }
+        public void Init(GameRoot root) { _gameRoot = root; }
 
         private void Update()
         {
-            if (R == null || R.Session == null || R.Paused) return;
-            if (R.State != AppViewState.Exploration && R.State != AppViewState.Checkpoint) return;
-            var stage = SanityModel.StageFor(R.Session.Sanity);
+            if (_gameRoot == null || _gameRoot.Session == null || _gameRoot.Paused) return;
+            if (_gameRoot.State != AppViewState.Exploration && _gameRoot.State != AppViewState.Checkpoint) return;
+            var stage = SanityModel.StageFor(_gameRoot.Session.Sanity);
             if (stage == SanityStage.Stable) return;
 
-            if (R.State == AppViewState.Exploration)
+            if (_gameRoot.State == AppViewState.Exploration)
             {
                 _exploreAcc += Time.deltaTime;
                 if (_exploreAcc >= 1f)
@@ -51,9 +51,9 @@ namespace Hollowbrook.Horror
                     float chance = SanityModel.HallucinationChancePerSecond(stage) * 0.4f;
                     if (Random.value < chance)
                     {
-                        R.Bus.Publish(GameEvent.Of(EventIds.HallucinationTriggered, "whisper"));
-                        R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, Whispers[Random.Range(0, Whispers.Length)], 3.2f, null));
-                        R.Audio.PlaySfx("sfx_static", 0.18f);
+                        _gameRoot.Bus.Publish(GameEvent.Of(EventIds.HallucinationTriggered, "whisper"));
+                        _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, Whispers[Random.Range(0, Whispers.Length)], 3.2f, null));
+                        _gameRoot.Audio.PlaySfx("sfx_static", 0.18f);
                     }
                 }
             }
@@ -61,28 +61,28 @@ namespace Hollowbrook.Horror
 
         private void ExploreHallucination()
         {
-            if (R.Views == null || R.Views.Current == null) return;
+            if (_gameRoot.Views == null || _gameRoot.Views.Current == null) return;
             int roll = Random.Range(0, 4);
-            R.Bus.Publish(GameEvent.Of(EventIds.HallucinationTriggered, "explore_" + roll));
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.HallucinationTriggered, "explore_" + roll));
             switch (roll)
             {
                 case 0: // phantom figure — harmless, fades on its own
-                    R.Views.SpawnAnomaly(true);
+                    _gameRoot.Views.SpawnAnomaly(true);
                     break;
                 case 1:
-                    R.Audio.PlaySfx("sfx_knock", 0.6f);
-                    R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*three slow knocks from inside the wall*", 2.8f, null));
+                    _gameRoot.Audio.PlaySfx("sfx_knock", 0.6f);
+                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*three slow knocks from inside the wall*", 2.8f, null));
                     break;
                 case 2:
-                    R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, Whispers[Random.Range(0, Whispers.Length)], 3.2f, null));
-                    R.Audio.PlaySfx("sfx_static", 0.25f);
+                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, Whispers[Random.Range(0, Whispers.Length)], 3.2f, null));
+                    _gameRoot.Audio.PlaySfx("sfx_static", 0.25f);
                     break;
                 default: // phantom flicker (never a strobe; photosensitivity-safe by construction)
                 {
-                    var light = R.Views.Current.Light;
+                    var light = _gameRoot.Views.Current.Light;
                     if (light != null && light.Mode == LightMode.Sweep)
                     {
-                        R.Audio.PlaySfx("sfx_flicker", 0.4f);
+                        _gameRoot.Audio.PlaySfx("sfx_flicker", 0.4f);
                         light.SetMode(LightMode.Off);
                         CancelInvoke(nameof(RestoreLights));
                         Invoke(nameof(RestoreLights), 0.5f);
@@ -94,8 +94,8 @@ namespace Hollowbrook.Horror
 
         private void RestoreLights()
         {
-            if (R != null && R.Views != null && R.Views.Current != null && R.Views.Current.Light != null)
-                R.Views.Current.Light.SetMode(LightMode.Sweep);
+            if (_gameRoot != null && _gameRoot.Views != null && _gameRoot.Views.Current != null && _gameRoot.Views.Current.Light != null)
+                _gameRoot.Views.Current.Light.SetMode(LightMode.Sweep);
         }
     }
 }

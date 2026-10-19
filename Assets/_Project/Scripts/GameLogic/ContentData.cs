@@ -4,7 +4,6 @@ using System.Collections.Generic;
 namespace Hollowbrook.Logic
 {
     [Serializable]
-    // Part of the gamelogic folder.
     public struct Portrait
     {
         public int HairStyle;    // 0..5
@@ -39,7 +38,6 @@ namespace Hollowbrook.Logic
     }
 
     [Serializable]
-    // Part of the gamelogic folder.
     public class StudentIdentity
     {
         public string FullName;
@@ -60,7 +58,6 @@ namespace Hollowbrook.Logic
     }
 
     [Serializable]
-    // Part of the gamelogic folder.
     public struct Answer
     {
         public string Text;
@@ -69,7 +66,6 @@ namespace Hollowbrook.Logic
     }
 
     [Serializable]
-    // Part of the gamelogic folder.
     public class VisitorData
     {
         public int VisitorIndex;              // index within the whole run
@@ -127,7 +123,6 @@ namespace Hollowbrook.Logic
     }
 
     [Serializable]
-    // Part of the gamelogic folder.
     public class ClueDef
     {
         public int Order;            // 1..10, intended sequence
@@ -141,7 +136,6 @@ namespace Hollowbrook.Logic
     }
 
     [Serializable]
-    // Part of the gamelogic folder.
     public class ShiftDef
     {
         public int Number;           // 1..5
@@ -160,7 +154,6 @@ namespace Hollowbrook.Logic
     }
 
     [Serializable]
-    // Part of the gamelogic folder.
     public class RuleMutationDef
     {
         public string Key;
@@ -183,7 +176,6 @@ namespace Hollowbrook.Logic
         }
     }
 
-    // Part of the gamelogic folder.
     public static class Content
     {
         public const int TotalStudents = 14;          // 8 core + 6 variations (approved asset plan)

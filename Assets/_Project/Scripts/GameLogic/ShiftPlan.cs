@@ -2,7 +2,6 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    // Part of the gamelogic folder.
     public static class ShiftPlan
     {
         public const int TotalShifts = 5;
@@ -103,7 +102,6 @@ namespace Hollowbrook.Logic
         };
     }
 
-    // Part of the gamelogic folder.
     public static class SanityModel
     {
         public const float Max = 100f;

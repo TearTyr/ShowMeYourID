@@ -13,7 +13,7 @@ namespace Hollowbrook.UI
     // The Options sheet: volumes, display, accessibility, reset. Created by each scene bootstrap.
     public class SettingsView : MonoBehaviour, IScreenView
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private bool _refreshing;
 
         private Slider _masterSlider, _sfxSlider;
@@ -38,7 +38,7 @@ namespace Hollowbrook.UI
 
         public void Init(GameRoot root)
         {
-            R = root;
+            _gameRoot = root;
             var sheet = UIFactory.LeftSheet(transform, "OPTIONS",
                 "Applies immediately. Remembered on this machine.", out var col);
             col.GetComponent<VerticalLayoutGroup>().spacing = UIFactory.SpaceUnit;
@@ -64,7 +64,7 @@ namespace Hollowbrook.UI
             _scroll.movementType = ScrollRect.MovementType.Clamped;
             _scroll.scrollSensitivity = 24f;
 
-            var s = R.Settings;
+            var s = _gameRoot.Settings;
 
             Section(col, "AUDIO");
             _masterSlider = UIFactory.SliderRow(col, "master", "Master volume", s.Current.MasterVolume,
@@ -82,7 +82,7 @@ namespace Hollowbrook.UI
                 s.Current.Fullscreen, v =>
                 {
                     if (_refreshing) return;
-                    var cur = R.Settings.CurrentMode();
+                    var cur = _gameRoot.Settings.CurrentMode();
                     BeginDisplayChange(() => s.SetDisplay(
                         s.Current.DisplayWidth > 0 ? s.Current.DisplayWidth : cur.W,
                         s.Current.DisplayHeight > 0 ? s.Current.DisplayHeight : cur.H, v, false));
@@ -104,7 +104,7 @@ namespace Hollowbrook.UI
                     new Vector2(186 + i * 108, 0));
                 _resButtons[i] = b;
                 _resLabels[i] = b.GetComponentInChildren<Text>();
-                if (_resLabels[i] != null) _resLabels[i].fontSize = 14;
+                if (_resLabels[i] != null) UIFactory.SetBaseFontSize(_resLabels[i], 14);
             }
 
             _resNote = UIFactory.Label(col, "resnote", "", UIFactory.TypeSmall, UIFactory.InkDim,
@@ -160,7 +160,7 @@ namespace Hollowbrook.UI
             UIFactory.Layout(dataRow, 560, 40);
             var resetBtn = UIFactory.StandardButton(dataRow, "resetdata", "RESET DATA…", () =>
             {
-                R.RequestDataReset(() =>
+                _gameRoot.RequestDataReset(() =>
                 {
                     if (_dataHint != null)
                     {
@@ -179,13 +179,13 @@ namespace Hollowbrook.UI
 
             UIFactory.SheetButton(sheet, "controls", "CONTROLS", () =>
             {
-                R.Audio.PlaySfx("sfx_ui_open", 0.6f);
-                R.OpenControls();
+                _gameRoot.Audio.PlaySfx("sfx_ui_open", 0.6f);
+                _gameRoot.OpenControls();
             }, 140);
             UIFactory.SheetButton(sheet, "back", "◂ BACK", () =>
             {
-                R.Audio.PlaySfx("sfx_ui_close", 0.6f);
-                R.CloseSettings();
+                _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.6f);
+                _gameRoot.CloseSettings();
             }, 360);
 
             gameObject.SetActive(false);
@@ -215,12 +215,12 @@ namespace Hollowbrook.UI
         {
             if (_refreshing || idx < 0 || idx >= _choices.Count) return;
             var m = _choices[idx];
-            BeginDisplayChange(() => R.Settings.SetDisplay(m.W, m.H, R.Settings.Current.Fullscreen, false));
+            BeginDisplayChange(() => _gameRoot.Settings.SetDisplay(m.W, m.H, _gameRoot.Settings.Current.Fullscreen, false));
         }
 
         private void BeginDisplayChange(UnityEngine.Events.UnityAction change)
         {
-            if (_displayBefore == null) _displayBefore = R.Settings.Current.Clone();
+            if (_displayBefore == null) _displayBefore = _gameRoot.Settings.Current.Clone();
             change();
             _revertLeft = DisplayPolicy.RevertSeconds;
             if (_displayNoteRow != null) _displayNoteRow.gameObject.SetActive(true);
@@ -234,7 +234,7 @@ namespace Hollowbrook.UI
             while (_revertLeft > 0)
             {
                 if (_displayNote != null)
-                    _displayNote.text = "Keep " + ModeText(R.Settings.CurrentMode()) +
+                    _displayNote.text = "Keep " + ModeText(_gameRoot.Settings.CurrentMode()) +
                                         "?  reverts in " + _revertLeft + "s";
                 yield return new WaitForSecondsRealtime(1f);
                 _revertLeft--;
@@ -246,7 +246,7 @@ namespace Hollowbrook.UI
         {
             if (_revertRoutine != null) StopCoroutine(_revertRoutine);
             _revertRoutine = null;
-            R.Settings.ApplyCurrentDisplay(true);
+            _gameRoot.Settings.ApplyCurrentDisplay(true);
             _displayBefore = null;
             if (_displayNoteRow != null) _displayNoteRow.gameObject.SetActive(false);
             RefreshDisplayUI();
@@ -256,7 +256,7 @@ namespace Hollowbrook.UI
         {
             if (_revertRoutine != null) StopCoroutine(_revertRoutine);
             _revertRoutine = null;
-            R.Settings.RestoreDisplaySnapshot(_displayBefore);
+            _gameRoot.Settings.RestoreDisplaySnapshot(_displayBefore);
             _displayBefore = null;
             if (_displayNoteRow != null) _displayNoteRow.gameObject.SetActive(false);
             RefreshDisplayUI();
@@ -285,8 +285,8 @@ namespace Hollowbrook.UI
 
         private void Update()
         {
-            if (!gameObject.activeInHierarchy || R == null) return;
-            if (Input.GetKeyDown(KeyCode.Escape)) { R.CloseSettings(); return; }
+            if (!gameObject.activeInHierarchy || _gameRoot == null) return;
+            if (Input.GetKeyDown(KeyCode.Escape)) { _gameRoot.CloseSettings(); return; }
             if (Input.GetKeyDown(KeyCode.Tab) && _navOrder.Count > 0 && EventSystem.current != null)
             {
                 var curSel = EventSystem.current.currentSelectedGameObject != null
@@ -306,7 +306,7 @@ namespace Hollowbrook.UI
         private void Refresh()
         {
             _refreshing = true;
-            var s = R.Settings.Current;
+            var s = _gameRoot.Settings.Current;
             if (_masterSlider != null) _masterSlider.value = s.MasterVolume;
             if (_musicSlider != null) _musicSlider.value = s.MusicVolume;
             if (_sfxSlider != null) _sfxSlider.value = s.SfxVolume;
@@ -321,12 +321,12 @@ namespace Hollowbrook.UI
 
         private void RefreshDisplayUI()
         {
-            bool fs = R.Settings.Current.Fullscreen;
+            bool fs = _gameRoot.Settings.Current.Fullscreen;
             if (_resRow != null) _resRow.SetActive(!fs);   // borderless = desktop resolution
             if (_resNote != null) _resNote.text = fs ? "Borderless fullscreen uses the desktop resolution." : "";
-            _choices = R.Settings.MenuChoices();
-            var cur = R.Settings.CurrentMode();
-            var stored = new ModeSize(R.Settings.Current.DisplayWidth, R.Settings.Current.DisplayHeight);
+            _choices = _gameRoot.Settings.MenuChoices();
+            var cur = _gameRoot.Settings.CurrentMode();
+            var stored = new ModeSize(_gameRoot.Settings.Current.DisplayWidth, _gameRoot.Settings.Current.DisplayHeight);
             var active = stored.W > 0 && stored.H > 0 ? stored : cur;
             for (int i = 0; i < _resButtons.Length; i++)
             {
@@ -352,7 +352,7 @@ namespace Hollowbrook.UI
         private void RefreshTextScaleButtons()
         {
             if (_textScaleButtons == null) return;
-            int sel = R.Settings.Current.TextScale;
+            int sel = _gameRoot.Settings.Current.TextScale;
             for (int i = 0; i < _textScaleButtons.Length; i++)
             {
                 var b = _textScaleButtons[i];

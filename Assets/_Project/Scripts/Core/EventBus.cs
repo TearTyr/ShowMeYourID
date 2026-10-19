@@ -2,7 +2,6 @@ using System;
 
 namespace Hollowbrook.Core
 {
-    // Part of the core folder.
     public struct GameEvent
     {
         public string Id;

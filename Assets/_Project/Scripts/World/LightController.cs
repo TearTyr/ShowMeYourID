@@ -9,7 +9,7 @@ namespace Hollowbrook.World
     public class LightController : MonoBehaviour
     {
         public LightMode Mode { get; private set; } = LightMode.Sweep;
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private RoomInstance _room;
         private SpriteRenderer _darkness;
         private float _flickerTimer;
@@ -17,7 +17,7 @@ namespace Hollowbrook.World
 
         public void Init(GameRoot root, RoomInstance room, SpriteRenderer darkness, LightMode startMode)
         {
-            R = root; _room = room; _darkness = darkness;
+            _gameRoot = root; _room = room; _darkness = darkness;
             _flickerTimer = Random.Range(6f, 14f);
             ApplyVisual();
             Mode = startMode;
@@ -30,9 +30,9 @@ namespace Hollowbrook.World
             if (m != LightMode.Focus) _lastNonFocus = m;
             Mode = m;
             ApplyVisual();
-            R?.Bus.Publish(GameEvent.Of(EventIds.LightModeChanged, m));
-            if (R != null && R.HUD != null)
-                R.Bus.Publish(GameEvent.Of(EventIds.Notification,
+            _gameRoot?.Bus.Publish(GameEvent.Of(EventIds.LightModeChanged, m));
+            if (_gameRoot != null && _gameRoot.HUD != null)
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
                     m == LightMode.Off ? "Lights off. Something prefers it that way." :
                     m == LightMode.Focus ? "Flashlight on." : "Lights on."));
         }
@@ -53,7 +53,7 @@ namespace Hollowbrook.World
 
         private void Update()
         {
-            if (R == null || R.Paused || _room == null) return;
+            if (_gameRoot == null || _gameRoot.Paused || _room == null) return;
             if (Mode != LightMode.Sweep) return;
             _flickerTimer -= Time.deltaTime;
             if (_flickerTimer <= 0f)
@@ -66,10 +66,10 @@ namespace Hollowbrook.World
 
         private IEnumerator Flicker()
         {
-            bool photoSafe = R.Settings != null && R.Settings.PhotosensitivitySafe;
+            bool photoSafe = _gameRoot.Settings != null && _gameRoot.Settings.PhotosensitivitySafe;
             int pulses = photoSafe ? 2 : 4;
             float baseAlpha = 0.12f;
-            R.Audio.PlaySfx("sfx_flicker", 0.5f);
+            _gameRoot.Audio.PlaySfx("sfx_flicker", 0.5f);
             for (int i = 0; i < pulses; i++)
             {
                 // gentle dim (never a hard strobe; photosensitivity guard caps contrast)

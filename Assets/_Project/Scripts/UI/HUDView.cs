@@ -13,7 +13,7 @@ namespace Hollowbrook.UI
     // Sanity, light battery, tracking meter, findings, prompts. Created by each scene bootstrap.
     public class HUDView : MonoBehaviour, IScreenView
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private Image _sanityFill;
         private Text _sanityLabel;
         private Text _objective;
@@ -31,7 +31,7 @@ namespace Hollowbrook.UI
 
         public void Init(GameRoot root)
         {
-            R = root;
+            _gameRoot = root;
 
             var barBg = UIFactory.Panel(transform, "sanitybg", new Color(0.05f, 0.05f, 0.06f, 0.85f)).rectTransform;
             UIFactory.Anchor(barBg, new Vector2(0, 1), new Vector2(240, 46), new Vector2(132, -86));
@@ -136,7 +136,7 @@ namespace Hollowbrook.UI
             if (!exploring) _prompt.text = "";
             if (s == AppViewState.Checkpoint) _objective.text = "Inspect every visitor. Permanent decisions.";
             RefreshFindings();
-            SetSanity(R.Session != null ? R.Session.Sanity : 100f);
+            SetSanity(_gameRoot.Session != null ? _gameRoot.Session.Sanity : 100f);
         }
 
         public void SetSanity(float v)
@@ -179,16 +179,16 @@ namespace Hollowbrook.UI
 
         public void RefreshFindings()
         {
-            if (R.Session == null) return;
-            _findings.text = "FINDINGS " + R.Session.Clues.FoundCount + "/10" +
-                             (R.Session.Clues.OrderIntact ? "" : "  (order broken)") +
-                             (R.Session.TokensCollected > 0 ? "  ·  TOKENS " + R.Session.TokensCollected : "");
+            if (_gameRoot.Session == null) return;
+            _findings.text = "FINDINGS " + _gameRoot.Session.Clues.FoundCount + "/10" +
+                             (_gameRoot.Session.Clues.OrderIntact ? "" : "  (order broken)") +
+                             (_gameRoot.Session.TokensCollected > 0 ? "  ·  TOKENS " + _gameRoot.Session.TokensCollected : "");
         }
 
         public void RefreshRoom()
         {
-            if (R.Views == null || R.Views.Current == null) { _roomInfo.text = ""; return; }
-            var room = R.Views.Current;
+            if (_gameRoot.Views == null || _gameRoot.Views.Current == null) { _roomInfo.text = ""; return; }
+            var room = _gameRoot.Views.Current;
             string light = room.Light != null ? room.Light.Mode.ToString().ToUpperInvariant() : "—";
             _roomInfo.text = room.DisplayName + "  ·  LIGHTS: " + light + "  ·  [F] flashlight";
         }
@@ -209,7 +209,7 @@ namespace Hollowbrook.UI
 
         public void Refresh()
         {
-            if (R != null && R.Session != null) { SetSanity(R.Session.Sanity); RefreshFindings(); RefreshRoom(); }
+            if (_gameRoot != null && _gameRoot.Session != null) { SetSanity(_gameRoot.Session.Sanity); RefreshFindings(); RefreshRoom(); }
         }
 
         public void Show() { gameObject.SetActive(true); Refresh(); }

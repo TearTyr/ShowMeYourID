@@ -2,7 +2,6 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    // Part of the gamelogic folder.
     public static class PatrolRules
     {
         public const int LateArrivals = 3;

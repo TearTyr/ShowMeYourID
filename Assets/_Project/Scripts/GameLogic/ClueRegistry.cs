@@ -2,7 +2,6 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    // Part of the gamelogic folder.
     public static class ClueRegistry
     {
         public static List<ClueDef> Build()
@@ -53,7 +52,6 @@ namespace Hollowbrook.Logic
         }
     }
 
-    // Part of the gamelogic folder.
     public class ClueDiscoveryResult
     {
         public bool FirstTime;
@@ -62,7 +60,6 @@ namespace Hollowbrook.Logic
         public ClueDef Def;
     }
 
-    // Part of the gamelogic folder.
     public class ClueTracker
     {
         private readonly Dictionary<string, ClueDef> _byKey = new Dictionary<string, ClueDef>();

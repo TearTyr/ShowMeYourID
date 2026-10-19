@@ -1,6 +1,5 @@
 namespace Hollowbrook.Logic
 {
-    // Part of the gamelogic folder.
     public static class EndingRules
     {
         public const int LoseThreshold = 3;
@@ -50,7 +49,6 @@ namespace Hollowbrook.Logic
             new Evaluation { Ending = t, ReasonKey = key, ReasonText = text };
     }
 
-    // Part of the gamelogic folder.
     public static class EndlessRules
     {
         public const float StartSeconds = 150f;
@@ -78,7 +76,6 @@ namespace Hollowbrook.Logic
         }
     }
 
-    // Part of the gamelogic folder.
     public static class ChallengeRules
     {
         public const int VisitorsPerRuleWave = 4;

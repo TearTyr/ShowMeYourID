@@ -13,7 +13,7 @@ namespace Hollowbrook.Horror
     // Sanity-driven screen effects. Created by each scene bootstrap.
     public class SanityController : MonoBehaviour
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private Image _vignette;
         private Image _distortion;
         private Text _warning;
@@ -24,7 +24,7 @@ namespace Hollowbrook.Horror
 
         public void Init(GameRoot root, Canvas fxCanvas)
         {
-            R = root;
+            _gameRoot = root;
 
             var vigRt = UIFactory.NewUI(fxCanvas.transform, "Vignette");
             UIFactory.AnchorsFull(vigRt);
@@ -59,36 +59,36 @@ namespace Hollowbrook.Horror
 
         public void Tick(bool inSecurity)
         {
-            if (R == null || R.Session == null) return;
+            if (_gameRoot == null || _gameRoot.Session == null) return;
             _acc += Time.deltaTime;
             if (_acc < 0.5f) return;
             float dt = _acc; _acc = 0f;
 
-            float before = R.Session.Sanity;
+            float before = _gameRoot.Session.Sanity;
             if (inSecurity)
             {
-                float rate = R.Session.Mode == GameMode.Normal
+                float rate = _gameRoot.Session.Mode == GameMode.Normal
                     ? SanityModel.SecurityRoomRecoveryPerSecond
                     : SanityModel.SecurityRoomRecoveryPerSecond * 0.4f;
-                R.Session.ApplySanity(rate * dt);
+                _gameRoot.Session.ApplySanity(rate * dt);
             }
-            else if (R.Views != null && R.Views.Current != null)
+            else if (_gameRoot.Views != null && _gameRoot.Views.Current != null)
             {
-                var light = R.Views.Current.Light;
+                var light = _gameRoot.Views.Current.Light;
                 if (light != null && light.Mode == LightMode.Off)
-                    R.Session.ApplySanity(-SanityModel.DarknessDrainPerSecond * dt);
+                    _gameRoot.Session.ApplySanity(-SanityModel.DarknessDrainPerSecond * dt);
                 else if (light != null && light.Mode == LightMode.Focus)
-                    R.Session.ApplySanity(-SanityModel.DarknessDrainPerSecond * 0.25f * dt);
+                    _gameRoot.Session.ApplySanity(-SanityModel.DarknessDrainPerSecond * 0.25f * dt);
             }
 
-            if (!Mathf.Approximately(before, R.Session.Sanity))
-                R.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, R.Session.Sanity));
+            if (!Mathf.Approximately(before, _gameRoot.Session.Sanity))
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, _gameRoot.Session.Sanity));
 
-            var stage = SanityModel.StageFor(R.Session.Sanity);
+            var stage = SanityModel.StageFor(_gameRoot.Session.Sanity);
             if (stage != _lastStage)
             {
                 _lastStage = stage;
-                R.Bus.Publish(GameEvent.Of(EventIds.SanityStageChanged, stage));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.SanityStageChanged, stage));
             }
 
             if (stage == SanityStage.Shaken || stage == SanityStage.Breaking)
@@ -97,7 +97,7 @@ namespace Hollowbrook.Horror
                 if (_heartbeatTimer <= 0f)
                 {
                     _heartbeatTimer = stage == SanityStage.Breaking ? 0.85f : 1.5f;
-                    R.Audio.PlaySfx("sfx_heartbeat", stage == SanityStage.Breaking ? 0.75f : 0.4f);
+                    _gameRoot.Audio.PlaySfx("sfx_heartbeat", stage == SanityStage.Breaking ? 0.75f : 0.4f);
                 }
             }
         }
@@ -110,7 +110,7 @@ namespace Hollowbrook.Horror
         private void ApplyStageVisuals(SanityStage stage, bool silent)
         {
             if (_vignette == null) return;
-            bool reduce = R != null && R.Settings != null && R.Settings.ReduceMotion;
+            bool reduce = _gameRoot != null && _gameRoot.Settings != null && _gameRoot.Settings.ReduceMotion;
             float vig, dis;
             string warn;
             switch (stage)

@@ -173,13 +173,13 @@ namespace Hollowbrook.Checkpoint
             _recHeader = UIFactory.Label(rec.rectTransform, "header", "STUDENT RECORD — FORM 11-C", 13,
                 new Color(0.9f, 0.9f, 0.88f), TextAnchor.MiddleCenter);
             UIFactory.Anchor(_recHeader.rectTransform, new Vector2(0.5f, 1), new Vector2(224, 30), new Vector2(0, -16));
-            _recName = Row(rec.rectTransform, "rname", 250);
-            _recNumber = Row(rec.rectTransform, "rnum", 224);
-            _recYear = Row(rec.rectTransform, "ryear", 198);
-            _recCourse = Row(rec.rectTransform, "rcourse", 172);
-            _recStatus = Row(rec.rectTransform, "rstatus", 146);
-            _recClassroom = Row(rec.rectTransform, "rroom", 120);
-            _recEnrolled = Row(rec.rectTransform, "renrolled", 94);
+            _recName = Row(rec.rectTransform, "rname", 0);
+            _recNumber = Row(rec.rectTransform, "rnum", 1);
+            _recYear = Row(rec.rectTransform, "ryear", 2);
+            _recCourse = Row(rec.rectTransform, "rcourse", 3);
+            _recStatus = Row(rec.rectTransform, "rstatus", 4);
+            _recClassroom = Row(rec.rectTransform, "rroom", 5);
+            _recEnrolled = Row(rec.rectTransform, "renrolled", 6);
 
             // respects Reduced Motion (no punch, instant) and never blocks clicks
             _stampOverlay = UIFactory.Img(rec.rectTransform, "stampoverlay", null, new Color(1, 1, 1, 0f));
@@ -192,7 +192,7 @@ namespace Hollowbrook.Checkpoint
                 int row = i;
                 var rb = UIFactory.StandardButton(rec.rectTransform, "check" + i, "[  ] " + ChecklistLabels[i],
                     () => CycleCheckRow(row), 280, 15);
-                rb.GetComponentInChildren<Text>().fontSize = 11;
+                UIFactory.SetBaseFontSize(rb.GetComponentInChildren<Text>(), 11);
                 rb.GetComponentInChildren<Text>().alignment = TextAnchor.MiddleLeft;
                 UIFactory.Anchor(rb.GetComponent<RectTransform>(), new Vector2(0f, 1f),
                     new Vector2(300, 15), new Vector2(160, -152 - i * CheckpointLayout.CheckRowStep));
@@ -212,10 +212,13 @@ namespace Hollowbrook.Checkpoint
             _monitorOutput.rectTransform.offsetMax = new Vector2(-10, -8);
         }
 
-        private Text Row(RectTransform parent, string name, float yFromTop)
+        private Text Row(RectTransform parent, string name, int rowIndex)
         {
+            const float HeaderHeight = 44f;
+            const float RowHeight = 24f;
             var t = UIFactory.Label(parent, name, "", 13, UIFactory.PaperInk);
-            UIFactory.Anchor(t.rectTransform, new Vector2(0, 1), new Vector2(220, 20), new Vector2(120, -40 - yFromTop));
+            UIFactory.Anchor(t.rectTransform, new Vector2(0, 1), new Vector2(220, 20),
+                new Vector2(120, -(HeaderHeight + rowIndex * RowHeight)));
             return t;
         }
 
@@ -223,7 +226,7 @@ namespace Hollowbrook.Checkpoint
         {
             var qCol = UIFactory.NewUI(_root, "questions");
             _qColRt = qCol;
-            UIFactory.Anchor(qCol, new Vector2(1, 0), new Vector2(280, 200), CheckpointLayout.QuestionsColumnCenter);
+            UIFactory.Anchor(qCol, new Vector2(1, 1), new Vector2(280, 200), CheckpointLayout.QuestionsColumnCenter);
             _budgetLabel = UIFactory.Label(qCol, "budget", "QUESTIONS: 2 LEFT", 14, UIFactory.InkDim, TextAnchor.MiddleLeft);
             UIFactory.Anchor(_budgetLabel.rectTransform, new Vector2(0, 1), new Vector2(260, 24), new Vector2(130, -12));
             string[] qs =
@@ -236,7 +239,7 @@ namespace Hollowbrook.Checkpoint
             {
                 int qi = i;
                 var b = UIFactory.StandardButton(qCol, "q" + i, qs[i], () => AskQuestion(qids[qi]), 260, 40);
-                UIFactory.Anchor(b.GetComponent<RectTransform>(), new Vector2(0, 1), new Vector2(272, 40), new Vector2(140, -34 - i * 44));
+                UIFactory.Anchor(b.GetComponent<RectTransform>(), new Vector2(0, 1), new Vector2(272, 40), new Vector2(0f, -34 - i * 44));
                 _questionButtons[i] = b;
             }
 
@@ -351,14 +354,11 @@ namespace Hollowbrook.Checkpoint
 
         public void BeginRun(List<VisitorData> roster, ShiftDef shift, int resumeFromVisitor = 0)
         {
-            // a mid-shift continue skips visitors the player already processed
             _index = resumeFromVisitor - 1;
             Debug.Log("[Flow] BeginRun roster=" + (roster != null ? roster.Count : -1));
-            Debug.Log("[Flow] checkpoint started with " + (roster != null ? roster.Count : 0) + " visitors");
             if (_noteText != null && _gameRoot.CurrentShiftDef != null) _noteText.text = _gameRoot.CurrentShiftDef.RuleNoteAddendum;
             _roster = roster;
             _shift = shift;
-            _index = -1;
             _gameRoot.CurrentVisitorIndex = Mathf.Max(0, _index + 1);
             _tonightsLog.Clear();
             _flowActive = true;
@@ -487,7 +487,7 @@ namespace Hollowbrook.Checkpoint
             if (_glitchOverlay != null) _glitchOverlay.rectTransform.SetAsLastSibling();
             if (_speechPanel != null) _speechPanel.SetAsLastSibling();
             _testimony = UIFactory.Label(_qColRt, "testimony", "", 12, UIFactory.InkDim, TextAnchor.UpperLeft);
-            UIFactory.Anchor(_testimony.rectTransform, new Vector2(0.5f, 1f), new Vector2(272, 86), new Vector2(140, -300));
+            UIFactory.Anchor(_testimony.rectTransform, new Vector2(0.5f, 1f), new Vector2(272, 86), new Vector2(0f, -290));
         }
 
         private void OnDestroy()

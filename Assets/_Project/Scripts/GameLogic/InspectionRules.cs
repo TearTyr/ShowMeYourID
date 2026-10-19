@@ -2,7 +2,6 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    // Part of the gamelogic folder.
     public static class QuestionSystem
     {
         public static readonly QuestionId[] All =
@@ -51,7 +50,6 @@ namespace Hollowbrook.Logic
         }
     }
 
-    // Part of the gamelogic folder.
     public static class InspectionRules
     {
         public class Outcome

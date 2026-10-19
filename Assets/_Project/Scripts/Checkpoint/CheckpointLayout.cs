@@ -17,8 +17,8 @@ namespace Hollowbrook.Checkpoint
         public static readonly Vector2 WindowCenter = new Vector2(0f, -176f);     // from top-center
         public static readonly Vector2 PortraitCenter = new Vector2(0f, -148f);   // from top-center
         public static readonly Vector2 SpeechCenter = new Vector2(220f, -370f);   // from top-center
-        public static readonly Vector2 QuestionsPanelCenter = new Vector2(-150f, -145f); // from top-right
-        public static readonly Vector2 QuestionsColumnCenter = new Vector2(-150f, -150f);
+        public static readonly Vector2 QuestionsPanelCenter = new Vector2(-150f, -177f); // top-right; clears the 52px topbar
+        public static readonly Vector2 QuestionsColumnCenter = new Vector2(-150f, -160f); // top-right; button stack centers on the panel
         public static readonly Vector2 UtilityCenterFirst = new Vector2(-225f, -340f);  // from top-right
         public const float UtilityStep = 90f;
         public static readonly Vector2 PatrolCenter = new Vector2(100f, 40f);     // from bottom-left

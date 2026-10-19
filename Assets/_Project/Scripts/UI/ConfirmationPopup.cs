@@ -16,11 +16,11 @@ namespace Hollowbrook.UI
         private GameObject _root;
         private Text _title, _body;
         private System.Action _onYes;
-        private GameRoot R;
+        private GameRoot _gameRoot;
 
         public void Init(GameRoot root)
         {
-            R = root;
+            _gameRoot = root;
             _root = UIFactory.Panel(transform, "panel", new Color(0, 0, 0, 0.55f)).gameObject;
             UIFactory.AnchorsFull(_root.GetComponent<RectTransform>());
             var panel = UIFactory.BorderedPanel(_root.transform, "box", new Color(0.07f, 0.07f, 0.08f, 0.98f), UIFactory.Border);
