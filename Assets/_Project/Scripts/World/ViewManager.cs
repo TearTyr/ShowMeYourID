@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using Hollowbrook.Bootstrap;
@@ -9,15 +8,19 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
-
-
     // Rooms, doors, transitions, anomaly spawning, flashlight rig. Created by SchoolSceneBootstrap.
+    // Illumination queries are coordinated HERE (one place, one coordinate space — the shared
+    // world/room plane): the beam cone belongs to FlashlightRig, ambient light to each room's
+    // LightController. Consumers (anomalies, sanity, spawner) never mix the two themselves.
     public class ViewManager : MonoBehaviour
     {
         private GameRoot _gameRoot;
         private Camera _cam;
         private GameObject _worldRoot;
+        private GameObject _anomalyRoot;   // stays active while the world is shown: anomalies
+                                           // keep living (and roaming) when their room is not on screen
         private readonly Dictionary<RoomId, RoomInstance> _rooms = new Dictionary<RoomId, RoomInstance>();
+        private readonly List<WanderingAnomaly> _anomalies = new List<WanderingAnomaly>();
         public RoomInstance Current { get; private set; }
         public PlayerController Player { get; private set; }
         public bool Transitioning { get; private set; }
@@ -25,6 +28,10 @@ namespace Hollowbrook.World
         private RoomSpawner _spawner;
         public FlashlightRig Flashlight { get; private set; }
         private UnityEngine.UI.Image _fade;
+
+        public Transform AnomalyRoot => _anomalyRoot != null ? _anomalyRoot.transform : null;
+        public IReadOnlyList<WanderingAnomaly> Anomalies => _anomalies;
+        public RoomSpawner Spawner => _spawner;   // exposed for headless diagnostics
 
         public void Init(GameRoot root, Camera cam, GameObject worldRoot)
         {
@@ -44,6 +51,8 @@ namespace Hollowbrook.World
             SetFade(0f);
 
             BuildPlayer();
+            _anomalyRoot = new GameObject("AnomalyRoot");
+            _anomalyRoot.transform.SetParent(worldRoot.transform, false);
             _builder = new RoomBuilder(root, worldRoot, _rooms);
             _spawner = new RoomSpawner(root, this, null);
             _rooms[RoomId.Hallway] = _builder.BuildRoom(RoomId.Hallway);
@@ -83,8 +92,31 @@ namespace Hollowbrook.World
         {
             SetFade(0f);
             _worldRoot.SetActive(false);
-            _spawner.DiscardLive();
+            // NOTE: deliberately does NOT discard the live anomaly. HideWorld also runs for
+            // overlay states (map, security room) — an overlay must not wipe an encounter.
+            // Only ReturnToSecurity (leaving the patrol for good) discards it, unresolved.
         }
+
+        public RoomInstance Room(RoomId id) => _rooms.TryGetValue(id, out var r) ? r : null;
+
+        // ---- illumination queries (the ONLY place beam + ambient are combined) ----
+
+        /// <summary>True when the room's wall-switch lights are on (real ambient state).</summary>
+        public bool RoomLit => Current != null && Current.Light != null && Current.Light.Lit;
+
+        /// <summary>True when the point is inside the handheld beam's cone (either live mode).</summary>
+        public bool BeamCovers(Vector3 worldPoint) => Flashlight != null && Flashlight.ConeCovers(worldPoint);
+
+        /// <summary>True when the point is inside the tight Focus cone — the truth beam:
+        /// the only light that advances the repel meter and truth-checks hallucinations.</summary>
+        public bool IsFocusLit(Vector3 worldPoint) =>
+            Flashlight != null && Flashlight.Beam == LightMode.Focus && Flashlight.ConeCovers(worldPoint);
+
+        /// <summary>Point is visibly lit: by the beam, or by the room's ambient light.</summary>
+        public bool IsIlluminated(Vector3 worldPoint) => BeamCovers(worldPoint) || RoomLit;
+
+        public void Register(WanderingAnomaly a) { if (a != null && !_anomalies.Contains(a)) _anomalies.Add(a); }
+        public void Unregister(WanderingAnomaly a) => _anomalies.Remove(a);
 
         public void EnterRoom(RoomId id)
         {
@@ -160,6 +192,10 @@ namespace Hollowbrook.World
 
         public void SpawnAnomaly(bool hallucination) => _spawner.SpawnAnomaly(hallucination);
 
+        /// <summary>Spawn a specific real behavior — used by the recovery return and by tests.</summary>
+        public WanderingAnomaly SpawnAnomalyOfKind(AnomalyBehaviorKind kind, RoomId? roomId = null) =>
+            _spawner.SpawnKind(kind, roomId);
+
         public void ScheduleReturn(AnomalyBehaviorKind kind) => _spawner.ScheduleReturn(kind);
 
         public void OnAnomalyGone(WanderingAnomaly a) => _spawner.OnAnomalyGone(a);
@@ -198,13 +234,17 @@ namespace Hollowbrook.World
             _spawner.UpdateSpawner(Time.deltaTime);
         }
 
-        public bool IsIlluminated(Vector3 worldPoint)
+        // One deterministic headless frame (stub MonoBehaviours never get Update calls; in the
+        // editor every component runs its own Update and this method is never invoked).
+        internal void TickWorld(float dt)
         {
-            if (Player == null) return false;
-            if (Current != null && Current.Light != null && Current.Light.Mode == LightMode.Focus)
-                return Player.ConeCovers(worldPoint);
-            return false;
+            if (_gameRoot == null || Current == null || !_worldRoot.activeSelf || _gameRoot.Paused) return;
+            if (Current.Light != null) Current.Light.Tick(dt);
+            if (Player != null) Player.Tick(dt);
+            if (Flashlight != null) Flashlight.Tick(dt);
+            var snapshot = _anomalies.ToArray();
+            foreach (var a in snapshot) if (a != null) a.Tick(dt);
+            _spawner.UpdateSpawner(dt);
         }
     }
-
 }

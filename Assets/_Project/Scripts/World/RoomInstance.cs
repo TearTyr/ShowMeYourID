@@ -13,6 +13,9 @@ namespace Hollowbrook.World
     // One built room: root, light, interactables, spawn points.
     public class RoomInstance
     {
+        // Shared floor line for every room (backgrounds, player, anomaly bands all use it).
+        public const float FloorY = -2.4f;
+
         public RoomId Id;
         public GameObject Root;
         public float HalfWidth;

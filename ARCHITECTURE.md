@@ -11,8 +11,13 @@ HUD/dialogue/map/results/endings. `School.unity` -> rooms, player, flashlight ri
 security office. The core survives loads via DontDestroyOnLoad; per-scene roots are destroyed normally.
 
 **Desk vs patrol:** the desk is a state machine over one visitor at a time (present -> inspect ->
-question <=2 -> stamp -> banner -> next). Patrol is a side-scroller: ViewManager owns rooms and
-transitions, FlashlightRig owns the cursor beam + battery, WanderingAnomaly owns one encounter.
+question <=2 -> stamp -> banner -> next). Patrol is a side-scroller: ViewManager owns rooms,
+transitions and the combined illumination queries (BeamCovers / IsFocusLit / RoomLit); each room's
+LightController owns ONLY ambient light (wall switch + flicker); FlashlightRig owns ONLY the handheld
+beam (pure `BeamGeometry` cone, `FlashlightInput` arbitration, `BatteryModel`); RoomSpawner owns the
+single live-threat slot, ambient spawn odds and recovery returns; WanderingAnomaly owns one encounter
+driven by the `AnomalyEncounter` state machine, and roams between rooms through `RoomGraph` door
+anchors under a persistent AnomalyRoot (never frozen by room deactivation).
 
 **One visitor, event flow:** `VisitorArrived` (desk presents) -> `QuestionAsked` (answer + testimony
 line) -> `ScanPerformed` -> `VerdictStamped` (InspectionRules scores, GameSession counts) ->

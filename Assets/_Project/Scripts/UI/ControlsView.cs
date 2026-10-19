@@ -28,7 +28,9 @@ namespace Hollowbrook.UI
                 "   A / D  or  ← / →     walk left / right\n" +
                 "   SHIFT                run\n" +
                 "   E                    interact (doors, clues, switches)\n" +
-                "   F                    flashlight (Focus light)\n" +
+                "   F                    sweep beam (toggle — wide, finds & restrains)\n" +
+                "   Q                    focus beam (toggle — tight, exposes & repels)\n" +
+                "   L                    beam off    ·    HOLD LMB / RMB: temp sweep / focus\n" +
                 "   M                    map          ESC   pause\n\n" +
                 "SECURITY ROOM (School scene prototype, mouse)\n" +
                 "   Click the door panel to admit or deny late night students.\n" +

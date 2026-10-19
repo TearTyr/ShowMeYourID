@@ -196,8 +196,8 @@ namespace Hollowbrook.UI
         {
             if (_gameRoot.Views == null || _gameRoot.Views.Current == null) { _roomInfo.text = ""; return; }
             var room = _gameRoot.Views.Current;
-            string light = room.Light != null ? room.Light.Mode.ToString().ToUpperInvariant() : "—";
-            _roomInfo.text = room.DisplayName + "  ·  LIGHTS: " + light + "  ·  [F] flashlight";
+            string light = room.Light != null ? (room.Light.Lit ? "ON" : "OFF") : "—";
+            _roomInfo.text = room.DisplayName + "  ·  LIGHTS: " + light + "  ·  [F]sweep [Q]focus [L]off";
         }
 
         public void Notify(string msg)

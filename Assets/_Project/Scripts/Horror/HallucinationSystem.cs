@@ -13,6 +13,7 @@ namespace Hollowbrook.Horror
         private GameRoot _gameRoot;
         private float _exploreAcc;
         private float _checkpointAcc;
+        private bool _flickerRestoreLit;
         private static readonly string[] Whispers =
         {
             "(whispering) don't let them in…",
@@ -80,10 +81,11 @@ namespace Hollowbrook.Horror
                 default: // phantom flicker (never a strobe; photosensitivity-safe by construction)
                 {
                     var light = _gameRoot.Views.Current.Light;
-                    if (light != null && light.Mode == LightMode.Sweep)
+                    if (light != null && light.Lit)
                     {
                         _gameRoot.Audio.PlaySfx("sfx_flicker", 0.4f);
-                        light.SetMode(LightMode.Off);
+                        _flickerRestoreLit = true;       // restore what the PLAYER had, not a forced on
+                        light.SetLit(false);
                         CancelInvoke(nameof(RestoreLights));
                         Invoke(nameof(RestoreLights), 0.5f);
                     }
@@ -94,8 +96,10 @@ namespace Hollowbrook.Horror
 
         private void RestoreLights()
         {
+            bool on = _flickerRestoreLit;      // the pre-flicker switch state, not a forced on
+            _flickerRestoreLit = false;
             if (_gameRoot != null && _gameRoot.Views != null && _gameRoot.Views.Current != null && _gameRoot.Views.Current.Light != null)
-                _gameRoot.Views.Current.Light.SetMode(LightMode.Sweep);
+                _gameRoot.Views.Current.Light.SetLit(on);
         }
     }
 }

@@ -11,11 +11,15 @@ wrong calls feed complaints (false rejects) and breaches (anomalies admitted); 3
 **Smart questioning:** each answer posts a testimony line stating whether it *matches the papers* or
 *papers disagree*, plus an odd-voice flag — the desk does the clerical comparison, the player keeps judgment.
 
-**Patrol (A/D or arrows, Shift run, E interact):** lights Off/Sweep per room, **flashlight** is cursor-aimed:
-LMB or F = wide Sweep, RMB or Q = tight Focus, L = off; the beam punches real darkness (sprite mask) and
-runs on a battery (Focus drains ~2.4x Sweep; off recovers, faster in lit rooms; dead beam reboots at 20%).
-Holding Focus on a roaming anomaly fills TRACK: detected → exposed (distorted face) → repelled (it flees,
-drops a token, returns elsewhere later). Ten clues across three rooms, in a discoverable order, gate the
+**Patrol (A/D or arrows, Shift run, E interact):** each room has its own on/off lights (wall switch, E);
+the handheld **flashlight** is a separate system — cursor-aimed as a true cone: LMB or F = wide Sweep,
+RMB or Q = tight Focus, L = off; the beam punches real darkness (sprite mask) and runs on a battery
+(Focus drains 2.4x Sweep; off recovers, faster in genuinely lit rooms; a dead beam reboots at 20% and
+needs a deliberate press — it never relights itself). Holding Focus on a roaming anomaly fills TRACK:
+roaming → stalking → detected (any light) → exposed (distorted face, meter > 0.55) → repelled (it
+physically retreats, drops a token once, then may return later through another room). Sweep is not a
+weaker Focus — it freezes a Blink mid-stalk and interrupts a Sprint's telegraphed dash. Anomalies roam
+through the connected doors (Hallway ↔ Classroom 1/2); leaving a room neither freezes nor resets them. Ten clues across three rooms, in a discoverable order, gate the
 secret ending. Security office (Classroom 1 door): late-list verdicts count toward the story.
 
 **Endings:** Surviving Hollowbrook (5 clean nights + reject the administrator) / Another Custodian

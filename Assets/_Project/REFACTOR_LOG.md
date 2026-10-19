@@ -254,3 +254,131 @@ Resolution math (fixed centred frame under AspectMatchGuard):
 Play-mode runs and screenshots at 1280x720 / 1920x1080 / 1366x768: NOT RUN (no Unity editor
 in this sandbox) — the rect audit above is the headless substitute; visual sign-off needs one
 editor session against desk_layout_wireframe.svg.
+
+---
+
+# Flashlight + roaming anomaly rework (branch feat/flashlight-anomaly-rework)
+
+Task: turn the FNAC3-inspired flashlight/anomaly prototype into one coherent, playable, testable
+horror mechanic without new art, packages or parallel systems. Phase-0 baseline audit (every
+defect traced in the working tree, not the reference dump): `docs/FLASHLIGHT-ANOMALY-AUDIT.md`.
+
+## What was broken (verified at 64dd4ab before touching anything)
+- `ConeCovers` was a rectangle test in mixed local/world spaces; the sprite flipped but never
+  rotated toward the cursor, and the mask never flipped with it — visible beam and logical
+  coverage disagreed everywhere except pure-horizontal aim.
+- F/Q latches were not mutually exclusive (F looked dead while Q was latched); battery death
+  kept the latches, so the beam AUTO-RELIT itself at the reboot threshold; input ran during
+  dialogue/overlays/transitions.
+- `ApplyBeam` wrote the room's `LightController` (Sweep silently switched room lights on),
+  `IsIlluminated` only worked while the room mode was the flashlight's own Focus, `PlaceInRoom`
+  reset room lighting on every door, battery recovery and sanity drain read that tangled state,
+  and the phantom flicker restored lights-on unconditionally.
+- `TickTracking`'s reveal at meter 1.0 set `_revealed` BEFORE `TickStates` ran, so
+  `AnomalyEncounter` could never reach Repelled/Recovering — the whole state machine, retreat,
+  `ScheduleReturn` and `JustRepelled` were dead code. A "repelled" anomaly froze in place,
+  dropped its token and faded next to the player; movement never consulted `_state`.
+- `coverHugCatchSeconds` was the catch grace for ALL four kinds; Sprint telegraphed once at
+  spawn then dashed forever with no warning cue; CoverHug spawned at the ceiling and was
+  immediately clamped to the floor line by contradictory coordinates.
+- Anomalies were parented to room roots: leaving froze them (lifetime stopped too) while the
+  stale `_liveAnomaly` slot blocked ALL future spawns; `ScheduleReturn(kind)` ignored its kind
+  and re-peeked the pool; opening the MAP called `HideWorld` → `DiscardLive`, wiping the live
+  encounter; cross-room x-distance fed sanity drain and catch checks.
+
+## The rebuild
+Pure engine-free logic (GameLogic, unit-tested in LogicTests):
+- `BeamGeometry` — true cone test (forward distance + perpendicular offset + body radius),
+  per-mode range/half-angle; ONE coordinate space (world-root plane) for every query.
+- `FlashlightInput` — latch/hold arbitration table: F/Q exclusive, L clears, mouse holds are
+  momentary overrides that release back to the latch, dead battery forces Off AND clears
+  latches (revival requires deliberate input).
+- `BatteryModel` — drain/recover/death/reboot with exactly-once transitions, clamped 0..1.
+- `AnomalyBehaviorRules` — per-kind profiles: speeds, vertical bands (spawn INSIDE the clamp
+  band), threat range, per-kind catch graces, Sprint telegraph/dash/recover, flags
+  (FreezesWhenObserved, CeilingLurker, BeamInterruptsBurst), retreat speed.
+- `RoomGraph` — hallway-hub connectivity + door anchors; RoomBuilder now places doors from it
+  (single source), and off-stage anomalies patrol through it (no teleports).
+- `TrackingPolicy` reduced to the rate model: Focus ADVANCES, any observation (Sweep beam, lit
+  room, 0.35s grace) only HOLDS, darkness decays. Ambient light can never resolve an encounter.
+- `AnomalyEncounter` stays the frozen-suite-compatible authority (additive only): `ExposeMeter`
+  moved into tuning; `Threatening` now judges the NEW state, so the repel tick can never also
+  catch you; dark+untracked settles to Roaming.
+
+Unity glue:
+- `FlashlightRig` — mouse projected onto the z=0 plane, cone sprite AND mask rotated/scaled
+  onto the aim vector (scale maps the fixed sprite onto the mode's logical geometry), input
+  locked while paused/dialogue/transitioning/non-exploration, battery via BatteryModel reading
+  the room's REAL `Lit` state. It never writes room lighting; `SyncRoom` is gone.
+- `LightController` — room-only: `Lit` bool, wall switch (`Toggle`), visual-only flicker that
+  can never reach beam state; `LightModeChanged` keeps its event id (payload now the bool).
+- `ViewManager` — the only place beam+ambient combine: `BeamCovers` / `IsFocusLit` /
+  `IsIlluminated` / `RoomLit`; persistent `AnomalyRoot`; `HideWorld` no longer discards the
+  live anomaly (map/security overlays pause an encounter instead of wiping it); `TickWorld`
+  gives headless frames a deterministic step order.
+- `WanderingAnomaly` — the `_revealed` bypass is deleted; the encounter state machine is the
+  single path. Repelled = physical retreat to the far wall (movement, threat and catch timers
+  all stop), then Recovering hands off to the spawner and despawns; token + pool resolution
+  exactly once per entity (`_resolved`/`_gone`). Off-stage: patrols toward the player's room
+  through doors (announced on arrival, never drawn over another room), meter/state keep
+  ticking so a followed threat de-escalates; lifetime pauses off-stage and mid-resolution;
+  proximity sanity/threat are room-gated. Behaviors: Blink creeps only unobserved (any beam or
+  room light pins it, and a pinned Blink cannot catch you); Sprint telegraphs (announced once)
+  → dashes → recovers, beam coverage interrupts the windup; Slide glides to committed points
+  and flanks while stalking; CoverHug lives in its ceiling band and only Focus turns it clear.
+  Hallucinations keep the separate Focus-seconds truth-check — never pool/tokens/catch.
+- `RoomSpawner` — single live slot (duplicate spawns return null), recovery returns are a
+  plain-field timer ticked in `UpdateSpawner` (no coroutine races; slot-busy re-arms instead
+  of double-spawning), returns bring back the SAME kind into a plausible OTHER room,
+  `DiscardLive` (desk exit) stays unresolved by design and cancels pending returns.
+- `SanityController` reads ambient `Lit` (the room-Focus branch is gone); `HallucinationSystem`
+  restores the player's own switch position after a phantom flicker; HUD room line shows
+  LIGHTS: ON/OFF + the F/Q/L beam legend; ControlsView lists the real controls.
+- `GameConfigSO` gained the beam geometry, encounter rates/thresholds and per-behavior
+  numbers (defaults sourced from the logic constants; `Resources/GameConfig.asset` updated in
+  lockstep; `coverHugCatchSeconds` now genuinely only applies to CoverHug; Sprint telegraph
+  0.9s → 1.1s).
+
+## Behavior changes (documented)
+- A lit room / Sweep beam now HOLDS the tracking meter instead of slowly filling it — only
+  Focus can expose and repel (the task's "detection is not victory").
+- Dark rooms drain sanity at the full rate again even with the beam on (the old 0.25× branch
+  existed only because the flashlight wrote Focus into the room light).
+- Repelled anomalies retreat and leave, returning as the same behavior elsewhere after
+  `anomalyRecoverySeconds`; previously they froze and faded in place.
+- Opening the map/security overlay mid-encounter pauses it instead of destroying it.
+- A returning threat can drop its own token if repelled again (one token per successful
+  repulsion; pool resolution is idempotent per kind instance).
+
+## Verification (all green at this commit)
+- `Tools/Verify/verify.sh`: compile 0 errors/0 warnings (minimal + full Unity assembly sets),
+  static audit clean.
+- `Tools/LogicTests`: 27,225/27,225 (was 27,125) — new groups: BeamGeometry (center/edge/
+  behind/range/radius/mode-difference/diagonal), FlashlightInput arbitration table,
+  BatteryModel (rates, clamps, exactly-once death/reboot, deliberate relight), BehaviorRules
+  (four distinct profiles, band consistency, per-kind graces), RoomGraph (connectivity, hops,
+  door digits == RoomBuilder), AnomalyEncounter addenda (ExposeMeter tunable, repel tick not
+  threatening, recoverable Exposed); TrackingPolicy group rewritten to the hold/decay model.
+- `Tools/FlowCheck`: 647 OK / 0 BAD across 5 consecutive runs (was 504) — the desk suites are
+  untouched, plus the new headless WorldLoop (W0–W9) driving the REAL components through
+  `ViewManager.TickWorld` frames: input arbitration; light/beam independence; aim + cone
+  coverage (incl. cone/mask alignment and ~90°/~180° sprite rotation); battery drain rates,
+  death once, no auto-relight, deliberate reboot, lit-vs-dark recovery; the full
+  spawn→detect→expose→lose-focus→re-expose→repel→retreat→recover→same-kind-return loop with
+  token + pool exactly-once; all four behavior identities; repel-beats-catch race; pause
+  freeze; cross-room roaming (door-bounded steps, announced arrivals, through-wall sanity
+  immunity, mid-encounter exit + follow + re-engage); single-slot invariant under 45s of
+  ambient spawn pressure; desk handoff discard semantics.
+- Frozen `Tools/Verification/LogicTests`: 663/663, untouched (`AnomalyEncounter.Step`
+  signature and its whole transition table preserved; only additive changes).
+- UnityStubs: one additive change (`Input.MouseHeld` set + `GetMouseButton` reads it; default
+  empty == old behavior) so mouse-hold modes are testable headlessly.
+
+## NOT RUN (no Unity editor in this sandbox)
+- Play-mode verification of the rendered beam: real `SpriteMask` reveal through the darkness
+  overlay, sprite rotation/scale visuals, `ScreenToWorldPoint` against the live camera, and
+  photosensitivity flicker. Repro: open `School.unity`, press Play, patrol (F/Q/L + mouse
+  holds), watch the cone follow the cursor with the mask hole aligned, then run the W-list
+  from `Tools/FlowCheck` manually (each check maps 1:1 to an editor action).
+- Manual 12-step test sequence from the task: the headless WorldLoop covers steps 1–12
+  behaviorally; the visual half (what the beam LOOKS like) needs one editor session.

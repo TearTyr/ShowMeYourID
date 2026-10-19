@@ -43,7 +43,7 @@ namespace Hollowbrook.World
             root.transform.SetParent(_worldRoot.transform, false);
             room.Root = root;
 
-            float floorY = -2.4f; // floor line across all rooms (bg art shares it)
+            float floorY = RoomInstance.FloorY; // one shared floor line constant
             switch (id)
             {
                 case RoomId.Hallway:
@@ -52,8 +52,8 @@ namespace Hollowbrook.World
                     room.HalfWidth = 11.4f;
                     SpriteGO(root.transform, "bg", ProceduralArt.Get("hallway_bg"), Vector3.zero, 0);
                     AddDoor(room, "Security Door", -10.6f, floorY, RoomId.Security, "prop_door_security");
-                    AddDoor(room, "Classroom 1", -4.0f, floorY, RoomId.Classroom1, "prop_door");
-                    AddDoor(room, "Classroom 2", 4.6f, floorY, RoomId.Classroom2, "prop_door");
+                    AddDoor(room, "Classroom 1", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), floorY, RoomId.Classroom1, "prop_door");
+                    AddDoor(room, "Classroom 2", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), floorY, RoomId.Classroom2, "prop_door");
                     SpriteGO(root.transform, "server_door_art", ProceduralArt.Get("prop_server_door"),
                         new Vector3(10.4f, floorY + 3f, 0), 10);
                     AddLightSwitch(room, -9.2f, floorY);
@@ -75,7 +75,7 @@ namespace Hollowbrook.World
                     room.DisplayName = "CLASSROOM 1";
                     room.HalfWidth = 8.2f;
                     SpriteGO(root.transform, "bg", ProceduralArt.Get("classroom1_bg"), Vector3.zero, 0);
-                    AddDoor(room, "Hallway", 4.9f, floorY, RoomId.Hallway, "prop_door");
+                    AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.Classroom1, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door");
                     AddLightSwitch(room, 6.4f, floorY);
                     AddClue(room, "chalkboard", -6.2f, floorY, "Chalkboard");
                     AddClue(room, "desk", -7.6f, floorY, "Front Desk");
@@ -92,7 +92,7 @@ namespace Hollowbrook.World
                     room.DisplayName = "CLASSROOM 2";
                     room.HalfWidth = 8.2f;
                     SpriteGO(root.transform, "bg", ProceduralArt.Get("classroom2_bg"), Vector3.zero, 0);
-                    AddDoor(room, "Hallway", 4.9f, floorY, RoomId.Hallway, "prop_door");
+                    AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.Classroom2, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door");
                     AddLightSwitch(room, 6.4f, floorY);
                     AddClue(room, "window", -6.6f, floorY, "Classroom Window");
                     AddClue(room, "cabinet", 7.4f, floorY, "Filing Cabinet");
@@ -109,7 +109,7 @@ namespace Hollowbrook.World
             dark.transform.localScale = new Vector3(room.HalfWidth * 2f + 4f, 11f, 1f);
             var lightCtl = root.AddComponent<LightController>();
             lightCtl.Init(_root, room, dark.GetComponent<SpriteRenderer>(),
-                id == RoomId.Classroom2 ? LightMode.Off : LightMode.Sweep);
+                startLit: id != RoomId.Classroom2);   // classroom 2 is the dark room
             room.Light = lightCtl;
             room.Darkness = dark.GetComponent<SpriteRenderer>();
             room.Darkness.maskInteraction = SpriteMaskInteraction.VisibleOutsideMask;

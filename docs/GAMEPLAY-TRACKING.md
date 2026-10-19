@@ -1,5 +1,11 @@
 # Gameplay increment — anomaly tracking, reveal & tokens (master-prompt §3/§4)
 
+> **UPDATED by the flashlight/anomaly rework (`feat/flashlight-anomaly-rework`)**: the meter no longer
+> "reveals/dispels" on its own. `AnomalyEncounter` is the single authority — a full meter means
+> **Repelled** (physical retreat, token once, spawner-owned recovery return), and ambient light only
+> **holds** the meter instead of advancing it. See `docs/FLASHLIGHT-ANOMALY-AUDIT.md` for the baseline
+> defects this replaced.
+
 Closes deviation **D10** from `docs/SPEC-CONFORMANCE.md`: the spec's tracking layer did not exist.
 Design goal: the light beam becomes a *verb* — hold it and the haze solidifies into ink.
 
@@ -7,17 +13,21 @@ Design goal: the light beam becomes a *verb* — hold it and the haze solidifies
 
 | Input | Effect on the 0..1 meter |
 |---|---|
-| Focus beam (flashlight cone) on the anomaly | +0.55 /s  → reveal in ~1.8 s |
-| Room lit (Sweep) | +0.22 /s → deliberate, never passive |
+| Focus beam (tight cone) on the anomaly | +0.55 /s → full in ~1.8 s (the ONLY way to progress) |
+| Sweep beam or room lights on it | 0 /s → *holds* the meter; detection is not victory |
+| 0.35 s after Focus is lost | grace window: still holds, then decays |
 | Neither (unobserved) | −0.35 /s → the haze closes back up |
-| Meter reaches 1.0 | **revealed/dispelled**: silhouette goes solid ink for 1.2 s, then despawns **leaving a token** |
-| Focus held 0.5 s on a *hallucination* | it shimmers out ("*it was never there*") — spec §4 truth-check |
+| Meter > 0.55 under Focus | **Exposed**: distorted face shown; losing Focus falls back (recoverable) |
+| Meter reaches 1.0 | **Repelled**: it physically retreats for 0.9 s, drops a token once, leaves the stage; the spawner returns the same kind elsewhere after ~14 s |
+| Focus held 0.5 s on a *hallucination* | it shimmers out ("*it was never there*") — spec §4 truth-check; never touches pool/token |
 
 ## Wiring
 
-- `Horror/WanderingAnomaly.cs` — `TickTracking` runs between the behavior tick and visibility;
-  publishes `EventIds.TrackingChanged` (throttled to 10 Hz), `AnomalyRevealed`, caption + stinger.
-  Revealed anomalies stop evading; `TickVisibility` renders them at full alpha / sorting order 80.
+- `Horror/WanderingAnomaly.cs` — `TickTracking` (meter) feeds `TickStates` (`AnomalyEncounter.Step`,
+  the one authoritative path); publishes `EventIds.TrackingChanged` (throttled to 10 Hz),
+  `AnomalyStateChanged` per transition, `AnomalyRevealed` once per repulsion, caption + stinger.
+  Repelled anomalies retreat physically (hunting and catch timers stop); `TickVisibility` renders
+  exposed ones at full alpha / sorting order 80 and hides off-stage roamers.
 - `World/Interactables.cs` — `TokenPickup : Interactable` ("Collect token [E]") registers itself in
   `RoomInstance.Interactables`, increments `GameSession.TokensCollected`, publishes `TokenCollected`,
   removes itself from the room list and destroys its GameObject.

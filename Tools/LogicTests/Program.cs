@@ -796,30 +796,207 @@ namespace Hollowbrook.LogicTests
         // ------------------------------------------------ tracking / reveal / tokens
         private static void TrackingAndTokenTests()
         {
-            Group("TrackingPolicy — light holds an anomaly solid (master prompt §3/§4)");
-            Eq(TrackingPolicy.RevealThreshold, 1f, "meter reveals at 1.0");
-            Eq(TrackingPolicy.RatePerSecond(true, false), TrackingPolicy.FocusRatePerSecond, "Focus is the fast truth-beam");
-            Eq(TrackingPolicy.RatePerSecond(false, true), TrackingPolicy.LitRoomRatePerSecond, "a lit room observes slowly");
+            Group("TrackingPolicy — Focus advances, observation holds, darkness decays");
+            Eq(TrackingPolicy.RatePerSecond(true, false), TrackingPolicy.FocusRatePerSecond, "Focus is the only beam that ADVANCES the meter");
+            Eq(TrackingPolicy.RatePerSecond(false, true), TrackingPolicy.HoldRatePerSecond, "observation (sweep/lit room) only HOLDS — ambient light never resolves");
+            Eq(TrackingPolicy.HoldRatePerSecond, 0f, "hold rate is exactly zero");
             Check(TrackingPolicy.RatePerSecond(false, false) < 0f, "unobserved anomalies decay");
-            Check(TrackingPolicy.FocusRatePerSecond > TrackingPolicy.LitRoomRatePerSecond, "Focus beats ambient light");
+            Check(TrackingPolicy.FocusRatePerSecond > TrackingPolicy.HoldRatePerSecond, "Focus beats ambient light");
+            Eq(TrackingPolicy.RatePerSecond(true, true, 0.7f, 0f, 0.4f), 0.7f, "custom rates: focus wins over observed");
+            Eq(TrackingPolicy.RatePerSecond(false, true, 0.7f, 0f, 0.4f), 0f, "custom rates: observed holds at the hold rate");
+            Eq(TrackingPolicy.RatePerSecond(false, false, 0.7f, 0f, 0.4f), -0.4f, "custom rates: darkness decays at the decay rate");
 
             float m = 0f;
             float t = 0f;
-            while (!TrackingPolicy.IsRevealed(m) && t < 10f) { m = TrackingPolicy.Advance(m, 1f / 60f, true, false); t += 1f / 60f; }
-            Check(TrackingPolicy.IsRevealed(m), "holding Focus reveals");
-            Check(t > 1.5f && t < 2.2f, $"reveal takes ~1.8s of Focus (took {t:F2}s)");
+            while (!TrackingPolicy.IsFull(m) && t < 10f) { m = TrackingPolicy.Advance(m, 1f / 60f, true, false); t += 1f / 60f; }
+            Check(TrackingPolicy.IsFull(m), "holding Focus fills the meter");
+            Check(t > 1.5f && t < 2.2f, $"a full meter takes ~1.8s of Focus (took {t:F2}s)");
 
-            m = 0f;
+            m = 0.4f;
             for (int i = 0; i < 60; i++) m = TrackingPolicy.Advance(m, 1f / 60f, false, true);
-            Check(m > 0f && !TrackingPolicy.IsRevealed(m), "one second of room light tracks partially, never reveals");
+            Eq(m, 0.4f, "one second of room light holds the meter exactly (never resolves, never decays)");
             for (int i = 0; i < 120; i++) m = TrackingPolicy.Advance(m, 1f / 60f, false, false);
-            Eq(m, 0f, "looking away closes the haze back to zero");
-            Eq(TrackingPolicy.Advance(0.5f, 0f, true, false), 0.5f, "zero dt is a no-op");
+            Eq(m, 0f, "two seconds of darkness decay 0.4 back to zero (clamped)");
+            Eq(TrackingPolicy.Advance(0.1f, 1f, false, false), 0f, "decay clamps at zero, never negative");
+            Eq(TrackingPolicy.Advance(0.5f, 0f, 0.55f), 0.5f, "zero dt is a no-op");
+            Eq(TrackingPolicy.Advance(0.9f, 1f, 0.55f), 1f, "advance clamps at one");
             Eq(TrackingPolicy.Solidify(0.25f), 0.25f, "solidify factor mirrors the meter");
             Eq(TrackingPolicy.Solidify(4f), 1f, "solidify clamps");
             Check(!TrackingPolicy.HallucinationDispelled(0.49f), "0.49s of Focus does not dispel a hallucination");
             Check(TrackingPolicy.HallucinationDispelled(0.5f), "0.5s of Focus truth-checks a hallucination");
-            Check(TrackingPolicy.RevealBeatSeconds > 0f, "the solid silhouette holds before dispelling");
+            Check(TrackingPolicy.GraceSeconds > 0f, "losing Focus has a short grace window before decay");
+
+            Group("AnomalyEncounter — one authoritative progression path (additive to the frozen suite)");
+            var t2 = EncounterTuning.Default;
+            Check(t2.ExposeMeter > 0f && t2.ExposeMeter < t2.RepelMeter, "expose threshold sits between zero and the repel meter");
+            EncounterStep S(AnomalyState st, float meter, float timer, bool lit, bool foc, float dist, float dt = 0.1f)
+                => AnomalyEncounter.Step(st, meter, timer, lit, foc, true, dist, dt, t2);
+            Check(S(AnomalyState.Detected, 0.5f, 0f, true, true, 9f).State != AnomalyState.Exposed,
+                "meter below the expose threshold is NOT exposed even under perfect focus");
+            Check(S(AnomalyState.Detected, t2.ExposeMeter + 0.01f, 0f, true, true, 9f).JustExposed,
+                "meter above the expose threshold under focus exposes");
+            var custom = t2; custom.ExposeMeter = 0.2f;
+            Check(AnomalyEncounter.Step(AnomalyState.Detected, 0.3f, 0f, true, true, true, 9f, 0.1f, custom).JustExposed,
+                "the expose threshold is tunable, not hardcoded");
+            var repelTick = S(AnomalyState.Exposed, 1f, 0.2f, true, true, 0.5f);
+            Check(repelTick.State == AnomalyState.Repelled && !repelTick.Threatening,
+                "the tick that repels cannot also count as a catch frame (threat uses the NEW state)");
+            Check(S(AnomalyState.Detected, 0f, 0f, false, false, 9f).State == AnomalyState.Roaming,
+                "dark and untracked settles back to roaming (no stuck Detected)");
+            var fell = S(AnomalyState.Exposed, 0.7f, 0.4f, true, false, 9f);
+            Check(fell.State == AnomalyState.Detected && !fell.JustRepelled,
+                "losing focus before the meter fills falls back with no free repel");
+            Check(S(AnomalyState.Repelled, 1f, t2.ExposedBeatSeconds, true, true, 9f).State == AnomalyState.Recovering,
+                "after the retreat beat the anomaly leaves the stage");
+            var rec = S(AnomalyState.Recovering, 0f, t2.RecoverSeconds, false, false, 9f);
+            Check(rec.State == AnomalyState.Roaming && rec.JustRecovered, "recovery completes exactly once");
+            Check(!S(AnomalyState.Repelled, 1f, 0f, true, true, 0.4f).Threatening, "a repelled anomaly next to you is not threatening");
+            Check(!S(AnomalyState.Recovering, 0f, 1f, false, false, 0.4f).Threatening, "a recovering anomaly is not threatening");
+
+            Group("BeamGeometry — true cone coverage (direction, range, angle, body radius)");
+            var sweep = BeamGeometry.DefaultParamsFor(LightMode.Sweep);
+            var focus = BeamGeometry.DefaultParamsFor(LightMode.Focus);
+            var off = BeamGeometry.DefaultParamsFor(LightMode.Off);
+            Eq(off.Range, 0f, "Off has no reach");
+            Check(!BeamGeometry.Covers(0, 0, 1, 0, off, 1, 0, 0.5f), "Off covers nothing");
+            Check(sweep.Range > 0f && sweep.HalfAngleDeg > focus.HalfAngleDeg, "Sweep is the wide mode");
+            Check(focus.Range > sweep.Range, "Focus reaches farther than Sweep");
+            Check(BeamGeometry.Covers(0, 0, 1, 0, sweep, 3, 0, 0f), "on-axis point inside range is covered");
+            Check(!BeamGeometry.Covers(0, 0, 1, 0, sweep, sweep.Range + 1f, 0, 0f), "beyond range is not covered");
+            Check(BeamGeometry.Covers(0, 0, 1, 0, sweep, sweep.Range + 0.4f, 0, 0.5f), "body radius lets the far edge graze");
+            Check(!BeamGeometry.Covers(0, 0, 1, 0, sweep, -3, 0, 0f), "behind the origin is never covered");
+            float sweepHalfAt4 = 4f * sweep.HalfTan;
+            Check(BeamGeometry.Covers(0, 0, 1, 0, sweep, 4, sweepHalfAt4 - 0.1f, 0f), "inside the sweep cone edge at 4u");
+            Check(!BeamGeometry.Covers(0, 0, 1, 0, sweep, 4, sweepHalfAt4 + 0.1f, 0f), "outside the sweep cone edge at 4u");
+            float focusHalfAt4 = 4f * focus.HalfTan;
+            Check(BeamGeometry.Covers(0, 0, 1, 0, focus, 4, focusHalfAt4 - 0.05f, 0f), "inside the focus cone edge at 4u");
+            Check(!BeamGeometry.Covers(0, 0, 1, 0, focus, 4, focusHalfAt4 + 0.15f, 0f), "outside the focus cone edge at 4u — the modes really differ");
+            Check(BeamGeometry.Covers(0, 0, -1, 0, sweep, -3, 0, 0f), "aiming left covers the left side");
+            Check(!BeamGeometry.Covers(0, 0, -1, 0, sweep, 3, 0, 0f), "aiming left does NOT cover the right side");
+            Check(BeamGeometry.Covers(0, 0, 0, 1, sweep, 0, 3, 0f), "aiming up covers above");
+            Check(!BeamGeometry.Covers(0, 0, 0, 1, sweep, 3, 0, 0f), "aiming up does not cover the side");
+            Check(BeamGeometry.Covers(2, -1, 1, 1, sweep, 4, 1, 0f), "diagonal aim works from an offset origin");
+            Check(BeamGeometry.Covers(0, 0, 7, 0, sweep, 3, 0, 0f), "direction need not be normalized");
+            Check(!BeamGeometry.Covers(0, 0, 0, 0, sweep, 3, 0, 0f), "degenerate aim covers nothing");
+            Check(BeamGeometry.Covers(0, 0, 1, 0, sweep, 4, sweepHalfAt4 + 0.3f, 0.5f), "target radius forgives a grazing silhouette");
+            Check(!BeamGeometry.Covers(0, 0, 1, 0, sweep, 4, sweepHalfAt4 + 0.8f, 0.5f), "target radius does not forgive everything");
+            var p = BeamGeometry.ParamsFor(LightMode.Focus, 5f, 40f, 9f, 6f);
+            Eq(p.Range, 9f, "ParamsFor picks the Focus numbers");
+            Eq(p.HalfAngleDeg, 6f, "ParamsFor picks the Focus angle");
+
+            Group("FlashlightInput — latch/hold arbitration (F/Q/L + mouse holds)");
+            FlashlightLatches l;
+            var none = new FlashlightLatches();
+            Eq(FlashlightInput.Resolve(none, false, false, false, false, false, false, out l), LightMode.Off, "no input => Off");
+            Eq(FlashlightInput.Resolve(none, true, false, false, false, false, false, out l), LightMode.Sweep, "F latches Sweep");
+            Check(l.Sweep && !l.Focus, "F sets only the sweep latch");
+            var sweepLatched = new FlashlightLatches { Sweep = true };
+            Eq(FlashlightInput.Resolve(sweepLatched, false, true, false, false, false, false, out l), LightMode.Focus, "Q switches to Focus");
+            Check(l.Focus && !l.Sweep, "keyboard toggles are mutually exclusive — Q clears the sweep latch");
+            var focusLatched = new FlashlightLatches { Focus = true };
+            Eq(FlashlightInput.Resolve(focusLatched, false, true, false, false, false, false, out l), LightMode.Off, "Q again toggles Focus off");
+            Eq(FlashlightInput.Resolve(sweepLatched, false, false, true, false, false, false, out l), LightMode.Off, "L switches the beam off");
+            Check(!l.Sweep && !l.Focus, "L clears conflicting latches");
+            Eq(FlashlightInput.Resolve(sweepLatched, false, false, false, false, true, false, out l), LightMode.Focus, "held RMB overrides a latched mode");
+            Check(l.Sweep && !l.Focus, "a mouse hold never changes the latches");
+            Eq(FlashlightInput.Resolve(sweepLatched, false, false, false, false, false, false, out l), LightMode.Sweep, "releasing the mouse returns to the latched mode");
+            Eq(FlashlightInput.Resolve(focusLatched, false, false, false, true, false, false, out l), LightMode.Sweep, "held LMB temporarily beats a Focus latch");
+            Eq(FlashlightInput.Resolve(none, false, false, false, true, true, false, out l), LightMode.Focus, "both buttons held: Focus wins");
+            Eq(FlashlightInput.Resolve(sweepLatched, false, false, false, false, false, true, out l), LightMode.Off, "a dead battery forces Off");
+            Check(!l.Sweep && !l.Focus, "a dead battery clears the latches — revival needs deliberate input");
+            Eq(FlashlightInput.Resolve(sweepLatched, true, false, false, false, false, true, out l), LightMode.Off, "toggling F while dead does nothing");
+            Check(!l.Sweep, "toggling F while dead does not re-latch");
+            Eq(FlashlightInput.Resolve(sweepLatched, false, false, true, true, false, false, out l), LightMode.Sweep, "L+hold same frame: the hold still shows a beam this frame");
+            Eq(FlashlightInput.Resolve(l, false, false, false, false, false, false, out l), LightMode.Off, "...and L's clear sticks after the hold is released");
+
+            Group("BatteryModel — drain, recover, death and deliberate reboot");
+            var bp = new BatteryParams { DrainSweepPerSecond = 2.5f, DrainFocusPerSecond = 6f, RecoverDarkPerSecond = 4f, RecoverLitPerSecond = 8f, RebootFraction = 0.2f };
+            bool jd, jr;
+            var s0 = new BatteryState { Charge = 1f };
+            var s1 = BatteryModel.Tick(s0, LightMode.Sweep, false, 1f, bp, out jd, out jr);
+            Check(Math.Abs(s1.Charge - 0.975f) < 1e-4f, "Sweep drains 2.5% per second");
+            var s2 = BatteryModel.Tick(s0, LightMode.Focus, false, 1f, bp, out jd, out jr);
+            Check(Math.Abs(s2.Charge - 0.94f) < 1e-4f, "Focus drains 6% per second — faster than Sweep");
+            Check(!jd && !jr, "no transitions mid-drain");
+            var s3 = BatteryModel.Tick(s0, LightMode.Off, true, 1f, bp, out jd, out jr);
+            Check(Math.Abs(s3.Charge - 1f) < 1e-4f, "charge clamps at full");
+            var dark = BatteryModel.Tick(new BatteryState { Charge = 0.5f }, LightMode.Off, false, 1f, bp, out jd, out jr);
+            var lit = BatteryModel.Tick(new BatteryState { Charge = 0.5f }, LightMode.Off, true, 1f, bp, out jd, out jr);
+            Check(lit.Charge > dark.Charge, "recovery is faster in a genuinely lit room");
+            Check(Math.Abs(dark.Charge - 0.54f) < 1e-4f, "dark recovery is 4% per second");
+            var st = new BatteryState { Charge = 0.05f };
+            int deaths = 0;
+            for (int i = 0; i < 60 * 5; i++)
+            {
+                st = BatteryModel.Tick(st, LightMode.Focus, false, 1f / 60f, bp, out jd, out jr);
+                if (jd) deaths++;
+                if (st.Dead) break;
+            }
+            Check(st.Dead && st.Charge == 0f, "draining to zero kills the battery, clamped at 0");
+            for (int i = 0; i < 60 * 5; i++) BatteryModel.Tick(st, LightMode.Focus, false, 1f / 60f, bp, out jd, out jr);
+            Check(deaths == 1 && !jd, "the depletion callback fires exactly once");
+            Check(BatteryModel.Tick(st, LightMode.Focus, false, 10f, bp, out jd, out jr).Charge >= 0f, "a dead battery never goes negative");
+            int boots = 0;
+            var recovering = st;
+            for (int i = 0; i < 60 * 10 && recovering.Dead; i++)
+            {
+                recovering = BatteryModel.Tick(recovering, LightMode.Off, false, 1f / 60f, bp, out jd, out jr);
+                if (jr) boots++;
+            }
+            Check(!recovering.Dead && boots == 1, "the dead battery revives at the reboot threshold, exactly once");
+            Check(recovering.Charge >= bp.RebootFraction, "revival only at or above the reboot fraction");
+            var stillDead = BatteryModel.Tick(new BatteryState { Charge = 0.1f, Dead = true }, LightMode.Off, false, 1f, bp, out jd, out jr);
+            Check(stillDead.Dead && !jr, "below the reboot fraction it stays dead (no soft-lock flip-flop)");
+            var afterBoot = BatteryModel.Tick(recovering, LightMode.Sweep, false, 1f, bp, out jd, out jr);
+            Check(afterBoot.Charge < recovering.Charge && !afterBoot.Dead, "after a deliberate relight the beam works again");
+            Check(BatteryModel.Tick(s0, LightMode.Sweep, false, 0f, bp, out jd, out jr).Charge == 1f, "zero dt is a no-op");
+
+            Group("BehaviorRules — four distinct anomalies, explicit per-kind numbers");
+            var bt = BehaviorTuning.Default;
+            var blink = BehaviorProfile.For(AnomalyBehaviorKind.Blink, bt);
+            var slide = BehaviorProfile.For(AnomalyBehaviorKind.Slide, bt);
+            var sprint = BehaviorProfile.For(AnomalyBehaviorKind.Sprint, bt);
+            var hug = BehaviorProfile.For(AnomalyBehaviorKind.CoverHug, bt);
+            Check(blink.MoveSpeed == bt.BlinkSpeed && slide.MoveSpeed == bt.SlideSpeed &&
+                  sprint.MoveSpeed == bt.SprintSpeed && hug.MoveSpeed == bt.CoverHugSpeed,
+                "each behavior moves at its own configured speed");
+            Check(sprint.DashSpeed > sprint.MoveSpeed, "Sprint's burst is faster than its patrol");
+            Check(sprint.TelegraphSeconds > 0f && blink.TelegraphSeconds == 0f && slide.TelegraphSeconds == 0f && hug.TelegraphSeconds == 0f,
+                "only Sprint has a windup telegraph — the reaction window is explicit");
+            Check(sprint.BeamInterruptsBurst && !blink.BeamInterruptsBurst, "only Sprint's windup is beam-interruptible");
+            Check(blink.FreezesWhenObserved && !slide.FreezesWhenObserved && !sprint.FreezesWhenObserved && !hug.FreezesWhenObserved,
+                "only Blink freezes when observed");
+            Check(hug.CeilingLurker && !blink.CeilingLurker && !slide.CeilingLurker && !sprint.CeilingLurker,
+                "only CoverHug is the ceiling lurker (Focus-only identification)");
+            Check(blink.CatchGraceSeconds == bt.CatchGraceBlink && slide.CatchGraceSeconds == bt.CatchGraceSlide &&
+                  sprint.CatchGraceSeconds == bt.CatchGraceSprint && hug.CatchGraceSeconds == bt.CatchGraceCoverHug,
+                "catch windups are per-behavior — no shared coverHug-named constant");
+            Check(Math.Abs(hug.SpawnY - 4.4f) < 1e-3f && hug.SpawnY >= hug.MinY && hug.SpawnY <= hug.MaxY,
+                "CoverHug spawns INSIDE its own clamp band (no contradictory coordinates)");
+            Check(hug.MinY > blink.MaxY, "the ceiling band sits above the ground walkers");
+            Check(blink.MinY == blink.MaxY && slide.MinY == slide.MaxY && sprint.MinY == sprint.MaxY,
+                "ground walkers stay on the floor line");
+            Check(bt.RetreatSpeed > blink.MoveSpeed && bt.RetreatSpeed > hug.MoveSpeed, "a repelled anomaly withdraws faster than it stalks");
+            var customB = bt; customB.CatchGraceCoverHug = 5f;
+            Eq(BehaviorProfile.For(AnomalyBehaviorKind.CoverHug, customB).CatchGraceSeconds, 5f, "CoverHug grace is tunable on its own");
+            Eq(BehaviorProfile.For(AnomalyBehaviorKind.Blink, customB).CatchGraceSeconds, bt.CatchGraceBlink, "...without touching the other three");
+
+            Group("RoomGraph — roaming through connected rooms, never teleporting");
+            Eq(RoomGraph.Roamable.Length, 3, "three roamable rooms");
+            Check(!RoomGraph.IsRoamable(RoomId.Security), "the security exit is not a patrol route");
+            Check(RoomGraph.Connected(RoomId.Hallway, RoomId.Classroom1) && RoomGraph.Connected(RoomId.Classroom1, RoomId.Hallway), "hallway ↔ classroom 1");
+            Check(RoomGraph.Connected(RoomId.Hallway, RoomId.Classroom2) && RoomGraph.Connected(RoomId.Classroom2, RoomId.Hallway), "hallway ↔ classroom 2");
+            Check(!RoomGraph.Connected(RoomId.Classroom1, RoomId.Classroom2), "classrooms are NOT directly connected");
+            Check(float.IsNaN(RoomGraph.DoorX(RoomId.Classroom1, RoomId.Classroom2)), "no phantom door between classrooms");
+            Check(float.IsNaN(RoomGraph.DoorX(RoomId.Hallway, RoomId.Hallway)), "no self doors");
+            Eq(RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), -4.0f, "hallway C1 door anchor == RoomBuilder placement");
+            Eq(RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), 4.6f, "hallway C2 door anchor == RoomBuilder placement");
+            Eq(RoomGraph.DoorX(RoomId.Classroom1, RoomId.Hallway), 4.9f, "classroom 1 hallway door anchor == RoomBuilder placement");
+            Eq(RoomGraph.DoorX(RoomId.Classroom2, RoomId.Hallway), 4.9f, "classroom 2 hallway door anchor == RoomBuilder placement");
+            Eq(RoomGraph.NextHop(RoomId.Classroom1, RoomId.Classroom2), RoomId.Hallway, "classroom→classroom routes through the hallway");
+            Eq(RoomGraph.NextHop(RoomId.Hallway, RoomId.Classroom2), RoomId.Classroom2, "hallway→classroom is one hop");
+            Eq(RoomGraph.NextHop(RoomId.Classroom1, RoomId.Classroom1), RoomId.Classroom1, "already there: no hop");
+            Eq(RoomGraph.NextHop(RoomId.Security, RoomId.Hallway), RoomId.Security, "off-graph origins do not route");
 
             Group("Tokens — collection persists with the run");
             var ses = new GameSession();

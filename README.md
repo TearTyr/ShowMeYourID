@@ -37,11 +37,11 @@ them automatically (keys are listed in `ProceduralArt` / `ProceduralAudio`).
 | Checkpoint | Mouse: documents, checklist rows, SCAN, questions, ALLOW / REJECT |
 | Walk / Run | `A`/`D` or `◂`/`▸`, hold `Shift` to run |
 | Interact | `E` (doors, clues, light switches) |
-| Flashlight (Focus light) | `F` |
+| Flashlight | `F` Sweep (wide) / `Q` Focus (tight) / `L` off — or hold `LMB` / `RMB` for a temporary beam |
 | Map | `M` |
 | Pause | `Esc` |
 | Dialogue | Click / `Space` / `Enter` / `E` |
-| Track an anomaly | hold `F` (Focus) on it, or keep the room lit; a full TRACK meter reveals it and leaves a token |
+| Track an anomaly | hold the **Focus** beam on it to fill TRACK (Sweep or room lights only *hold* the meter); a full meter exposes and repels it, leaving a token |
 | Collect a token | `E` while standing at it (count persists with the run) |
 | Erase save data | `F2` ×3 on the main menu (each press ≤1.5 s apart, then confirm), or Options → RESET DATA |
 | Security office (Scene B) | enter it from the office door inside Classroom 1 while patrolling |
@@ -63,10 +63,15 @@ them automatically (keys are listed in `ProceduralArt` / `ProceduralAudio`).
   Endless/Challenge systems remain fully implemented and headless-tested behind
   `GameRoot.RunModesUnlocked = true` — flip that one flag to re-expose them without touching
   any other code.
-- **Anomaly tracking** (master-prompt §3): hold the Focus beam — or a lit room, more slowly — on a
-  wandering anomaly and its silhouette solidifies from haze to ink; a full meter reveals/dispels it
-  and leaves a collectible token. Half a second of Focus on a hallucination proves it was never
-  there. Tuning lives in `GameLogic/TrackingPolicy.cs` and is unit-tested.
+- **Anomaly tracking** (master-prompt §3): hold the tight **Focus** beam on a wandering anomaly
+  and the TRACK meter climbs; any lesser observation (wide Sweep beam, a lit room, a 0.35 s grace
+  window) only *holds* it, and darkness decays it — ambient light can never resolve an encounter.
+  Past 0.55 the corrupted identity is **exposed** (distorted face); a full meter **repels** it: the
+  anomaly physically retreats, drops a collectible token exactly once, and may return later through
+  another room. Sweep still matters: it freezes a Blink mid-stalk and interrupts a Sprint's windup.
+  Half a second of Focus on a hallucination proves it was never there. The state machine lives in
+  `GameLogic/AnomalyEncounter.cs`, the rates in `GameLogic/TrackingPolicy.cs` — both engine-free
+  and unit-tested; the beam is a true cone (`GameLogic/BeamGeometry.cs`).
 - **Normal mode** — five shifts (4/6/7/8 students, then 8 + the district administrator on
   Night 5). Three endings: **Surviving Hollowbrook** (win), **Another Custodian** (lose at
   3 breaches or 3 false rejections), **The Truth Behind Hollowbrook** (secret: all ten

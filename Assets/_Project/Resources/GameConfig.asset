@@ -21,8 +21,37 @@ MonoBehaviour:
   roomHalfWidthHallway: 14
   roomHalfWidthClassroom: 9
   anomalySpawnChancePerSecond: 0.05
+  batteryDrainSweepPerSecond: 2.5
+  batteryDrainFocusPerSecond: 6
+  batteryRecoverOffPerSecond: 4
+  batteryRecoverLitPerSecond: 8
+  batteryRebootFraction: 0.2
+  sweepRange: 6.2
+  sweepHalfAngleDeg: 28
+  focusRange: 7.5
+  focusHalfAngleDeg: 10
+  beamTargetRadius: 0.55
+  focusProgressPerSecond: 0.55
+  trackingDecayPerSecond: 0.35
+  focusGraceSeconds: 0.35
+  exposeMeterThreshold: 0.55
+  repelBeatSeconds: 0.9
+  anomalyRecoverySeconds: 14
+  anomalyThreatRange: 1.6
+  anomalySpeedBlink: 1.15
+  anomalySpeedSlide: 0.9
+  anomalySpeedSprint: 1.3
+  anomalySpeedCoverHug: 0.55
+  sprintDashSpeed: 4.5
+  sprintTelegraphSeconds: 1.1
+  sprintDashSeconds: 1.4
+  sprintRecoverSeconds: 1.4
+  sprintAggroRange: 9
+  anomalyRetreatSpeed: 3.2
+  catchGraceBlink: 2.2
+  catchGraceSlide: 2.4
+  catchGraceSprint: 1.8
   coverHugCatchSeconds: 2.6
-  sprintTelegraphSeconds: 0.9
   canvasReferenceWidth: 1280
   canvasReferenceHeight: 720
   dialogueCharsPerSecond: 42

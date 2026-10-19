@@ -16,7 +16,6 @@ namespace Hollowbrook.World
         private float _stepTimer, _animTimer;
         private int _animFrame;
         private string _lastPrompt = "\0";
-        private const float FloorY = -2.4f;
 
         public void Init(GameRoot root, SpriteRenderer sr)
         {
@@ -27,16 +26,21 @@ namespace Hollowbrook.World
         public void PlaceInRoom(RoomInstance room, Vector3 spawn)
         {
             _room = room;
-            transform.localPosition = new Vector3(spawn.x, FloorY + 1.7f, 0);
-            if (room.Light != null) room.Light.ToggleFocus(false);
-            if (_gameRoot.Views != null && _gameRoot.Views.Flashlight != null) _gameRoot.Views.Flashlight.SyncRoom();
+            transform.localPosition = new Vector3(spawn.x, RoomInstance.FloorY + 1.7f, 0);
+            // room lighting and the handheld beam are untouched by walking through a door
         }
 
         private void Update()
         {
             if (_gameRoot == null || _room == null || _gameRoot.Views == null || _gameRoot.Views.Transitioning) return;
             if (!gameObject.activeInHierarchy) return;
+            Tick(Time.deltaTime);
+        }
 
+        // One frame of player control. internal so the headless FlowCheck can step frames
+        // deterministically (stub MonoBehaviours never get Update calls).
+        internal void Tick(float dt)
+        {
             bool dialogueOpen = _gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive;
 
             if (Input.GetKeyDown(KeyCode.Escape))
@@ -60,9 +64,9 @@ namespace Hollowbrook.World
             if (Mathf.Abs(h) > 0.01f)
             {
                 _faceDir = h > 0 ? 1f : -1f;
-                p.x += h * speed * Time.deltaTime;
+                p.x += h * speed * dt;
                 p.x = Mathf.Clamp(p.x, -_room.HalfWidth + 0.6f, _room.HalfWidth - 0.6f);
-                StepAndAnimate(running, Time.deltaTime);
+                StepAndAnimate(running, dt);
             }
             else
             {
@@ -98,12 +102,7 @@ namespace Hollowbrook.World
         }
 
 
-        // The beam lives in FlashlightRig; this only answers "is that point lit?".
-        public bool ConeCovers(Vector3 worldPoint)
-        {
-            if (_gameRoot == null || _gameRoot.Views == null || _gameRoot.Views.Flashlight == null) return false;
-            return _gameRoot.Views.Flashlight.ConeCovers(worldPoint);
-        }
+        // The beam lives in FlashlightRig and world illumination queries live in ViewManager.
 
         private void UpdatePrompt()
         {

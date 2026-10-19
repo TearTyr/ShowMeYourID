@@ -90,7 +90,7 @@ namespace Hollowbrook.World
         public override void Interact()
         {
             if (Room.Light == null) return;
-            Room.Light.SetMode(Room.Light.Mode == LightMode.Off ? LightMode.Sweep : LightMode.Off);
+            Room.Light.Toggle();
             _gameRoot.Audio.PlaySfx("sfx_flicker");
         }
     }

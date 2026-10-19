@@ -1,61 +1,61 @@
 using System.Collections;
 using Hollowbrook.Core;
-using Hollowbrook.Logic;
 using UnityEngine;
 
 namespace Hollowbrook.World
 {
-    // Per-room light switch state and flicker. Created by ViewManager.
+    // Per-room ambient lighting ONLY: the wall switch state, darkness alpha and flicker.
+    // The handheld beam is FlashlightRig's business — this class never sees a beam mode and
+    // the rig never writes here. Battery recovery, sanity drain and spawn odds all read the
+    // real ambient state (Lit) from this class. Created by RoomBuilder.
     public class LightController : MonoBehaviour
     {
-        public LightMode Mode { get; private set; } = LightMode.Sweep;
+        public bool Lit { get; private set; } = true;
+
+        private const float LitAlpha = 0.12f;
+        private const float DarkAlpha = 0.62f;
+
         private GameRoot _gameRoot;
         private RoomInstance _room;
         private SpriteRenderer _darkness;
         private float _flickerTimer;
         private Coroutine _flickerRoutine;
 
-        public void Init(GameRoot root, RoomInstance room, SpriteRenderer darkness, LightMode startMode)
+        public void Init(GameRoot root, RoomInstance room, SpriteRenderer darkness, bool startLit)
         {
             _gameRoot = root; _room = room; _darkness = darkness;
             _flickerTimer = Random.Range(6f, 14f);
-            ApplyVisual();
-            Mode = startMode;
+            Lit = startLit;
             ApplyVisual();
         }
 
-        public void SetMode(LightMode m)
+        /// <summary>The wall switch (and scripted events) are the only ways room light changes.</summary>
+        public void SetLit(bool on)
         {
-            if (Mode == m) return;
-            if (m != LightMode.Focus) _lastNonFocus = m;
-            Mode = m;
+            if (Lit == on) return;
+            Lit = on;
             ApplyVisual();
-            _gameRoot?.Bus.Publish(GameEvent.Of(EventIds.LightModeChanged, m));
-            if (_gameRoot != null && _gameRoot.HUD != null)
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    m == LightMode.Off ? "Lights off. Something prefers it that way." :
-                    m == LightMode.Focus ? "Flashlight on." : "Lights on."));
+            if (_gameRoot == null) return;
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.LightModeChanged, on));
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
+                on ? "Lights on." : "Lights off. Something prefers it that way."));
         }
 
-        private LightMode _lastNonFocus = LightMode.Sweep;
-
-        public void ToggleFocus(bool on)
-        {
-            SetMode(on ? LightMode.Focus : _lastNonFocus);
-        }
+        public void Toggle() => SetLit(!Lit);
 
         private void ApplyVisual()
         {
             if (_darkness == null) return;
-            float alpha = Mode == LightMode.Off ? 0.62f : Mode == LightMode.Focus ? 0.52f : 0.12f;
-            var c = _darkness.color; c.a = alpha; _darkness.color = c;
+            var c = _darkness.color; c.a = Lit ? LitAlpha : DarkAlpha; _darkness.color = c;
         }
 
-        private void Update()
+        private void Update() => Tick(Time.deltaTime);
+
+        internal void Tick(float dt)
         {
             if (_gameRoot == null || _gameRoot.Paused || _room == null) return;
-            if (Mode != LightMode.Sweep) return;
-            _flickerTimer -= Time.deltaTime;
+            if (!Lit) return;
+            _flickerTimer -= dt;
             if (_flickerTimer <= 0f)
             {
                 _flickerTimer = Random.Range(9f, 20f);
@@ -64,21 +64,22 @@ namespace Hollowbrook.World
             }
         }
 
+        // Flicker is a pure visual wobble of the darkness alpha: it never touches Lit, and it
+        // can never reach the flashlight's beam state (the rig owns that).
         private IEnumerator Flicker()
         {
             bool photoSafe = _gameRoot.Settings != null && _gameRoot.Settings.PhotosensitivitySafe;
             int pulses = photoSafe ? 2 : 4;
-            float baseAlpha = 0.12f;
             _gameRoot.Audio.PlaySfx("sfx_flicker", 0.5f);
             for (int i = 0; i < pulses; i++)
             {
                 // gentle dim (never a hard strobe; photosensitivity guard caps contrast)
                 var c = _darkness.color; c.a = photoSafe ? 0.30f : 0.55f; _darkness.color = c;
                 yield return new WaitForSeconds(0.07f);
-                c = _darkness.color; c.a = baseAlpha; _darkness.color = c;
+                c = _darkness.color; c.a = LitAlpha; _darkness.color = c;
                 yield return new WaitForSeconds(Random.Range(0.05f, 0.12f));
             }
-            var cf = _darkness.color; cf.a = baseAlpha; _darkness.color = cf;
+            var cf = _darkness.color; cf.a = Lit ? LitAlpha : DarkAlpha; _darkness.color = cf;
             _flickerRoutine = null;
         }
     }

@@ -208,6 +208,7 @@ namespace UnityEngine
         public static HashSet<KeyCode> KeysDown = new HashSet<KeyCode>();
         public static HashSet<KeyCode> KeysHeld = new HashSet<KeyCode>();
         public static HashSet<int> MouseDown = new HashSet<int>();
+        public static HashSet<int> MouseHeld = new HashSet<int>();
         public static float AxisRawHorizontal = 0f;
         public static float AxisRawVertical = 0f;
 
@@ -215,7 +216,7 @@ namespace UnityEngine
         public static bool GetKeyUp(KeyCode k) => false;
         public static bool GetKey(KeyCode k) => KeysHeld.Contains(k);
         public static bool GetMouseButtonDown(int b) => MouseDown.Contains(b);
-        public static bool GetMouseButton(int b) => false;
+        public static bool GetMouseButton(int b) => MouseHeld.Contains(b);
         public static bool GetMouseButtonUp(int b) => false;
         public static float GetAxisRaw(string axis) =>
             axis == "Horizontal" ? AxisRawHorizontal : (axis == "Vertical" ? AxisRawVertical : 0f);

@@ -1,3 +1,4 @@
+using Hollowbrook.Logic;
 using UnityEngine;
 
 namespace Hollowbrook.Core
@@ -30,14 +31,68 @@ namespace Hollowbrook.Core
         public float batteryRecoverOffPerSecond = 4f;
         [Tooltip("Percent per second recovered with the beam off in a lit (safe) room.")]
         public float batteryRecoverLitPerSecond = 8f;
-        [Tooltip("Charge needed before a dead beam can switch on again (no soft-lock).")]
-        [Range(0f, 1f)] public float batteryRebootFraction = 0.2f;
+        [Tooltip("Charge needed before a dead beam can switch on again (no soft-lock).")][Range(0f, 1f)]
+        public float batteryRebootFraction = 0.2f;
+
+        [Header("Flashlight beam geometry")]
+        [Tooltip("World units the wide Sweep beam reaches.")][Range(1f, 20f)]
+        public float sweepRange = BeamGeometry.DefaultSweepRange;
+        [Tooltip("Half-angle of the Sweep cone, degrees.")][Range(2f, 60f)]
+        public float sweepHalfAngleDeg = BeamGeometry.DefaultSweepHalfAngleDeg;
+        [Tooltip("World units the tight Focus beam reaches.")][Range(1f, 24f)]
+        public float focusRange = BeamGeometry.DefaultFocusRange;
+        [Tooltip("Half-angle of the Focus cone, degrees. Narrow = precise tracking tool.")][Range(1f, 30f)]
+        public float focusHalfAngleDeg = BeamGeometry.DefaultFocusHalfAngleDeg;
+        [Tooltip("Target body radius added to the cone test — grazing a silhouette still counts.")][Range(0f, 2f)]
+        public float beamTargetRadius = BeamGeometry.DefaultTargetRadius;
+
+        [Header("Encounter — repel meter")]
+        [Tooltip("Meter per second while Focus holds the anomaly's body (the only way to progress).")][Range(0.05f, 2f)]
+        public float focusProgressPerSecond = TrackingPolicy.FocusRatePerSecond;
+        [Tooltip("Meter lost per second in darkness, once the grace window has run out.")][Range(0.05f, 2f)]
+        public float trackingDecayPerSecond = TrackingPolicy.DecayPerSecond;
+        [Tooltip("Seconds the meter holds after Focus is lost before it starts decaying (fairness window).")][Range(0f, 2f)]
+        public float focusGraceSeconds = TrackingPolicy.GraceSeconds;
+        [Tooltip("Meter needed before accurate Focus exposes the corrupted identity.")][Range(0.05f, 0.95f)]
+        public float exposeMeterThreshold = 0.55f;
+        [Tooltip("Seconds a repelled anomaly visibly retreats before it slips away.")][Range(0.2f, 5f)]
+        public float repelBeatSeconds = 0.9f;
+        [Tooltip("Off-stage seconds before a repelled anomaly may return elsewhere.")][Range(2f, 60f)]
+        public float anomalyRecoverySeconds = 14f;
+
+        [Header("Anomaly behavior")]
+        [Tooltip("World distance at which an active anomaly starts its catch windup.")][Range(0.5f, 4f)]
+        public float anomalyThreatRange = 1.6f;
+        [Tooltip("Creep speed of the Blink anomaly (only moves when unobserved).")][Range(0.2f, 4f)]
+        public float anomalySpeedBlink = 1.15f;
+        [Tooltip("Lateral glide speed of the Slide anomaly.")][Range(0.2f, 4f)]
+        public float anomalySpeedSlide = 0.9f;
+        [Tooltip("Patrol speed of the Sprint anomaly between bursts.")][Range(0.2f, 4f)]
+        public float anomalySpeedSprint = 1.3f;
+        [Tooltip("Ceiling drift speed of the CoverHug anomaly.")][Range(0.1f, 3f)]
+        public float anomalySpeedCoverHug = 0.55f;
+        [Tooltip("Burst speed of the Sprint anomaly after its telegraph.")][Range(1f, 10f)]
+        public float sprintDashSpeed = 4.5f;
+        [Tooltip("Readable warning before a Sprint burst; any beam coverage interrupts it.")][Range(0.3f, 4f)]
+        public float sprintTelegraphSeconds = 1.1f;
+        [Tooltip("Sprint burst duration before it must recover.")][Range(0.2f, 5f)]
+        public float sprintDashSeconds = 1.4f;
+        [Tooltip("Sprint pause after a burst before it can wind up again.")][Range(0.2f, 5f)]
+        public float sprintRecoverSeconds = 1.4f;
+        [Tooltip("Distance inside which Sprint winds up.")][Range(2f, 16f)]
+        public float sprintAggroRange = 9f;
+        [Tooltip("How fast a repelled anomaly withdraws from the player.")][Range(1f, 8f)]
+        public float anomalyRetreatSpeed = 3.2f;
+        [Tooltip("Continuous threatening seconds before each behavior catches the player. Fair warning cue plays first.")][Range(0.5f, 6f)]
+        public float catchGraceBlink = 2.2f;
+        [Range(0.5f, 6f)] public float catchGraceSlide = 2.4f;
+        [Range(0.5f, 6f)] public float catchGraceSprint = 1.8f;
+        [Tooltip("CoverHug's own catch windup — this grace is CoverHug-specific by name and by use.")][Range(0.5f, 6f)]
+        public float coverHugCatchSeconds = 2.6f;
 
         [Header("Horror pacing")]
         [Tooltip("Base chance per second that a wandering anomaly spawns in an entered room (shift-scaled).")]
         public float anomalySpawnChancePerSecond = 0.05f;
-        public float coverHugCatchSeconds = 2.6f;
-        public float sprintTelegraphSeconds = 0.9f;
 
         [Header("Exhibition (5-10 minute booth cut)")]
         [Tooltip("One curated night (4 visitors, 1 anomaly) then the demo closes. Off = full five-shift story.")]
