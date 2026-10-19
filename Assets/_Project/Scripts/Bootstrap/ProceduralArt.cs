@@ -180,9 +180,12 @@ namespace Hollowbrook.Bootstrap
                 case "rough_panel": return MakeRoughPanel(256, 192, 0.88f);
                 case "rough_panel_dark": return MakeRoughPanel(256, 192, 0.16f);
                 case "rough_circle": return MakeRoughCircle(128);
-                case "school_facade": return MakeSchoolFacade(300, 150);
+                case "circle_dark": return MakeFlatCircle("circle_dark", new Color(0.098f, 0.098f, 0.110f));
+                case "circle_paper": return MakeFlatCircle("circle_paper", new Color(0.839f, 0.831f, 0.800f));
+                case "paper_flat": return MakePaperFlat();
+                case "school_facade": return MakeSchoolFacade(440, 296);
                 case "camera_frame": return MakeCameraFrame(252, 150);
-                case "window_frame": return MakeWindowFrame(470, 340);
+                case "window_frame": return MakeWindowFrame(470, 316);
                 case "lamp_glow": return MakeLampGlow(128);
                 case "prop_photoframe": return MakePhotoFrame(144, 108);
                 case "prop_lightfixture": return MakeLightFixture(208, 40);
@@ -193,8 +196,8 @@ namespace Hollowbrook.Bootstrap
                 case "anomaly_slide": return MakeAnomaly(128, 336, AnomalyBehaviorKind.Slide);
                 case "anomaly_sprint": return MakeAnomaly(160, 336, AnomalyBehaviorKind.Sprint);
                 case "anomaly_coverhug": return MakeAnomaly(192, 224, AnomalyBehaviorKind.CoverHug);
-                case "id_card_frame": return MakeIdCard(430, 280);
-                case "record_sheet": return MakeRecordSheet(450, 580);
+                case "id_card_frame": return MakeIdCard();
+                case "record_sheet": return MakeRecordSheet();
                 case "clipboard": return MakeClipboard(370, 490);
                 case "note_paper": return MakeNotePaper(390, 300);
                 case "stamp_allow": return MakeStamp(false);
@@ -482,17 +485,49 @@ namespace Hollowbrook.Bootstrap
             return c.ToSprite("lamp_glow", UiPpu);
         }
 
+        private static readonly Color WirePaper = new Color(0.820f, 0.812f, 0.780f);   // #d1cfc7
+        private static readonly Color WireInk = new Color(0.227f, 0.227f, 0.251f);      // #3a3a40
+        private static readonly Color WireBand = new Color(0.231f, 0.231f, 0.243f);     // #3b3b3e
+        private static readonly Color WireRule = new Color(0.541f, 0.533f, 0.502f);      // #8a8880
+        private static readonly Color WireBar = new Color(0.333f, 0.325f, 0.306f);       // #55534e
+
+        private static void Border2(Canvas2D c, Color col)
+        {
+            c.FillRect(0, 0, c.W, 2, col);
+            c.FillRect(0, c.H - 2, c.W, 2, col);
+            c.FillRect(0, 0, 2, c.H, col);
+            c.FillRect(c.W - 2, 0, 2, c.H, col);
+        }
+
+        // Flat decision circle (ALLOW / CALL PRINCIPAL): solid fill, 2px rim, no speckle.
+        private static Sprite MakeFlatCircle(string name, Color fill)
+        {
+            const int d = 110;
+            var c = new Canvas2D(d, d);
+            float half = d / 2f, rad = half - 1f;
+            for (int y = 0; y < d; y++)
+                for (int x = 0; x < d; x++)
+                {
+                    float dist = Mathf.Sqrt((x + 0.5f - half) * (x + 0.5f - half) + (y + 0.5f - half) * (y + 0.5f - half));
+                    if (dist <= rad) c.Px[y * d + x] = dist > rad - 2f ? WireInk : fill;
+                }
+            return c.ToSprite(name, UiPpu);
+        }
+
+        // Plain flat paper for the rules-note and tonight's-log overlays.
+        private static Sprite MakePaperFlat()
+        {
+            var c = new Canvas2D(760, 480);
+            c.Fill(WirePaper);
+            Border2(c, WireInk);
+            return c.ToSprite("paper_flat", UiPpu);
+        }
+
         private static Sprite MakeWindowFrame(int w, int h)
         {
             var c = new Canvas2D(w, h);
-            var r = new System.Random(17);
-            c.FillRect(0, 0, w, h, G(0.05f));
-            c.FillRect(10, 10, w - 20, h - 20, G(0.13f));     // the dark beyond the glass
-            RoughLine(c, r, 4, 4, w - 5, 5, 0.82f, 4);
-            RoughLine(c, r, w - 5, 4, w - 5, h - 5, 0.82f, 4);
-            RoughLine(c, r, w - 5, h - 5, 4, h - 5, 0.82f, 4);
-            RoughLine(c, r, 4, h - 5, 4, 4, 0.82f, 4);
-            RoughLine(c, r, w / 2, 10, w / 2, h - 10, 0.75f, 3);   // mullion
+            c.Fill(new Color(0.149f, 0.149f, 0.169f));   // #26262b flat frame
+            Border2(c, WireInk);
             return c.ToSprite("window_frame", UiPpu);
         }
 
@@ -888,38 +923,39 @@ namespace Hollowbrook.Bootstrap
             return c.ToSprite("anomaly_" + kind.ToString().ToLowerInvariant(), WorldPpu);
         }
 
-        private static Sprite MakeIdCard(int w, int h)
+        // Printed 1:1 at the desk panel size (320x220): flat card stock, header band,
+        // photo slot, text rules and barcode exactly where CheckpointLayout.Inner expects.
+        private static Sprite MakeIdCard()
         {
+            const int w = 320, h = 220;
             var c = new Canvas2D(w, h);
-            c.Fill(G(0.80f));                                        // worn card stock
-            c.FillRect(0, 0, w, 44, G(0.22f));                       // header band
-            c.FillRect(14, 58, 120, 150, G(0.55f));                  // photo slot frame
-            c.FillRect(18, 62, 112, 142, G(0.86f));                  // photo slot (portrait drawn on top by UI)
-            for (int i = 0; i < 5; i++) c.FillRect(150, 66 + i * 30, w - 170, 3, G(0.45f)); // text rules
-            c.FillRect(14, h - 52, w - 28, 3, G(0.35f));
-            c.FillRect(14, h - 40, w - 120, 16, G(0.7f));            // barcode strip
-            var r = new System.Random(101);
-            for (int i = 0; i < 26; i++)
-                c.FillRect(20 + i * ((w - 40) / 26), h - 40, 6 + r.Next(10), 16, G(0.15f));
-            c.Noise(0.05f, 103);
-            for (int i = 0; i < w; i++) { c.Px[i] = G(0.35f); c.Px[(h - 1) * w + i] = G(0.35f); }
-            for (int i = 0; i < h; i++) { c.Px[i * w] = G(0.35f); c.Px[i * w + w - 1] = G(0.35f); }
+            c.Fill(WirePaper);
+            c.FillRect(0, 0, w, 28, WireBand);                                   // header band
+            c.FillRect(10, 46, 90, 118, new Color(0.937f, 0.929f, 0.902f));      // photo slot
+            c.FillRect(10, 46, 90, 2, WireRule);
+            c.FillRect(10, 162, 90, 2, WireRule);
+            c.FillRect(10, 46, 2, 118, WireRule);
+            c.FillRect(98, 46, 2, 118, WireRule);
+            float[] rules = { 52f, 75f, 99f, 123f, 146f, 179f };
+            foreach (float yf in rules) c.FillRect(112, (int)yf, 190, 2, WireRule);   // text rules
+            for (int i = 0; i < 16; i++) c.FillRect(10 + i * 13, 188, 6, 14, WireBar); // barcode
+            Border2(c, WireInk);
             return c.ToSprite("id_card_frame", UiPpu);
         }
 
-        private static Sprite MakeRecordSheet(int w, int h)
+        // Printed 1:1 at the desk panel size (320x290): flat sheet, header band, seven
+        // form rules, stamp box and barcode strip per the approved wireframe.
+        private static Sprite MakeRecordSheet()
         {
+            const int w = 320, h = 290;
             var c = new Canvas2D(w, h);
-            c.Fill(G(0.78f));
-            c.FillRect(0, 0, w, 56, G(0.24f));
-            for (int y = 84; y < h - 90; y += 42)                    // form lines
-            {
-                c.FillRect(20, y, w * 2 / 5, 3, G(0.5f));
-                c.FillRect(w / 2 + 10, y, w * 2 / 5 - 30, 3, G(0.5f));
-            }
-            c.FillRect(w - 170, h - 84, 140, 60, G(0.85f));          // stamp box
-            for (int i = 0; i < w - 170; i += 6) c.FillRect(20 + i, h - 84, 3, 60, G(0.62f));
-            c.Noise(0.06f, 107);
+            c.Fill(WirePaper);
+            c.FillRect(0, 0, w, 28, WireBand);                                   // header band
+            float[] rules = { 42f, 63f, 84f, 105f, 126f, 147f, 168f };
+            foreach (float yf in rules) c.FillRect(30, (int)yf, 250, 2, WireRule);    // form rules
+            c.FillRect(200, 248, 100, 30, new Color(0.867f, 0.855f, 0.824f));    // stamp box
+            for (int i = 0; i < 12; i++) c.FillRect(30 + i * 14, 250, 6, 26, WireBar); // barcode
+            Border2(c, WireInk);
             return c.ToSprite("record_sheet", UiPpu);
         }
 

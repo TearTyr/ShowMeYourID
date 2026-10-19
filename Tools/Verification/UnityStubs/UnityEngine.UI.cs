@@ -81,6 +81,7 @@ namespace UnityEngine.UI
 
     public class GraphicRaycaster : Behaviour { }
     public class Mask : Behaviour { public bool showMaskGraphic = true; }
+    public class RectMask2D : Behaviour { }
 
     public class Graphic : Behaviour
     {

@@ -83,6 +83,66 @@ namespace Hollowbrook.UI
             rt.anchoredPosition = pos;
         }
 
+        // The one placement rule for the desk grid: top-left anchor, pivot (0,1), y down.
+        // Every desk/HUD element is placed only through this, so (x,y,w,h) IS the on-screen
+        // rect inside the fixed frame — no anchor/pivot maths left to drift.
+        public static void PlaceTL(RectTransform rt, float x, float y, float w, float h)
+        {
+            var tl = new Vector2(0f, 1f);
+            rt.anchorMin = tl;
+            rt.anchorMax = tl;
+            rt.pivot = tl;
+            rt.sizeDelta = new Vector2(w, h);
+            rt.anchoredPosition = new Vector2(x, -y);
+        }
+
+        // Fixed-size frame centred in the parent; grid children never touch the screen edges.
+        public static RectTransform FixedFrame(Transform parent, string name, float w, float h)
+        {
+            var rt = NewUI(parent, name);
+            var c = new Vector2(0.5f, 0.5f);
+            rt.anchorMin = c; rt.anchorMax = c; rt.pivot = c;
+            rt.sizeDelta = new Vector2(w, h);
+            rt.anchoredPosition = Vector2.zero;
+            return rt;
+        }
+
+        // Text that can never spill outside (x,y,w,h): a RectMask2D viewport clips it, and with
+        // scroll=true overflowing content can be dragged (principal note, log overlays).
+        public static Text MaskedLabel(RectTransform parent, string name, float x, float y, float w, float h,
+            int fontSize, Color color, TextAnchor align = TextAnchor.UpperLeft, bool scroll = false)
+        {
+            var host = NewUI(parent, name);
+            PlaceTL(host, x, y, w, h);
+            host.gameObject.AddComponent<RectMask2D>();
+            var t = Label(host, "text", "", fontSize, color, align);
+            t.verticalOverflow = VerticalWrapMode.Overflow;
+            var trt = t.rectTransform;
+            if (!scroll)
+            {
+                trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
+                trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
+                return t;
+            }
+            var catcher = host.gameObject.AddComponent<Image>();
+            catcher.color = new Color(0f, 0f, 0f, 0f);
+            catcher.raycastTarget = true;                       // drag source for the ScrollRect
+            var sr = host.gameObject.AddComponent<ScrollRect>();
+            sr.horizontal = false;
+            sr.vertical = true;
+            sr.movementType = ScrollRect.MovementType.Clamped;
+            trt.anchorMin = new Vector2(0f, 1f); trt.anchorMax = new Vector2(1f, 1f);
+            trt.pivot = new Vector2(0f, 1f);
+            trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
+            trt.sizeDelta = new Vector2(0f, h);
+            t.raycastTarget = true;
+            var fitter = trt.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            sr.content = trt;
+            return t;
+        }
+
         public static Image Panel(Transform parent, string name, Color color)
         {
             var rt = NewUI(parent, name);

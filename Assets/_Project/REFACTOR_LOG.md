@@ -196,3 +196,61 @@ header bands; the monitor keeps caption and scanner output on separate rows.
 FlowCheck's audit now replays the pin math for all 28 regions: placed == grid, on screen, and
 every co-visible pair disjoint (state-tagged C/E/B). 27,125 logic assertions still pass.
 Play-mode and screenshot checks: NOT RUN (no Unity editor in this sandbox).
+
+## Desk == wireframe rebuild (branch fix/ui-layout-redo) — SUPERSEDES the pin system above
+
+The corner-pin Place(rt, region, pin) still let panels drift: AspectMatchGuard keeps the canvas
+at or above 1280x720, so on any non-16:9 view the canvas reference rect grows and regions pinned
+to different corners moved apart (checklist/note toward the floor, right column toward the edge,
+objective text across the record sheet). The pins are gone.
+
+New placement contract (exactly as the approved wireframe script reads):
+- ONE fixed 1280x720 DeskFrame per view (CheckpointView "DeskFrame", HUDView "HudFrame"),
+  centred in the canvas, never edge-anchored. Non-16:9 screens grow the background gutters
+  around the frame; nothing inside can drift any more.
+- ONE placement helper: UIFactory.PlaceTL(rt, x, y, w, h) — anchor top-left, pivot (0,1),
+  position (x, -y). CheckpointLayout.Place(rt, region) forwards to it; views contain no
+  placement math and no magic numbers (the whole table, incl. panel-local sub-rects, lives in
+  CheckpointLayout / CheckpointLayout.Inner).
+- DeskLayoutAudit (new): every placed element is registered with its expected rect; a one-time
+  editor-only Start() logs actual vs expected and warns on any difference over 2px. FlowCheck
+  drives CheckAll() headlessly: DeskFrame 28/28, HudFrame 8/8, zero warnings.
+
+Restored / upgraded to the wireframe spec:
+- Speech box is a rolling two-sided log (490,436,300,110): visitor lines under AT THE WINDOW,
+  player questions under YOU, answers below, newest at the bottom, last ~3 exchanges kept,
+  RectMask2D-clipped so text can never overflow the panel.
+- PATROL HALLWAY and END SHIFT stay visible per the wireframe; they dim (SetButtonEnabled)
+  until usable instead of vanishing. END SHIFT lights up at roster end; exhibition mode clocks
+  out into the curated ending, normal mode into shift results.
+- Hint/objective line is exploration-only (wireframe note), findings right-aligned at x=1264,
+  run stats + challenge bulletin got their own row-2 slots (400..810) clear of both.
+- Challenge bulletin: strip shows a one-line annunciator; the FULL rule text goes to the speech
+  log as a DISTRICT BULLETIN entry and remains printed in the (now scrollable) RULES NOTE.
+- Flat wireframe art: record sheet and ID card are reprinted 1:1 at panel size (flat paper,
+  2px flat border, header band, rules, stamp box, barcode — no speckle noise, no stretch);
+  window frame flat #26262b with flat glass #3a3a40; ALLOW / CALL PRINCIPAL are flat circles
+  (paper / dark, 2px rim); paper overlays use a plain flat sheet. rough_panel / rough_circle
+  are no longer used at the desk.
+- Principal note, RULES NOTE and TONIGHT'S LOG bodies are RectMask2D + ScrollRect (draggable
+  when longer than the box); record/ID/checklist panels carry RectMask2D as a spill safety net.
+
+FlowCheck now also proves: table == wireframe digit-for-digit (independent transcription),
+co-visible regions disjoint, glass/portrait/glitch contained by the window, all 40 required
+desk/HUD elements exist by name, and a button-level desk loop — gating (allow/reject live,
+patrol/end-shift dimmed mid-inspection), SCAN readout, CALL PRINCIPAL popup No/Yes paths,
+PATROL refused mid-inspection, ALLOW click path, roster walk, END SHIFT clock-out.
+Verification: compile 0 errors/0 warnings (minimal + full Unity assembly sets), FlowCheck
+504 OK / 0 BAD, LogicTests 27,125/27,125.
+UnityStubs gained RectMask2D (one-line stub) so FlowCheck keeps compiling the real view code.
+
+Resolution math (fixed centred frame under AspectMatchGuard):
+- 1280x720 and 1920x1080 are exactly 16:9 → canvas reference == 1280x720 → the frame fills
+  the screen; geometry is pixel-identical to the wireframe at both.
+- 1366x768 (aspect 1.7786) → canvas reference 1280.6x720 → frame centred with 0.3px side
+  gutters; sub-pixel, layout unchanged.
+- Any other aspect: desk stays whole and centred, background fills the gutters.
+
+Play-mode runs and screenshots at 1280x720 / 1920x1080 / 1366x768: NOT RUN (no Unity editor
+in this sandbox) — the rect audit above is the headless substitute; visual sign-off needs one
+editor session against desk_layout_wireframe.svg.
