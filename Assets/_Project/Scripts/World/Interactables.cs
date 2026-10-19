@@ -21,6 +21,7 @@ namespace Hollowbrook.World
         public float DistanceTo(Vector3 p) => Mathf.Abs(p.x - AnchorX);
     }
 
+    // Part of the world folder.
     public class TokenPickup : Interactable
     {
         public void Init(GameRoot root, RoomInstance room, float x)
@@ -42,6 +43,7 @@ namespace Hollowbrook.World
         }
     }
 
+    // Part of the world folder.
     public class Doorway : Interactable
     {
         public RoomId Target;
@@ -61,6 +63,7 @@ namespace Hollowbrook.World
         }
     }
 
+    // Part of the world folder.
     public class SecurityDoorInteractable : Interactable
     {
         public void Init(GameRoot root, RoomInstance room, float x)
@@ -78,6 +81,7 @@ namespace Hollowbrook.World
         }
     }
 
+    // Part of the world folder.
     public class LightSwitchObject : Interactable
     {
         public void Init(GameRoot root, RoomInstance room, float x)
@@ -95,6 +99,7 @@ namespace Hollowbrook.World
         }
     }
 
+    // Part of the world folder.
     public class ClueObject : Interactable
     {
         private string _clueKey;

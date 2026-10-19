@@ -6,6 +6,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
+    // Builds every button/label/panel so the whole game shares one look.
     public static class UIFactory
     {
         public static readonly Color Bg = new Color(0.035f, 0.035f, 0.04f);
@@ -91,15 +92,26 @@ namespace Hollowbrook.UI
             return img;
         }
 
+        // A filled panel with a drawn border. Returns the OUTER rect: callers anchor and
+        // show/hide the outer, and the fill stretches inside it automatically. (Returning the
+        // inner once left a full-screen border rect behind when callers hid only the inner.)
         public static RectTransform BorderedPanel(Transform parent, string name, Color fill, Color border, int thickness = 2)
         {
             var outer = Panel(parent, name + "_border", border).rectTransform;
-            AnchorsFull(outer);
             var inner = Panel(outer, name, fill).rectTransform;
             inner.anchorMin = Vector2.zero; inner.anchorMax = Vector2.one;
             inner.offsetMin = new Vector2(thickness, thickness);
             inner.offsetMax = new Vector2(-thickness, -thickness);
-            return inner;
+            return outer;
+        }
+
+        // Records a new base size for the text-scale setting. Use this instead of assigning
+        // .fontSize directly, otherwise ApplyTextScale overwrites the manual size later.
+        public static void SetBaseFontSize(Text text, int size)
+        {
+            if (text == null) return;
+            _baseSizes[text] = size;
+            text.fontSize = Mathf.RoundToInt(size * _textScale);
         }
 
         public static Text Label(Transform parent, string name, string text, int fontSize, Color color,

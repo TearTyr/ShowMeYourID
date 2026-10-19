@@ -6,6 +6,7 @@ using UnityEngine;
 
 namespace Hollowbrook.Audio
 {
+    // Plays every sound and music bed; also emits captions. Created by CoreBootstrap.
     public class AudioDirector : MonoBehaviour
     {
         private EventBus _bus;

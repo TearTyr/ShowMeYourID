@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace Hollowbrook.Bootstrap
 {
+    // Paints every sprite in code; real files in Resources/Art win if present.
     public static class ProceduralArt
     {
         private static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>();

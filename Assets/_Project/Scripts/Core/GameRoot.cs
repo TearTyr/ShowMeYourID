@@ -15,6 +15,8 @@ namespace Hollowbrook.Core
     /// Gameplay code never uses GameObject.Find; it goes through this class or the EventBus.</summary>
     public class GameRoot : MonoBehaviour
     {
+        // Flip to false to silence the [Flow] breadcrumb logs once the boot flow is trusted.
+        private const bool VerboseFlow = true;
         public static GameRoot Instance { get; private set; }
 
         /// <summary>Menu gate for Endless/Challenge (run modes). The systems are fully
@@ -64,9 +66,37 @@ namespace Hollowbrook.Core
         public int CurrentVisitorIndex = 0;
 
         private System.Action _queuedSceneAction;
-        public void QueueSceneAction(System.Action a) { _queuedSceneAction = a; }
+        public void QueueSceneAction(System.Action a)
+        {
+            _queuedSceneAction = a;
+            _queuedAt = Time.unscaledTime;
+            _handshakeArmed = true;
+        }
 
-        public void ClearQueuedSceneAction() { _queuedSceneAction = null; }
+        public void ClearQueuedSceneAction() { _queuedSceneAction = null; _handshakeArmed = false; }
+
+        private float _queuedAt;
+        private bool _handshakeArmed;
+
+        // Safety net: if a scene load never runs its bootstrap (missing bootstrap component,
+        // scene not in Build Settings), the queued start action is never consumed and the
+        // player would stare at a dead screen. After the window we say exactly that and go
+        // back to the menu. Do not remove: this is the only detector for that failure.
+        private void CheckSceneHandshake()
+        {
+            if (!_handshakeArmed || _queuedSceneAction == null) return;
+            if (Time.unscaledTime - _queuedAt < HandshakeTimeoutSeconds) return;
+            _handshakeArmed = false;
+            _queuedSceneAction = null;
+            Debug.LogError("[GameRoot] scene handshake FAILED: the queued start action was never " +
+                "consumed. Usual causes: target scene not enabled in Build Settings, or its " +
+                "bootstrap component missing / stale script GUID (Tools/generate_meta.py pins them).");
+            Bus.Publish(GameEvent.Of(EventIds.Notification,
+                "The game scene failed to start. Check Build Settings / scene bootstrap."));
+            Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Menu);
+        }
+
+        private const float HandshakeTimeoutSeconds = 3.5f;
 
         public void RunQueuedSceneAction()
         {
@@ -100,6 +130,7 @@ namespace Hollowbrook.Core
         }
 
         private GameRng _runRng;
+        private int _resumeFromVisitor;
 
         // ---------------------------------------------------------------- lifecycle
 
@@ -121,6 +152,7 @@ namespace Hollowbrook.Core
 
         private void Update()
         {
+            CheckSceneHandshake();
             if (Paused || Session == null) return;
 
             // The shift clock runs on patrol too (scope: patrol has stakes). Single source:
@@ -153,6 +185,7 @@ namespace Hollowbrook.Core
 
         public void SetState(AppViewState s)
         {
+            if (VerboseFlow) Debug.Log("[Flow] SetState " + s);
             State = s;
             Bus.Publish(GameEvent.Of(EventIds.StateChanged, s));
             ApplyVisibility(s);
@@ -160,6 +193,7 @@ namespace Hollowbrook.Core
 
         private void ApplyVisibility(AppViewState s)
         {
+            if (VerboseFlow) Debug.Log("[Flow] ApplyVisibility " + s);
             bool menu = s == AppViewState.MainMenu || s == AppViewState.ModeSelect;
             if (MainMenu != null) { if (s == AppViewState.MainMenu) MainMenu.Show(); else MainMenu.Hide(); }
             if (ModeSelect != null) { if (s == AppViewState.ModeSelect) ModeSelect.Show(); else ModeSelect.Hide(); }
@@ -248,7 +282,8 @@ namespace Hollowbrook.Core
             if (Session.Mode == GameMode.Normal)
             {
                 int shift = Mathf.Clamp(Session.CurrentShift, 1, ShiftPlan.TotalShifts);
-                QueueSceneAction(() => BeginShift(shift));
+                int resumeFrom = save.Session.VisitorIndexAtSave;
+                QueueSceneAction(() => BeginShift(shift, resumeFrom));
                 Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
             }
             else
@@ -261,8 +296,9 @@ namespace Hollowbrook.Core
         /// <summary>Normal mode: prepare and enter a shift. Roster generation replays earlier
         /// shifts on a fresh factory so the seeded RNG lands on the identical state (saves resume
         /// mid-story without storing the whole roster).</summary>
-        public void BeginShift(int number)
+        public void BeginShift(int number, int resumeFromVisitor = 0)
         {
+            _resumeFromVisitor = resumeFromVisitor;
             number = Mathf.Clamp(number, 1, ShiftPlan.TotalShifts);
             Session.CurrentShift = number;
             var plan = ShiftPlan.Build();
@@ -288,10 +324,11 @@ namespace Hollowbrook.Core
             {
                 intro.Add(new DialogueLine { Speaker = "???", Text = "Tonight the district sends an administrator to 'take control'. Check the credentials like you would check anyone else's. Trust the evidence." });
             }
-            PlayIntroThenCheckpoint(intro, CurrentShiftDef);
+            PlayIntroThenCheckpoint(intro, CurrentShiftDef, _resumeFromVisitor);
+            _resumeFromVisitor = 0;
         }
 
-        private void PlayIntroThenCheckpoint(List<DialogueLine> intro, ShiftDef shift)
+        private void PlayIntroThenCheckpoint(List<DialogueLine> intro, ShiftDef shift, int resumeFromVisitor = 0)
         {
             if (Loading != null)
                 Loading.Show(shift != null
@@ -310,9 +347,10 @@ namespace Hollowbrook.Core
             if (Dialogue != null)
                 Dialogue.Play(intro, () =>
                 {
+                    if (VerboseFlow) Debug.Log("[Flow] intro callback fired");
                     if (Loading != null) Loading.Hide();
                     SetState(AppViewState.Checkpoint);
-                    if (Checkpoint != null) Checkpoint.BeginRun(CurrentRoster, shift);
+                    if (Checkpoint != null) Checkpoint.BeginRun(CurrentRoster, shift, resumeFromVisitor);
                     else Debug.LogError("[GameRoot] intro finished but Checkpoint is still NULL.");
                     Debug.Log("[Flow] intro done -> checkpoint state");
                 });
@@ -545,6 +583,7 @@ namespace Hollowbrook.Core
                 Records = Records,
                 SavedAtLabel = "Night " + Session.CurrentShift + " · " + ClockString,
             };
+            save.Session.VisitorIndexAtSave = CurrentVisitorIndex;
             Saves.Write(save);
         }
 

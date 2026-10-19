@@ -8,9 +8,10 @@ using UnityEngine;
 
 namespace Hollowbrook.Horror
 {
+    // One roaming anomaly: evade pattern plus the light encounter. Spawned by ViewManager.
     public class WanderingAnomaly : MonoBehaviour
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private RoomInstance _room;
         private SpriteRenderer _sr;
         private float _lifetime;
@@ -20,6 +21,8 @@ namespace Hollowbrook.Horror
         private AnomalyState _state = AnomalyState.Roaming;
         private float _stateTimer;
         private bool _threatTold;
+        private float _threatSeconds;
+        private bool _tokenDropped;
         private SpriteRenderer _face;
         public AnomalyState State => _state;
         private float _trackThrottle;     // HUD event throttle
@@ -33,7 +36,7 @@ namespace Hollowbrook.Horror
 
         public void Init(GameRoot root, RoomInstance room, AnomalyBehaviorKind kind, Vector3 spawn, bool hallucination)
         {
-            R = root;
+            _gameRoot = root;
             _room = room;
             Kind = kind;
             IsHallucination = hallucination;
@@ -47,7 +50,7 @@ namespace Hollowbrook.Horror
                 ? new Vector3(spawn.x, floorY + 4.6f, 0)
                 : new Vector3(spawn.x, floorY + 2.4f, 0);
 
-            _telegraph = R.Config.sprintTelegraphSeconds;
+            _telegraph = _gameRoot.Config.sprintTelegraphSeconds;
             PickTarget(Vector3.zero);
             _lifetime = hallucination ? 6.5f : 18f;
 
@@ -58,21 +61,21 @@ namespace Hollowbrook.Horror
             }
         }
 
-        internal GameRoot Root => R;
+        internal GameRoot Root => _gameRoot;
         internal RoomInstance Room => _room;
         internal SpriteRenderer Renderer => _sr;
 
         private void Update()
         {
-            if (R == null || R.Paused || _sr == null) return;
-            bool dialogueOpen = R.Dialogue != null && R.Dialogue.IsActive;
+            if (_gameRoot == null || _gameRoot.Paused || _sr == null) return;
+            bool dialogueOpen = _gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive;
             float dt = Time.deltaTime;
 
             _lifetime -= dt;
             if (_lifetime <= 0f) { Despawn(false); return; }
 
-            Vector3 playerPos = R.Views != null && R.Views.Player != null
-                ? R.Views.Player.transform.localPosition : Vector3.zero;
+            Vector3 playerPos = _gameRoot.Views != null && _gameRoot.Views.Player != null
+                ? _gameRoot.Views.Player.transform.localPosition : Vector3.zero;
 
             if (!dialogueOpen && !_revealed) MoveBehavior(dt, playerPos);
 
@@ -90,24 +93,24 @@ namespace Hollowbrook.Horror
                     if (_sanityTickTimer <= 0f)
                     {
                         _sanityTickTimer = 1f;
-                        R.Session.ApplySanity(-1.5f);
-                        R.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, R.Session.Sanity));
+                        _gameRoot.Session.ApplySanity(-1.5f);
+                        _gameRoot.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, _gameRoot.Session.Sanity));
                     }
                 }
                 if (!_sightedPenaltyApplied && d < 5f)
                 {
                     _sightedPenaltyApplied = true;
-                    R.Session.ApplySanity(-6f);
-                    R.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, R.Session.Sanity));
-                    R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*something is standing in the room with you*", 3f, null));
+                    _gameRoot.Session.ApplySanity(-6f);
+                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, _gameRoot.Session.Sanity));
+                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*something is standing in the room with you*", 3f, null));
                 }
             }
         }
 
         private void TickTracking(float dt, bool dialogueOpen)
         {
-            if (dialogueOpen || R == null || R.Views == null) return;
-            bool focus = R.Views.IsIlluminated(transform.localPosition);
+            if (dialogueOpen || _gameRoot == null || _gameRoot.Views == null) return;
+            bool focus = _gameRoot.Views.IsIlluminated(transform.localPosition);
             bool litRoom = _room != null && _room.Light != null && _room.Light.Mode == LightMode.Sweep;
 
             if (IsHallucination)
@@ -115,8 +118,8 @@ namespace Hollowbrook.Horror
                 _track = focus ? _track + dt : 0f;
                 if (TrackingPolicy.HallucinationDispelled(_track))
                 {
-                    R.Bus.Publish(GameEvent.Of(EventIds.AnomalyRevealed, "hallucination"));
-                    R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it was never there*", 2.2f, null));
+                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.AnomalyRevealed, "hallucination"));
+                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it was never there*", 2.2f, null));
                     Despawn(true);
                 }
                 return;
@@ -135,7 +138,7 @@ namespace Hollowbrook.Horror
             if (Mathf.Abs(_track - before) > 1e-4f && _trackThrottle <= 0f)
             {
                 _trackThrottle = 0.1f;
-                R.Bus.Publish(GameEvent.Of(EventIds.TrackingChanged, _track));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.TrackingChanged, _track));
             }
 
             if (TrackingPolicy.IsRevealed(_track))
@@ -143,18 +146,19 @@ namespace Hollowbrook.Horror
                 _revealed = true;
                 WasRevealed = true;
                 _revealBeat = TrackingPolicy.RevealBeatSeconds;
-                R.Bus.Publish(GameEvent.Of(EventIds.TrackingChanged, 0f));
-                R.Bus.Publish(GameEvent.Of(EventIds.AnomalyRevealed, Kind));
-                R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested,
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.TrackingChanged, 0f));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.AnomalyRevealed, Kind));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested,
                     "*the light holds it still - it is solid now*", 2.6f, null));
-                R.Audio.PlaySfx("sfx_stinger", 0.5f);
+                _gameRoot.Audio.PlaySfx("sfx_stinger", 0.5f);
                 DropToken();
             }
         }
 
         private void DropToken()
         {
-            if (_room == null || transform.parent == null) return;
+            if (_tokenDropped || _room == null || transform.parent == null) return;
+            _tokenDropped = true;
             var go = new GameObject("AnomalyToken");
             go.transform.SetParent(transform.parent, false);
             var p = transform.localPosition;
@@ -164,18 +168,18 @@ namespace Hollowbrook.Horror
             sr.color = new Color(0.85f, 0.85f, 0.82f);
             sr.sortingOrder = 75;
             var pick = go.AddComponent<TokenPickup>();
-            pick.Init(R, _room, p.x);
+            pick.Init(_gameRoot, _room, p.x);
             _room.Interactables.Add(pick);
         }
 
         private void TickStates(float dt)
         {
-            if (IsHallucination || R == null || R.Views == null) return;
-            var rig = R.Views.Flashlight;
+            if (IsHallucination || _revealed || _gameRoot == null || _gameRoot.Views == null) return;
+            var rig = _gameRoot.Views.Flashlight;
             bool focused = rig != null && rig.Beam == LightMode.Focus && rig.BeamOn && rig.ConeCovers(transform.localPosition);
             bool cone = rig != null && rig.BeamOn && rig.ConeCovers(transform.localPosition);
             bool litRoom = _room != null && _room.Light != null && _room.Light.Mode == LightMode.Sweep;
-            var player = R.Views.Player != null ? R.Views.Player.transform.localPosition : Vector3.zero;
+            var player = _gameRoot.Views.Player != null ? _gameRoot.Views.Player.transform.localPosition : Vector3.zero;
             float dist = Vector3.Distance(player, transform.localPosition);
             var tuning = EncounterTuning.Default;
             var step = AnomalyEncounter.Step(_state, _track, _stateTimer, cone || litRoom, focused,
@@ -186,24 +190,34 @@ namespace Hollowbrook.Horror
             if (step.JustExposed)
             {
                 ShowFace();
-                R.Bus.Publish(GameEvent.Of(EventIds.AnomalyStateChanged, _state.ToString()));
-                R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*under the beam the face is WRONG*", 2.6f, null));
-                R.Audio.PlaySfx("sfx_glitch", 0.6f);
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.AnomalyStateChanged, _state.ToString()));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*under the beam the face is WRONG*", 2.6f, null));
+                _gameRoot.Audio.PlaySfx("sfx_glitch", 0.6f);
             }
             if (step.JustRepelled)
             {
                 WasRevealed = true;          // pool: resolved; token drops below
                 DropToken();
-                R.Bus.Publish(GameEvent.Of(EventIds.AnomalyStateChanged, _state.ToString()));
-                R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it tears itself away from the light*", 2.6f, null));
-                R.Audio.PlaySfx("sfx_stinger", 0.7f);
-                if (R.Views != null) R.Views.ScheduleReturn(Kind);
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.AnomalyStateChanged, _state.ToString()));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it tears itself away from the light*", 2.6f, null));
+                _gameRoot.Audio.PlaySfx("sfx_stinger", 0.7f);
+                if (_gameRoot.Views != null) _gameRoot.Views.ScheduleReturn(Kind);
             }
             if (step.Threatening && !_threatTold)
             {
                 _threatTold = true;
-                R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*footsteps, close, behind you*", 2.2f, null));
-                R.Audio.PlaySfx("sfx_heartbeat", 0.7f);
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*footsteps, close, behind you*", 2.2f, null));
+                _gameRoot.Audio.PlaySfx("sfx_heartbeat", 0.7f);
+            }
+            if (step.Threatening)
+            {
+                // fair catch: it must stay threatening for the whole grace time, not one frame
+                _threatSeconds += dt;
+                if (_threatSeconds >= _gameRoot.Config.coverHugCatchSeconds) { CatchPlayer(); return; }
+            }
+            else
+            {
+                _threatSeconds = 0f;
             }
             if (!step.Threatening) _threatTold = false;
         }
@@ -229,7 +243,7 @@ namespace Hollowbrook.Horror
                 _sr.sortingOrder = 80;
                 return;
             }
-            bool illuminated = R.Views != null && R.Views.IsIlluminated(transform.localPosition);
+            bool illuminated = _gameRoot.Views != null && _gameRoot.Views.IsIlluminated(transform.localPosition);
             float alpha = Kind == AnomalyBehaviorKind.CoverHug ? 0.35f : 0.92f;
             int order = 40;
             if (IsHallucination) alpha = 0.45f;
@@ -247,20 +261,20 @@ namespace Hollowbrook.Horror
         {
             if (IsHallucination) { Despawn(true); return; }
             WasCaught = true;
-            R.Session.ApplySanity(-15f);
-            R.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, R.Session.Sanity));
-            R.Bus.Publish(GameEvent.Of(EventIds.AnomalyCaught, Kind));
-            if (R.Scares != null) R.Scares.Capture(Kind);
-            if (R.Views != null && R.Views.Player != null)
-                R.Views.Player.PlaceInRoom(_room, _room.PlayerSpawn);
+            _gameRoot.Session.ApplySanity(-15f);
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, _gameRoot.Session.Sanity));
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.AnomalyCaught, Kind));
+            if (_gameRoot.Scares != null) _gameRoot.Scares.Capture(Kind);
+            if (_gameRoot.Views != null && _gameRoot.Views.Player != null)
+                _gameRoot.Views.Player.PlaceInRoom(_room, _room.PlayerSpawn);
             Despawn(true);
         }
 
         public void Despawn(bool wasCaught)
         {
-            if (R != null && R.Views != null) R.Views.OnAnomalyGone(this);
-            if (R != null && !IsHallucination)
-                R.Audio.PlayMusic(GameRoot.MusicForRoom(_room != null ? _room.Id : RoomId.Hallway));
+            if (_gameRoot != null && _gameRoot.Views != null) _gameRoot.Views.OnAnomalyGone(this);
+            if (_gameRoot != null && !IsHallucination)
+                _gameRoot.Audio.PlayMusic(GameRoot.MusicForRoom(_room != null ? _room.Id : RoomId.Hallway));
             Destroy(gameObject);
         }
 
@@ -301,13 +315,13 @@ namespace Hollowbrook.Horror
         float half = _room != null ? _room.HalfWidth : 10f;
         _targetX = UnityEngine.Random.Range(-half + 1f, half - 1f);
         if (Mathf.Abs(_targetX - playerPos.x) < 2f) _targetX = -_targetX;
-        if (Kind == AnomalyBehaviorKind.Sprint) _telegraph = R.Config.sprintTelegraphSeconds;
+        if (Kind == AnomalyBehaviorKind.Sprint) _telegraph = _gameRoot.Config.sprintTelegraphSeconds;
     }
 
     private bool Observed()
     {
         if (_room != null && _room.Light != null && _room.Light.Mode == LightMode.Sweep) return true;
-        return R.Views != null && R.Views.IsIlluminated(transform.localPosition);
+        return _gameRoot.Views != null && _gameRoot.Views.IsIlluminated(transform.localPosition);
     }
 }
 }

@@ -8,6 +8,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.Horror
 {
+    // Stingers and jumpscares with accessibility guards. Created by each scene bootstrap.
     public class ScareSystem : MonoBehaviour
     {
         private GameRoot R;

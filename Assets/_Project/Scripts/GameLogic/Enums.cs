@@ -1,21 +1,30 @@
 namespace Hollowbrook.Logic
 {
+    // Part of the gamelogic folder.
     public enum GameMode { Normal, Endless, Challenge }
 
+    // Part of the gamelogic folder.
     public enum Verdict { None, Allow, Reject }
 
+    // Part of the gamelogic folder.
     public enum EndingType { None, Win, Lose, Secret }
 
+    // Part of the gamelogic folder.
     public enum SanityStage { Stable, Uneasy, Shaken, Breaking }
 
+    // Part of the gamelogic folder.
     public enum LightMode { Off, Sweep, Focus }
 
+    // Part of the gamelogic folder.
     public enum AnomalyBehaviorKind { Blink, Slide, Sprint, CoverHug }
 
+    // Part of the gamelogic folder.
     public enum RoomId { Security, Hallway, Classroom1, Classroom2 }
 
+    // Part of the gamelogic folder.
     public enum QuestionId { Course, Year, Status, FirstClassroom }
 
+    // Part of the gamelogic folder.
     public enum DefectType
     {
         None = 0,
@@ -32,8 +41,10 @@ namespace Hollowbrook.Logic
         BehaviorOddity,       // documents clean; questioning/behavior gives it away
     }
 
+    // Part of the gamelogic folder.
     public enum ToneTag { Normal, Hesitant, Flat, TooSmooth, Echoing }
 
+    // Part of the gamelogic folder.
     public enum AnomalyBehavior
     {
         Idle,
@@ -43,6 +54,7 @@ namespace Hollowbrook.Logic
         ReachedServerRoom,
     }
 
+    // Part of the gamelogic folder.
     public enum AppViewState
     {
         Boot, Loading, MainMenu, ModeSelect, Settings, Controls, Credits,

@@ -8,9 +8,10 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.World
 {
+    // The door-facing late-student office. Created by SchoolSceneBootstrap.
     public class SecurityRoomView : MonoBehaviour, IScreenView
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private Image _doorArt, _portrait;
         private Image _idCard;
         private Text _doorState, _idFields, _feedback, _progress;
@@ -31,7 +32,7 @@ namespace Hollowbrook.World
 
         public void Init(GameRoot root)
         {
-            R = root;
+            _gameRoot = root;
             var bg = UIFactory.Img(transform, "bg", ProceduralArt.Get("security_bg"));
             UIFactory.AnchorsFull(bg.rectTransform);
             bg.raycastTarget = true;
@@ -87,8 +88,8 @@ namespace Hollowbrook.World
 
             _returnBtn = UIFactory.StandardButton(transform, "ret", "RETURN TO THE CHECKPOINT ▸", () =>
             {
-                R.Audio.PlaySfx("sfx_door", 0.7f);
-                R.ReturnToCheckpoint();
+                _gameRoot.Audio.PlaySfx("sfx_door", 0.7f);
+                _gameRoot.ReturnToCheckpoint();
             }, 320, 48);
             UIFactory.Anchor(_returnBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(320, 48), new Vector2(0, 36));
 
@@ -108,8 +109,8 @@ namespace Hollowbrook.World
             _phase = Phase.Student;
             _correct = 0;
             _queue.Clear();
-            _rng = new GameRng(R.Session.Seed + 977 + R.Session.Processed * 131 + R.Session.CurrentShift * 17);
-            _queue.AddRange(PatrolRules.BuildLateQueue(R.Roster, R.CurrentShiftDef, R.Session.Pool, _rng));
+            _rng = new GameRng(_gameRoot.Session.Seed + 977 + _gameRoot.Session.Processed * 131 + _gameRoot.Session.CurrentShift * 17);
+            _queue.AddRange(PatrolRules.BuildLateQueue(_gameRoot.Roster, _gameRoot.CurrentShiftDef, _gameRoot.Session.Pool, _rng));
             _anomalySpot = _rng.NextInt(0, 3);
             for (int i = 0; i < 3; i++) { _checked[i] = false; UIFactory.SetButtonEnabled(_checkBtns[i], false); }
             UIFactory.SetButtonEnabled(_returnBtn, false);
@@ -123,14 +124,14 @@ namespace Hollowbrook.World
             _current = _queue[0];
             _queue.RemoveAt(0);
 
-            R.Audio.PlaySfx("sfx_knock", 0.8f);
-            R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*three quick knocks on the office door*", 2.4f, null));
+            _gameRoot.Audio.PlaySfx("sfx_knock", 0.8f);
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*three quick knocks on the office door*", 2.4f, null));
             _doorState.text = "A student slips in out of the dark. They hold out their ID.";
             _portrait.sprite = ProceduralArt.Portrait("sec", _current.WindowPortrait, 150, 186);
             _portrait.gameObject.SetActive(true);
             _docPanel.SetActive(true);
 
-            bool expired = IdRules.IsExpired(_current, Mathf.Max(1, R.Session.CurrentShift));
+            bool expired = IdRules.IsExpired(_current, Mathf.Max(1, _gameRoot.Session.CurrentShift));
             var sb = new System.Text.StringBuilder();
             sb.Append("NAME:  ").Append(_current.ClaimedName).Append('\n');
             sb.Append("ID NO: ").Append(_current.IdNumber).Append('\n');
@@ -148,13 +149,13 @@ namespace Hollowbrook.World
         {
             if (_phase != Phase.Student || _current == null) return;
             var outcome = InspectionRules.Apply(_current, v, PatrolRules.OfficeRule);
-            R.Session.RecordVerdict(outcome);
+            _gameRoot.Session.RecordVerdict(outcome);
             bool correct = outcome.Correct;
             if (correct) _correct++;
-            R.Bus.Publish(GameEvent.Of(EventIds.VerdictStamped, v));
-            R.Bus.Publish(GameEvent.Of(EventIds.VisitorResolved, outcome));
-            R.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, R.Session.Sanity));
-            R.Audio.PlaySfx(v == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 0.9f);
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VerdictStamped, v));
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VisitorResolved, outcome));
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, _gameRoot.Session.Sanity));
+            _gameRoot.Audio.PlaySfx(v == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 0.9f);
 
             var fb = new System.Text.StringBuilder();
             fb.Append(correct ? "CORRECT. " : "MISTAKE. ");
@@ -181,8 +182,8 @@ namespace Hollowbrook.World
         {
             return "LATE ARRIVALS REMAINING: " + remaining +
                    "   ·   CORRECT CALLS: " + _correct + "/" + PatrolRules.LateArrivals +
-                   "   ·   BREACHES: " + R.Session.Breaches +
-                   "   ·   COMPLAINTS: " + R.Session.FalseRejections;
+                   "   ·   BREACHES: " + _gameRoot.Session.Breaches +
+                   "   ·   COMPLAINTS: " + _gameRoot.Session.FalseRejections;
         }
 
         private System.Collections.IEnumerator NextAfter(float s)
@@ -204,14 +205,14 @@ namespace Hollowbrook.World
             if (_phase != Phase.RoomCheck || _checked[idx]) return;
             _checked[idx] = true;
             UIFactory.SetButtonEnabled(_checkBtns[idx], false);
-            R.Audio.PlaySfx("sfx_paper", 0.5f);
+            _gameRoot.Audio.PlaySfx("sfx_paper", 0.5f);
 
             if (idx == _anomalySpot)
             {
-                R.Session.ApplySanity(-8f);
-                R.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, R.Session.Sanity));
-                if (R.Scares != null) R.Scares.Stinger("security_room_anomaly", 0f);
-                R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*something was crouched here — and it is gone now*", 3f, null));
+                _gameRoot.Session.ApplySanity(-8f);
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, _gameRoot.Session.Sanity));
+                if (_gameRoot.Scares != null) _gameRoot.Scares.Stinger("security_room_anomaly", 0f);
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*something was crouched here — and it is gone now*", 3f, null));
                 _feedback.text = "You find a hollow space in the dust. Something was crouched here minutes ago. It is not here now.";
             }
             else

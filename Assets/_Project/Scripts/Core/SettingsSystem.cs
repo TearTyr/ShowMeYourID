@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace Hollowbrook.Core
 {
+    // Owns player preferences and the screen mode. Created by CoreBootstrap.
     public class SettingsSystem
     {
         private const string KeyPrefix = "smyid.settings.";

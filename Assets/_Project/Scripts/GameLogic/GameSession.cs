@@ -4,6 +4,7 @@ using System.Collections.Generic;
 namespace Hollowbrook.Logic
 {
     [Serializable]
+    // Part of the gamelogic folder.
     public class ShiftSummary
     {
         public int Shift;
@@ -33,6 +34,7 @@ namespace Hollowbrook.Logic
         }
     }
 
+    // Part of the gamelogic folder.
     public class GameSession
     {
         public GameMode Mode = GameMode.Normal;
@@ -44,7 +46,8 @@ namespace Hollowbrook.Logic
         public int FalseRejections = 0;
         public int Breaches = 0;            // anomalies allowed in (includes administrator if allowed)
         public int AnomaliesRejected = 0;
-        public int TokensCollected = 0;      // fully-tracked anomalies (master prompt §3)
+        public int TokensCollected = 0;
+        public int VisitorIndexAtSave = 0;   // where a mid-shift continue resumes      // fully-tracked anomalies (master prompt §3)
         public bool AdminAllowed = false;
         public bool AdminRejected = false;
         public float Sanity = SanityModel.Max;
@@ -153,6 +156,7 @@ namespace Hollowbrook.Logic
     }
 
     [Serializable]
+    // Part of the gamelogic folder.
     public class SettingsData
     {
         public float MasterVolume = 0.8f;  // 0..1
@@ -208,6 +212,7 @@ namespace Hollowbrook.Logic
     }
 
     [Serializable]
+    // Part of the gamelogic folder.
     public class RecordsData
     {
         public int EndlessBest = 0;

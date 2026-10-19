@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace Hollowbrook.Bootstrap
 {
+    // Builds the menu scene. Attached to MainMenu.unity.
     public class MenuSceneBootstrap : MonoBehaviour
     {
         public static void Build(GameRoot root)

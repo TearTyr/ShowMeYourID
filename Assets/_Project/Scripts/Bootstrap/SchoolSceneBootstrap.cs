@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace Hollowbrook.Bootstrap
 {
+    // Builds the patrol scene. Attached to School.unity.
     public class SchoolSceneBootstrap : MonoBehaviour
     {
         public static void Build(GameRoot root)
@@ -15,7 +16,7 @@ namespace Hollowbrook.Bootstrap
             var scare = CoreBootstrap.NewCanvas(sceneRoot, "ScareCanvas", 20, root.Config);
 
             root.Checkpoint = null;
-            root.MapScreen = null;
+            root.MapScreen = CoreBootstrap.CreateView<MapView>(ui, "MapView", root);
             root.ShiftResults = null;
             root.Ending = null;
             root.Loading = null;

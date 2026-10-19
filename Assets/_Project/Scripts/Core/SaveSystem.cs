@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace Hollowbrook.Core
 {
+    // Reads/writes the save file on disk. Created by CoreBootstrap.
     public class SaveSystem
     {
         private const string FileName = "hollowbrook_save.txt";

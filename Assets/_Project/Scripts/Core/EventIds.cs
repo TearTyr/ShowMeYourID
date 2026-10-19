@@ -1,5 +1,6 @@
 namespace Hollowbrook.Core
 {
+    // Part of the core folder.
     public static class EventIds
     {
         public const string StateChanged = "state.changed";

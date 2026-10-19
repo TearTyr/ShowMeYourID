@@ -10,9 +10,10 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.Checkpoint
 {
+    // The inspection desk: papers, questions, stamps, banners. Created by CheckpointSceneBootstrap.
     public class CheckpointView : MonoBehaviour, IScreenView
     {
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private RectTransform _root;
 
         public VisitorData CurrentVisitor => _current;
@@ -48,6 +49,7 @@ namespace Hollowbrook.Checkpoint
         private Button _allowBtn, _rejectBtn, _scanBtn, _notesBtn, _recordsBtn, _mapBtn, _patrolBtn, _endShiftBtn;
         private RectTransform _idCardRt, _recRt, _clipRt, _monRt, _qColRt;
         private Text _testimony;
+        private readonly List<EventSubscription> _subscriptions = new List<EventSubscription>();
         private GameObject _confirmBox;
         private Text _confirmText, _noteText;
 
@@ -64,7 +66,7 @@ namespace Hollowbrook.Checkpoint
 
         public void Init(GameRoot root)
         {
-            R = root;
+            _gameRoot = root;
             _root = (RectTransform)transform;
             for (int i = 0; i < _checklist.Length; i++) _checklist[i] = 0;
 
@@ -78,8 +80,8 @@ namespace Hollowbrook.Checkpoint
             BuildControls();
             BuildOverlays();
 
-            R.Bus.Subscribe(EventIds.RunTimerTick, e => OnRunTimerTick(e.Value));
-            R.Bus.Subscribe(EventIds.MutationChanged, e =>
+            _subscriptions.Add(_gameRoot.Bus.Subscribe(EventIds.RunTimerTick, e => OnRunTimerTick(e.Value)));
+            _subscriptions.Add(_gameRoot.Bus.Subscribe(EventIds.MutationChanged, e =>
             {
                 var m = e.Payload<RuleMutationDef>();
                 if (_mutationStrip != null)
@@ -88,7 +90,7 @@ namespace Hollowbrook.Checkpoint
                         ? "⚠ DISTRICT BULLETIN — " + m.RuleText : "";
                     _mutationStrip.gameObject.SetActive(m != null && !string.IsNullOrEmpty(m.RuleText));
                 }
-            });
+            }));
             BuildDecor();
             gameObject.SetActive(false);
         }
@@ -106,7 +108,7 @@ namespace Hollowbrook.Checkpoint
             _topClock = UIFactory.Label(bar, "clock", "22:00", 22, UIFactory.InkDim, TextAnchor.MiddleRight);
             UIFactory.Anchor(_topClock.rectTransform, new Vector2(1, 0.5f), new Vector2(160, 44), new Vector2(-140, 0));
 
-            var pause = UIFactory.StandardButton(bar, "pause", "II  PAUSE", () => R.TogglePause(true), 104, 34);
+            var pause = UIFactory.StandardButton(bar, "pause", "II  PAUSE", () => _gameRoot.TogglePause(true), 104, 34);
             UIFactory.Anchor(pause.GetComponent<RectTransform>(), new Vector2(1, 0.5f), new Vector2(104, 34), new Vector2(-60, 0));
 
             _runStats = UIFactory.Label(bar, "runstats", "", 17, UIFactory.Ink, TextAnchor.MiddleCenter);
@@ -124,14 +126,14 @@ namespace Hollowbrook.Checkpoint
         private void BuildWindowArea()
         {
             _visitorPortrait = UIFactory.Img(_root, "visitor", null);
-            UIFactory.Anchor(_visitorPortrait.rectTransform, new Vector2(0.5f, 1f), new Vector2(150, 190), new Vector2(0, -148));
+            UIFactory.Anchor(_visitorPortrait.rectTransform, new Vector2(0.5f, 1f), new Vector2(150, 190), CheckpointLayout.PortraitCenter);
             _visitorPortrait.preserveAspect = true;
 
             _glitchOverlay = UIFactory.Img(_root, "glitch", ProceduralArt.Get("noise_overlay"), new Color(1, 1, 1, 0f));
             UIFactory.Anchor(_glitchOverlay.rectTransform, new Vector2(0.5f, 1f), new Vector2(160, 200), new Vector2(0, -144));
 
             _speechPanel = UIFactory.Panel(_root, "speech", new Color(0.86f, 0.85f, 0.82f, 0.96f)).rectTransform;
-            UIFactory.Anchor(_speechPanel, new Vector2(0.5f, 1f), new Vector2(300, 110), new Vector2(300, -140));
+            UIFactory.Anchor(_speechPanel, new Vector2(0.5f, 1f), new Vector2(300, 110), CheckpointLayout.SpeechCenter);
             _speechSpeaker = UIFactory.Label(_speechPanel, "who", "", 14, UIFactory.PaperInk, TextAnchor.UpperLeft);
             UIFactory.Anchor(_speechSpeaker.rectTransform, new Vector2(0, 1), new Vector2(310, 20), new Vector2(170, -14));
             _speechText = UIFactory.Label(_speechPanel, "text", "", 17, UIFactory.PaperInk, TextAnchor.UpperLeft);
@@ -145,7 +147,7 @@ namespace Hollowbrook.Checkpoint
         {
             var idCard = UIFactory.Img(_root, "idcard", ProceduralArt.Get("id_card_frame"));
             _idCardRt = idCard.rectTransform;
-            UIFactory.Anchor(idCard.rectTransform, new Vector2(0, 0), new Vector2(286, 186), new Vector2(150, 16));
+            UIFactory.Anchor(idCard.rectTransform, new Vector2(0, 0), new Vector2(286, 186), CheckpointLayout.IdCardCenter);
             _idHeader = UIFactory.Label(idCard.rectTransform, "header", "HOLLOWBROOK COLLEGE — STUDENT ID", 13,
                 new Color(0.9f, 0.9f, 0.88f), TextAnchor.MiddleCenter);
             UIFactory.Anchor(_idHeader.rectTransform, new Vector2(0.5f, 1), new Vector2(270, 26), new Vector2(0, -14));
@@ -167,7 +169,7 @@ namespace Hollowbrook.Checkpoint
 
             var rec = UIFactory.Img(_root, "record", ProceduralArt.Get("record_sheet"));
             _recRt = rec.rectTransform;
-            UIFactory.Anchor(rec.rectTransform, new Vector2(0, 0), new Vector2(300, 250), new Vector2(16, 16));
+            UIFactory.Anchor(rec.rectTransform, new Vector2(0f, 1f), new Vector2(320, 280), CheckpointLayout.RecordCenter);
             _recHeader = UIFactory.Label(rec.rectTransform, "header", "STUDENT RECORD — FORM 11-C", 13,
                 new Color(0.9f, 0.9f, 0.88f), TextAnchor.MiddleCenter);
             UIFactory.Anchor(_recHeader.rectTransform, new Vector2(0.5f, 1), new Vector2(224, 30), new Vector2(0, -16));
@@ -193,12 +195,12 @@ namespace Hollowbrook.Checkpoint
                 rb.GetComponentInChildren<Text>().fontSize = 11;
                 rb.GetComponentInChildren<Text>().alignment = TextAnchor.MiddleLeft;
                 UIFactory.Anchor(rb.GetComponent<RectTransform>(), new Vector2(0f, 1f),
-                    new Vector2(280, 15), new Vector2(150, -150 - i * 14));
+                    new Vector2(300, 15), new Vector2(160, -152 - i * CheckpointLayout.CheckRowStep));
                 _checkRows[i] = rb.GetComponentInChildren<Text>();
             }
             var mon = UIFactory.Panel(_root, "monitor", new Color(0.06f, 0.07f, 0.06f)).rectTransform;
             _monRt = mon;
-            UIFactory.Anchor(mon, new Vector2(1, 0), new Vector2(252, 150), new Vector2(-140, 20));
+            UIFactory.Anchor(mon, new Vector2(1, 0), new Vector2(252, 150), CheckpointLayout.CameraCenter);
             var monBorder = UIFactory.Panel(mon, "border", UIFactory.Border).rectTransform;
             UIFactory.AnchorsFull(monBorder);
             var monInner = UIFactory.Panel(monBorder, "inner", new Color(0.03f, 0.04f, 0.03f)).rectTransform;
@@ -213,7 +215,7 @@ namespace Hollowbrook.Checkpoint
         private Text Row(RectTransform parent, string name, float yFromTop)
         {
             var t = UIFactory.Label(parent, name, "", 13, UIFactory.PaperInk);
-            UIFactory.Anchor(t.rectTransform, new Vector2(0, 1), new Vector2(220, 20), new Vector2(120, -yFromTop + 60));
+            UIFactory.Anchor(t.rectTransform, new Vector2(0, 1), new Vector2(220, 20), new Vector2(120, -40 - yFromTop));
             return t;
         }
 
@@ -221,7 +223,7 @@ namespace Hollowbrook.Checkpoint
         {
             var qCol = UIFactory.NewUI(_root, "questions");
             _qColRt = qCol;
-            UIFactory.Anchor(qCol, new Vector2(1, 0), new Vector2(280, 200), new Vector2(-150, -76));
+            UIFactory.Anchor(qCol, new Vector2(1, 0), new Vector2(280, 200), CheckpointLayout.QuestionsColumnCenter);
             _budgetLabel = UIFactory.Label(qCol, "budget", "QUESTIONS: 2 LEFT", 14, UIFactory.InkDim, TextAnchor.MiddleLeft);
             UIFactory.Anchor(_budgetLabel.rectTransform, new Vector2(0, 1), new Vector2(260, 24), new Vector2(130, -12));
             string[] qs =
@@ -240,23 +242,23 @@ namespace Hollowbrook.Checkpoint
 
             _allowBtn = UIFactory.StandardButton(_root, "allow", "ALLOW", () => Stamp(Verdict.Allow), 120, 120);
             MakeRound(_allowBtn, true);
-            UIFactory.Anchor(_allowBtn.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(120, 120), new Vector2(-215, 176));
+            UIFactory.Anchor(_allowBtn.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(120, 120), CheckpointLayout.AllowCenter);
             _rejectBtn = UIFactory.StandardButton(_root, "reject", "CALL PRINCIPAL", () => AskPrincipal(), 120, 120, true);
             MakeRound(_rejectBtn, false);
-            UIFactory.Anchor(_rejectBtn.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(120, 120), new Vector2(-85, 176));
+            UIFactory.Anchor(_rejectBtn.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(120, 120), CheckpointLayout.PrincipalCenter);
             _scanBtn = UIFactory.StandardButton(_root, "scan", "SCAN ID", () => DoScan(), 130, 38);
-            UIFactory.Anchor(_scanBtn.GetComponent<RectTransform>(), new Vector2(1, 0), new Vector2(130, 38), new Vector2(-344, 277));
+            UIFactory.Anchor(_scanBtn.GetComponent<RectTransform>(), new Vector2(1, 0), new Vector2(130, 38), CheckpointLayout.ScanCenter);
             _notesBtn = UIFactory.StandardButton(_root, "notes", "RULES NOTE", () => ToggleOverlay(_notesRoot), 130, 38);
             UIFactory.Anchor(_notesBtn.GetComponent<RectTransform>(), new Vector2(1, 0), new Vector2(130, 38), new Vector2(-344, 233));
             _recordsBtn = UIFactory.StandardButton(_root, "records", "TONIGHT'S LOG", () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, 130, 38);
             UIFactory.Anchor(_recordsBtn.GetComponent<RectTransform>(), new Vector2(1, 0), new Vector2(130, 38), new Vector2(-344, 189));
-            _mapBtn = UIFactory.StandardButton(_root, "map", "MAP", () => R.OpenMap(), 130, 38);
+            _mapBtn = UIFactory.StandardButton(_root, "map", "MAP", () => _gameRoot.OpenMap(), 130, 38);
             UIFactory.Anchor(_mapBtn.GetComponent<RectTransform>(), new Vector2(1, 0), new Vector2(130, 38), new Vector2(-344, 145));
 
             _patrolBtn = UIFactory.StandardButton(_root, "patrol", "PATROL HALLWAY  ▸", () => GoPatrol(), 220, 44);
-            UIFactory.Anchor(_patrolBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(220, 44), new Vector2(124, 30));
-            _endShiftBtn = UIFactory.StandardButton(_root, "endshift", "END SHIFT — CLOCK OUT", () => R.FinishShift(), 250, 44);
-            UIFactory.Anchor(_endShiftBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(250, 44), new Vector2(0, 30));
+            UIFactory.Anchor(_patrolBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(200, 40), CheckpointLayout.PatrolCenter);
+            _endShiftBtn = UIFactory.StandardButton(_root, "endshift", "END SHIFT — CLOCK OUT", () => _gameRoot.FinishShift(), 250, 44);
+            UIFactory.Anchor(_endShiftBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(210, 40), CheckpointLayout.EndShiftCenter);
             _endShiftBtn.gameObject.SetActive(false);
         }
 
@@ -307,7 +309,7 @@ namespace Hollowbrook.Checkpoint
         {
             bool on = !go.activeSelf;
             go.SetActive(on);
-            R.Audio.PlaySfx(on ? "sfx_ui_open" : "sfx_ui_close", 0.5f);
+            _gameRoot.Audio.PlaySfx(on ? "sfx_ui_open" : "sfx_ui_close", 0.5f);
             if (on && go == _notesRoot) RefreshNotes();
         }
 
@@ -319,9 +321,9 @@ namespace Hollowbrook.Checkpoint
             sb.Append("You may ask up to ").Append(Content.MaxQuestionsPerInspection).Append(" questions. Decisions are permanent.\n");
             sb.Append("SCAN cross-checks the student database and tonight's presentation log.\n\n");
             if (_shift != null) { sb.Append(_shift.RuleNoteAddendum).Append('\n'); }
-            if (R.Session.Mode == GameMode.Challenge)
+            if (_gameRoot.Session.Mode == GameMode.Challenge)
             {
-                var m = R.Session.ActiveMutation;
+                var m = _gameRoot.Session.ActiveMutation;
                 if (m != null && !string.IsNullOrEmpty(m.RuleText)) sb.Append('\n').Append("▸ ").Append(m.RuleText);
             }
             _notesText.text = sb.ToString();
@@ -332,9 +334,9 @@ namespace Hollowbrook.Checkpoint
             var sb = new StringBuilder();
             sb.Append("PRESENTED TONIGHT:\n");
             sb.Append(_tonightsLog.Length == 0 ? "  (no one yet)\n" : _tonightsLog.ToString());
-            sb.Append("\nBREACHES (anomalies allowed in): ").Append(R.Session.Breaches).Append(" / 3\n");
-            sb.Append("FALSE REJECTIONS: ").Append(R.Session.FalseRejections).Append(" / 3\n");
-            sb.Append("FINDINGS DISCOVERED: ").Append(R.Session.Clues.FoundCount).Append(" / 10\n");
+            sb.Append("\nBREACHES (anomalies allowed in): ").Append(_gameRoot.Session.Breaches).Append(" / 3\n");
+            sb.Append("FALSE REJECTIONS: ").Append(_gameRoot.Session.FalseRejections).Append(" / 3\n");
+            sb.Append("FINDINGS DISCOVERED: ").Append(_gameRoot.Session.Clues.FoundCount).Append(" / 10\n");
             _recordsText.text = sb.ToString();
         }
 
@@ -347,28 +349,31 @@ namespace Hollowbrook.Checkpoint
             _recordsRoot.SetActive(false);
         }
 
-        public void BeginRun(List<VisitorData> roster, ShiftDef shift)
+        public void BeginRun(List<VisitorData> roster, ShiftDef shift, int resumeFromVisitor = 0)
         {
+            // a mid-shift continue skips visitors the player already processed
+            _index = resumeFromVisitor - 1;
+            Debug.Log("[Flow] BeginRun roster=" + (roster != null ? roster.Count : -1));
             Debug.Log("[Flow] checkpoint started with " + (roster != null ? roster.Count : 0) + " visitors");
-            if (_noteText != null && R.CurrentShiftDef != null) _noteText.text = R.CurrentShiftDef.RuleNoteAddendum;
+            if (_noteText != null && _gameRoot.CurrentShiftDef != null) _noteText.text = _gameRoot.CurrentShiftDef.RuleNoteAddendum;
             _roster = roster;
             _shift = shift;
             _index = -1;
-            R.CurrentVisitorIndex = 0;
+            _gameRoot.CurrentVisitorIndex = Mathf.Max(0, _index + 1);
             _tonightsLog.Clear();
             _flowActive = true;
             _endShiftBtn.gameObject.SetActive(false);
             _mutationStrip.gameObject.SetActive(false);
-            if (R.Session.Mode == GameMode.Challenge)
+            if (_gameRoot.Session.Mode == GameMode.Challenge)
             {
-                var m = R.Session.ActiveMutation;
+                var m = _gameRoot.Session.ActiveMutation;
                 if (m != null && !string.IsNullOrEmpty(m.RuleText))
                 {
                     _mutationStrip.text = "⚠ DISTRICT BULLETIN — " + m.RuleText;
                     _mutationStrip.gameObject.SetActive(true);
                 }
             }
-            bool runMode = R.Session.Mode != GameMode.Normal;
+            bool runMode = _gameRoot.Session.Mode != GameMode.Normal;
             _runStats.gameObject.SetActive(runMode);
             NextVisitor();
         }
@@ -382,15 +387,15 @@ namespace Hollowbrook.Checkpoint
 
         public void ResumeRun()
         {
-            _shift = ShiftPlan.Get(Mathf.Clamp(R.Session.CurrentShift, 1, ShiftPlan.TotalShifts));
-            _roster = R.CurrentRoster;
-            _index = R.CurrentVisitorIndex - 1;
+            _shift = ShiftPlan.Get(Mathf.Clamp(_gameRoot.Session.CurrentShift, 1, ShiftPlan.TotalShifts));
+            _roster = _gameRoot.CurrentRoster;
+            _index = _gameRoot.CurrentVisitorIndex - 1;
             _tonightsLog.Clear();
             _flowActive = true;
             _waitingReturnFromPatrol = false;
             _endShiftBtn.gameObject.SetActive(false);
             _mutationStrip.gameObject.SetActive(false);
-            bool runMode = R.Session.Mode != GameMode.Normal;
+            bool runMode = _gameRoot.Session.Mode != GameMode.Normal;
             _runStats.gameObject.SetActive(runMode);
             Show();
             NextVisitor();
@@ -407,7 +412,7 @@ namespace Hollowbrook.Checkpoint
             float t = 0f;
             while (t < seconds)
             {
-                if (R == null || !R.Paused) t += Time.unscaledDeltaTime;
+                if (_gameRoot == null || !_gameRoot.Paused) t += Time.unscaledDeltaTime;
                 yield return null;
             }
         }
@@ -428,7 +433,7 @@ namespace Hollowbrook.Checkpoint
             inner.sprite = ProceduralArt.Get("rough_circle");
             inner.color = paper ? UIFactory.Paper : new Color(0.13f, 0.13f, 0.14f);
             var t = b.GetComponentInChildren<Text>();
-            t.fontSize = 13;
+            UIFactory.SetBaseFontSize(t, 13);
             t.color = paper ? UIFactory.PaperInk : UIFactory.Ink;
         }
 
@@ -436,28 +441,28 @@ namespace Hollowbrook.Checkpoint
         private void BuildDecor()
         {
             var banner = UIFactory.Img(_root, "daybanner", ProceduralArt.Get("rough_panel"));
-            UIFactory.Anchor(banner.rectTransform, new Vector2(0f, 1f), new Vector2(300, 44), new Vector2(170, -56));
+            UIFactory.Anchor(banner.rectTransform, new Vector2(0f, 1f), new Vector2(300, 44), CheckpointLayout.BannerCenter);
             _topLeft.transform.SetParent(banner.rectTransform, false);
             UIFactory.AnchorsFull(_topLeft.rectTransform);
-            _topLeft.color = UIFactory.PaperInk; _topLeft.fontSize = 20;
+            _topLeft.color = UIFactory.PaperInk; UIFactory.SetBaseFontSize(_topLeft, 20);
             _topLeft.alignment = TextAnchor.MiddleCenter;
             var facade = UIFactory.Img(_root, "facade", ProceduralArt.Get("school_facade"));
-            UIFactory.Anchor(facade.rectTransform, new Vector2(0f, 1f), new Vector2(300, 150), new Vector2(170, -152));
+            UIFactory.Anchor(facade.rectTransform, new Vector2(0f, 1f), new Vector2(300, 150), CheckpointLayout.FacadeCenter);
             var win = UIFactory.Img(_root, "windowframe", ProceduralArt.Get("window_frame"));
-            UIFactory.Anchor(win.rectTransform, new Vector2(0.5f, 1f), new Vector2(470, 340), new Vector2(0, -176));
+            UIFactory.Anchor(win.rectTransform, new Vector2(0.5f, 1f), new Vector2(470, 340), CheckpointLayout.WindowCenter);
             var glass = UIFactory.Panel(win.rectTransform, "glass", UIFactory.Glass);
             UIFactory.AnchorsFull(glass.rectTransform);
             glass.raycastTarget = false;
             var sill = UIFactory.Panel(_root, "sill", new Color(0.10f, 0.10f, 0.11f));
             UIFactory.Anchor(sill.rectTransform, new Vector2(0.5f, 1f), new Vector2(470, 34), new Vector2(0, -332));
             var note = UIFactory.Img(_root, "principalnote", ProceduralArt.Get("rough_panel"));
-            UIFactory.Anchor(note.rectTransform, new Vector2(0.5f, 0f), new Vector2(250, 180), new Vector2(-40, 16));
+            UIFactory.Anchor(note.rectTransform, new Vector2(0.5f, 0f), new Vector2(240, 200), CheckpointLayout.NoteCenter - new Vector2(640f, 0f));
             var head = UIFactory.Label(note.rectTransform, "head", "PRINCIPAL NOTE", 14, UIFactory.PaperInk, TextAnchor.UpperLeft);
             UIFactory.Anchor(head.rectTransform, new Vector2(0f, 1f), new Vector2(230, 22), new Vector2(120, -16));
             _noteText = UIFactory.Label(note.rectTransform, "body", "", 12, UIFactory.PaperInk, TextAnchor.UpperLeft);
             UIFactory.Anchor(_noteText.rectTransform, new Vector2(0f, 1f), new Vector2(226, 140), new Vector2(118, -40));
             var qPanel = UIFactory.Img(_root, "qpanel", ProceduralArt.Get("rough_panel"));
-            UIFactory.Anchor(qPanel.rectTransform, new Vector2(1f, 1f), new Vector2(300, 250), new Vector2(-150, -36));
+            UIFactory.Anchor(qPanel.rectTransform, new Vector2(1f, 1f), new Vector2(300, 250), CheckpointLayout.QuestionsPanelCenter);
             var qHead = UIFactory.Label(qPanel.rectTransform, "head", "QUESTIONS", 18, UIFactory.PaperInk, TextAnchor.UpperLeft);
             UIFactory.Anchor(qHead.rectTransform, new Vector2(0f, 1f), new Vector2(280, 26), new Vector2(145, -14));
             var camFrame = UIFactory.Img(_monRt, "camframe", ProceduralArt.Get("camera_frame"));
@@ -466,7 +471,7 @@ namespace Hollowbrook.Checkpoint
             var camCap = UIFactory.Label(_monRt, "camcap", "CAMERA", 13, UIFactory.InkDim, TextAnchor.MiddleCenter);
             UIFactory.Anchor(camCap.rectTransform, new Vector2(0.5f, 1f), new Vector2(240, 20), new Vector2(0, -20));
             var conf = UIFactory.Img(_root, "confirmbox", ProceduralArt.Get("rough_panel"));
-            UIFactory.Anchor(conf.rectTransform, new Vector2(0f, 1f), new Vector2(300, 90), new Vector2(170, -262));
+            UIFactory.Anchor(conf.rectTransform, new Vector2(0f, 1f), new Vector2(300, 90), CheckpointLayout.ConfirmCenter);
             _confirmText = UIFactory.Label(conf.rectTransform, "txt", "", 14, UIFactory.PaperInk, TextAnchor.MiddleCenter);
             UIFactory.Anchor(_confirmText.rectTransform, new Vector2(0.5f, 1f), new Vector2(280, 40), new Vector2(0, -18));
             var no = UIFactory.StandardButton(conf.rectTransform, "no", "No", () => _confirmBox.SetActive(false), 90, 30);
@@ -476,19 +481,31 @@ namespace Hollowbrook.Checkpoint
             UIFactory.Anchor(yes.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(90, 30), new Vector2(52, -64));
             _confirmBox = conf.gameObject;
             _confirmBox.SetActive(false);
+            // B3: the window frame is created after the portrait, and later siblings draw on
+            // top, so lift the visitor, the glass glitch and the speech bubble above it.
+            if (_visitorPortrait != null) _visitorPortrait.rectTransform.SetAsLastSibling();
+            if (_glitchOverlay != null) _glitchOverlay.rectTransform.SetAsLastSibling();
+            if (_speechPanel != null) _speechPanel.SetAsLastSibling();
             _testimony = UIFactory.Label(_qColRt, "testimony", "", 12, UIFactory.InkDim, TextAnchor.UpperLeft);
             UIFactory.Anchor(_testimony.rectTransform, new Vector2(0.5f, 1f), new Vector2(272, 86), new Vector2(140, -300));
         }
 
+        private void OnDestroy()
+        {
+            foreach (var subscription in _subscriptions) subscription?.Dispose();
+            _subscriptions.Clear();
+        }
+
         private void NextVisitor()
         {
+            Debug.Log("[Flow] NextVisitor index=" + _index);
             if (_testimony != null) _testimony.text = "";
-            if (R.Config.exhibitionMode && R.Session.Processed == 0 && R.Session.CurrentShift == 1)
-                R.Bus.Publish(GameEvent.Of(EventIds.Notification,
+            if (_gameRoot.Config.exhibitionMode && _gameRoot.Session.Processed == 0 && _gameRoot.Session.CurrentShift == 1)
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
                     "EXHIBITION: photo and expiry first, then one question if in doubt."));
             if (!_flowActive) return;
             VisitorData v;
-            if (R.Session.Mode == GameMode.Normal)
+            if (_gameRoot.Session.Mode == GameMode.Normal)
             {
                 _index++;
                 if (_index >= _roster.Count)
@@ -505,7 +522,7 @@ namespace Hollowbrook.Checkpoint
             }
             else
             {
-                v = R.NextRunVisitor();
+                v = _gameRoot.NextRunVisitor();
                 _current = null;
             }
 
@@ -522,6 +539,7 @@ namespace Hollowbrook.Checkpoint
 
         private void PresentVisitor(VisitorData v)
         {
+            Debug.Log("[Flow] PresentVisitor " + v.ClaimedName);
             SetVisitorVisible(true);
             _visitorPortrait.sprite = ProceduralArt.Portrait("window", v.WindowPortrait, 240, 296);
             _idPhoto.sprite = ProceduralArt.Portrait("card", v.IdPhoto, 168, 208);
@@ -546,7 +564,7 @@ namespace Hollowbrook.Checkpoint
                 _idStatus.text = "CLEARANCE: Full building";
                 _recName.text = "ASSIGNED: " + v.RecordName;
                 _recNumber.text = "BADGE NO: " + v.RecordIdNumber;
-                _recYear.text = "EFFECTIVE: " + Content.ShiftDates[Mathf.Clamp(R.Session.CurrentShift - 1, 0, 4)];
+                _recYear.text = "EFFECTIVE: " + Content.ShiftDates[Mathf.Clamp(_gameRoot.Session.CurrentShift - 1, 0, 4)];
                 _recCourse.text = "PURPOSE: Assume control of site";
                 _recStatus.text = "SIGNED: District Seal (smudged)";
                 _recClassroom.text = "ESCORT: None authorized";
@@ -567,9 +585,9 @@ namespace Hollowbrook.Checkpoint
             }
             _idExpires.text = admin ? "VALID THRU: " + v.ExpirationDisplay : "EXPIRES: " + v.ExpirationDisplay;
 
-            R.Audio.PlaySfx("sfx_knock", 0.7f);
-            R.Bus.Publish(GameEvent.Of(EventIds.DocumentsShown, v));
-            R.Audio.PlaySfx("sfx_paper", 0.6f);
+            _gameRoot.Audio.PlaySfx("sfx_knock", 0.7f);
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.DocumentsShown, v));
+            _gameRoot.Audio.PlaySfx("sfx_paper", 0.6f);
 
             if (admin)
             {
@@ -578,20 +596,20 @@ namespace Hollowbrook.Checkpoint
                     new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[0] },
                     new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[1] },
                 };
-                if (R.Session.Clues.FoundCount >= 6)
+                if (_gameRoot.Session.Clues.FoundCount >= 6)
                     lines.Add(new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "That face. The old school photo — the staff member who never aged. It's them." });
                 lines.Add(new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[3] });
                 SayLine("AT THE WINDOW", "A formal coat. A briefcase. A smile that arrives a half-second late.");
-                if (R.Dialogue != null) R.Dialogue.Play(lines, null);
-                R.Audio.PlayMusic("final");
+                if (_gameRoot.Dialogue != null) _gameRoot.Dialogue.Play(lines, null);
+                _gameRoot.Audio.PlayMusic("final");
             }
             else
             {
                 Say(v.Greeting);
-                if (v.IsAnomaly && v.BehaviorGlitchVisible && R.Session.Sanity < 70f)
+                if (v.IsAnomaly && v.BehaviorGlitchVisible && _gameRoot.Session.Sanity < 70f)
                     StartCoroutine(GlitchHint());
             }
-            R.Bus.Publish(GameEvent.Of(EventIds.VisitorArrived, v));
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VisitorArrived, v));
         }
 
         private IEnumerator GlitchHint()
@@ -600,7 +618,7 @@ namespace Hollowbrook.Checkpoint
             if (_current == null || !gameObject.activeInHierarchy) yield break;
             _glitchOverlay.gameObject.SetActive(true);
             var c = _glitchOverlay.color; c.a = 0.35f; _glitchOverlay.color = c;
-            R.Audio.PlaySfx("sfx_glitch", 0.35f);
+            _gameRoot.Audio.PlaySfx("sfx_glitch", 0.35f);
             yield return new WaitForSecondsRealtime(0.12f);
             c = _glitchOverlay.color; c.a = 0f; _glitchOverlay.color = c;
             _glitchOverlay.gameObject.SetActive(false);
@@ -628,19 +646,19 @@ namespace Hollowbrook.Checkpoint
             if (!_budget.TryAsk(_current, q, out var answer))
             {
                 _monitorOutput.text = _budget.HasAsked(q) ? "ALREADY ASKED THAT." : "NO MORE QUESTIONS — DISTRICT POLICY.";
-                R.Audio.PlaySfx("sfx_scan_error", 0.35f);
+                _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.35f);
                 return;
             }
             string tone = answer.Tone == ToneTag.Normal ? "" : "  [" + ToneLabel(answer.Tone) + "]";
             SayLine("ANSWER · " + QuestionTextShort(q), "“" + answer.Text + "”" + tone);
             AppendTestimony(q, answer);
-            R.Audio.PlaySfx("sfx_intercom", 0.5f);
-            R.Bus.Publish(GameEvent.Of(EventIds.QuestionAsked, q));
+            _gameRoot.Audio.PlaySfx("sfx_intercom", 0.5f);
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.QuestionAsked, q));
             RefreshHud();
         }
 
-        private float BannerSeconds => R.Config.exhibitionMode ? R.Config.exhibitionBannerSeconds : R.Config.verdictBannerSeconds;
-        private float BetweenSeconds => R.Config.exhibitionMode ? R.Config.exhibitionBetweenVisitors : R.Config.betweenVisitorsSeconds;
+        private float BannerSeconds => _gameRoot.Config.exhibitionMode ? _gameRoot.Config.exhibitionBannerSeconds : _gameRoot.Config.verdictBannerSeconds;
+        private float BetweenSeconds => _gameRoot.Config.exhibitionMode ? _gameRoot.Config.exhibitionBetweenVisitors : _gameRoot.Config.betweenVisitorsSeconds;
 
         private void AppendTestimony(QuestionId q, Answer answer)
         {
@@ -677,14 +695,14 @@ namespace Hollowbrook.Checkpoint
 
         public void DoScan()
         {
-            if (_current == null || _verdictLocked || R.Roster == null) return;
-            var res = R.Roster.Scan(_current, R.Session.TonightLog);
+            if (_current == null || _verdictLocked || _gameRoot.Roster == null) return;
+            var res = _gameRoot.Roster.Scan(_current, _gameRoot.Session.TonightLog);
             _monitorOutput.text = res.Display;
             _monitorOutput.color = res.FoundInDatabase && !res.DuplicateTonight
                 ? new Color(0.55f, 0.75f, 0.55f)
                 : new Color(0.85f, 0.35f, 0.35f);
-            R.Audio.PlaySfx(res.FormatValid && res.FoundInDatabase && !res.DuplicateTonight ? "sfx_scan_ok" : "sfx_scan_error", 0.8f);
-            R.Bus.Publish(GameEvent.Of(EventIds.ScanPerformed, res));
+            _gameRoot.Audio.PlaySfx(res.FormatValid && res.FoundInDatabase && !res.DuplicateTonight ? "sfx_scan_ok" : "sfx_scan_error", 0.8f);
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.ScanPerformed, res));
         }
 
         private void CycleCheckRow(int row)
@@ -697,18 +715,18 @@ namespace Hollowbrook.Checkpoint
                 case 2: _checkRows[row].text = "[✗] " + ChecklistLabels[row]; _checkRows[row].color = new Color(0.55f, 0.1f, 0.12f); break;
                 default: _checkRows[row].text = "[  ] " + ChecklistLabels[row]; _checkRows[row].color = UIFactory.PaperInk; break;
             }
-            R.Audio.PlaySfx("sfx_paper", 0.35f);
+            _gameRoot.Audio.PlaySfx("sfx_paper", 0.35f);
         }
 
         public void Stamp(Verdict verdict)
         {
             if (_current == null || _verdictLocked) return;
             _verdictLocked = true; // §2.4 — decisions are permanent
-            var mutation = R.Session.Mode == GameMode.Challenge ? R.Session.ActiveMutation : null;
+            var mutation = _gameRoot.Session.Mode == GameMode.Challenge ? _gameRoot.Session.ActiveMutation : null;
             var outcome = InspectionRules.Apply(_current, verdict, mutation);
 
-            R.Audio.PlaySfx(verdict == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 1f);
-            R.Bus.Publish(GameEvent.Of(EventIds.VerdictStamped, outcome));
+            _gameRoot.Audio.PlaySfx(verdict == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 1f);
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VerdictStamped, outcome));
             if (_stampOverlay != null) StartCoroutine(StampPunch(verdict));
 
             _tonightsLog.Append("  ").Append(_current.IsAdministrator ? "ADMINISTRATOR" : _current.ClaimedName)
@@ -717,9 +735,9 @@ namespace Hollowbrook.Checkpoint
 
             int checklistHits = CountChecklistAccuracy(_current, outcome);
             var resolved = _current;
-            R.CurrentVisitorIndex = _index + 1;               // survive scene reloads (patrol)
-            R.OnVerdictResolved(resolved, outcome);           // counters update BEFORE the banner reads them
-            if (R.State == AppViewState.Ending) { Hide(); return; } // ending took over (C3/C4)
+            _gameRoot.CurrentVisitorIndex = _index + 1;               // survive scene reloads (patrol)
+            _gameRoot.OnVerdictResolved(resolved, outcome);           // counters update BEFORE the banner reads them
+            if (_gameRoot.State == AppViewState.Ending) { Hide(); return; } // ending took over (C3/C4)
             ShowBanner(verdict, outcome, checklistHits);
 
             StartCoroutine(AfterBanner(resolved));
@@ -761,9 +779,9 @@ namespace Hollowbrook.Checkpoint
             var sb = new StringBuilder();
             if (o.Correct) sb.Append("CORRECT DECISION.  (+").Append(o.WasAnomaly ? 100 : 50).Append(")\n");
             else if (o.FalseRejection) sb.Append("MISTAKE — FALSE REJECTION. A real student was turned away. (")
-                    .Append(R.Session.FalseRejections).Append("/3 before the district reviews your contract)\n");
+                    .Append(_gameRoot.Session.FalseRejections).Append("/3 before the district reviews your contract)\n");
             else sb.Append("MISTAKE — ANOMALY ENTRY. Something is inside the school now. (")
-                    .Append(R.Session.Breaches).Append("/3 before the district reviews your contract)\n");
+                    .Append(_gameRoot.Session.Breaches).Append("/3 before the district reviews your contract)\n");
             sb.Append("\nWHAT THE DOCUMENTS SHOWED:\n");
             foreach (var line in o.RevealedDefects) sb.Append("  · ").Append(line).Append('\n');
             sb.Append("\nYour checklist: ").Append(checklistHits).Append("/8 rows accurate.");
@@ -774,7 +792,7 @@ namespace Hollowbrook.Checkpoint
         private IEnumerator StampPunch(Verdict verdict)
         {
             _stampOverlay.sprite = ProceduralArt.Get(verdict == Verdict.Allow ? "stamp_allow" : "stamp_reject");
-            bool reduce = R.Settings != null && R.Settings.ReduceMotion;
+            bool reduce = _gameRoot.Settings != null && _gameRoot.Settings.ReduceMotion;
             if (!reduce)
             {
                 float t = 0f;
@@ -802,7 +820,7 @@ namespace Hollowbrook.Checkpoint
 
         private IEnumerator PortraitFadeIn()
         {
-            bool reduce = R.Settings != null && R.Settings.ReduceMotion;
+            bool reduce = _gameRoot.Settings != null && _gameRoot.Settings.ReduceMotion;
             if (reduce)
             {
                 var cr = _visitorPortrait.color; cr.a = 1f; _visitorPortrait.color = cr;
@@ -822,16 +840,16 @@ namespace Hollowbrook.Checkpoint
         {
             yield return WaitUnpaused(BannerSeconds);
             _bannerRoot.SetActive(false);
-            if (R.State != AppViewState.Checkpoint && R.State != AppViewState.AdminEncounter) yield break;
+            if (_gameRoot.State != AppViewState.Checkpoint && _gameRoot.State != AppViewState.AdminEncounter) yield break;
 
-            if (resolved.IsAdministrator && R.Session.AdminRejected)
+            if (resolved.IsAdministrator && _gameRoot.Session.AdminRejected)
             {
                 var outro = new List<DialogueLine>
                 {
                     new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = "…You will regret this. We are already inside your records." },
                     new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "The thing wearing Marlowe's face unfolds itself from the window and walks back into the dark. The seal on the server room holds — for tonight." },
                 };
-                R.Dialogue.Play(outro, () =>
+                _gameRoot.Dialogue.Play(outro, () =>
                 {
                     SetVisitorVisible(false);
                     _endShiftBtn.gameObject.SetActive(true);
@@ -841,7 +859,7 @@ namespace Hollowbrook.Checkpoint
                 yield break;
             }
 
-            if (R.Session.Mode == GameMode.Normal)
+            if (_gameRoot.Session.Mode == GameMode.Normal)
             {
                 bool rosterDone = _index + 1 >= _roster.Count;
                 if (rosterDone)
@@ -856,7 +874,7 @@ namespace Hollowbrook.Checkpoint
                     _patrolBtn.gameObject.SetActive(true);
                     SayLine("RADIO", "Next one's crossing the yard. Patrol now if you need to.");
                     yield return new WaitForSecondsRealtime(BetweenSeconds + 2.2f);
-                    if (_flowActive && !_waitingReturnFromPatrol && R.State == AppViewState.Checkpoint)
+                    if (_flowActive && !_waitingReturnFromPatrol && _gameRoot.State == AppViewState.Checkpoint)
                         NextVisitor();
                 }
             }
@@ -864,49 +882,49 @@ namespace Hollowbrook.Checkpoint
             {
                 SetVisitorVisible(false);
                 yield return WaitUnpaused(Mathf.Max(0.4f, BetweenSeconds * 0.5f));
-                if (_flowActive && R.State == AppViewState.Checkpoint) NextVisitor();
+                if (_flowActive && _gameRoot.State == AppViewState.Checkpoint) NextVisitor();
             }
         }
 
-        private void Bus_MusicCheckpoint() => R.Audio.PlayMusic("checkpoint");
+        private void Bus_MusicCheckpoint() => _gameRoot.Audio.PlayMusic("checkpoint");
 
         public void GoPatrol()
         {
             if (_current != null && !_verdictLocked)
             {
-                R.Bus.Publish(GameEvent.Of(EventIds.Notification, "Finish the inspection at the window first."));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, "Finish the inspection at the window first."));
                 return;
             }
             _waitingReturnFromPatrol = true;
-            R.EnterExploration();
+            _gameRoot.EnterExploration();
         }
 
         private void Update()
         {
-            if (R == null || !gameObject.activeInHierarchy) return;
-            if (Input.GetKeyDown(KeyCode.Escape) && !_bannerRoot.activeSelf) R.TogglePause();
-            if (Input.GetKeyDown(KeyCode.M) && R.State == AppViewState.Checkpoint) R.OpenMap();
+            if (_gameRoot == null || !gameObject.activeInHierarchy) return;
+            if (Input.GetKeyDown(KeyCode.Escape) && !_bannerRoot.activeSelf) _gameRoot.TogglePause();
+            if (Input.GetKeyDown(KeyCode.M) && _gameRoot.State == AppViewState.Checkpoint) _gameRoot.OpenMap();
         }
 
         private void RefreshHud()
         {
-            if (R == null || R.Session == null) return;
-            if (R.Session.Mode == GameMode.Normal)
+            if (_gameRoot == null || _gameRoot.Session == null) return;
+            if (_gameRoot.Session.Mode == GameMode.Normal)
             {
                 int total = _roster != null ? _roster.Count : 0;
                 int shown = Mathf.Clamp(_index + 1, 0, total);
-                _topLeft.text = "NIGHT " + R.Session.CurrentShift + " · " + (_shift != null ? _shift.DateLabel : "") +
+                _topLeft.text = "NIGHT " + _gameRoot.Session.CurrentShift + " · " + (_shift != null ? _shift.DateLabel : "") +
                                 "   —   VISITOR " + shown + " / " + total;
-                _topClock.text = R.ClockString;
+                _topClock.text = _gameRoot.ClockString;
             }
             else
             {
-                _topLeft.text = (R.Session.Mode == GameMode.Endless ? "ENDLESS WATCH" : "CHALLENGE PROTOCOL") +
-                                "   ·   PROCESSED " + R.Session.RunProcessed;
-                _topClock.text = R.ClockString;
-                float mult = EndlessRules.StreakMultiplier(R.Session.Streak) *
-                             (R.Session.Mode == GameMode.Challenge ? ChallengeRules.ScoreMultiplier : 1f);
-                _runStats.text = "SCORE " + R.Session.Score + "   ·   STREAK " + R.Session.Streak + " (×" + mult.ToString("0.0") + ")";
+                _topLeft.text = (_gameRoot.Session.Mode == GameMode.Endless ? "ENDLESS WATCH" : "CHALLENGE PROTOCOL") +
+                                "   ·   PROCESSED " + _gameRoot.Session.RunProcessed;
+                _topClock.text = _gameRoot.ClockString;
+                float mult = EndlessRules.StreakMultiplier(_gameRoot.Session.Streak) *
+                             (_gameRoot.Session.Mode == GameMode.Challenge ? ChallengeRules.ScoreMultiplier : 1f);
+                _runStats.text = "SCORE " + _gameRoot.Session.Score + "   ·   STREAK " + _gameRoot.Session.Streak + " (×" + mult.ToString("0.0") + ")";
             }
             _budgetLabel.text = "QUESTIONS: " + _budget.Remaining + " LEFT";
             for (int i = 0; i < 4; i++)
@@ -919,14 +937,14 @@ namespace Hollowbrook.Checkpoint
         {
             if (_runStats == null || !_runStats.gameObject.activeInHierarchy) return;
             int m = (int)(secondsLeft / 60f), s = (int)(secondsLeft % 60f);
-            _runStats.text = "TIME " + m + ":" + s.ToString("D2") + "   ·   SCORE " + R.Session.Score +
-                             "   ·   STREAK ×" + EndlessRules.StreakMultiplier(R.Session.Streak).ToString("0.0");
+            _runStats.text = "TIME " + m + ":" + s.ToString("D2") + "   ·   SCORE " + _gameRoot.Session.Score +
+                             "   ·   STREAK ×" + EndlessRules.StreakMultiplier(_gameRoot.Session.Streak).ToString("0.0");
             _runStats.color = secondsLeft < 30f ? UIFactory.AccentBright : UIFactory.Ink;
         }
 
         private void OnEnable()
         {
-            if (R != null && _runStats != null && R.Session.Mode != GameMode.Normal)
+            if (_gameRoot != null && _runStats != null && _gameRoot.Session.Mode != GameMode.Normal)
                 _runStats.gameObject.SetActive(true);
         }
     }

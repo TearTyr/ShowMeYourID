@@ -2,6 +2,7 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
+    // Part of the gamelogic folder.
     public class PresentationLog
     {
         private readonly Dictionary<string, Portrait> _firstCardPhoto = new Dictionary<string, Portrait>();

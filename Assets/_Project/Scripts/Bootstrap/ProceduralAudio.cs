@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace Hollowbrook.Bootstrap
 {
+    // Synthesises every clip in code; real files in Resources/Audio win if present.
     public static class ProceduralAudio
     {
         public const int Rate = 44100;

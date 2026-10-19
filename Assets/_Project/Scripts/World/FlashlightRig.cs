@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
+    // Cursor-aimed beam, darkness mask and battery. Created by ViewManager.
     public class FlashlightRig : MonoBehaviour
     {
         public LightMode Beam { get; private set; } = LightMode.Off;
@@ -11,7 +12,7 @@ namespace Hollowbrook.World
         public bool BatteryDead { get; private set; }
         public bool BeamOn => Beam != LightMode.Off && !BatteryDead;
 
-        private GameRoot R;
+        private GameRoot _gameRoot;
         private Camera _cam;
         private SpriteRenderer _cone;
         private SpriteMask _mask;
@@ -21,7 +22,7 @@ namespace Hollowbrook.World
 
         public void Init(GameRoot root, Camera cam, SpriteRenderer cone)
         {
-            R = root; _cam = cam; _cone = cone;
+            _gameRoot = root; _cam = cam; _cone = cone;
             var maskGo = new GameObject("FlashlightMask");
             maskGo.transform.SetParent(transform, false);
             _mask = maskGo.AddComponent<SpriteMask>();
@@ -44,7 +45,7 @@ namespace Hollowbrook.World
 
         private void Update()
         {
-            if (R == null || R.Paused || _cam == null) return;
+            if (_gameRoot == null || _gameRoot.Paused || _cam == null) return;
             ReadInput();
             AimBeam();
             TickBattery(Time.deltaTime);
@@ -63,13 +64,19 @@ namespace Hollowbrook.World
             if (want != Beam) ApplyBeam(want, false);
         }
 
+        // Called when the player enters a room: re-apply the current beam to the new room light.
+        public void SyncRoom()
+        {
+            if (Beam != LightMode.Off) ApplyBeam(Beam, true);
+        }
+
         private void ApplyBeam(LightMode m, bool force)
         {
             Beam = m;
             bool on = m != LightMode.Off && !BatteryDead;
             if (_mask != null) _mask.gameObject.SetActive(on);
             if (_cone != null) _cone.gameObject.SetActive(on);
-            var room = R.Views != null && R.Views.Current != null ? R.Views.Current.Light : null;
+            var room = _gameRoot.Views != null && _gameRoot.Views.Current != null ? _gameRoot.Views.Current.Light : null;
             if (room != null && !force)
             {
                 if (m == LightMode.Focus) room.SetMode(LightMode.Focus);
@@ -81,7 +88,7 @@ namespace Hollowbrook.World
         private void AimBeam()
         {
             if (_cone == null) return;
-            var player = R.Views != null && R.Views.Player != null ? R.Views.Player.transform.localPosition : Vector3.zero;
+            var player = _gameRoot.Views != null && _gameRoot.Views.Player != null ? _gameRoot.Views.Player.transform.localPosition : Vector3.zero;
             _aimWorld = _cam.ScreenToWorldPoint(Input.mousePosition);
             _aimWorld.z = 0f;
             _side = _aimWorld.x >= player.x ? 1f : -1f;
@@ -97,14 +104,14 @@ namespace Hollowbrook.World
 
         private void TickBattery(float dt)
         {
-            var cfg = R.Config;
+            var cfg = _gameRoot.Config;
             float before = Battery;
             if (BeamOn)
                 Battery -= dt * (Beam == LightMode.Focus ? cfg.batteryDrainFocusPerSecond : cfg.batteryDrainSweepPerSecond) / 100f;
             else
             {
-                bool litRoom = R.Views != null && R.Views.Current != null && R.Views.Current.Light != null
-                               && R.Views.Current.Light.Mode == LightMode.Sweep;
+                bool litRoom = _gameRoot.Views != null && _gameRoot.Views.Current != null && _gameRoot.Views.Current.Light != null
+                               && _gameRoot.Views.Current.Light.Mode == LightMode.Sweep;
                 Battery += dt * (litRoom ? cfg.batteryRecoverLitPerSecond : cfg.batteryRecoverOffPerSecond) / 100f;
             }
             Battery = Mathf.Clamp01(Battery);
@@ -112,18 +119,18 @@ namespace Hollowbrook.World
             {
                 BatteryDead = true;
                 ApplyBeam(LightMode.Off, false);
-                R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the flashlight dies — let it breathe*", 2.4f, null));
-                R.Audio.PlaySfx("sfx_scan_error", 0.5f);
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the flashlight dies — let it breathe*", 2.4f, null));
+                _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.5f);
             }
             else if (BatteryDead && Battery >= cfg.batteryRebootFraction)
             {
                 BatteryDead = false;
-                R.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the flashlight coughs back to life*", 2f, null));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the flashlight coughs back to life*", 2f, null));
             }
             _pubThrottle -= dt;
             if (Mathf.Abs(Battery - before) > 1e-4f && _pubThrottle <= 0f) { _pubThrottle = 0.1f; PublishBattery(); }
         }
 
-        private void PublishBattery() => R.Bus.Publish(GameEvent.Of(EventIds.BatteryChanged, Battery));
+        private void PublishBattery() => _gameRoot.Bus.Publish(GameEvent.Of(EventIds.BatteryChanged, Battery));
     }
 }

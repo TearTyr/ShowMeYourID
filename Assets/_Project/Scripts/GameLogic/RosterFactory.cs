@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
+    // Part of the gamelogic folder.
     public class RosterFactory
     {
         private readonly List<StudentIdentity> _canon;
@@ -180,11 +181,8 @@ namespace Hollowbrook.Logic
                 DefectType.YearMismatch, DefectType.CourseMismatch, DefectType.StatusMismatch,
                 DefectType.NotInDatabase,
             };
-            if (shift.SubtleDefectsAllowed)
-            {
-                pool.Add(DefectType.PhotoSubtleMismatch);
-                pool.Add(DefectType.BehaviorOddity);
-            }
+            if (shift.SubtleDefectsAllowed) pool.Add(DefectType.PhotoSubtleMismatch);
+            if (shift.BehaviorOddityAllowed) pool.Add(DefectType.BehaviorOddity);
             if (shift.DuplicateIdsAllowed) pool.Add(DefectType.DuplicateId);
             return pool;
         }

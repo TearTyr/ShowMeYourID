@@ -9,6 +9,7 @@ using UnityEngine.UI;   // CanvasScaler (used in NewCanvas) lives in UnityEngine
 
 namespace Hollowbrook.Bootstrap
 {
+    // Part of the bootstrap folder.
     public static class SceneRouter
     {
         public const string Menu = "MainMenu";
@@ -27,6 +28,7 @@ namespace Hollowbrook.Bootstrap
         }
     }
 
+    // Builds the persistent core and per-scene canvas helpers.
     public static class CoreBootstrap
     {
         public static EventSystem CreatedEventSystem { get; private set; }

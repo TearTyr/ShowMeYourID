@@ -8,6 +8,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
+    // Part of the ui folder.
     public class DialogueLine
     {
         public string Speaker = "";
@@ -15,6 +16,7 @@ namespace Hollowbrook.UI
         public string PortraitSpriteKey; // optional procedural portrait key
     }
 
+    // Click-through dialogue box with typewriter text. Created by each scene bootstrap.
     public class DialogueView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -141,6 +143,7 @@ namespace Hollowbrook.UI
             HideVisuals();
             var cb = _onDone;
             _onDone = null;
+            Debug.Log("[Flow] dialogue finished, invoking callback");
             cb?.Invoke();
         }
 

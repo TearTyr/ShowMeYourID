@@ -4,6 +4,7 @@ using System.Text;
 
 namespace Hollowbrook.Logic
 {
+    // Part of the gamelogic folder.
     public class SaveGame
     {
         public GameSession Session = new GameSession();
@@ -12,6 +13,7 @@ namespace Hollowbrook.Logic
         public string SavedAtLabel = ""; // human-readable, informational only
     }
 
+    // Part of the gamelogic folder.
     public static class SaveFormat
     {
         public const string Header = "SMYIDSAVE";
@@ -33,6 +35,7 @@ namespace Hollowbrook.Logic
             sb.Append("breaches=").Append(s.Breaches).Append('\n');
             sb.Append("anomRej=").Append(s.AnomaliesRejected).Append('\n');
             sb.Append("tokens=").Append(s.TokensCollected).Append('\n');
+            sb.Append("visitorAtSave=").Append(s.VisitorIndexAtSave).Append('\n');
             KV(sb, "pool", s.Pool.Encode());
             sb.Append("adminAllowed=").Append(s.AdminAllowed ? 1 : 0).Append('\n');
             sb.Append("adminRejected=").Append(s.AdminRejected ? 1 : 0).Append('\n');
@@ -105,6 +108,7 @@ namespace Hollowbrook.Logic
                 s.Breaches = Int(map, "breaches", 0);
                 s.AnomaliesRejected = Int(map, "anomRej", 0);
                 s.TokensCollected = Int(map, "tokens", 0);
+                s.VisitorIndexAtSave = Int(map, "visitorAtSave", 0);
                 s.Pool.Decode(Str(map, "pool", ""));
                 s.AdminAllowed = Int(map, "adminAllowed", 0) == 1;
                 s.AdminRejected = Int(map, "adminRejected", 0) == 1;

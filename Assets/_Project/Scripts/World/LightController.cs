@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
+    // Per-room light switch state and flicker. Created by ViewManager.
     public class LightController : MonoBehaviour
     {
         public LightMode Mode { get; private set; } = LightMode.Sweep;

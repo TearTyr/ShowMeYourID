@@ -7,6 +7,7 @@ using UnityEngine;
 
 namespace Hollowbrook.Horror
 {
+    // False entities at low sanity. Created by SchoolSceneBootstrap.
     public class HallucinationSystem : MonoBehaviour
     {
         private GameRoot R;

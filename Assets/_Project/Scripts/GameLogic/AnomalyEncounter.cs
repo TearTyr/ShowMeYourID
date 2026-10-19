@@ -2,6 +2,7 @@ using System;
 
 namespace Hollowbrook.Logic
 {
+    // Part of the gamelogic folder.
     public enum AnomalyState
     {
         Roaming,     // moving between waypoints, minding its own business
@@ -13,6 +14,7 @@ namespace Hollowbrook.Logic
     }
 
     [Serializable]
+    // Part of the gamelogic folder.
     public struct EncounterTuning
     {
         public float RepelMeter;          // 0..1 tracking meter that constitutes "sustained light"
@@ -25,6 +27,7 @@ namespace Hollowbrook.Logic
         };
     }
 
+    // Part of the gamelogic folder.
     public struct EncounterStep
     {
         public AnomalyState State;
@@ -34,6 +37,7 @@ namespace Hollowbrook.Logic
         public bool Threatening;    // inside threat range while not repelled/recovering
     }
 
+    // Part of the gamelogic folder.
     public static class AnomalyEncounter
     {
         public static EncounterStep Step(AnomalyState state, float meter, float stateTimer,

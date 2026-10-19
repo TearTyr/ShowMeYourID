@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace Hollowbrook.Bootstrap
 {
+    // Builds the desk scene. Attached to Hollowbrook.unity.
     public class CheckpointSceneBootstrap : MonoBehaviour
     {
         public static void Build(GameRoot root)

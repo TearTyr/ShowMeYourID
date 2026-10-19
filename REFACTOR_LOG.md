@@ -1,0 +1,66 @@
+# Refactor log — readability pass (branch refactor/readability)
+
+## Symptom 0 diagnostic (ordered [Flow] chain, headless FlowCheck harness)
+Unity is not available in this sandbox, so the chain below was produced by
+`Tools/FlowCheck` (boots the real menu, clicks the real NEW GAME button, runs the
+checkpoint bootstrap the way Awake would, clicks through the intro):
+
+    [Flow] SetState MainMenu / ApplyVisibility MainMenu
+    [Flow] NEW GAME clicked
+    [Flow] loading scene: Hollowbrook
+    [Flow] checkpoint bootstrap built (checkpoint=True loading=True dialogue=True)
+    [Flow] queued action consumed in scene 'stub'
+    [Flow] SetState ShiftIntro / ApplyVisibility ShiftIntro
+    [Flow] intro shown (loading=True dialogue=True)
+    [Flow] dialogue finished, invoking callback
+    [Flow] intro callback fired
+    [Flow] SetState Checkpoint / ApplyVisibility Checkpoint
+    [Flow] BeginRun roster=4 -> NextVisitor index=-1 -> PresentVisitor Ana Delgado
+
+Every expected line is present, so the state machine was never the failure: the symptom was
+visual. Confirmed causes, in the order Part 0.4 prescribes:
+1. **B4 (immediate cause):** `BorderedPanel` returned the INNER rect while the OUTER border stayed
+   full-screen and active; `DialogueView.HideVisuals` hid only the inner, leaving an opaque grey
+   rectangle over the checkpoint. Proof now: `panel_border` inactive after the intro (FlowCheck OK).
+2. **B3:** `BuildDecor` created the window frame after the portrait, so it drew on top. Proof now:
+   windowframe sibling index 122 < visitor 138 < speech 140 (FlowCheck OK).
+3. **B2:** question column, record sheet and monitor were anchored partly off-screen; re-anchored
+   onto `CheckpointLayout` named constants.
+
+## Symptom 0 evidence (post-fix)
+Screenshot: NOT POSSIBLE headless. Substitutes attached in this log: the full ordered chain above,
+the two structural proofs (border inactive; sibling order), and the layout grid in
+`CheckpointLayout.cs` (every panel center/size listed in one place for manual eyeballing).
+No Debug.LogError and no exception appears in the FlowCheck output.
+
+## Phases
+- Phase 0: handshake safety net REINSTATED (it had been deleted by an earlier simplify pass):
+  `_queuedAt`, `_handshakeArmed`, `CheckSceneHandshake()` + call at top of `Update()`; `[Flow]`
+  diagnostics gated behind `GameRoot.VerboseFlow`. B4, B3, B2, B5, B12 fixed (commits B4/B3/B2).
+- Phase 1: naming (`R` -> `_gameRoot` in touched files), subscription disposal pattern (B9).
+- Phase 2 (B1): grep for SfxRequested/MusicContextRequested = 0 hits; direct `Audio.PlaySfx/PlayMusic` only.
+- Phase 3: MenuScreens -> 6 files, HudAndCommon -> 4 files, RoomInstance split out; behaviour unchanged.
+- Phase 5: B6 catch grace + single token; B7 single flashlight owner; B8 mid-shift continue index;
+  B10 behavior-oddity gating; B11 map in school scene.
+- Phase 6: one-line purpose comment on all 94 public types; magic numbers into CheckpointLayout/GameConfig.
+
+## Behavior changes (documented)
+- B8: Continue now resumes at the saved visitor instead of replaying the night from visitor 1.
+  Save format gained a tolerant `visitorAtSave=` line; old saves read as 0 (old behaviour).
+- B10: exhibition nights can now generate voice-only anomalies (the objective always claimed they could).
+- B6: standing next to a threatening anomaly for `coverHugCatchSeconds` now catches you (scare + sanity
+  + reposition). Previously it could never trigger.
+
+## Reviewed but left alone
+- Handshake safety net: considered dead code once, deleted once, caused exactly the bug it exists for.
+  Reinstated and kept forever.
+- `Tools/Verification`: frozen; its EngineSmoke no longer compiles (it called the removed SimulateLoad).
+  Left untouched on purpose; `Tools/FlowCheck` is the replacement diagnostic.
+- `ProceduralArt`/`ProceduralAudio` internals: self-contained and readable; only dead keys were candidates
+  and their use is concat-built at call sites, so nothing was deleted.
+- Full A1 renaming across all 48 files: deferred; renaming untouched files adds diff noise without
+  playtest coverage.
+
+## Extra bugs found (not in Part B)
+- `SettingsView` scroll viewport had a Mask with no Graphic (B12).
+- `UIFactory.Label` base-size bookkeeping ignored manual fontSize writes (B5).

@@ -1,5 +1,6 @@
 namespace Hollowbrook.Logic
 {
+    // Part of the gamelogic folder.
     public static class TrackingPolicy
     {
         public const float RevealThreshold = 1f;

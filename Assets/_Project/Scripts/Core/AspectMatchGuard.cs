@@ -4,6 +4,7 @@ using UnityEngine.UI;   // CanvasScaler lives in UnityEngine.UI (com.unity.ugui)
 
 namespace Hollowbrook.Core
 {
+    // Keeps every canvas at or above the 1280x720 reference on any aspect.
     public class AspectMatchGuard : MonoBehaviour
     {
         private CanvasScaler _scaler;

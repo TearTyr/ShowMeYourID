@@ -8,6 +8,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
+    // Part of the ui folder.
     public class MapView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -153,6 +154,7 @@ namespace Hollowbrook.UI
         public void Hide() => gameObject.SetActive(false);
     }
 
+    // Part of the ui folder.
     public class ShiftResultsView : MonoBehaviour, IScreenView
     {
         private GameRoot R;
@@ -209,6 +211,7 @@ namespace Hollowbrook.UI
         public void Hide() => gameObject.SetActive(false);
     }
 
+    // Part of the ui folder.
     public class EndingView : MonoBehaviour, IScreenView
     {
         private GameRoot R;

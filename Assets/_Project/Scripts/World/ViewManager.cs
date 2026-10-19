@@ -9,19 +9,9 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
-    public class RoomInstance
-    {
-        public RoomId Id;
-        public GameObject Root;
-        public float HalfWidth;
-        public LightController Light;
-        public SpriteRenderer Darkness;
-        public List<Interactable> Interactables = new List<Interactable>();
-        public List<Vector3> AnomalySpawnPoints = new List<Vector3>();
-        public Vector3 PlayerSpawn;
-        public string DisplayName;
-    }
 
+
+    // Rooms, doors, transitions, anomaly spawning, flashlight rig. Created by SchoolSceneBootstrap.
     public class ViewManager : MonoBehaviour
     {
         private GameRoot R;

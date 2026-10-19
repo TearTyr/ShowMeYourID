@@ -2,6 +2,7 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
+    // Part of the gamelogic folder.
     public static class IdRules
     {
         public const string Prefix = "HB-";

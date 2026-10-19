@@ -227,6 +227,7 @@ namespace UnityEngine
         public Quaternion localRotation = Quaternion.identity;
         public Vector3 localEulerAngles = Vector3.zero;
         public Transform parent { get; private set; }
+        public string name => gameObject != null ? gameObject.name : "";
         public int childCount => _children.Count;
         public Vector3 right = new Vector3(1, 0, 0);
         public Vector3 up = new Vector3(0, 1, 0);
@@ -257,7 +258,12 @@ namespace UnityEngine
             return null;
         }
         public int GetSiblingIndex() => parent != null ? parent.Children().IndexOf(this) : 0;
-        public void SetAsLastSibling() { }
+        public void SetAsLastSibling()
+        {
+            if (parent == null) return;
+            parent._children.Remove(this);
+            parent._children.Add(this);
+        }
         public void SetAsFirstSibling() { }
         public void DetachChildren() { _children.Clear(); }
         internal List<Transform> Children() => _children;

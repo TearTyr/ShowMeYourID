@@ -10,6 +10,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.Horror
 {
+    // Sanity-driven screen effects. Created by each scene bootstrap.
     public class SanityController : MonoBehaviour
     {
         private GameRoot R;
