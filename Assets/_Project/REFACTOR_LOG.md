@@ -131,3 +131,36 @@ Save format gained a tolerant visitorAtSave= line; old saves read as 0 (previous
 Play MainMenu -> NEW GAME: expect the [Flow] chain in Console, visitor behind glass, four question
 buttons clickable on the right, ALLOW / CALL PRINCIPAL circles, CAMERA bottom-right; answer one
 question; stamp; next visitor arrives. Quit mid-shift and CONTINUE: second visitor, not the first.
+
+## Checkpoint UI Layout Verification (1280x720, computed with the same math as UIFactory.Anchor)
+Screenshot: NOT RUN - no Unity editor in this sandbox. The bounds below are computed from the exact
+anchor/size/center values the code sets, which is what GetWorldCorners would report for a
+ScreenSpaceOverlay canvas at the reference resolution.
+
+    element            rect                 element            rect
+    top bar            (0,0)-(1280,52)      questions panel    (960,65)-(1260,315)
+    pause / clock      (15,10)-(105,42) / (1160,10)-(1280,42)   question 1..4  (974,109)-(1246,281)
+    banner + NIGHT     (10,36)-(330,80)     testimony          (980,261)-(1280,341)
+    record sheet       (10,80)-(330,420)    utility grid 2x2   (955,342)-(1265,424)
+    record rows 1..7   (10,374)..(10,538)   stamp circles      (960,490)-(1240,610)
+    id card            (10,450)-(330,670)   camera + SCAN      (984,588)-(1236,708) / (955,342)
+    window frame       (405,6)-(875,346)    speech panel       (490,415)-(790,525)
+    portrait (in win)  (565,55)-(715,245)   principal note     (490,530)-(790,630)
+    patrol / end shift (470,352)-(900,388)  objective          (360,672)-(920,708)
+    HUD sanity/track/battery  (180,8)-(440,44) / (530,8)-(750,44) / (750,8)-(970,44)
+All 22 harness checks OK, 0 BAD: every element inside 0..1280 x 0..720. Pairwise: no unintended
+overlaps; intended ones are text-on-panel and the modal confirm box over the window.
+FlowCheck re-run after the change: 22 OK / 0 BAD, B8 resume Ana Delgado -> Carlo Mendoza.
+
+### Deviations from the task's literal coordinates (its own numbers overlap; logged per instruction)
+- Record sheet kept at bottom-left (170,470) but the banner stays at (170,-58): the task's note
+  position (170,-280) would sit on top of the record sheet, so the PRINCIPAL NOTE moved to the free
+  centre-bottom slot (0,140) above the objective.
+- Stamp circles at (-100/-260,170) from bottom-right instead of 80: at 80 they landed on the camera
+  panel; the camera sits at (-170,72) size 252x120 below them.
+- SCAN joined the 2x2 utility grid (4th slot) instead of floating at (-344,277), which is where the
+  screenshot showed it stacked over the camera and id card.
+- HUD meters moved into the top bar centre: at their old top-left spot they covered the banner and
+  facade (visible in the provided screenshot), and the bottom-left strip belongs to the id card.
+- The facade art is now the view THROUGH the window (child of the window frame) because the left
+  column is fully occupied by banner/record/id; the confirm box overlays the window centre as a modal.

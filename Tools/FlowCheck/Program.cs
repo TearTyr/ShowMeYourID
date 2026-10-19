@@ -91,16 +91,16 @@ namespace FlowCheck
             OnScreen("questions panel", 1f, 1f, 300f, 250f,
                 Hollowbrook.Checkpoint.CheckpointLayout.QuestionsPanelCenter.x,
                 Hollowbrook.Checkpoint.CheckpointLayout.QuestionsPanelCenter.y);
-            OnScreen("record sheet", 0f, 1f, 320f, 280f,
+            OnScreen("record sheet", 0f, 0f, 320f, 340f,
                 Hollowbrook.Checkpoint.CheckpointLayout.RecordCenter.x,
                 Hollowbrook.Checkpoint.CheckpointLayout.RecordCenter.y);
             // record sheet top edge sits at 480-140 = 340; rows hang 44+24*i below it
             OnScreen("record row NAME", 0f, 1f, 220f, 20f, 120f, -(340f + 44f));
             OnScreen("record row EXPIRES", 0f, 1f, 220f, 20f, 120f, -(340f + 44f + 6f * 24f));
-            OnScreen("id card", 0.5f, 0f, 286f, 186f,
-                Hollowbrook.Checkpoint.CheckpointLayout.IdCardCenter.x - 640f,
+            OnScreen("id card", 0f, 0f, 320f, 220f,
+                Hollowbrook.Checkpoint.CheckpointLayout.IdCardCenter.x,
                 Hollowbrook.Checkpoint.CheckpointLayout.IdCardCenter.y);
-            OnScreen("camera monitor", 1f, 0f, 252f, 150f,
+            OnScreen("camera monitor", 1f, 0f, 252f, 120f,
                 Hollowbrook.Checkpoint.CheckpointLayout.CameraCenter.x,
                 Hollowbrook.Checkpoint.CheckpointLayout.CameraCenter.y);
             OnScreen("allow circle", 1f, 0f, 120f, 120f,
@@ -109,6 +109,18 @@ namespace FlowCheck
             OnScreen("principal circle", 1f, 0f, 120f, 120f,
                 Hollowbrook.Checkpoint.CheckpointLayout.PrincipalCenter.x,
                 Hollowbrook.Checkpoint.CheckpointLayout.PrincipalCenter.y);
+            OnScreen("scan button", 1f, 1f, 150f, 36f,
+                Hollowbrook.Checkpoint.CheckpointLayout.UtilityGridFirst.x,
+                Hollowbrook.Checkpoint.CheckpointLayout.UtilityGridFirst.y);
+            OnScreen("speech panel", 0.5f, 0f, 300f, 110f,
+                Hollowbrook.Checkpoint.CheckpointLayout.SpeechCenter.x,
+                Hollowbrook.Checkpoint.CheckpointLayout.SpeechCenter.y);
+            OnScreen("principal note", 0.5f, 0f, 300f, 100f,
+                Hollowbrook.Checkpoint.CheckpointLayout.NoteCenter.x,
+                Hollowbrook.Checkpoint.CheckpointLayout.NoteCenter.y);
+            OnScreen("objective", 0.5f, 0f, 560f, 36f,
+                Hollowbrook.Checkpoint.CheckpointLayout.ObjectiveCenter.x,
+                Hollowbrook.Checkpoint.CheckpointLayout.ObjectiveCenter.y);
             OnScreen("visitor portrait", 0.5f, 1f, 150f, 190f,
                 Hollowbrook.Checkpoint.CheckpointLayout.PortraitCenter.x,
                 Hollowbrook.Checkpoint.CheckpointLayout.PortraitCenter.y);

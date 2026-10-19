@@ -34,7 +34,7 @@ namespace Hollowbrook.UI
             _gameRoot = root;
 
             var barBg = UIFactory.Panel(transform, "sanitybg", new Color(0.05f, 0.05f, 0.06f, 0.85f)).rectTransform;
-            UIFactory.Anchor(barBg, new Vector2(0, 1), new Vector2(240, 46), new Vector2(132, -86));
+            UIFactory.Anchor(barBg, new Vector2(0.5f, 1f), new Vector2(260, 36), new Vector2(-310, -26));
             var label = UIFactory.Label(barBg, "cap", "SANITY", 13, UIFactory.InkDim, TextAnchor.MiddleLeft);
             UIFactory.Anchor(label.rectTransform, new Vector2(0, 1), new Vector2(80, 18), new Vector2(46, -10));
             var track = UIFactory.Panel(barBg, "track", new Color(0.12f, 0.12f, 0.13f)).rectTransform;
@@ -51,7 +51,7 @@ namespace Hollowbrook.UI
             UIFactory.Anchor(_stageLabel.rectTransform, new Vector2(0, 1), new Vector2(150, 16), new Vector2(120, -28));
 
             var tbg = UIFactory.Panel(transform, "trackbg", new Color(0.05f, 0.05f, 0.06f, 0.85f)).rectTransform;
-            UIFactory.Anchor(tbg, new Vector2(0, 1), new Vector2(240, 30), new Vector2(132, -140));
+            UIFactory.Anchor(tbg, new Vector2(0.5f, 1f), new Vector2(220, 36), new Vector2(-20, -26));
             var tcap = UIFactory.Label(tbg, "cap", "TRACK", 12, UIFactory.InkDim, TextAnchor.MiddleLeft);
             UIFactory.Anchor(tcap.rectTransform, new Vector2(0, 1), new Vector2(80, 16), new Vector2(46, -7));
             var ttrack = UIFactory.Panel(tbg, "track", new Color(0.12f, 0.12f, 0.13f)).rectTransform;
@@ -66,7 +66,7 @@ namespace Hollowbrook.UI
             _trackBar.SetActive(false);
 
             var bbg = UIFactory.Panel(transform, "batterybg", new Color(0.05f, 0.05f, 0.06f, 0.85f)).rectTransform;
-            UIFactory.Anchor(bbg, new Vector2(0, 1), new Vector2(240, 26), new Vector2(132, -176));
+            UIFactory.Anchor(bbg, new Vector2(0.5f, 1f), new Vector2(220, 36), new Vector2(220, -26));
             var bcap = UIFactory.Label(bbg, "cap", "LIGHT", 12, UIFactory.InkDim, TextAnchor.MiddleLeft);
             UIFactory.Anchor(bcap.rectTransform, new Vector2(0, 1), new Vector2(80, 16), new Vector2(46, -5));
             var btrack = UIFactory.Panel(bbg, "track", new Color(0.12f, 0.12f, 0.13f)).rectTransform;
