@@ -74,6 +74,14 @@ namespace Hollowbrook.World
         // deterministically (stub MonoBehaviours never get Update calls).
         internal void Tick(float dt)
         {
+            // peek rests the corridor beam: force Off AND clear the latches, so stepping back
+            // never re-lights it by itself — revival needs a deliberate F/Q (acceptance 7)
+            if (_gameRoot.State == AppViewState.RoomPeek)
+            {
+                if (Beam != LightMode.Off) ApplyBeam(LightMode.Off, true);
+                _latches = default;
+                return;
+            }
             ReadInput();
             AimBeam();
             TickBattery(dt);

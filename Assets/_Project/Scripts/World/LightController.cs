@@ -20,6 +20,21 @@ namespace Hollowbrook.World
         private SpriteRenderer _darkness;
         private float _flickerTimer;
         private Coroutine _flickerRoutine;
+        private bool _peekOverride;   // peeking: darkness is a solid-black presentation layer
+
+        /// <summary>Peek presentation override: while on, the darkness is fully black and no
+        /// flicker or wall-switch visual may touch it (the real Lit state stays unchanged).
+        /// Turning it off restores the visual for the real Lit state.</summary>
+        public void EnterPeek(bool on)
+        {
+            _peekOverride = on;
+            if (on)
+            {
+                if (_flickerRoutine != null) { StopCoroutine(_flickerRoutine); _flickerRoutine = null; }
+                if (_darkness != null) { var c = _darkness.color; c.a = 1f; _darkness.color = c; }
+            }
+            else ApplyVisual();
+        }
 
         public void Init(GameRoot root, RoomInstance room, SpriteRenderer darkness, bool startLit)
         {
@@ -34,7 +49,7 @@ namespace Hollowbrook.World
         {
             if (Lit == on) return;
             Lit = on;
-            ApplyVisual();
+            if (!_peekOverride) ApplyVisual();   // peek keeps the room black whatever the switch does
             if (_gameRoot == null) return;
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.LightModeChanged, on));
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
@@ -54,6 +69,7 @@ namespace Hollowbrook.World
         internal void Tick(float dt)
         {
             if (_gameRoot == null || _gameRoot.Paused || _room == null) return;
+            if (_peekOverride) return;   // no flicker while the player only peeks in
             if (!Lit) return;
             _flickerTimer -= dt;
             if (_flickerTimer <= 0f)

@@ -135,6 +135,14 @@ namespace Hollowbrook.Horror
 
             bool dialogueOpen = _gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive;
             bool sameRoom = _room != null && views.Current.Id == _room.Id;
+            // peek: nobody inside moves, escalates or despawns — but the cursor light may
+            // still reveal them, so visibility keeps ticking for the peeked room only.
+            if (views.PeekActive)
+            {
+                bool inPeekedRoom = _room != null && views.Current.Id == _room.Id;
+                TickVisibility(views, inPeekedRoom);
+                return;
+            }
             bool roaming = !dialogueOpen && !views.Transitioning;
             // confrontation inputs (beam, threat, catch, proximity) only exist while the player
             // shares the room; the meter/state still tick off-stage so a threat that follows
@@ -482,6 +490,18 @@ namespace Hollowbrook.Horror
                 return;
             }
             _sr.enabled = true;
+            var pos = transform.localPosition;
+
+            // peek: the room light is off; only the cursor circle reveals. Exposed
+            // anomalies are revealed only by the cursor, not by the room light.
+            if (views.PeekActive)
+            {
+                bool peekLit = views.IsPeekLit(pos);
+                var pc = _sr.color; pc.a = peekLit ? 0.95f : 0f; _sr.color = pc;
+                _sr.sortingOrder = 80;
+                if (_faceGo != null && _faceGo.activeSelf) _faceGo.SetActive(false);
+                return;
+            }
 
             if (_state == AnomalyState.Exposed || _state == AnomalyState.Repelled)
             {
@@ -490,7 +510,6 @@ namespace Hollowbrook.Horror
                 return;
             }
 
-            var pos = transform.localPosition;
             bool beam = views.BeamCovers(pos);
             bool lit = views.RoomLit;
             float alpha = _profile.CeilingLurker ? 0.30f : 0.92f;

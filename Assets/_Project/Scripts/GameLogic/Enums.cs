@@ -48,5 +48,6 @@ namespace Hollowbrook.Logic
         Boot, Loading, MainMenu, ModeSelect, Settings, Controls, Credits,
         ShiftIntro, Checkpoint, Exploration, Map, Pause, ShiftResults,
         AdminEncounter, SecurityRoom, Ending, EndlessResults,
+        RoomPeek,   // flashlight peek into a classroom from the doorway (no room entry)
     }
 }

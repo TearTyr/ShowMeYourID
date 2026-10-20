@@ -28,10 +28,23 @@ namespace Hollowbrook.World
         private RoomSpawner _spawner;
         public FlashlightRig Flashlight { get; private set; }
         private UnityEngine.UI.Image _fade;
+        private PeekLight _peekLight;    // the cursor-locked lamp for classroom peeks (lazy)
+        private bool _peeking;           // true from EnterPeek until ExitPeek has finished
+        private bool _peekExiting;       // guards the step-back routine (idempotent exit)
+        private SpriteRenderer _playerSr;
 
         public Transform AnomalyRoot => _anomalyRoot != null ? _anomalyRoot.transform : null;
         public IReadOnlyList<WanderingAnomaly> Anomalies => _anomalies;
         public RoomSpawner Spawner => _spawner;   // exposed for headless diagnostics
+        internal PeekLight PeekLight => _peekLight;   // exposed for headless diagnostics
+
+        /// <summary>True while a classroom peek is on screen (fade-in through fade-out).</summary>
+        public bool PeekActive => _peeking;
+
+        /// <summary>True when the point is inside the peek light's circle — the only light
+        /// that reveals anything while peeking.</summary>
+        public bool IsPeekLit(Vector3 worldPoint) =>
+            _peekLight != null && _peekLight.Active && _peekLight.Covers(worldPoint);
 
         public void Init(GameRoot root, Camera cam, GameObject worldRoot)
         {
@@ -66,6 +79,7 @@ namespace Hollowbrook.World
             go.transform.SetParent(_worldRoot.transform, false);
             Player = go.AddComponent<PlayerController>();
             var sr = go.AddComponent<SpriteRenderer>();
+            _playerSr = sr;
             sr.sprite = ProceduralArt.Get("custodian_0");
             sr.sortingOrder = 60; // above darkness overlay, lit by design (the custodian you play)
             Player.Init(_gameRoot, sr);
@@ -200,6 +214,74 @@ namespace Hollowbrook.World
 
         public void OnAnomalyGone(WanderingAnomaly a) => _spawner.OnAnomalyGone(a);
 
+        // ---- classroom peek: frame the room from the doorway, reveal it with the cursor ----
+
+        /// <summary>Frame a classroom for peeking: fade to black, swap rooms, hide the player,
+        /// override the room light off and hand the reveal to PeekLight. Idempotent.</summary>
+        public void EnterPeek(RoomId id)
+        {
+            if (_peeking || _peekExiting || Transitioning) return;
+            _peeking = true;
+            Transitioning = true;
+            StartCoroutine(PeekTransitionRoutine(id));
+        }
+
+        /// <summary>Step back from a peek into the hallway and restore the normal patrol
+        /// presentation. Idempotent.</summary>
+        public void ExitPeek()
+        {
+            if (!_peeking || _peekExiting || Transitioning) return;
+            _peekExiting = true;
+            StartCoroutine(ExitPeekRoutine());
+        }
+
+        private IEnumerator PeekTransitionRoutine(RoomId id)
+        {
+            // headless parity: in the editor the rig's own Update forces the beam off on the
+            // first peek frame; TickWorld skips the rig while peeking, so do it once here.
+            if (Flashlight != null) Flashlight.Tick(0f);
+            _gameRoot.Audio.PlaySfx("sfx_door");
+            yield return FadeTo(1f, 0.28f);
+            EnterRoomImmediate(id, Current);
+            SetPlayerVisible(false);                 // nobody walks in: the player stays behind
+            if (Current != null && Current.Light != null) Current.Light.EnterPeek(true);
+            EnsurePeekLight();
+            _peekLight.Enter(Current);
+            _cam.transform.position = new Vector3(0f, 0f, -10f);   // frozen frame of the room
+            yield return FadeTo(0f, 0.34f);
+            Transitioning = false;
+        }
+
+        private IEnumerator ExitPeekRoutine()
+        {
+            yield return FadeTo(1f, 0.28f);
+            var from = Current;
+            if (_peekLight != null) _peekLight.Exit();
+            if (from != null && from.Light != null) from.Light.EnterPeek(false);
+            EnterRoomImmediate(RoomId.Hallway, from);
+            SetPlayerVisible(true);
+            _peeking = false;
+            _peekExiting = false;
+            _gameRoot.PeekRoom = null;
+            _gameRoot.SetState(AppViewState.Exploration);
+            yield return FadeTo(0f, 0.34f);
+            Transitioning = false;
+        }
+
+        private void EnsurePeekLight()
+        {
+            if (_peekLight != null) return;
+            var go = new GameObject("PeekLight");
+            go.transform.SetParent(transform, false);
+            _peekLight = go.AddComponent<PeekLight>();
+            _peekLight.Init(_gameRoot, _cam);
+        }
+
+        private void SetPlayerVisible(bool on)
+        {
+            if (_playerSr != null) _playerSr.enabled = on;
+        }
+
         private IEnumerator FadeTo(float target, float seconds)
         {
             float from = _fade.color.a;
@@ -221,6 +303,7 @@ namespace Hollowbrook.World
 
         private void LateUpdate()
         {
+            if (_peeking) return;   // peek holds the camera frozen; no follow, no clamping
             if (!_worldRoot.activeSelf || Current == null || Player == null) return;
             float screenHalf = _cam.orthographicSize * _cam.aspect;
             float limit = Mathf.Max(0f, Current.HalfWidth - screenHalf + 0.4f);
@@ -231,6 +314,7 @@ namespace Hollowbrook.World
         private void Update()
         {
             if (_gameRoot == null || Current == null || !_worldRoot.activeSelf || _gameRoot.Paused) return;
+            if (_peeking) return;   // nothing spawns or resolves while the player only looks in
             _spawner.UpdateSpawner(Time.deltaTime);
         }
 
@@ -239,6 +323,12 @@ namespace Hollowbrook.World
         internal void TickWorld(float dt)
         {
             if (_gameRoot == null || Current == null || !_worldRoot.activeSelf || _gameRoot.Paused) return;
+            // while peeking, the world holds its breath: only the cursor-locked light ticks
+            if (_peeking)
+            {
+                if (_peekLight != null) _peekLight.Tick(dt);
+                return;
+            }
             if (Current.Light != null) Current.Light.Tick(dt);
             if (Player != null) Player.Tick(dt);
             if (Flashlight != null) Flashlight.Tick(dt);

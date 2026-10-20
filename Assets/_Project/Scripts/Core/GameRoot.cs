@@ -40,6 +40,9 @@ namespace Hollowbrook.Core
         public ShiftDef CurrentShiftDef { get; private set; }
         public AppViewState State { get; private set; } = AppViewState.Boot;
         public bool Paused { get; private set; }
+        // The classroom being peeked into from the doorway (null when not peeking).
+        // Set by EnterRoomPeek; cleared by ViewManager.ExitPeek when the step-back ends.
+        public RoomId? PeekRoom { get; internal set; }
         public int EndlessProcessed { get; private set; }
 
         /// <summary>The checkpoint arrival queue — persistent run state. Owned here (not by
@@ -170,7 +173,8 @@ namespace Hollowbrook.Core
             // The shift clock runs on patrol too (scope: patrol has stakes). Single source:
             // real time x Config rate, in whichever scene the night is happening.
             if (State == AppViewState.Checkpoint || State == AppViewState.Exploration ||
-                State == AppViewState.SecurityRoom || State == AppViewState.Map)
+                State == AppViewState.SecurityRoom || State == AppViewState.Map ||
+                State == AppViewState.RoomPeek)
             {
                 AdvanceShiftClock(Time.deltaTime * (Config != null ? Config.clockMinutesPerSecond : 0.25f));
             }
@@ -216,7 +220,7 @@ namespace Hollowbrook.Core
             bool inRun = s == AppViewState.Checkpoint || s == AppViewState.Exploration ||
                          s == AppViewState.ShiftIntro || s == AppViewState.AdminEncounter ||
                          s == AppViewState.Map || s == AppViewState.ShiftResults ||
-                         s == AppViewState.SecurityRoom;
+                         s == AppViewState.SecurityRoom || s == AppViewState.RoomPeek;
             if (HUD != null) { if (inRun) HUD.Show(); else HUD.Hide(); }
             if (Checkpoint != null)
             {
@@ -225,7 +229,9 @@ namespace Hollowbrook.Core
             }
             if (Views != null)
             {
-                if (s == AppViewState.Exploration) Views.ShowWorld(); else Views.HideWorld();
+                // peek keeps the world on screen: only the presentation changes
+                if (s == AppViewState.Exploration || s == AppViewState.RoomPeek) Views.ShowWorld();
+                else Views.HideWorld();
             }
             if (MapScreen != null) { if (s == AppViewState.Map) MapScreen.Show(); else MapScreen.Hide(); }
             if (ShiftResults != null) { if (s == AppViewState.ShiftResults) ShiftResults.Show(); else ShiftResults.Hide(); }
@@ -520,6 +526,25 @@ namespace Hollowbrook.Core
             }
         }
 
+        /// <summary>Flashlight peek into a classroom: the player never walks inside — the
+        /// camera frames the room and a cursor-locked light circle reveals it. Classrooms
+        /// are reachable ONLY this way; the hallway and office keep their normal paths.</summary>
+        public void EnterRoomPeek(RoomId room)
+        {
+            if (Views == null) return;
+            PeekRoom = room;
+            SetState(AppViewState.RoomPeek);
+            Views.EnterPeek(room);
+        }
+
+        /// <summary>Step back from a peek into the hallway. ViewManager.ExitPeek runs the
+        /// fade, clears PeekRoom and returns the state to Exploration itself.</summary>
+        public void ExitRoomPeek()
+        {
+            if (Views == null) PeekRoom = null;
+            else Views.ExitPeek();
+        }
+
         public void ReturnToCheckpoint()
         {
             QueueSceneAction(() =>
@@ -715,7 +740,7 @@ namespace Hollowbrook.Core
             if (target == Paused) return;
             bool allowed = State == AppViewState.Checkpoint || State == AppViewState.Exploration ||
                            State == AppViewState.AdminEncounter || State == AppViewState.Map ||
-                           State == AppViewState.SecurityRoom;
+                           State == AppViewState.SecurityRoom || State == AppViewState.RoomPeek;
             if (target && !allowed) return;
             Paused = target;
             Time.timeScale = Paused ? 0f : 1f;

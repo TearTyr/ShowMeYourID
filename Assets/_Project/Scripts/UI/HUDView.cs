@@ -28,6 +28,7 @@ namespace Hollowbrook.UI
         private Text _stageLabel;
         private GameObject _batteryBar;
         private Image _batteryFill;
+        private GameObject _peekExitBand;   // bottom band: click to step back from a peek
         private float _toastUntil;
         private readonly List<EventSubscription> _subs = new List<EventSubscription>();
 
@@ -87,6 +88,26 @@ namespace Hollowbrook.UI
             Reg(audit, "toast", _toast.rectTransform, L.Toast);
             _toast.gameObject.SetActive(false);
 
+            // Peek step-back band: click anywhere along the bottom edge to return to the
+            // hallway. Shown only while peeking; built outside the desk layout table so the
+            // existing slot audit stays untouched.
+            var bandRt = UIFactory.NewUI(_frame, "peekexitband");
+            bandRt.anchorMin = new Vector2(0f, 0f);
+            bandRt.anchorMax = new Vector2(1f, 0f);
+            bandRt.pivot = new Vector2(0.5f, 0f);
+            bandRt.offsetMin = new Vector2(0f, 0f);
+            bandRt.offsetMax = new Vector2(0f, 44f);
+            var bandImg = bandRt.gameObject.AddComponent<Image>();
+            bandImg.color = new Color(1f, 1f, 1f, 0.05f);
+            var bandBtn = bandRt.gameObject.AddComponent<Button>();
+            bandBtn.targetGraphic = bandImg;
+            bandBtn.onClick.AddListener(() => _gameRoot.ExitRoomPeek());
+            var bandCap = UIFactory.Label(bandRt, "cap", "STEP BACK TO THE HALLWAY", 13,
+                UIFactory.InkDim, TextAnchor.MiddleCenter);
+            UIFactory.AnchorsFull(bandCap.rectTransform);
+            _peekExitBand = bandRt.gameObject;
+            _peekExitBand.SetActive(false);
+
             _subs.Add(root.Bus.Subscribe(EventIds.SanityChanged, e => SetSanity(e.Value)));
             _subs.Add(root.Bus.Subscribe(EventIds.SanityStageChanged, e =>
             {
@@ -135,13 +156,17 @@ namespace Hollowbrook.UI
         private void OnState(AppViewState s)
         {
             bool exploring = s == AppViewState.Exploration;
+            bool peeking = s == AppViewState.RoomPeek;
             bool atDesk = s == AppViewState.Checkpoint || s == AppViewState.AdminEncounter;
             _prompt.gameObject.SetActive(true);
-            _roomInfo.gameObject.SetActive(exploring);
+            _roomInfo.gameObject.SetActive(exploring || peeking);
             _objective.gameObject.SetActive(!atDesk);   // the hint line belongs to exploration; the desk grid keeps its own row
-            if (!exploring) _prompt.text = "";
-            if (!exploring && _batteryBar != null) _batteryBar.SetActive(false); // desk has no flashlight
+            if (!exploring && !peeking) _prompt.text = "";
+            if (!exploring && !peeking && _batteryBar != null) _batteryBar.SetActive(false); // desk has no flashlight
             if (s == AppViewState.Checkpoint) _objective.text = "Inspect every visitor. Permanent decisions.";
+            if (peeking) _objective.text = "Sweep the light — click the bottom edge to step back.";
+            if (exploring) _objective.text = _gameRoot.ObjectiveText;   // restore after a peek overwrote the hint
+            if (_peekExitBand != null) _peekExitBand.SetActive(peeking);
             RefreshFindings();
             SetSanity(_gameRoot.Session != null ? _gameRoot.Session.Sanity : 100f);
         }

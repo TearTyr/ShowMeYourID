@@ -57,7 +57,9 @@ namespace Hollowbrook.World
         {
             if (_gameRoot.Views.Transitioning) return;
             if (Target == RoomId.Security) _gameRoot.Views.ReturnToSecurity();
-            else _gameRoot.Views.EnterRoom(Target);
+            // classrooms are peek-only: the player looks inside from the doorway, never enters
+            else if (Target == RoomId.Classroom1 || Target == RoomId.Classroom2) _gameRoot.EnterRoomPeek(Target);
+            else _gameRoot.Views.EnterRoom(Target);   // hallway door from inside a room
         }
     }
 
@@ -109,6 +111,20 @@ namespace Hollowbrook.World
             _clueKey = clueKey;
             _def = root.Session.Clues.Get(clueKey); // def content is static; tracker state lives in session
             Prompt = "Inspect " + label + " [E]";
+            BuildVisual();   // peek reveals clues through the light circle; they need a sprite
+        }
+
+        // Placeholder art (solid white card) so the peek flashlight has something to reveal.
+        // Swap the sprite key here when real clue art exists.
+        private void BuildVisual()
+        {
+            var vis = new GameObject("visual");
+            vis.transform.SetParent(transform, false);
+            vis.transform.localScale = new Vector3(0.35f, 0.35f, 1f);
+            var sr = vis.AddComponent<SpriteRenderer>();
+            sr.sprite = ProceduralArt.Get("solid_white");
+            sr.color = new Color(0.9f, 0.9f, 0.85f, 0.9f);
+            sr.sortingOrder = 45;   // under the darkness overlay: only the peek hole shows it
         }
 
         public override void Interact()
