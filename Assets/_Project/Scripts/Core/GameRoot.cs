@@ -40,6 +40,9 @@ namespace Hollowbrook.Core
         public ShiftDef CurrentShiftDef { get; private set; }
         public AppViewState State { get; private set; } = AppViewState.Boot;
         public bool Paused { get; private set; }
+        // Showcase build: the guard stands still (no walk animation exists yet). Flip to true
+        // to restore full patrol walking; interaction range follows the same flag.
+        public bool WalkEnabled = false;
         // The classroom being peeked into from the doorway (null when not peeking).
         // Set by EnterRoomPeek; cleared by ViewManager.ExitPeek when the step-back ends.
         public RoomId? PeekRoom { get; internal set; }

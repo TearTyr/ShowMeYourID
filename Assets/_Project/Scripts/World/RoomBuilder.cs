@@ -130,6 +130,9 @@ namespace Hollowbrook.World
         {
             var go = SpriteGO(room.Root.transform, "door_" + target, ProceduralArt.Get(spriteKey),
                 new Vector3(x, floorY + 3f, 0), 10);
+            // showcase: plain black rooms — the door art is not drawn; the HUD prompt and E
+            // are the door. The interactable (and its anchor) stay exactly where they were.
+            go.GetComponent<SpriteRenderer>().enabled = false;
             var d = go.AddComponent<Doorway>();
             d.Init(_root, room, label, target, x);
             room.Interactables.Add(d);
@@ -153,6 +156,7 @@ namespace Hollowbrook.World
             sr.sprite = ProceduralArt.Get("solid_white");
             sr.color = new Color(0.8f, 0.8f, 0.78f);
             sr.sortingOrder = 75;
+            sr.enabled = false;   // showcase: switch not drawn; prompt + E still work
             go.transform.localScale = new Vector3(0.16f, 0.26f, 1f);
             var sw = go.AddComponent<LightSwitchObject>();
             sw.Init(_root, room, x);
