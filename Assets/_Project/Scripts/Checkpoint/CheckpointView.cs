@@ -307,7 +307,8 @@ namespace Hollowbrook.Checkpoint
 
             // invisible click target over the slot: "interact with the table" — clicking it
             // makes the visitor offer their ID across the glass
-            var handImg = UIFactory.Img(_desk, "handover", null, new Color(0f, 0f, 0f, 0f));
+            // raycast ON: this invisible panel is the "interact with the table" click target
+            var handImg = UIFactory.Img(_desk, "handover", null, new Color(0f, 0f, 0f, 0f), true);
             Reg("handover", handImg.rectTransform, L.Window);
             var handBtn = handImg.gameObject.AddComponent<Button>();
             handBtn.targetGraphic = handImg;
@@ -326,7 +327,8 @@ namespace Hollowbrook.Checkpoint
 
             var rt = UIFactory.NewUI(rootRt, "offeredid");
             L.Place(rt, L.OfferedId);
-            var frame = UIFactory.Img(rt, "frame", ProceduralArt.Get("id_card_frame"));
+            // raycast ON: clicking anywhere on the offered card takes the ID
+            var frame = UIFactory.Img(rt, "frame", ProceduralArt.Get("id_card_frame"), null, true);
             UIFactory.AnchorsFull(frame.rectTransform);
             _offeredPhoto = UIFactory.Img(rt, "photo", null);
             L.Place(_offeredPhoto.rectTransform, L.Inner.IdPhoto);
@@ -823,6 +825,22 @@ namespace Hollowbrook.Checkpoint
             RefreshHud();
         }
 
+        // The HUD prompt line teaches the hand-over: where the ID is, and how to get it.
+        // Published only on change, same contract as the exploration prompts.
+        private string _lastHandoverPrompt = "\0";
+        private void RefreshHandoverPrompt()
+        {
+            string want = "";
+            if (_current != null && !_verdictLocked)
+            {
+                if (_offeredRoot.activeSelf) want = "CLICK THE CARD TO TAKE THE ID";
+                else if (!_documentsTaken) want = "CLICK THE WINDOW — THEY ARE HOLDING THEIR ID";
+            }
+            if (want == _lastHandoverPrompt) return;
+            _lastHandoverPrompt = want;
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.InteractionPrompt, want));
+        }
+
         // Clean-desk visibility: the three paper groups appear only once the ID is in hand.
         private void SetDocumentsVisible(bool on)
         {
@@ -839,6 +857,7 @@ namespace Hollowbrook.Checkpoint
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.6f);
             FillOfferedCard(_current);
             _offeredRoot.SetActive(true);
+            RefreshHandoverPrompt();
         }
 
         // The centred card shows just enough to read at arm's length: face, name, number, expiry.
@@ -863,6 +882,7 @@ namespace Hollowbrook.Checkpoint
             FillRecordSheet(_current, admin);
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.6f);
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.DocumentsShown, _current));
+            RefreshHandoverPrompt();
             RefreshHud();
         }
 
@@ -1291,6 +1311,7 @@ namespace Hollowbrook.Checkpoint
         {
             if (_gameRoot == null || _gameRoot.Session == null) return;
             RefreshTopBar();
+            RefreshHandoverPrompt();
             RefreshQueueStatus();
             _budgetLabel.text = "QUESTIONS: " + _budget.Remaining + " LEFT";
             RefreshDecisionButtons();
