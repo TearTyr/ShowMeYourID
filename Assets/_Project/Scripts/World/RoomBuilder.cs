@@ -68,8 +68,10 @@ namespace Hollowbrook.World
                     AddDoor(room, "Security Door", -10.6f, floorY, RoomId.Security, "prop_door_security");
                     AddDoor(room, "Classroom 1", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), floorY, RoomId.Classroom1, "prop_door");
                     AddDoor(room, "Classroom 2", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), floorY, RoomId.Classroom2, "prop_door");
-                    SpriteGO(root.transform, "server_door_art", ProceduralArt.Get("prop_server_door"),
-                        new Vector3(10.4f, floorY + 3f, 0), 10);
+                    var server = SpriteGO(root.transform, "server_door_art", ProceduralArt.Get("solid_white"),
+                        new Vector3(10.4f, floorY + 1.5f, 0), 10);
+                    server.transform.localScale = new Vector3(2.4f, 3.0f, 1f);
+                    server.GetComponent<SpriteRenderer>().color = new Color(0.17f, 0.17f, 0.19f);
                     AddLightSwitch(room, -9.2f, floorY);
                     AddClue(room, "light", -7.0f, floorY, "Flickering Light (switch panel)");
                     AddClue(room, "door", 10.0f, floorY, "Sealed Door");
@@ -135,8 +137,12 @@ namespace Hollowbrook.World
 
         private void AddDoor(RoomInstance room, string label, float x, float floorY, RoomId target, string spriteKey)
         {
-            var go = SpriteGO(room.Root.transform, "door_" + target, ProceduralArt.Get(spriteKey),
-                new Vector3(x, floorY + 3f, 0), 10);
+            // placeholder art: one flat slab standing on the floor band (spriteKey kept in the
+            // signature so real art can return without touching call sites)
+            var go = SpriteGO(room.Root.transform, "door_" + target, ProceduralArt.Get("solid_white"),
+                new Vector3(x, floorY + 1.7f, 0), 10);
+            go.transform.localScale = new Vector3(1.7f, 3.4f, 1f);
+            go.GetComponent<SpriteRenderer>().color = new Color(0.20f, 0.20f, 0.22f);
             var d = go.AddComponent<Doorway>();
             d.Init(_root, room, label, target, x);
             room.Interactables.Add(d);

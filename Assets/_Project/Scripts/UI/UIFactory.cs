@@ -117,13 +117,27 @@ namespace Hollowbrook.UI
             host.gameObject.AddComponent<RectMask2D>();
             var t = Label(host, "text", "", fontSize, color, align);
             t.verticalOverflow = VerticalWrapMode.Overflow;
-            var trt = t.rectTransform;
             if (!scroll)
             {
-                trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
-                trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
+                StretchToHost(t.rectTransform);
                 return t;
             }
+            MakeScrollable(host, t, h);
+            return t;
+        }
+
+        // Text fills the host rect exactly; the RectMask2D clips any visual spill.
+        private static void StretchToHost(RectTransform trt)
+        {
+            trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
+            trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
+        }
+
+        // Turns the masked host into a drag-scrollable viewport: an invisible catcher image
+        // receives drags, the ScrollRect moves the text, and the ContentSizeFitter lets the
+        // text grow past the viewport so there is something to scroll.
+        private static void MakeScrollable(RectTransform host, Text t, float viewportH)
+        {
             var catcher = host.gameObject.AddComponent<Image>();
             catcher.color = new Color(0f, 0f, 0f, 0f);
             catcher.raycastTarget = true;                       // drag source for the ScrollRect
@@ -131,16 +145,16 @@ namespace Hollowbrook.UI
             sr.horizontal = false;
             sr.vertical = true;
             sr.movementType = ScrollRect.MovementType.Clamped;
+            var trt = t.rectTransform;
             trt.anchorMin = new Vector2(0f, 1f); trt.anchorMax = new Vector2(1f, 1f);
             trt.pivot = new Vector2(0f, 1f);
             trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
-            trt.sizeDelta = new Vector2(0f, h);
+            trt.sizeDelta = new Vector2(0f, viewportH);
             t.raycastTarget = true;
             var fitter = trt.gameObject.AddComponent<ContentSizeFitter>();
             fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             sr.content = trt;
-            return t;
         }
 
         public static Image Panel(Transform parent, string name, Color color)
@@ -195,13 +209,10 @@ namespace Hollowbrook.UI
         public static void ApplyTextScale(float multiplier)
         {
             _textScale = multiplier;
-            for (int i = _texts.Count - 1; i >= 0; i--)
-            {
-                var t = _texts[i];
-                if (t == null || t.gameObject == null) { _texts.RemoveAt(i); continue; }
+            PruneDestroyedTexts();
+            foreach (var t in _texts)
                 if (_baseSizes.TryGetValue(t, out int baseSize))
                     t.fontSize = Mathf.RoundToInt(baseSize * multiplier);
-            }
         }
 
         public static void PruneDestroyedTexts()
@@ -289,6 +300,7 @@ namespace Hollowbrook.UI
         public static Slider SliderRow(Transform parent, string name, string labelText, float value,
             Action<float> onChanged, int width = 420)
         {
+            // One settings row: [label | track with fill+handle | % value], wired to a Slider.
             var row = NewUI(parent, name);
             row.sizeDelta = new Vector2(width, 40);
 
@@ -365,6 +377,7 @@ namespace Hollowbrook.UI
         public static Toggle ToggleRow(Transform parent, string name, string labelText, bool value,
             Action<bool> onChanged, int width = 420)
         {
+            // One settings row: [ON/OFF box | label], wired to a Toggle we paint ourselves.
             var row = NewUI(parent, name);
             row.anchorMin = new Vector2(0.5f, 0.5f);
             row.anchorMax = new Vector2(0.5f, 0.5f);

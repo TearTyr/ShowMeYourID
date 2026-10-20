@@ -51,6 +51,8 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region Glitch = new Region(560, 99, 160, 190);        // transient flash
         public static readonly Region Sill = new Region(405, 404, 470, 24);
         public static readonly Region Speech = new Region(490, 436, 300, 110);
+        // reserved slot: the principal note moved into the RULES NOTE overlay (showcase
+        // build), but the wireframe cell stays documented and FlowCheck still bounds-checks it
         public static readonly Region Note = new Region(500, 554, 280, 110);
         public static readonly Region PatrolBtn = new Region(490, 672, 180, 36);
         public static readonly Region EndShiftBtn = new Region(680, 672, 200, 36);

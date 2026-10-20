@@ -71,6 +71,9 @@ namespace Hollowbrook.Core
         public ConfirmationPopup Confirm;
         public CaptionBar Captions;
         public Hollowbrook.World.SecurityRoomView SecurityRoom;
+        public SanityController SanityCtl;
+        public ScareSystem Scares;
+        public HallucinationSystem Hallucinations;
 
         /// <summary>True while a full-screen sheet (Options/Controls/Credits) owns the
         /// screen: Escape belongs to that sheet then, and the in-game Esc-unpause hotkeys
@@ -121,9 +124,6 @@ namespace Hollowbrook.Core
             _queuedSceneAction = null;
             a?.Invoke();
         }
-        public SanityController SanityCtl;
-        public ScareSystem Scares;
-        public HallucinationSystem Hallucinations;
 
         // shift clock (22:00 → 02:00): real time x Config rate in any in-shift scene,
         // plus a bump per processed visitor. Atmosphere only — dawn never ends a shift early.
@@ -169,32 +169,43 @@ namespace Hollowbrook.Core
         {
             CheckSceneHandshake();
             if (Paused || Session == null) return;
+            TickShiftClock();
+            TickRunCountdown();
+            TickSanity();
+        }
 
-            // The shift clock runs on patrol too (scope: patrol has stakes). Single source:
-            // real time x Config rate, in whichever scene the night is happening.
+        // The shift clock runs on patrol too (scope: patrol has stakes). Single source:
+        // real time x Config rate, in whichever scene the night is happening.
+        private void TickShiftClock()
+        {
             if (State == AppViewState.Checkpoint || State == AppViewState.Exploration ||
                 State == AppViewState.SecurityRoom || State == AppViewState.Map ||
                 State == AppViewState.RoomPeek)
             {
                 AdvanceShiftClock(Time.deltaTime * (Config != null ? Config.clockMinutesPerSecond : 0.25f));
             }
+        }
 
-            // Endless / Challenge countdown — only while actually inspecting (and only
-            // once the shift has begun; the sticky note must not burn run time).
-            if ((Session.Mode == GameMode.Endless || Session.Mode == GameMode.Challenge) &&
-                State == AppViewState.Checkpoint && Dialogue != null && !Dialogue.IsActive &&
-                Queue != null && Queue.Started)
+        // Endless / Challenge countdown — only while actually inspecting (and only
+        // once the shift has begun; the sticky note must not burn run time).
+        private void TickRunCountdown()
+        {
+            bool runMode = Session.Mode == GameMode.Endless || Session.Mode == GameMode.Challenge;
+            if (!runMode || State != AppViewState.Checkpoint) return;
+            if (Dialogue == null || Dialogue.IsActive) return;
+            if (Queue == null || !Queue.Started) return;
+            Session.RunTimer -= Time.deltaTime;
+            Bus.Publish(GameEvent.Of(EventIds.RunTimerTick, Session.RunTimer));
+            if (Session.RunTimer <= 0f)
             {
-                Session.RunTimer -= Time.deltaTime;
-                Bus.Publish(GameEvent.Of(EventIds.RunTimerTick, Session.RunTimer));
-                if (Session.RunTimer <= 0f)
-                {
-                    Session.RunTimer = 0f;
-                    FinishRun();
-                }
+                Session.RunTimer = 0f;
+                FinishRun();
             }
+        }
 
-            // sanity ticking per context
+        // Sanity is atmosphere: it ticks at the desk and on patrol, nowhere else.
+        private void TickSanity()
+        {
             if (SanityCtl != null && (State == AppViewState.Checkpoint || State == AppViewState.Exploration))
                 SanityCtl.Tick(State == AppViewState.Checkpoint);
         }
@@ -272,23 +283,29 @@ namespace Hollowbrook.Core
             }
             else
             {
-                Session.RunTimer = EndlessRules.StartSeconds;
-                Roster = new RosterFactory(seed);
-                // run modes draw visitors on demand — the queue gets the same infinite source
-                Queue = new CheckpointQueue();
-                Queue.AttachRunSource(NextRunVisitor, BuildQueueTuning(), seed ^ 0x9E37);
-                var intro = mode == GameMode.Endless
-                    ? new List<DialogueLine>
-                    {
-                        new DialogueLine { Speaker = "DISPATCH", Text = "Endless watch. They keep coming until the clock beats you. Every anomaly you turn away buys you seconds." },
-                    }
-                    : new List<DialogueLine>
-                    {
-                        new DialogueLine { Speaker = "DISPATCH", Text = "Challenge protocol: district rules change without warning, your nerves fray twice as fast, and every correct call is worth double." },
-                    };
-                QueueSceneAction(() => PlayIntroThenCheckpoint(intro, null));
+                StartRunMode(mode, seed);
             }
             Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
+        }
+
+        // Endless/Challenge: run timer, on-demand visitor source and the mode's intro.
+        private void StartRunMode(GameMode mode, int seed)
+        {
+            Session.RunTimer = EndlessRules.StartSeconds;
+            Roster = new RosterFactory(seed);
+            // run modes draw visitors on demand — the queue gets the same infinite source
+            Queue = new CheckpointQueue();
+            Queue.AttachRunSource(NextRunVisitor, BuildQueueTuning(), seed ^ 0x9E37);
+            var intro = mode == GameMode.Endless
+                ? new List<DialogueLine>
+                {
+                    new DialogueLine { Speaker = "DISPATCH", Text = "Endless watch. They keep coming until the clock beats you. Every anomaly you turn away buys you seconds." },
+                }
+                : new List<DialogueLine>
+                {
+                    new DialogueLine { Speaker = "DISPATCH", Text = "Challenge protocol: district rules change without warning, your nerves fray twice as fast, and every correct call is worth double." },
+                };
+            QueueSceneAction(() => PlayIntroThenCheckpoint(intro, null));
         }
 
         public void ContinueGame()
@@ -328,6 +345,18 @@ namespace Hollowbrook.Core
             _resumeFromVisitor = resumeFromVisitor;
             number = Mathf.Clamp(number, 1, ShiftPlan.TotalShifts);
             Session.CurrentShift = number;
+            PrepareShiftRoster(number);
+            Session.TonightLog.Clear();
+            _shiftMinutes = 0f;
+            SetupShiftQueue(number, resumeFromVisitor);
+            PlayIntroThenCheckpoint(BuildShiftIntroLines(number), CurrentShiftDef);
+            _resumeFromVisitor = 0;
+        }
+
+        // Roster generation replays earlier shifts on a fresh factory so the seeded RNG lands
+        // on the identical state (saves resume mid-story without storing the whole roster).
+        private void PrepareShiftRoster(int number)
+        {
             var plan = ShiftPlan.Build();
             Roster = new RosterFactory(Session.Seed);
             for (int i = 0; i < number - 1; i++) Roster.GenerateShift(plan[i]); // advance RNG deterministically
@@ -339,10 +368,12 @@ namespace Hollowbrook.Core
             for (int i = 0; i < CurrentShiftDef.AnomalyCount; i++)
                 kinds.Add((AnomalyBehaviorKind)_runRng.NextInt(0, 4));
             Session.Pool.Seed(kinds);
-            Session.TonightLog.Clear();
-            _shiftMinutes = 0f;
-            SetupShiftQueue(number, resumeFromVisitor);
+        }
 
+        // The night's opening cards: title, objective and the rules addendum (plus the
+        // Night-5 administrator warning).
+        private List<DialogueLine> BuildShiftIntroLines(int number)
+        {
             var intro = new List<DialogueLine>
             {
                 new DialogueLine { Speaker = "NIGHT " + number + " — " + CurrentShiftDef.DateLabel.ToUpperInvariant(), Text = CurrentShiftDef.Title + ". " + CurrentShiftDef.Objective },
@@ -352,8 +383,7 @@ namespace Hollowbrook.Core
             {
                 intro.Add(new DialogueLine { Speaker = "???", Text = "Tonight the district sends an administrator to 'take control'. Check the credentials like you would check anyone else's. Trust the evidence." });
             }
-            PlayIntroThenCheckpoint(intro, CurrentShiftDef);
-            _resumeFromVisitor = 0;
+            return intro;
         }
 
         /// <summary>Attach the fresh shift roster to a new queue. A pending CONTINUE restores
@@ -440,18 +470,19 @@ namespace Hollowbrook.Core
                 Dialogue.Play(intro, () =>
                 {
                     if (VerboseFlow) Debug.Log("[Flow] intro callback fired");
-                    if (Loading != null) Loading.Hide();
-                    SetState(AppViewState.Checkpoint);
-                    if (Checkpoint != null) Checkpoint.BeginRun(shift);
-                    else Debug.LogError("[GameRoot] intro finished but Checkpoint is still NULL.");
-                    Debug.Log("[Flow] intro done -> checkpoint state");
+                    EnterCheckpoint(shift);
                 });
-            else
-            {
-                if (Loading != null) Loading.Hide();
-                SetState(AppViewState.Checkpoint);
-                if (Checkpoint != null) Checkpoint.BeginRun(shift);
-            }
+            else EnterCheckpoint(shift);
+        }
+
+        // The intro's end state, shared by the dialogue callback and the no-dialogue fallback.
+        private void EnterCheckpoint(ShiftDef shift)
+        {
+            if (Loading != null) Loading.Hide();
+            SetState(AppViewState.Checkpoint);
+            if (Checkpoint != null) Checkpoint.BeginRun(shift);
+            else Debug.LogError("[GameRoot] intro finished but Checkpoint is still NULL.");
+            Debug.Log("[Flow] intro done -> checkpoint state");
         }
 
         /// <summary>Called by the checkpoint after every stamped verdict.</summary>
@@ -462,19 +493,9 @@ namespace Hollowbrook.Core
             _shiftMinutes += 240f / (CurrentRoster.Count + 1);
 
             if (Session.Mode == GameMode.Endless || Session.Mode == GameMode.Challenge)
-            {
-                Session.RunProcessed++;
-                EndlessProcessed = Session.RunProcessed;
-                Session.Score += ComputeRunScore(outcome);
-                float delta = Session.ApplyRunTimer(outcome);
-                if (HUD != null) HUD.Notify(delta >= 0 ? "+" + delta.ToString("0") + "s" : delta.ToString("0") + "s");
-                if (Session.Mode == GameMode.Challenge && Session.RunProcessed % ChallengeRules.VisitorsPerRuleWave == 0)
-                    RollChallengeMutation();
-            }
+                ApplyRunModeScoring(outcome);
             else
-            {
                 Session.Score += outcome.Correct ? (outcome.WasAnomaly ? 100 : 50) : 0;
-            }
 
             // atmosphere reacts to breaches
             if (outcome.AnomalyBreach && !outcome.WasAdministrator)
@@ -489,6 +510,19 @@ namespace Hollowbrook.Core
             {
                 TriggerEnding(eval);
             }
+        }
+
+        // Endless/Challenge bookkeeping per verdict: processed count, score, bought seconds
+        // and the challenge mutation wave.
+        private void ApplyRunModeScoring(InspectionRules.Outcome outcome)
+        {
+            Session.RunProcessed++;
+            EndlessProcessed = Session.RunProcessed;
+            Session.Score += ComputeRunScore(outcome);
+            float delta = Session.ApplyRunTimer(outcome);
+            if (HUD != null) HUD.Notify(delta >= 0 ? "+" + delta.ToString("0") + "s" : delta.ToString("0") + "s");
+            if (Session.Mode == GameMode.Challenge && Session.RunProcessed % ChallengeRules.VisitorsPerRuleWave == 0)
+                RollChallengeMutation();
         }
 
         private int ComputeRunScore(InspectionRules.Outcome o)
