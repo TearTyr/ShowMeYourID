@@ -930,7 +930,6 @@ namespace FlowCheck
 
             root.EnterExploration();
             SchoolSceneBootstrap.Build(root);      // what Unity does after LoadScene(School)
-            root.WalkEnabled = true;   // W-proofs exercise the walking logic the showcase ships off
             Check(root.State == AppViewState.Exploration, "W0: patrol starts in Exploration");
             var views = root.Views;
             Check(views != null && views.Current != null && views.Current.Id == RoomId.Hallway, "W0: patrol starts in the hallway");

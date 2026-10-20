@@ -36,11 +36,18 @@ namespace Hollowbrook.World
             return go;
         }
 
-        // Showcase build: rooms sit on a plain black backdrop (the art sprite tinted black).
-        private static GameObject BlackBg(GameObject bg)
+        // Basic placeholder background: one wall band and one floor band. Simple, readable,
+        // and trivial to swap for real room art later (replace with a single sprite GO).
+        private static void PlaceholderBg(Transform parent, float floorY)
         {
-            bg.GetComponent<SpriteRenderer>().color = Color.black;
-            return bg;
+            var wall = SpriteGO(parent, "bg_wall", ProceduralArt.Get("solid_white"),
+                new Vector3(0f, floorY + 3.2f, 0f), 0);
+            wall.transform.localScale = new Vector3(26f, 6.4f, 1f);
+            wall.GetComponent<SpriteRenderer>().color = new Color(0.13f, 0.13f, 0.14f);
+            var floor = SpriteGO(parent, "bg_floor", ProceduralArt.Get("solid_white"),
+                new Vector3(0f, floorY - 1.2f, 0f), 0);
+            floor.transform.localScale = new Vector3(26f, 2.4f, 1f);
+            floor.GetComponent<SpriteRenderer>().color = new Color(0.07f, 0.07f, 0.075f);
         }
 
         public RoomInstance BuildRoom(RoomId id)
@@ -57,7 +64,7 @@ namespace Hollowbrook.World
                 {
                     room.DisplayName = "MAIN HALLWAY";
                     room.HalfWidth = 11.4f;
-                    BlackBg(SpriteGO(root.transform, "bg", ProceduralArt.Get("hallway_bg"), Vector3.zero, 0));
+                    PlaceholderBg(root.transform, floorY);
                     AddDoor(room, "Security Door", -10.6f, floorY, RoomId.Security, "prop_door_security");
                     AddDoor(room, "Classroom 1", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), floorY, RoomId.Classroom1, "prop_door");
                     AddDoor(room, "Classroom 2", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), floorY, RoomId.Classroom2, "prop_door");
@@ -81,7 +88,7 @@ namespace Hollowbrook.World
                 {
                     room.DisplayName = "CLASSROOM 1";
                     room.HalfWidth = 8.2f;
-                    BlackBg(SpriteGO(root.transform, "bg", ProceduralArt.Get("classroom1_bg"), Vector3.zero, 0));
+                    PlaceholderBg(root.transform, floorY);
                     AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.Classroom1, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door");
                     AddLightSwitch(room, 6.4f, floorY);
                     AddClue(room, "chalkboard", -6.2f, floorY, "Chalkboard");
@@ -98,7 +105,7 @@ namespace Hollowbrook.World
                 {
                     room.DisplayName = "CLASSROOM 2";
                     room.HalfWidth = 8.2f;
-                    BlackBg(SpriteGO(root.transform, "bg", ProceduralArt.Get("classroom2_bg"), Vector3.zero, 0));
+                    PlaceholderBg(root.transform, floorY);
                     AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.Classroom2, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door");
                     AddLightSwitch(room, 6.4f, floorY);
                     AddClue(room, "window", -6.6f, floorY, "Classroom Window");
@@ -130,9 +137,6 @@ namespace Hollowbrook.World
         {
             var go = SpriteGO(room.Root.transform, "door_" + target, ProceduralArt.Get(spriteKey),
                 new Vector3(x, floorY + 3f, 0), 10);
-            // showcase: plain black rooms — the door art is not drawn; the HUD prompt and E
-            // are the door. The interactable (and its anchor) stay exactly where they were.
-            go.GetComponent<SpriteRenderer>().enabled = false;
             var d = go.AddComponent<Doorway>();
             d.Init(_root, room, label, target, x);
             room.Interactables.Add(d);
@@ -156,7 +160,6 @@ namespace Hollowbrook.World
             sr.sprite = ProceduralArt.Get("solid_white");
             sr.color = new Color(0.8f, 0.8f, 0.78f);
             sr.sortingOrder = 75;
-            sr.enabled = false;   // showcase: switch not drawn; prompt + E still work
             go.transform.localScale = new Vector3(0.16f, 0.26f, 1f);
             var sw = go.AddComponent<LightSwitchObject>();
             sw.Init(_root, room, x);

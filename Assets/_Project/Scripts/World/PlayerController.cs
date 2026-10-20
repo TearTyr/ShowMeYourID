@@ -57,33 +57,27 @@ namespace Hollowbrook.World
 
             if (Input.GetKeyDown(KeyCode.M)) _gameRoot.OpenMap();
 
-            // Showcase build: the guard is DRAWN but never walks (no walk animation yet).
-            // With walking off, interaction reaches the whole room so inspection stays possible.
-            if (_gameRoot.WalkEnabled)
-            {
-                float h = 0f;
-                if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) h -= 1f;
-                if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) h += 1f;
-                bool running = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                float speed = running ? _gameRoot.Config.runSpeed : _gameRoot.Config.walkSpeed;
+            float h = 0f;
+            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) h -= 1f;
+            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) h += 1f;
+            bool running = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            float speed = running ? _gameRoot.Config.runSpeed : _gameRoot.Config.walkSpeed;
 
-                var p = transform.localPosition;
-                if (Mathf.Abs(h) > 0.01f)
-                {
-                    _faceDir = h > 0 ? 1f : -1f;
-                    p.x += h * speed * dt;
-                    p.x = Mathf.Clamp(p.x, -_room.HalfWidth + 0.6f, _room.HalfWidth - 0.6f);
-                    StepAndAnimate(running, dt);
-                }
-                else
-                {
-                    SetFrame(0);
-                    _stepTimer = 0f;
-                }
-                transform.localPosition = p;
-                var s = transform.localScale; s.x = _faceDir; transform.localScale = s;
+            var p = transform.localPosition;
+            if (Mathf.Abs(h) > 0.01f)
+            {
+                _faceDir = h > 0 ? 1f : -1f;
+                p.x += h * speed * dt;
+                p.x = Mathf.Clamp(p.x, -_room.HalfWidth + 0.6f, _room.HalfWidth - 0.6f);
+                StepAndAnimate(running, dt);
             }
-            else SetFrame(0);
+            else
+            {
+                SetFrame(0);
+                _stepTimer = 0f;
+            }
+            transform.localPosition = p;
+            var s = transform.localScale; s.x = _faceDir; transform.localScale = s;
             UpdatePrompt();
         }
 
@@ -119,8 +113,7 @@ namespace Hollowbrook.World
             if (_room != null)
             {
                 Interactable best = null;
-                // standing guard: everything in the room is in reach; walking restores the range
-                float bestD = _gameRoot.WalkEnabled ? _gameRoot.Config.interactRange : float.MaxValue;
+                float bestD = _gameRoot.Config.interactRange;
                 foreach (var it in _room.Interactables)
                 {
                     if (it == null || !it.Enabled) continue;
