@@ -54,6 +54,7 @@ namespace Hollowbrook.LogicTests
             DisplayAndOptionsTests();
             TrackingAndTokenTests();
             CheckpointQueueTests();
+            QueueBusyHurryTests();
 
             Console.WriteLine("\n==============================================");
             Console.WriteLine($"  PASS {_pass}   FAIL {_fail}   TOTAL {_pass + _fail}");
@@ -1020,6 +1021,31 @@ namespace Hollowbrook.LogicTests
             for (int seed = 1; seed <= 400; seed++)
                 if (pred(RosterFor(seed, shiftNumber))) return seed;
             return -1;
+        }
+
+        private static void QueueBusyHurryTests()
+        {
+            Group("CheckpointQueue — the busy-window hurry multiplier");
+
+            var roster = RosterFor(11, 2);
+            var q = new CheckpointQueue();
+            q.AttachRoster(roster, new QueueTuning
+            {
+                MissingStudentChance = 0f,
+                ArrivalMinSeconds = 10f,
+                ArrivalMaxSeconds = 10f,
+                BusyHurryMultiplier = 2f,
+            }, 4321);
+            q.MarkStarted();
+            q.ForceNextArrival();                 // window busy: the clock now runs double
+            Check(!q.Tick(4.9f).Any, "busy window: 4.9s real time (9.8s of clock) is not enough");
+            Check(q.Tick(0.2f).ToLine != null, "busy window: 5.1s real time completes the 10s interval");
+
+            // clear the window completely, then the clock must breathe at base speed again
+            q.CommitActiveResolution(); q.CompleteActive();   // the waiter steps up
+            q.CommitActiveResolution(); q.CompleteActive();   // and leaves: window free
+            Check(!q.Tick(9.7f).Any, "free window: 9.7s is not enough for the 9.8s left");
+            Check(q.Tick(0.2f).Any, "free window: the remaining interval completes at base speed");
         }
 
         private static void CheckpointQueueTests()

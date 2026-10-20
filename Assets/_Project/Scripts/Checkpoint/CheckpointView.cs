@@ -62,11 +62,19 @@ namespace Hollowbrook.Checkpoint
 
         private Button[] _questionButtons = new Button[4];
         private Text _budgetLabel;
+        private Button _interviewBtn;      // the QUESTION gate: reveals the four questions
+        private bool _interviewOpen;
+        private bool _documentsTaken;      // the ID is in your hand: papers, scan and stamps unlock
+        private GameObject _handoverTarget;   // invisible click target over the window slot
+        private GameObject _offeredRoot;      // centred offered ID + its dimmer
+        private Image _offeredPhoto;
+        private Text _offeredName, _offeredNumber, _offeredExpires;
+        private GameObject _recordGo, _idCardGo, _checklistGo;   // hidden until the ID is taken
         private Button _allowBtn, _rejectBtn, _scanBtn, _notesBtn, _recordsBtn, _mapBtn, _patrolBtn, _endShiftBtn;
         private Text _testimony;
         private readonly List<EventSubscription> _subscriptions = new List<EventSubscription>();
         private GameObject _confirmBox;
-        private Text _confirmText, _noteText;
+        private Text _confirmText;
 
         private GameObject _bannerRoot; private Text _bannerTitle, _bannerBody;
         private Image _stampOverlay;
@@ -97,6 +105,7 @@ namespace Hollowbrook.Checkpoint
             BuildTopBar();
             BuildLeftColumn();
             BuildWindowArea();
+            BuildOfferedId();
             BuildCenterColumn();
             BuildRightColumn();
             BuildQueueStrips();
@@ -258,6 +267,14 @@ namespace Hollowbrook.Checkpoint
                 StylePaperRow(rb);
                 _checkRows[i] = rb.GetComponentInChildren<Text>();
             }
+
+            _recordGo = rec.gameObject;
+            _idCardGo = idCard.gameObject;
+            _checklistGo = clip.gameObject;
+            // clean desk: the papers stay hidden until the ID is actually in your hand
+            _recordGo.SetActive(false);
+            _idCardGo.SetActive(false);
+            _checklistGo.SetActive(false);
         }
 
         private void BuildWindowArea()
@@ -287,6 +304,54 @@ namespace Hollowbrook.Checkpoint
             var sill = UIFactory.Panel(_desk, "sill", new Color(0.10f, 0.10f, 0.11f));
             Reg("sill", sill.rectTransform, L.Sill);
             sill.raycastTarget = false;
+
+            // invisible click target over the slot: "interact with the table" — clicking it
+            // makes the visitor offer their ID across the glass
+            var handImg = UIFactory.Img(_desk, "handover", null, new Color(0f, 0f, 0f, 0f));
+            Reg("handover", handImg.rectTransform, L.Window);
+            var handBtn = handImg.gameObject.AddComponent<Button>();
+            handBtn.targetGraphic = handImg;
+            handBtn.onClick.AddListener(OnWindowClicked);
+            _handoverTarget = handImg.gameObject;
+            _handoverTarget.SetActive(false);
+        }
+
+        // The hand-over step: a dimmer plus the centred offered ID. Clicking the card takes
+        // it (docks into the desk slot and reveals the papers). Built once, hidden always.
+        private void BuildOfferedId()
+        {
+            var rootRt = UIFactory.NewUI(_desk, "offeredroot");
+            L.Place(rootRt, L.FullDesk);
+            UIFactory.Dimmer(rootRt, "dim", 0.4f);   // focus the card; blocks the desk beneath
+
+            var rt = UIFactory.NewUI(rootRt, "offeredid");
+            L.Place(rt, L.OfferedId);
+            var frame = UIFactory.Img(rt, "frame", ProceduralArt.Get("id_card_frame"));
+            UIFactory.AnchorsFull(frame.rectTransform);
+            _offeredPhoto = UIFactory.Img(rt, "photo", null);
+            L.Place(_offeredPhoto.rectTransform, L.Inner.IdPhoto);
+            _offeredPhoto.preserveAspect = true;
+            _offeredName = OfferedRow(rt, 0);
+            _offeredNumber = OfferedRow(rt, 1);
+            _offeredExpires = OfferedRow(rt, 5);
+            var hint = UIFactory.Label(rt, "hint", "CLICK TO TAKE THE ID", 12,
+                UIFactory.InkDim, TextAnchor.MiddleCenter);
+            L.Place(hint.rectTransform, new L.Region(0, 202, 320, 16));
+            var btn = rt.gameObject.AddComponent<Button>();
+            btn.targetGraphic = frame;
+            btn.onClick.AddListener(TakeId);
+
+            _offeredRoot = rootRt.gameObject;
+            _offeredRoot.SetActive(false);
+        }
+
+        // Offered card rows reuse the ID-card grid offsets (same card size).
+        private Text OfferedRow(RectTransform parent, int rowIndex)
+        {
+            var t = UIFactory.Label(parent, "row" + rowIndex, "", 12, UIFactory.PaperInk);
+            L.Place(t.rectTransform, new L.Region(L.Inner.IdRowX,
+                L.Inner.IdRules[rowIndex] - L.Inner.IdRowH, L.Inner.IdRowW, L.Inner.IdRowH));
+            return t;
         }
 
         private void BuildCenterColumn()
@@ -299,12 +364,8 @@ namespace Hollowbrook.Checkpoint
                 12, UIFactory.PaperInk, TextAnchor.LowerLeft);
             _speechPanel.gameObject.SetActive(false);
 
-            var note = UIFactory.BorderedPanel(_desk, "principalnote", UIFactory.Paper, UIFactory.Border, 2);
-            Reg("note", note, L.Note);
-            var noteHead = UIFactory.Label(note, "head", "PRINCIPAL NOTE", 12,
-                UIFactory.PaperInk, TextAnchor.UpperLeft);
-            L.Place(noteHead.rectTransform, L.Inner.NoteHead);
-            _noteText = Body(note, "notebody", L.Inner.NoteBody, 11, true);
+            // the principal note left the desk surface: its addendum lives in the RULES NOTE
+            // overlay (RefreshNotes), which keeps the centre column calm
 
             _patrolBtn = GridButton(_desk, "patrol", "PATROL HALLWAY  ▸", GoPatrol, L.PatrolBtn, 12);
             Reg("patrol", _patrolBtn, L.PatrolBtn);
@@ -322,9 +383,13 @@ namespace Hollowbrook.Checkpoint
             qPanel.gameObject.AddComponent<RectMask2D>();
             var qHead = UIFactory.Label(qPanel, "head", "QUESTIONS", 13, UIFactory.PaperInk, TextAnchor.UpperLeft);
             L.Place(qHead.rectTransform, L.Inner.QHead);
+            // interview gate: the four questions stay hidden until YOU open them
+            _interviewBtn = GridButton(qPanel, "interview", "QUESTION", ToggleInterview, L.Inner.QBudget, 11);
+            L.Place(_interviewBtn.GetComponent<RectTransform>(), L.Inner.QBudget);
             _budgetLabel = UIFactory.Label(qPanel, "budget", "QUESTIONS: 3 LEFT", 11,
                 new Color(0.35f, 0.35f, 0.34f), TextAnchor.MiddleRight);
             L.Place(_budgetLabel.rectTransform, L.Inner.QBudget);
+            _budgetLabel.gameObject.SetActive(false);
 
             string[] qs =
             {
@@ -342,10 +407,12 @@ namespace Hollowbrook.Checkpoint
                         L.Inner.QBtnW, L.Inner.QBtnH));
                 SizeLabel(b, 13);
                 _questionButtons[i] = b;
+                b.gameObject.SetActive(false);
             }
             _testimony = UIFactory.Label(qPanel, "testimony", "", 10,
                 new Color(0.30f, 0.30f, 0.29f), TextAnchor.UpperLeft);
             L.Place(_testimony.rectTransform, L.Inner.QTestimony);
+            _testimony.gameObject.SetActive(false);
 
             _scanBtn = GridButton(_desk, "scan", "SCAN ID", DoScan, L.UtilityScan, 12);
             Reg("scan", _scanBtn, L.UtilityScan);
@@ -583,7 +650,6 @@ namespace Hollowbrook.Checkpoint
         public void BeginRun(ShiftDef shift)
         {
             Debug.Log("[Flow] BeginRun queue=" + (Queue != null ? Queue.EffectiveTotal : -1));
-            if (_noteText != null && _gameRoot.CurrentShiftDef != null) _noteText.text = _gameRoot.CurrentShiftDef.RuleNoteAddendum;
             _shift = shift;
             ResetShiftState();
             RestoreQueuePresentation();
@@ -747,18 +813,78 @@ namespace Hollowbrook.Checkpoint
             ClearChecklist();
             _monitorOutput.text = "SCANNER READY";
             _verdictLocked = false;
+            // fresh hand-over state: nothing on the desk until the ID is offered and taken
+            _documentsTaken = false;
+            _interviewOpen = false;
+            SetDocumentsVisible(false);
+            _offeredRoot.SetActive(false);
             PresentVisitor(v);
             RefreshQueueLine();
             RefreshHud();
         }
 
-        // One visitor reached the window: portrait, papers, then voices — in that order.
+        // Clean-desk visibility: the three paper groups appear only once the ID is in hand.
+        private void SetDocumentsVisible(bool on)
+        {
+            if (_recordGo != null) _recordGo.SetActive(on);
+            if (_idCardGo != null) _idCardGo.SetActive(on);
+            if (_checklistGo != null) _checklistGo.SetActive(on);
+        }
+
+        // Click on the window slot: the visitor offers the ID across the glass.
+        private void OnWindowClicked()
+        {
+            if (_current == null || _verdictLocked || _documentsTaken) return;
+            if (_offeredRoot.activeSelf) return;
+            _gameRoot.Audio.PlaySfx("sfx_paper", 0.6f);
+            FillOfferedCard(_current);
+            _offeredRoot.SetActive(true);
+        }
+
+        // The centred card shows just enough to read at arm's length: face, name, number, expiry.
+        private void FillOfferedCard(VisitorData v)
+        {
+            bool admin = v.IsAdministrator;
+            _offeredPhoto.sprite = ProceduralArt.Portrait("card", v.IdPhoto, 168, 208);
+            _offeredName.text = "NAME: " + v.ClaimedName;
+            _offeredNumber.text = (admin ? "BADGE NO: " : "ID NO: ") + v.IdNumber;
+            _offeredExpires.text = (admin ? "VALID THRU: " : "EXPIRES: ") + v.ExpirationDisplay;
+        }
+
+        // Click on the offered card: take it. The papers dock on the desk and unlock.
+        private void TakeId()
+        {
+            if (_current == null || _documentsTaken) return;
+            _offeredRoot.SetActive(false);
+            _documentsTaken = true;
+            SetDocumentsVisible(true);
+            bool admin = _current.IsAdministrator;
+            FillIdCard(_current, admin);
+            FillRecordSheet(_current, admin);
+            _gameRoot.Audio.PlaySfx("sfx_paper", 0.6f);
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.DocumentsShown, _current));
+            RefreshHud();
+        }
+
+        // Interview gate: questions exist only after you deliberately open them.
+        private void ToggleInterview()
+        {
+            if (_current == null || _verdictLocked) return;
+            _interviewOpen = !_interviewOpen;
+            _gameRoot.Audio.PlaySfx(_interviewOpen ? "sfx_ui_open" : "sfx_ui_close", 0.5f);
+            RefreshHud();
+        }
+
+        // Headless harnesses/FlowCheck drive the same path the buttons use.
+        internal void OpenInterview() { if (!_interviewOpen) ToggleInterview(); }
+        internal void DebugTakeDocuments() { OnWindowClicked(); TakeId(); }
+
+        // One visitor reached the window: portrait and voices only — the papers arrive
+        // through the hand-over step (OnWindowClicked -> TakeId), not automatically.
         private void PresentVisitor(VisitorData v)
         {
             bool admin = v.IsAdministrator;
             ShowVisitorPortrait(v);
-            FillIdCard(v, admin);
-            FillRecordSheet(v, admin);
             PlayArrivalVoices(v, admin);
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VisitorArrived, v));
         }
@@ -827,14 +953,12 @@ namespace Hollowbrook.Checkpoint
             }
         }
 
-        // Knock and paper shuffle first, then either the administrator's scripted
-        // dialogue or the visitor's greeting (plus a one-off glitch flash for visibly
-        // glitchy anomalies at low sanity).
+        // Knock first, then either the administrator's scripted dialogue or the visitor's
+        // greeting (plus a one-off glitch flash for visibly glitchy anomalies at low sanity).
+        // Paper sounds and DocumentsShown now fire on the hand-over step, not on arrival.
         private void PlayArrivalVoices(VisitorData v, bool admin)
         {
             _gameRoot.Audio.PlaySfx("sfx_knock", 0.7f);
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.DocumentsShown, v));
-            _gameRoot.Audio.PlaySfx("sfx_paper", 0.6f);
             if (admin)
             {
                 var lines = new List<DialogueLine>
@@ -897,6 +1021,7 @@ namespace Hollowbrook.Checkpoint
         public void AskQuestion(QuestionId q)
         {
             if (_current == null || _verdictLocked) return;
+            if (!_interviewOpen) return;   // questions live behind the QUESTION gate
             if (!_budget.TryAsk(_current, q, out var answer))
             {
                 _monitorOutput.text = _budget.HasAsked(q) ? "ALREADY ASKED THAT." : "NO MORE QUESTIONS — DISTRICT POLICY.";
@@ -961,7 +1086,9 @@ namespace Hollowbrook.Checkpoint
 
         public void DoScan()
         {
-            if (_current == null || _verdictLocked || _gameRoot.Roster == null) return;
+            if (_current == null || _verdictLocked) return;
+            if (!_documentsTaken) { _monitorOutput.text = "TAKE THE ID FIRST."; return; }
+            if (_gameRoot.Roster == null) return;
             var res = _gameRoot.Roster.Scan(_current, _gameRoot.Session.TonightLog);
             _monitorOutput.text = res.Display;
             _monitorOutput.color = res.FoundInDatabase && !res.DuplicateTonight
@@ -973,7 +1100,7 @@ namespace Hollowbrook.Checkpoint
 
         private void CycleCheckRow(int row)
         {
-            if (_current == null || _verdictLocked) return;
+            if (_current == null || _verdictLocked || !_documentsTaken) return;
             _checklist[row] = (_checklist[row] + 1) % 3;
             switch (_checklist[row])
             {
@@ -986,7 +1113,7 @@ namespace Hollowbrook.Checkpoint
 
         public void Stamp(Verdict verdict)
         {
-            if (_current == null || _verdictLocked) return;
+            if (_current == null || _verdictLocked || !_documentsTaken) return;
             if (Queue != null && Queue.Collapsed) return;   // the line overran the checkpoint — verdicts are dead
             _verdictLocked = true; // §2.4 — decisions are permanent
             var mutation = _gameRoot.Session.Mode == GameMode.Challenge ? _gameRoot.Session.ActiveMutation : null;
@@ -996,66 +1123,29 @@ namespace Hollowbrook.Checkpoint
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VerdictStamped, outcome));
             if (_stampOverlay != null) StartCoroutine(StampPunch(verdict));
 
+            // silent verdict: the log records the call, never whether it was right
             _tonightsLog.Append("  ").Append(_current.IsAdministrator ? "ADMINISTRATOR" : _current.ClaimedName)
-                .Append(" — ").Append(verdict == Verdict.Allow ? "ALLOWED" : "REJECTED")
-                .Append(outcome.Correct ? " (correct)\n" : " (MISTAKE)\n");
+                .Append(" — ").Append(verdict == Verdict.Allow ? "ALLOWED" : "REJECTED").Append("\n");
 
-            int checklistHits = CountChecklistAccuracy(_current, outcome);
             var resolved = _current;
             _gameRoot.OnVerdictResolved(resolved, outcome);           // counters update BEFORE the banner reads them
             if (_gameRoot.State == AppViewState.Ending) { Hide(); return; } // ending took over (C3/C4)
             if (Queue != null) Queue.CommitActiveResolution();                // the queue books it NOW — a
                                                                       // quit mid-banner can never make
                                                                       // this visitor stampable again
-            ShowBanner(verdict, outcome, checklistHits);
+            ShowBanner(verdict);
             RefreshHud();
 
             StartCoroutine(AfterBanner(resolved));
         }
 
-        private int CountChecklistAccuracy(VisitorData v, InspectionRules.Outcome o)
+        // Silent verdict: the banner states the decision and nothing else — never whether
+        // the call was correct. The thrill lives in not knowing until the night judges you.
+        private void ShowBanner(Verdict verdict)
         {
-            bool[] truth = GroundTruthRows(v);
-            int hits = 0;
-            for (int i = 0; i < 8; i++)
-            {
-                if (_checklist[i] == 0) continue;
-                bool markedIssue = _checklist[i] == 2;
-                if (markedIssue == truth[i]) hits++;
-            }
-            return hits;
-        }
-
-        private bool[] GroundTruthRows(VisitorData v)
-        {
-            bool[] t = new bool[8];
-            t[0] = !IdRules.IsFormatValid(v.IdNumber);
-            t[1] = !v.PhotoMatches;
-            t[2] = IdRules.IsExpired(v, v.ShiftNumber);
-            t[3] = v.IdYearLevel != v.RecordYearLevel;
-            t[4] = v.IdCourseIndex != v.RecordCourseIndex;
-            t[5] = v.IdIsTransferee != v.RecordIsTransferee;
-            t[6] = v.ClaimedName != v.RecordName;
-            t[7] = v.Defects.Contains(DefectType.BehaviorOddity);
-            return t;
-        }
-
-        private void ShowBanner(Verdict verdict, InspectionRules.Outcome o, int checklistHits)
-        {
-            string title = verdict == Verdict.Allow ? "ACCESS GRANTED" : "ACCESS DENIED";
-            _bannerTitle.text = title;
+            _bannerTitle.text = verdict == Verdict.Allow ? "ACCESS GRANTED" : "ACCESS DENIED";
             _bannerTitle.color = verdict == Verdict.Allow ? UIFactory.Ink : UIFactory.AccentBright;
-
-            var sb = new StringBuilder();
-            if (o.Correct) sb.Append("CORRECT DECISION.  (+").Append(o.WasAnomaly ? 100 : 50).Append(")\n");
-            else if (o.FalseRejection) sb.Append("MISTAKE — FALSE REJECTION. A real student was turned away. (")
-                    .Append(_gameRoot.Session.FalseRejections).Append("/3 before the district reviews your contract)\n");
-            else sb.Append("MISTAKE — ANOMALY ENTRY. Something is inside the school now. (")
-                    .Append(_gameRoot.Session.Breaches).Append("/3 before the district reviews your contract)\n");
-            sb.Append("\nWHAT THE DOCUMENTS SHOWED:\n");
-            foreach (var line in o.RevealedDefects) sb.Append("  · ").Append(line).Append('\n');
-            sb.Append("\nYour checklist: ").Append(checklistHits).Append("/8 rows accurate.");
-            _bannerBody.text = sb.ToString();
+            _bannerBody.text = "";
             _bannerRoot.SetActive(true);
         }
 
@@ -1225,17 +1315,26 @@ namespace Hollowbrook.Checkpoint
             }
         }
 
-        // Decisions are clickable only while an inspection is live; patrol/end-shift stay
-        // visible per the wireframe but dim until usable.
+        // Decisions are clickable only while an inspection is live AND the ID is in hand;
+        // the interview column swaps between the QUESTION gate and the open questions.
         private void RefreshDecisionButtons()
         {
             bool collapsed = Queue != null && Queue.Collapsed;
-            bool live = _current != null && !_verdictLocked && !collapsed;
+            bool atWindow = _current != null && !_verdictLocked && !collapsed;
+            bool live = atWindow && _documentsTaken;
             for (int i = 0; i < 4; i++)
-                UIFactory.SetButtonEnabled(_questionButtons[i], live && !_budget.HasAsked(QuestionSystem.All[i]) && _budget.Remaining > 0);
+            {
+                _questionButtons[i].gameObject.SetActive(_interviewOpen);
+                UIFactory.SetButtonEnabled(_questionButtons[i],
+                    atWindow && _interviewOpen && !_budget.HasAsked(QuestionSystem.All[i]) && _budget.Remaining > 0);
+            }
+            _interviewBtn.gameObject.SetActive(atWindow && !_interviewOpen);
+            _budgetLabel.gameObject.SetActive(_interviewOpen);
+            _testimony.gameObject.SetActive(_interviewOpen);
+            if (_handoverTarget != null) _handoverTarget.SetActive(atWindow && !_documentsTaken);
             UIFactory.SetButtonEnabled(_allowBtn, live);
             UIFactory.SetButtonEnabled(_rejectBtn, live);
-            UIFactory.SetButtonEnabled(_patrolBtn, !live && !_bannerRoot.activeSelf &&
+            UIFactory.SetButtonEnabled(_patrolBtn, !atWindow && !_bannerRoot.activeSelf &&
                 Queue != null && Queue.Started && !collapsed);
             UIFactory.SetButtonEnabled(_endShiftBtn, Queue != null && Queue.ShiftComplete &&
                 _gameRoot.Session.Mode == GameMode.Normal);

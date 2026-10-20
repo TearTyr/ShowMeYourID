@@ -384,8 +384,22 @@ namespace Hollowbrook.Core
         {
             var t = new QueueTuning();
             if (Config == null) return t;
-            t.ArrivalMinSeconds = Config.queueArrivalMinSeconds;
-            t.ArrivalMaxSeconds = Config.queueArrivalMaxSeconds;
+            // Normal mode paces the night: a slow base clock that tightens every night and
+            // hurries only while the window is busy. Endless/Challenge keep the fast race
+            // clock and never hurry (their timer is the pressure).
+            bool normal = Session != null && Session.Mode == GameMode.Normal;
+            if (normal)
+            {
+                float scale = Mathf.Pow(Config.queueNightScale, Mathf.Max(0, Session.CurrentShift - 1));
+                t.ArrivalMinSeconds = Config.queueArrivalMinSeconds * scale;
+                t.ArrivalMaxSeconds = Config.queueArrivalMaxSeconds * scale;
+                t.BusyHurryMultiplier = Config.queueBusyHurryMultiplier;
+            }
+            else
+            {
+                t.ArrivalMinSeconds = Config.queueRunMinSeconds;
+                t.ArrivalMaxSeconds = Config.queueRunMaxSeconds;
+            }
             t.PressureWarnAt = Config.queuePressureWarnAt;
             t.OverwhelmedAt = Config.queueOverwhelmedAt;
             t.MissingStudentChance = Config.missingStudentChance;

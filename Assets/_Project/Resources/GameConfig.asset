@@ -14,8 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   verdictBannerSeconds: 3.2
   shiftStartHour: 22
-  queueArrivalMinSeconds: 3
-  queueArrivalMaxSeconds: 5
+  queueArrivalMinSeconds: 25
+  queueArrivalMaxSeconds: 30
+  queueRunMinSeconds: 3
+  queueRunMaxSeconds: 5
+  queueBusyHurryMultiplier: 2
+  queueNightScale: 0.8
   queuePressureWarnAt: 5
   queueOverwhelmedAt: 7
   missingStudentChance: 0.25

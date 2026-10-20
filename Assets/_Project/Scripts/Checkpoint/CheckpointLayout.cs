@@ -40,6 +40,8 @@ namespace Hollowbrook.Checkpoint
         // ---- left column ----------------------------------------------------
         public static readonly Region Record = new Region(16, 64, 320, 290);
         public static readonly Region IdCard = new Region(16, 362, 320, 220);
+        // the offered ID during the hand-over step: same card size, centred over the window
+        public static readonly Region OfferedId = new Region(480, 190, 320, 220);
         public static readonly Region Checklist = new Region(16, 590, 320, 122);
 
         // ---- centre column --------------------------------------------------

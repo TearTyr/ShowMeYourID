@@ -14,10 +14,18 @@ namespace Hollowbrook.Core
         public int shiftStartHour = 22;
 
         [Header("Checkpoint queue")]
-        [Tooltip("Lower bound of the randomized visitor arrival interval while a shift runs.")][Range(0.5f, 60f)]
-        public float queueArrivalMinSeconds = 3f;
-        [Tooltip("Upper bound of the randomized visitor arrival interval.")][Range(0.5f, 120f)]
-        public float queueArrivalMaxSeconds = 5f;
+        [Tooltip("Lower bound of the randomized visitor arrival interval while a shift runs (Normal mode, night 1).")][Range(0.5f, 60f)]
+        public float queueArrivalMinSeconds = 25f;
+        [Tooltip("Upper bound of the randomized visitor arrival interval (Normal mode, night 1).")][Range(0.5f, 120f)]
+        public float queueArrivalMaxSeconds = 30f;
+        [Tooltip("Endless/Challenge arrival interval bounds — those modes are score races and keep the fast clock.")][Range(0.5f, 60f)]
+        public float queueRunMinSeconds = 3f;
+        [Range(0.5f, 120f)]
+        public float queueRunMaxSeconds = 5f;
+        [Tooltip("Normal mode: the arrival clock runs this much faster while the window is busy, so dawdling grows the line.")][Range(1f, 4f)]
+        public float queueBusyHurryMultiplier = 2f;
+        [Tooltip("Normal mode: base arrival interval is multiplied by this per night after night 1.")][Range(0.3f, 1f)]
+        public float queueNightScale = 0.8f;
         [Tooltip("Waiting visitors (window excluded) at which the queue-pressure warning fires once.")][Range(1, 30)]
         public int queuePressureWarnAt = 5;
         [Tooltip("Waiting visitors at which the line overruns the checkpoint — a one-shot run failure.")][Range(2, 40)]

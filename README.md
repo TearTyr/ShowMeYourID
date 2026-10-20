@@ -4,7 +4,8 @@
 
 You are the newest temporary night custodian of **Hollowbrook College**, a school shut down
 mid-year without an official explanation — yet still open at night so its students can finish
-the term. Check IDs. Compare records. Ask up to **2 questions**. Stamp **ALLOW** or **REJECT**.
+the term. Check IDs. Compare records. Ask up to **2 questions** — only after opening the interview.
+Stamp **ALLOW** or **REJECT**. The verdict banner never tells you whether you were right.
 Walk the halls between visitors. Find the ten things the school is hiding. Keep them out.
 
 > “Everyone has an ID. Not everyone is a student.”
@@ -34,7 +35,7 @@ them automatically (keys are listed in `ProceduralArt` / `ProceduralAudio`).
 
 | Context | Input |
 |---|---|
-| Checkpoint | Mouse: documents, checklist rows, SCAN, questions, ALLOW / REJECT |
+| Checkpoint | Mouse: click the window to be offered the ID, click the card to take it, checklist rows, SCAN, QUESTION then questions, ALLOW / REJECT |
 | Walk / Run | `A`/`D` or `◂`/`▸`, hold `Shift` to run |
 | Interact | `E` (doors, clues, light switches) |
 | Flashlight | `F` Sweep (wide) / `Q` Focus (tight) / `L` off — or hold `LMB` / `RMB` for a temporary beam |
@@ -76,7 +77,9 @@ them automatically (keys are listed in `ProceduralArt` / `ProceduralAudio`).
   and unit-tested; the beam is a true cone (`GameLogic/BeamGeometry.cs`).
 - **The line** (Phase 9): every shift starts behind a **sticky note** ("CLICK TO BEGIN"); from that
   click the booth runs a real **arrival queue** — a randomized 3–5 s clock walks the roster up,
-  busy-window arrivals wait in the yard as identical silhouettes, the oldest waiter steps up right
+  a randomized 25-30 s clock walks the roster up on Night 1 (x0.8 per later night, and it runs
+ double-speed while you are still interviewing, so dawdling grows the line; Endless/Challenge
+ keep the fast 3-5 s race clock); busy-window arrivals wait in the yard as identical silhouettes, the oldest waiter steps up right
   after your verdict banner, `QUEUE: n | CURRENT: a/t` lives in the day banner, 5 waiting warns
   once and 7 waiting ends the run (the line overran the checkpoint). Anomalies entering the line
   can make one legitimate student **vanish** (seeded chance, one per shift, permanent, line-first).

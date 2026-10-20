@@ -36,6 +36,10 @@ namespace FlowCheck
             var newGame = root.MainMenu.transform.Find("buttons").Find("NEW GAME");
             newGame.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Console.WriteLine("  ..clicked NEW GAME..");
+            // desk proofs keep the classic fast clock (shipping Normal pace is 25-30 s)
+            root.Config.queueArrivalMinSeconds = 3f;
+            root.Config.queueArrivalMaxSeconds = 5f;
+            root.Config.queueBusyHurryMultiplier = 1f;
 
             // what Unity does after SceneManager.LoadScene: the new scene's bootstrap Awake
             CheckpointSceneBootstrap.Build(root);
@@ -105,7 +109,7 @@ namespace FlowCheck
                 "DeskFrame", "topbar", "daybanner_border", "clock", "pause", "runstats", "mutationbg",
                 "record", "idcard", "checklist_border",
                 "windowframe", "glass", "facade", "visitor", "glitch", "sill",
-                "speech_border", "speechlog", "principalnote_border", "notebody", "patrol", "endshift",
+                "speech_border", "speechlog", "handover", "offeredid", "interview", "patrol", "endshift",
                 "qpanel_border", "q0", "q1", "q2", "q3", "testimony",
                 "scan", "records", "map", "notes", "reject", "allow", "monitor_border", "out",
                 "confirmbox_border", "Banner", "OverlayRules", "OverlayLog",
@@ -292,6 +296,8 @@ namespace FlowCheck
             Console.WriteLine("== speech box carries both sides ==");
             var panel = FindDeep(root.Checkpoint.transform, "speech_border");
             Check(panel != null && panel.gameObject.activeSelf, "speech panel visible while a visitor is at the window");
+            root.Checkpoint.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
+            root.Checkpoint.OpenInterview();
             root.Checkpoint.AskQuestion(QuestionId.Course);
             var host = FindDeep(root.Checkpoint.transform, "speechlog");
             Check(host != null && host.childCount == 1, "speech log exists");
@@ -325,10 +331,12 @@ namespace FlowCheck
             Func<string, bool> live = n => btn(n).interactable;
             Func<string> monOut = () => FindDeep(desk, "out").GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
 
+            cp.DebugTakeDocuments();   // stamps unlock only once the ID is in hand
             Check(live("allow") && live("reject"), "ALLOW / CALL PRINCIPAL live while a visitor is at the window");
             Check(!live("patrol"), "PATROL HALLWAY dimmed mid-inspection");
             Check(!live("endshift"), "END SHIFT dimmed before the roster is done");
 
+            cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.DoScan();
             Check(monOut() != "SCANNER READY" && monOut().Length > 0,
                 "SCAN ID writes the scanner readout (" + monOut().Split('\n')[0] + ")");
@@ -358,6 +366,7 @@ namespace FlowCheck
             while (!live("endshift") && guard++ < 16)
             {
                 if (cp.CurrentVisitor == null) { cp.AdvanceQueue(6f); continue; }
+                cp.DebugTakeDocuments();   // hand-over gate before either verdict path
                 if (InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null) == Verdict.Allow)
                     btn("allow").onClick.Invoke();          // exercises the ALLOW click path
                 else
@@ -378,6 +387,7 @@ namespace FlowCheck
         {            Console.WriteLine("== B8 save/continue resume ==");
             var root = GameRoot.Instance;
             string first = root.Checkpoint.CurrentVisitor != null ? root.Checkpoint.CurrentVisitor.ClaimedName : "?";
+            root.Checkpoint.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             root.Checkpoint.Stamp(InspectionRules.ExpectedVerdict(root.Checkpoint.CurrentVisitor, null));
             root.PersistRun();
             Check(root.Session.QueueState != null && root.Session.QueueState.Started &&
@@ -461,13 +471,17 @@ namespace FlowCheck
                   "Q1: top bar reads '" + StatusText(root) + "'");
 
             // ---- Q2 the oldest waiter steps up after the banner, with no second wait
+            cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             Check(cp.CurrentVisitor == roster[1], "Q2: oldest waiting visitor stepped up immediately after the banner");
             Check(root.Queue.WaitingCount == 2 && Silhouettes(root) == 2, "Q2: exactly one silhouette left the line");
             Check(StatusText(root).Contains("QUEUE: 2"), "Q2: counters updated immediately ('" + StatusText(root) + "')");
             int guard = 0;
             while (cp.CurrentVisitor != null && guard++ < 6)
+            {
+                cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
                 cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            }
             Check(root.Queue.ShiftComplete && guard <= 3, "Q2: the fully resolved roster completes the shift");
 
             // ---- Q3 an empty queue never completes the shift early (11.1 step 11)
@@ -475,6 +489,7 @@ namespace FlowCheck
             IsolateMissingStudent(root);
             cp = root.Checkpoint;
             ClickStickyNote(root);
+            cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             Check(cp.CurrentVisitor == null && root.Queue.WaitingCount == 0, "Q3: window and line are empty");
             Check(!root.Queue.ShiftComplete, "Q3: empty line with pending arrivals is NOT completion");
@@ -514,6 +529,7 @@ namespace FlowCheck
             int arrivalsFrozen = root.Queue.ArrivalCount;
             int processedBefore = root.Session.Processed;
             cp.AdvanceQueue(60f);
+            cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(Verdict.Allow);
             root.TriggerQueueOverwhelmed();
             Check(root.Queue.ArrivalCount == arrivalsFrozen, "Q4: no further arrivals after the collapse");
@@ -545,8 +561,10 @@ namespace FlowCheck
                   "Q5: counter reflects the smaller night ('" + StatusText(root) + "')");
             string speech = FindDeep(cp.transform, "speechlog").GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
             Check(speech.Contains("Roll call"), "Q5: subtle radio feedback, no anomaly revealed");
+            cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));   // resolve #0 -> anomaly steps up
             Check(cp.CurrentVisitor == mRoster[2], "Q5: the anomaly itself steps up to the window");
+            cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(Verdict.Allow);                    // let the anomaly in — the loss must stand
             Check(root.Queue.MissingIncidents == 1 && root.Queue.EffectiveTotal == mRoster.Count - 1,
                   "Q5: allowing the anomaly never restores the vanished student");
@@ -556,6 +574,7 @@ namespace FlowCheck
             {
                 if (cp.CurrentVisitor == null) { cp.AdvanceQueue(1f); continue; }
                 arrivedNames.Add(cp.CurrentVisitor.ClaimedName);
+                cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
                 cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             }
             Check(root.Queue.ShiftComplete, "Q5: the shift still completes with a vanished student");
@@ -585,7 +604,9 @@ namespace FlowCheck
             ClickStickyNote(root);
             cp.AdvanceQueue(6f);                                   // #2 arrives behind #1
             Check(root.Queue.WaitingCount == 1, "Q7: a visitor is waiting before the patrol");
+            cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));   // #1 resolved, #2 steps up
+            cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));   // #2 resolved, line empty
             Check(cp.CurrentVisitor == null && root.Queue.RosterCursor == 2, "Q7: window free, cursor at 2");
             float timerBeforePatrol = root.Queue.TimerSeconds;
@@ -608,6 +629,8 @@ namespace FlowCheck
             // ---- Q8 quit + continue mid-inspection: window visitor, budget and line restored
             cp.AdvanceQueue(6f);                                   // #4 arrives behind #3
             Check(root.Queue.WaitingCount == 1, "Q8: one waiting before the quit");
+            cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
+            cp.OpenInterview();
             cp.AskQuestion(QuestionId.Year);
             Check(root.Queue.ActiveBudgetMask == 1 << (int)QuestionId.Year, "Q8: the question budget synced into the queue");
             root.TogglePause(true);
@@ -624,6 +647,7 @@ namespace FlowCheck
             Check(root.Queue.WaitingCount == 1 && Silhouettes(root) == 1, "Q8: the waiting line was restored, not duplicated");
             Check(StatusText(root).Contains("QUEUE: 1") && StatusText(root).Contains("CURRENT: 4/4"),
                   "Q8: counters restored ('" + StatusText(root) + "')");
+            cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             Check(cp.CurrentVisitor != null && cp.CurrentVisitor.VisitorIndex == pRoster[3].VisitorIndex,
                   "Q8: after the verdict the restored waiter steps up");
@@ -631,6 +655,7 @@ namespace FlowCheck
             // ---- Q9 Endless/Challenge keep working through their own arrival source (9.8)
             root.StartNewGame(GameMode.Endless);
             CheckpointSceneBootstrap.Build(root);
+            Check(root.Queue != null && root.Queue.Tuning.ArrivalMaxSeconds == 5f, "endless keeps the fast race clock");
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
             cp = root.Checkpoint;
             Check(root.Queue.InfiniteSource && root.Queue.EffectiveTotal == -1, "Q9: endless run attaches the generator source");
@@ -640,6 +665,7 @@ namespace FlowCheck
             cp.AdvanceQueue(6f);
             Check(root.Queue.WaitingCount == 1, "Q9: run visitors accumulate in the same line");
             Check(!StatusText(root).Contains("CURRENT:"), "Q9: no finite counter for infinite sources ('" + StatusText(root) + "')");
+            cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             Check(cp.CurrentVisitor != null && root.Session.RunProcessed == 1,
                   "Q9: promotion + run scoring still flow through OnVerdictResolved");
@@ -654,6 +680,7 @@ namespace FlowCheck
             while (!Btn(root, "endshift").interactable && guard++ < 20)
             {
                 if (cp.CurrentVisitor == null) { cp.AdvanceQueue(6f); continue; }
+                cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
                 cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             }
             Check(guard < 20 && root.Queue.ShiftComplete, "Q10: night 1 walked to completion through the queue");
@@ -700,6 +727,7 @@ namespace FlowCheck
                     continue;
                 }
                 if (cp.CurrentVisitor == null) continue;   // defensive: view/queue out of sync
+                cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
                 cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             }
             Check(root.Queue.ProcessedCount == 9, "Q11: all nine visitors resolved through the queue (" +
