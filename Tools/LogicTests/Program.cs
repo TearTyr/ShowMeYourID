@@ -53,6 +53,7 @@ namespace Hollowbrook.LogicTests
             ModelMathTests();
             DisplayAndOptionsTests();
             TrackingAndTokenTests();
+            CheckpointQueueTests();
 
             Console.WriteLine("\n==============================================");
             Console.WriteLine($"  PASS {_pass}   FAIL {_fail}   TOTAL {_pass + _fail}");
@@ -1010,6 +1011,362 @@ namespace Hollowbrook.LogicTests
             Check(old != null && old.Session.TokensCollected == 0, "a save without tokens loads as zero");
         }
 
+        // ------------------------------------------------------- checkpoint queue
+        private static List<VisitorData> RosterFor(int seed, int shiftNumber) =>
+            new RosterFactory(seed).GenerateShift(ShiftPlan.Build()[shiftNumber - 1]);
+
+        private static int FindSeed(Func<List<VisitorData>, bool> pred, int shiftNumber)
+        {
+            for (int seed = 1; seed <= 400; seed++)
+                if (pred(RosterFor(seed, shiftNumber))) return seed;
+            return -1;
+        }
+
+        private static void CheckpointQueueTests()
+        {
+            Group("CheckpointQueue — start gate, arrival clock, FIFO line, window promotion");
+
+            var roster = RosterFor(11, 2);           // night 2: six visitors, two anomalies
+            Eq(roster.Count, 6, "test roster has six visitors");
+
+            var q = new CheckpointQueue();
+            q.AttachRoster(roster, new QueueTuning { MissingStudentChance = 0f }, 1234);
+            Check(!q.Started, "a fresh shift has not started (sticky-note gate)");
+            Check(!q.Tick(10f).Any && q.ArrivalCount == 0, "the clock is dead before the shift starts");
+            Check(!q.ForceNextArrival().Any, "forced arrivals refuse before the shift starts");
+            Check(!q.ShiftComplete, "an unstarted shift is never 'complete'");
+
+            q.MarkStarted();
+            var first = q.ForceNextArrival();
+            Check(first.ToWindow == roster[0] && first.ToLine == null, "first visitor walks to the free window");
+            Eq(q.ArrivalCount, 1, "arrival counted exactly once");
+            Eq(q.WaitingCount, 0, "the window visitor is not counted as waiting");
+            Check(q.TimerSeconds >= 3f && q.TimerSeconds <= 5f,
+                  "arrival clock armed inside [3,5]s (got " + q.TimerSeconds.ToString("0.00") + ")");
+
+            var tuning = new QueueTuning();
+            var rng = new GameRng(7);
+            float lo = 99f, hi = -1f; bool inBounds = true;
+            for (int i = 0; i < 500; i++)
+            {
+                float v = tuning.RollInterval(rng);
+                inBounds &= v >= 3f && v <= 5f;
+                lo = Math.Min(lo, v); hi = Math.Max(hi, v);
+            }
+            Check(inBounds, "500 rolled intervals all land inside [3,5]s");
+            Check(hi - lo > 0.5f, "intervals are actually randomized (spread " + (hi - lo).ToString("0.00") + "s)");
+
+            Check(!q.Tick(2.9f).Any, "no arrival before the shortest interval elapsed");
+            var second = q.Tick(2.2f);               // 5.1s total >= any interval in [3,5]
+            Check(second.ToLine == roster[1] && second.ToWindow == null,
+                  "second arrival joins the line while the window is busy");
+            Eq(q.WaitingCount, 1, "one waiting, window excluded");
+
+            for (int i = 0; i < 2; i++)
+            {
+                var r = q.Tick(6f);                  // >= max interval: exactly one arrival per tick
+                Check(r.ToLine != null && r.ToWindow == null, "arrival #" + (i + 3) + " accumulates in the line");
+            }
+            Eq(q.ArrivalCount, 4, "four arrivals total");
+            Eq(string.Join(",", q.WaitingLine.Select(v => v.VisitorIndex.ToString())), "1,2,3",
+               "the waiting line is FIFO in arrival order");
+
+            var promoted = q.CompleteActive();
+            Eq(q.ProcessedCount, 1, "processed count ticks exactly once per resolution");
+            Check(promoted == roster[1] && q.Active == roster[1], "the OLDEST waiting visitor steps up");
+            Eq(q.WaitingCount, 2, "exactly one silhouette left the line");
+            Eq(q.CompleteActive(), roster[2], "promotion keeps FIFO order");
+            Eq(q.CompleteActive(), roster[3], "promotion keeps FIFO order to the end");
+            q.CompleteActive();                       // the last window visitor is resolved
+            Eq(q.ProcessedCount, 4, "all four resolutions counted");
+            Check(q.CompleteActive() == null, "resolving a free window does nothing (no double counts)");
+            Eq(q.ProcessedCount, 4, "…and never inflates the processed count");
+
+            Check(!q.ShiftComplete, "empty line + free window is NOT completion while the source can produce");
+            Eq(q.EffectiveTotal, 6, "effective total counts the full roster");
+            q.ForceNextArrival();
+            var lastArrival = q.Tick(6f);
+            Check(lastArrival.ToLine == roster[5] || q.Active == roster[5], "the last roster entry arrives");
+            q.CompleteActive(); q.CompleteActive();
+            Check(q.ShiftComplete, "completion: started + source dry + line empty + window free");
+            Check(q.TimerSeconds < 0f, "the arrival clock goes idle once the source is dry");
+            Check(!q.Tick(60f).Any, "a dry clock never fabricates arrivals");
+
+            Group("CheckpointQueue — pressure warning once, overwhelmed collapse once");
+
+            var bigRoster = RosterFor(5, 4);         // night 4: eight visitors
+            Eq(bigRoster.Count, 8, "pressure roster has eight visitors");
+            var pq = new CheckpointQueue();
+            pq.AttachRoster(bigRoster, new QueueTuning
+            {
+                ArrivalMinSeconds = 0.01f, ArrivalMaxSeconds = 0.02f, MissingStudentChance = 0f,
+            }, 77);
+            pq.MarkStarted();
+            pq.ForceNextArrival();
+            int warnings = 0, overloads = 0;
+            for (int i = 0; i < 10; i++)
+            {
+                var r = pq.Tick(1f);
+                if (r.PressureWarning) warnings++;
+                if (r.Overwhelmed) overloads++;
+            }
+            Eq(warnings, 1, "pressure warning fires exactly once, at the crossing (5 waiting)");
+            Eq(overloads, 1, "overwhelmed fires exactly once, at the threshold (7 waiting)");
+            Eq(pq.ArrivalCount, 8, "all eight arrived before the collapse (1 window + 7 waiting)");
+            Eq(pq.WaitingCount, 7, "seven waiting when the line overran");
+            Check(pq.Collapsed, "the queue collapses on overwhelm");
+            Check(!pq.Tick(60f).Any && pq.ArrivalCount == 8, "collapsed: no further arrivals, ever");
+            Check(!pq.ForceNextArrival().Any, "collapsed: forced arrivals refuse too");
+            Eq(pq.PressureLevel, 2, "pressure level stays at overwhelmed");
+
+            var owSession = new GameSession { Mode = GameMode.Normal, QueueOverwhelmed = true };
+            var owEval = EndingRules.Evaluate(owSession);
+            Eq(owEval.Ending, EndingType.Lose, "queue overload is a run failure");
+            Eq(owEval.ReasonKey, "overwhelmed", "…with its own honest reason (not false rejection / breach)");
+            var prio = new GameSession { Mode = GameMode.Normal, QueueOverwhelmed = true, AdminAllowed = true };
+            Eq(EndingRules.Evaluate(prio).ReasonKey, "admin_breach", "existing lose routes keep priority");
+            Check(EndingRules.Evaluate(new GameSession { Mode = GameMode.Normal }).Ending == EndingType.None,
+                  "a clean session still evaluates to None (additive change)");
+
+            Group("CheckpointQueue — missing student (finite roster, one incident per shift)");
+
+            // (a) probability-failure path: chance 0 changes nothing
+            var r0 = RosterFor(11, 2);
+            var q0 = new CheckpointQueue();
+            q0.AttachRoster(r0, new QueueTuning { MissingStudentChance = 0f }, 5);
+            q0.MarkStarted();
+            bool sawAnomaly = false, sawIncident = false;
+            for (int i = 0; i < 6; i++)
+            {
+                var r = i == 0 ? q0.ForceNextArrival() : q0.Tick(6f);
+                var arrived = r.ToWindow ?? r.ToLine;
+                sawAnomaly |= arrived != null && arrived.IsAnomaly;
+                sawIncident |= r.MissingStudent;
+                q0.CompleteActive();
+            }
+            Check(sawAnomaly, "chance-0 roster did contain an anomaly");
+            Check(!sawIncident, "chance 0: anomalies arrive, nobody vanishes");
+            Eq(q0.EffectiveTotal, 6, "chance 0: effective total untouched");
+
+            // (b) forced path, anomaly first: the victim comes from the un-arrived source
+            int seedSrc = FindSeed(rr => rr[0].IsAnomaly && rr.Count(v => !v.IsAnomaly) >= 3, 2);
+            Check(seedSrc > 0, "found a seed whose first visitor is an anomaly");
+            var rSrc = RosterFor(seedSrc, 2);
+            var qs = new CheckpointQueue();
+            qs.AttachRoster(rSrc, new QueueTuning
+            {
+                ArrivalMinSeconds = 0.01f, ArrivalMaxSeconds = 0.02f, MissingStudentChance = 1f,
+            }, 4242);
+            qs.MarkStarted();
+            var rAnom = qs.ForceNextArrival();
+            Check(rAnom.ToWindow == rSrc[0] && rAnom.MissingStudent, "the arriving anomaly triggers the incident");
+            var victim = rAnom.Vanished;
+            Check(victim != null && !victim.IsAnomaly && !victim.IsAdministrator,
+                  "the vanished student is legitimate");
+            Check(victim != qs.Active, "never the visitor at the window");
+            Eq(qs.MissingIncidents, 1, "one incident recorded");
+            Eq(qs.EffectiveTotal, rSrc.Count - 1, "effective total drops by exactly one");
+
+            var arrivedNames = new List<string> { rAnom.ToWindow.ClaimedName };
+            for (int i = 0; i < rSrc.Count; i++)
+            {
+                var r = qs.Tick(1f);
+                var v = r.ToWindow ?? r.ToLine;
+                if (v != null) arrivedNames.Add(v.ClaimedName);
+                Check(!r.MissingStudent, "no second incident while the limit is spent");
+                qs.CompleteActive();
+            }
+            Eq(qs.MissingIncidents, 1, "limit: one incident per shift, later anomalies roll nothing");
+            Eq(qs.EffectiveTotal, rSrc.Count - 1, "effective total stable after later arrivals");
+            Check(!arrivedNames.Contains(victim.ClaimedName), "the vanished student never arrives");
+            Eq(qs.ArrivalCount, rSrc.Count - 1, "arrival count == effective total at the end");
+            Check(qs.ShiftComplete, "shift completes with the vanished student excluded");
+
+            // (c) forced path, anomaly later: a waiting legitimate student is preferred
+            int seedWait = FindSeed(rr => !rr[0].IsAnomaly && !rr[1].IsAnomaly && rr[2].IsAnomaly, 2);
+            Check(seedWait > 0, "found a seed with legit, legit, anomaly arrival order");
+            var rWait = RosterFor(seedWait, 2);
+            var qw = new CheckpointQueue();
+            qw.AttachRoster(rWait, new QueueTuning
+            {
+                ArrivalMinSeconds = 0.01f, ArrivalMaxSeconds = 0.02f, MissingStudentChance = 1f,
+            }, 99);
+            qw.MarkStarted();
+            qw.ForceNextArrival();                   // legit #0 -> window
+            qw.Tick(1f);                             // legit #1 -> line
+            var rW = qw.Tick(1f);                    // anomaly #2 -> line, incident fires
+            Check(rW.MissingStudent && rW.Vanished == rWait[1],
+                  "a legitimate visitor already in the line is preferred as the victim");
+            Eq(qw.WaitingCount, 1, "the line shrank immediately (only the anomaly waits)");
+            Check(qw.WaitingLine.First() == rWait[2], "FIFO order of the remaining line intact");
+            Eq(qw.EffectiveTotal, rWait.Count - 1, "effective total updated immediately");
+            Eq(qw.ArrivalCount, 2, "arrival progression updated: the vanished waiter no longer counts as arrived");
+
+            // (d) nobody eligible: the roll consumes nothing, no phantom incident
+            var synthetic = new List<VisitorData>
+            {
+                new VisitorData { VisitorIndex = 0, IsAnomaly = true, ClaimedName = "A" },
+                new VisitorData { VisitorIndex = 1, IsAnomaly = true, IsAdministrator = true, ClaimedName = "ADMIN" },
+                new VisitorData { VisitorIndex = 2, IsAnomaly = true, ClaimedName = "B" },
+            };
+            var qn = new CheckpointQueue();
+            qn.AttachRoster(synthetic, new QueueTuning
+            {
+                ArrivalMinSeconds = 0.01f, ArrivalMaxSeconds = 0.02f, MissingStudentChance = 1f,
+            }, 3);
+            qn.MarkStarted();
+            qn.ForceNextArrival(); qn.Tick(1f); qn.Tick(1f);
+            Eq(qn.MissingIncidents, 0, "anomalies and the administrator are never victims");
+            Eq(qn.EffectiveTotal, 3, "no phantom removals when nobody is eligible");
+
+            // (e) already-processed visitors are never victims
+            int seedLate = FindSeed(rr => !rr[0].IsAnomaly && rr[1].IsAnomaly, 2);
+            Check(seedLate > 0, "found a seed with legit then anomaly");
+            var rLate = RosterFor(seedLate, 2);
+            var ql = new CheckpointQueue();
+            ql.AttachRoster(rLate, new QueueTuning
+            {
+                ArrivalMinSeconds = 0.01f, ArrivalMaxSeconds = 0.02f, MissingStudentChance = 1f,
+            }, 808);
+            ql.MarkStarted();
+            ql.ForceNextArrival();                   // legit #0 at the window
+            ql.CompleteActive();                     // …resolved and gone
+            var rL = ql.Tick(1f);                    // anomaly #1 arrives, incident fires
+            Check(rL.MissingStudent && rL.Vanished != rLate[0],
+                  "a processed visitor is never chosen as the victim");
+            Check(rL.Vanished == null || rL.Vanished.VisitorIndex >= 2, "victim comes from the un-arrived source");
+
+            Group("CheckpointQueue — snapshot, save round-trip, legacy resume, run-mode source");
+
+            var snapRoster = RosterFor(seedWait, 2);
+            var sq = new CheckpointQueue();
+            sq.AttachRoster(snapRoster, new QueueTuning
+            {
+                ArrivalMinSeconds = 0.01f, ArrivalMaxSeconds = 0.02f, MissingStudentChance = 1f,
+            }, 99);
+            sq.MarkStarted();
+            sq.ForceNextArrival();                   // #0 window
+            sq.Tick(1f);                             // #1 line (vanishes via the anomaly below)
+            sq.Tick(1f);                             // #2 anomaly -> incident
+            sq.ActiveBudgetMask = 1 << (int)QuestionId.Year;
+            var snap = sq.BuildSnapshot();
+            Check(snap.Started && snap.Arrived == 2 && snap.WaitingIdx.Count == 1 &&
+                  snap.ActiveIdx == snapRoster[0].VisitorIndex && snap.MissingIncidents == 1 &&
+                  snap.BudgetMask == 1 << (int)QuestionId.Year,
+                  "snapshot captures started/arrived/line/active/incident/budget");
+
+            var session = new GameSession { Mode = GameMode.Normal, Seed = seedWait, QueueState = snap };
+            var roundTrip = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = session }));
+            Check(roundTrip != null && roundTrip.Session.QueueState != null, "queue snapshot survives the save file");
+            if (roundTrip != null && roundTrip.Session.QueueState != null)
+            {
+                var back = roundTrip.Session.QueueState;
+                Check(back.Started && back.Arrived == 2 && back.ActiveIdx == snap.ActiveIdx &&
+                      back.MissingIncidents == 1 && back.BudgetMask == snap.BudgetMask &&
+                      Math.Abs(back.TimerSeconds - snap.TimerSeconds) < 0.001f &&
+                      back.WaitingIdx.SequenceEqual(snap.WaitingIdx) &&
+                      back.VanishedIdx.SequenceEqual(snap.VanishedIdx),
+                      "every queue field round-trips (timer, line, vanished included)");
+
+                // restore onto a freshly regenerated identical roster (what CONTINUE does)
+                var rq = new CheckpointQueue();
+                rq.AttachRoster(RosterFor(seedWait, 2), new QueueTuning(), 555);
+                rq.RestoreFromSnapshot(back, 555);
+                Check(rq.Started && rq.ArrivalCount == 2 && rq.MissingIncidents == 1, "restore brings the counters back");
+                Check(rq.Active != null && rq.Active.VisitorIndex == snap.ActiveIdx, "restore brings the window visitor back");
+                Eq(rq.ActiveBudgetMask, 1 << (int)QuestionId.Year, "restore brings the question budget back");
+                Eq(rq.WaitingCount, 1, "restore brings the waiting line back");
+                Check(rq.WaitingLine.First().VisitorIndex == snap.WaitingIdx[0], "…in the right order");
+                Eq(rq.EffectiveTotal, snapRoster.Count - 1, "restore keeps the vanished student vanished");
+                var afterRestore = rq.Tick(60f);
+                Check(afterRestore.ToWindow == null, "restore never re-spawns the first visitor");
+            }
+
+            var legacyRoster = RosterFor(11, 2);
+            var lq = new CheckpointQueue();
+            lq.AttachRoster(legacyRoster, new QueueTuning(), 1);
+            lq.RestoreLegacy(2);
+            Check(lq.Started && lq.RosterCursor == 2, "legacy save resumes at its stored cursor");
+            var lres = lq.ResumePresentation();
+            Check(lres.ToWindow == legacyRoster[2], "legacy resume presents the next unprocessed visitor");
+            Check(lq.TimerSeconds > 0f, "legacy resume arms the arrival clock");
+
+            int generated = 0;
+            var runQ = new CheckpointQueue();
+            runQ.AttachRunSource(() =>
+            {
+                generated++;
+                return new VisitorData { VisitorIndex = -1, IsAnomaly = generated % 2 == 0, ClaimedName = "RUN" + generated };
+            }, new QueueTuning { ArrivalMinSeconds = 0.01f, ArrivalMaxSeconds = 0.02f, MissingStudentChance = 1f }, 9);
+            runQ.MarkStarted();
+            runQ.ForceNextArrival();
+            for (int i = 0; i < 5; i++) { runQ.Tick(1f); runQ.CompleteActive(); }
+            Eq(runQ.ArrivalCount, 6, "run-mode source keeps producing");
+            Eq(runQ.EffectiveTotal, -1, "run modes have no effective total");
+            Check(!runQ.ShiftComplete && !runQ.SourceExhausted, "run modes never complete by roster");
+            Eq(runQ.MissingIncidents, 0, "missing-student is a finite-roster (Normal) mechanic");
+            Check(!new CheckpointQueue().IsAttached, "a detached queue reports unattached (PersistRun guard)");
+
+            Group("CheckpointQueue — two-phase resolution (quit mid-banner can never re-stamp)");
+            var twoPhase = RosterFor(11, 2);
+            var tq = new CheckpointQueue();
+            tq.AttachRoster(twoPhase, new QueueTuning
+            {
+                ArrivalMinSeconds = 0.01f, ArrivalMaxSeconds = 0.02f, MissingStudentChance = 0f,
+            }, 21);
+            tq.MarkStarted();
+            tq.ForceNextArrival();                   // roster[0] at the window
+            tq.Tick(1f);                             // roster[1] waiting
+            tq.ActiveBudgetMask = 3;
+            tq.CommitActiveResolution();             // the stamp moment
+            Eq(tq.ProcessedCount, 1, "the stamp books the resolution immediately");
+            Check(tq.ResolutionPending, "resolution pending while the banner is up");
+            Eq(tq.ActiveBudgetMask, 0, "committing consumes the budget mask");
+            tq.CommitActiveResolution();
+            Eq(tq.ProcessedCount, 1, "committing twice books once");
+            var tqSnap = tq.BuildSnapshot();
+            Check(tqSnap.ResolutionPending && tqSnap.ActiveIdx == twoPhase[0].VisitorIndex &&
+                  tqSnap.Processed == 1,
+                  "a mid-banner snapshot keeps the resolved visitor flagged pending");
+            var tq2 = new CheckpointQueue();
+            tq2.AttachRoster(RosterFor(11, 2), new QueueTuning
+            {
+                ArrivalMinSeconds = 0.01f, ArrivalMaxSeconds = 0.02f, MissingStudentChance = 0f,
+            }, 21);
+            tq2.RestoreFromSnapshot(tqSnap, 21);
+            Check(tq2.ResolutionPending && tq2.ProcessedCount == 1 && tq2.Active != null,
+                  "restore brings the pending resolution back");
+            var tqPromoted = tq2.CompleteActive();   // the deferred step-up finishes on resume
+            Eq(tq2.ProcessedCount, 1, "finishing the pending resolution does not double-count");
+            Check(tqPromoted == tq2.Active && tqPromoted.VisitorIndex == twoPhase[1].VisitorIndex,
+                  "the oldest waiter still steps up after the deferred completion");
+            Check(!tq2.ResolutionPending, "completion clears the pending flag");
+
+            // the administrator outro sends the rest of the line home: completion must not
+            // be blocked by waiters (or a promoted active) that will never be called
+            for (int i = 0; i < 6; i++) tq2.Tick(1f);   // drain the source (admin-last shape)
+            Check(tq2.SourceExhausted, "the source ran dry while the line grew");
+            Check(tq2.WaitingCount >= 2 && tq2.Active != null, "waiters piled up behind the window");
+            Check(!tq2.ShiftComplete, "waiters block completion (before the story beat)");
+            int abandoned = tq2.AbandonLine();
+            Check(abandoned >= 2, "AbandonLine sends the remaining line home (" + abandoned + ")");
+            Check(tq2.Active == null && tq2.WaitingCount == 0, "the window closes with the night");
+            Check(tq2.ShiftComplete, "the shift completes once the story beat closed the line");
+
+            Group("QuestionSystem.Budget — mask round-trip for quit/continue");            var budget = new QuestionSystem.Budget();
+            var visitor = RosterFor(11, 2)[0];
+            Answer a;
+            budget.TryAsk(visitor, QuestionId.Course, out a);
+            budget.TryAsk(visitor, QuestionId.Status, out a);
+            var restored = new QuestionSystem.Budget();
+            restored.RestoreFromMask(budget.Mask);
+            Eq(restored.Remaining, budget.Remaining, "restored budget has the same questions left");
+            Check(restored.HasAsked(QuestionId.Course) && restored.HasAsked(QuestionId.Status)
+                  && !restored.HasAsked(QuestionId.Year), "restored budget remembers exactly what was asked");
+            var fresh = new QuestionSystem.Budget();
+            Eq(fresh.Mask, 0, "a fresh budget has an empty mask");
+        }
+
         // --------------------------------------------- display policy + options layout
         private static void DisplayAndOptionsTests()
         {
@@ -1057,23 +1414,19 @@ namespace Hollowbrook.LogicTests
 
             // ------------------------------------------------ options sheet layout budget
             Group("Options sheet — row budget fits the left sheet at 1280x720 reference");
-            // Mirrors SettingsView.Init row heights + VStack spacing 8. If a row is added,
-            // this fails on purpose: the sheet must never overflow onto the action buttons.
-            float[] rows = { 18, 34, 34,        // AUDIO header + master + sfx
-                             18, 32, 38,        // DISPLAY header + fullscreen + resolution
-                             18, 38, 32, 32, 32,// ACCESSIBILITY header + text size + 3 toggles
-                             18, 40 };          // DATA header + reset row
-            const float ColumnHeight = 505f;
+            // Mirrors SettingsView.Init row heights + VStack spacing 8: the simplified
+            // audio-only modal (Phase 10.3) is AUDIO header + three volume rows. If a row
+            // is added, this fails on purpose: the sheet must never overflow its column.
+            float[] rows = { 18, 34, 34, 34 };       // AUDIO header + master + music + sfx
+            const float ColumnHeight = 150f;
             const float Spacing = 8f;
             float total = 0f;
             foreach (var h in rows) total += h;
             total += Spacing * (rows.Length - 1);
             Check(total <= ColumnHeight,
                   $"options rows ({total:F0}px incl. spacing) must fit the {ColumnHeight:F0}px column");
-            // column spans 111.5..616.5 from the top; action buttons occupy 638..680
-            Check(720f - 616.5f - 82f >= 20f, "action buttons keep >=20px clearance below the column");
-            // the revert note lives outside the column, so showing it cannot re-flow rows
-            Check(true, "revert note is anchored above the buttons, outside the stack");
+            // column spans 145..295 from the top; the BACK button occupies 638..680
+            Check(638f - 295f >= 20f, "action button keeps >=20px clearance below the column");
 
             // ------------------------------------------------ settings persistence shape
             Group("SettingsData — display fields persist; old saves still load");

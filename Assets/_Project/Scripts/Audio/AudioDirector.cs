@@ -123,6 +123,9 @@ namespace Hollowbrook.Audio
             {
                 t += Time.unscaledDeltaTime;
                 float k = Mathf.Clamp01(t / seconds);
+                // read the mix live: moving the volume sliders mid-crossfade must apply
+                // immediately instead of being overwritten by the value captured at fade start
+                musicVol = _settings != null ? _settings.MusicVolume : 0.5f;
                 to.volume = musicVol * k;
                 from.volume = musicVol * (1f - k);
                 yield return null;

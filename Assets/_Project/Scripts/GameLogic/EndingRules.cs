@@ -22,6 +22,9 @@ namespace Hollowbrook.Logic
             if (s.FalseRejections >= LoseThreshold)
                 return Result(EndingType.Lose, "false_rejections",
                     "Three legitimate students were turned away at your window. The complaints reached the district before your explanation did.");
+            if (s.QueueOverwhelmed)
+                return Result(EndingType.Lose, "overwhelmed",
+                    "The line overran the checkpoint. Too many faces at the glass, too little time to hold them — the gate gave way, and the yard poured into Hollowbrook unchecked. The district ended your contract before dawn.");
 
             if (s.Mode == GameMode.Normal && s.CompletedShifts >= ShiftPlan.TotalShifts)
             {

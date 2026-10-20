@@ -60,6 +60,8 @@ namespace Hollowbrook.Logic
         public List<ShiftSummary> History = new List<ShiftSummary>();
         public bool RunFinished = false;
         public PresentationLog TonightLog = new PresentationLog();
+        public bool QueueOverwhelmed = false;      // the waiting line overran the checkpoint (lose)
+        public QueueSnapshot QueueState;           // null until a shift queue has been persisted
 
         public SanityStage SanityStage => SanityModel.StageFor(Sanity);
 

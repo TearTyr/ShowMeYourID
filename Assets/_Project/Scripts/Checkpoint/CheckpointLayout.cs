@@ -71,6 +71,18 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region PaperOverlay = new Region(260, 120, 760, 480);
         public static readonly Region FullDesk = new Region(0, 0, 1280, 720);
 
+        // ---- checkpoint queue (Phase 9 additions to the approved grid) -------
+        // Waiting-line silhouette strips stand in the free gaps either side of the booth:
+        // left column ends at x=336, the window sill ends at x=875, END SHIFT at x=880.
+        // The right strip carries the waiting-count badge above its figures. The full
+        // QUEUE/CURRENT readout is the banner's second line (Inner.BannerQueue) — the
+        // top bar's right side is fully claimed by the frozen wireframe (clock, pause,
+        // findings), so no new top-level top-bar region exists to take it.
+        public static readonly Region QueueStripL = new Region(340, 436, 60, 240);
+        public static readonly Region QueueStripR = new Region(884, 428, 80, 244);
+        // Shift-start sticky note: transient overlay, bounds-checked like the paper overlays.
+        public static readonly Region StickyNote = new Region(390, 200, 500, 320);
+
         // Local sub-rects, measured from the owning panel's top-left corner.
         public static class Inner
         {
@@ -129,6 +141,21 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region PaperHead = new Region(30, 22, 700, 32);
             public static readonly Region PaperBody = new Region(40, 62, 680, 344);
             public static readonly Region PaperClose = new Region(310, 416, 140, 38);
+
+            // waiting-line strips (panel-local slots: 4 silhouettes each, 56px step)
+            public const float QueueSlotW = 44f, QueueSlotH = 52f, QueueSlotStep = 56f;
+            public const float QueueSlotLX = 8f, QueueSlotLY0 = 6f;    // inside the 60-wide left strip
+            public const float QueueSlotRX = 18f, QueueSlotRY0 = 22f;  // below the right strip's badge
+            public static readonly Region QueueBadge = new Region(0, 2, 80, 18);
+
+            // day banner: night label on top, queue readout underneath
+            public static readonly Region BannerTop = new Region(4, 2, 312, 20);
+            public static readonly Region BannerQueue = new Region(4, 22, 312, 18);
+
+            // sticky note (shift-start gate)
+            public static readonly Region StickyTitle = new Region(30, 48, 440, 40);
+            public static readonly Region StickyBody = new Region(40, 116, 420, 100);
+            public static readonly Region StickyCta = new Region(40, 240, 420, 34);
         }
 
         // One fixed 1280x720 frame, centred in the canvas. Children use grid coordinates only.

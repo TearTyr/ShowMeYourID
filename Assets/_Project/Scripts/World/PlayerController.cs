@@ -45,6 +45,9 @@ namespace Hollowbrook.World
 
             if (Input.GetKeyDown(KeyCode.Escape))
             {
+                // Escape belongs to an open overlay sheet (Options/Controls/Credits) first —
+                // unpausing here would tear the player out of the pause menu behind it.
+                if (_gameRoot.BlockingOverlayOpen) return;
                 if (_gameRoot.Paused) _gameRoot.TogglePause(false);
                 else if (!dialogueOpen) _gameRoot.TogglePause(true);
                 return;

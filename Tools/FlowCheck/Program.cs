@@ -44,7 +44,31 @@ namespace FlowCheck
                 root.Dialogue.Advance();
 
             Check(root.State == AppViewState.Checkpoint, "state is Checkpoint after the intro");
-            Check(root.Checkpoint != null && root.Checkpoint.CurrentVisitor != null, "a visitor is at the window");
+            Check(root.Checkpoint != null, "the desk exists");
+
+            Console.WriteLine("== sticky-note start gate (Phase 10.1) ==");
+            var cp0 = root.Checkpoint;
+            var sticky = FindDeep(cp0.transform, "StickyNoteOverlay");
+            Check(sticky != null && sticky.gameObject.activeSelf, "a fresh shift opens behind the sticky note");
+            var noteText = NoteTextOf(sticky);
+            Check(noteText.Contains("NIGHT SHIFT BEGINS.") &&
+                  noteText.Contains("Rules: Check IDs, ask questions, stamp. Don't let the wrong faces in.") &&
+                  noteText.Contains("[CLICK TO BEGIN]"),
+                  "the note carries the exact briefing text");
+            Check(cp0.CurrentVisitor == null && root.Queue.ArrivalCount == 0 && !root.Queue.Started,
+                "no visitor, no arrivals, clock not started while the note is up");
+            cp0.AdvanceQueue(6f); cp0.AdvanceQueue(6f);   // >6s of ignored waiting (step 11.1.4)
+            Check(cp0.CurrentVisitor == null && root.Queue.WaitingCount == 0 && root.Queue.ArrivalCount == 0,
+                "waiting 12s with the note up arrives nobody and queues nobody");
+            ClickStickyNote(root);
+            Check(!sticky.gameObject.activeSelf, "the note hides on click");
+            Check(cp0.CurrentVisitor != null, "P10: clicking the note presents the first visitor");
+            Check(root.Queue.Started && root.Queue.ArrivalCount == 1 && root.Queue.WaitingCount == 0,
+                "P10: exactly one arrival sequence started (one clock, one visitor)");
+            Check(root.Queue.TimerSeconds >= root.Config.queueArrivalMinSeconds &&
+                  root.Queue.TimerSeconds <= root.Config.queueArrivalMaxSeconds,
+                "P9: the arrival clock is armed inside [min,max] = [" +
+                root.Config.queueArrivalMinSeconds + "," + root.Config.queueArrivalMaxSeconds + "]s");
 
             Console.WriteLine("== Symptom 0 structural proofs ==");
             var border = FindDeep(root.Dialogue.transform, "panel_border");
@@ -62,6 +86,8 @@ namespace FlowCheck
             SpeechProof(root);
             SaveContinueResume();
             DeskLoop(root);
+            QueueProof(root);
+            SettingsProof(root);
             WorldLoop(root);
 
             Console.WriteLine(_failures == 0 ? "== FLOW CHAIN COMPLETE ==" : "== " + _failures + " CHECK(S) FAILED ==");
@@ -83,6 +109,8 @@ namespace FlowCheck
                 "qpanel_border", "q0", "q1", "q2", "q3", "testimony",
                 "scan", "records", "map", "notes", "reject", "allow", "monitor_border", "out",
                 "confirmbox_border", "Banner", "OverlayRules", "OverlayLog",
+                "queuestatus", "queuestripL", "queuestripR", "qsil0", "qsil7", "qoverflow", "qbadge",
+                "StickyNoteOverlay", "stickynote_border",
             };
             foreach (var n in deskNames)
                 Check(FindDeep(root.Checkpoint.transform, n) != null, "desk element '" + n + "'");
@@ -150,6 +178,11 @@ namespace FlowCheck
             ExpectRegion("call principal", L.StampReject, 984, 440, 110, 110);
             ExpectRegion("allow", L.StampAllow, 1148, 440, 110, 110);
             ExpectRegion("camera", L.Monitor, 968, 558, 296, 146);
+            // Phase 9/10 grid extensions (queue strips + sticky note; the queue readout
+            // is the banner's second line, inside the existing registered Banner region)
+            ExpectRegion("queue strip L", L.QueueStripL, 340, 436, 60, 240);
+            ExpectRegion("queue strip R", L.QueueStripR, 884, 428, 80, 244);
+            ExpectRegion("sticky note", L.StickyNote, 390, 200, 500, 320);
             // question buttons: wireframe x=980, y=118, 272x38, step 42 (panel-local grid)
             Check(Math.Abs(L.Inner.QBtnX - (980 - 968)) < 0.01f && Math.Abs(L.Inner.QBtnY0 - (118 - 88)) < 0.01f &&
                   Math.Abs(L.Inner.QBtnStep - 42) < 0.01f && Math.Abs(L.Inner.QBtnW - 272) < 0.01f &&
@@ -192,10 +225,13 @@ namespace FlowCheck
             Add("call principal", L.StampReject, "C");
             Add("allow", L.StampAllow, "C");
             Add("camera monitor", L.Monitor, "C");
+            Add("queue strip left", L.QueueStripL, "C");
+            Add("queue strip right", L.QueueStripR, "C");
             Add("toast", L.Toast, "T");
             Add("confirm box", L.ConfirmBox, "T");
             Add("verdict banner", L.VerdictBanner, "T");
             Add("paper overlay", L.PaperOverlay, "T");
+            Add("sticky note", L.StickyNote, "T");
 
             foreach (var r in Rows)
                 Check(r.Reg.X >= -0.01f && r.Reg.Y >= -0.01f && r.Reg.Right <= 1280.01f && r.Reg.Bottom <= 720.01f,
@@ -312,21 +348,23 @@ namespace FlowCheck
             FindDeep(confirm, "yes").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Check(!confirm.gameObject.activeSelf, "popup 'Yes' closes and stamps");
             // the stub runs the banner coroutine synchronously, so by the time the click
-            // returns the loop has already moved on: the stamped visitor is the proof
+            // returns the verdict is resolved: the stamped visitor is the proof
             Check(cp.CurrentVisitor == null || cp.CurrentVisitor.ClaimedName != beforeYes,
-                "verdict registered: " + beforeYes + " was processed and the loop moved on");
-            Check(cp.CurrentVisitor != null, "next visitor arrives after the verdict banner");
+                "verdict registered: " + beforeYes + " was processed and left the window");
+            if (cp.CurrentVisitor == null) cp.AdvanceQueue(6f);   // the arrival clock delivers the next
+            Check(cp.CurrentVisitor != null, "next visitor arrives on the clock after the verdict banner");
 
             int guard = 0;
-            while (!live("endshift") && guard++ < 12)
+            while (!live("endshift") && guard++ < 16)
             {
-                if (cp.CurrentVisitor == null) break;
+                if (cp.CurrentVisitor == null) { cp.AdvanceQueue(6f); continue; }
                 if (InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null) == Verdict.Allow)
                     btn("allow").onClick.Invoke();          // exercises the ALLOW click path
                 else
                     cp.Stamp(Verdict.Reject);
             }
-            Check(guard < 12, "roster walked to the end without runaway (" + guard + " verdicts)");
+            Check(guard < 16, "roster walked to the end without runaway (" + guard + " steps)");
+            Check(root.Queue.ShiftComplete, "P9: shift complete = source dry + line empty + window free");
             Check(live("endshift"), "END SHIFT lights up when the roster is done");
             Check(live("patrol"), "PATROL HALLWAY usable once no inspection is live");
 
@@ -342,13 +380,24 @@ namespace FlowCheck
             string first = root.Checkpoint.CurrentVisitor != null ? root.Checkpoint.CurrentVisitor.ClaimedName : "?";
             root.Checkpoint.Stamp(InspectionRules.ExpectedVerdict(root.Checkpoint.CurrentVisitor, null));
             root.PersistRun();
+            Check(root.Session.QueueState != null && root.Session.QueueState.Started &&
+                  root.Session.QueueState.Arrived == root.Queue.ArrivalCount,
+                "P11: PersistRun writes the started queue snapshot (cursor " + root.Session.QueueState.RosterCursor + ")");
             root.QuitToMenu(true);
             root.ContinueGame();
             CheckpointSceneBootstrap.Build(root);
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
+            var sticky = FindDeep(root.Checkpoint.transform, "StickyNoteOverlay");
+            Check(sticky != null && !sticky.gameObject.activeSelf,
+                "P10: CONTINUE into a started shift never re-shows the sticky note");
+            Check(root.Checkpoint.CurrentVisitor == null,
+                "P9: the restored shift waits on its arrival clock instead of respawning someone");
+            root.Checkpoint.AdvanceQueue(6f);         // the restored clock delivers the next arrival
             string resumed = root.Checkpoint.CurrentVisitor != null ? root.Checkpoint.CurrentVisitor.ClaimedName : "?";
             Console.WriteLine("  first visitor before quit: " + first + " | first visitor after CONTINUE: " + resumed);
             Check(first != resumed, "B8: CONTINUE resumes at the next visitor, not the same one");
+            Check(root.Queue.ArrivalCount == 2 && root.Queue.ProcessedCount == 1,
+                "P9: the restored queue kept its arrival/processed counts (no restart from zero)");
         }
 
         private static int DeepIndex(Transform parent, string name)
@@ -374,6 +423,467 @@ namespace FlowCheck
                 if (hit != null) return hit;
             }
             return null;
+        }
+
+        // ------------------------------------------------- checkpoint queue proofs
+        // Headless runs of the Phase 11 manual sequences: 11.1 queue + sticky note,
+        // 11.2 queue pressure, 11.3 missing student, 11.4 transitions/persistence,
+        // 11.5 settings + pause. Timing overrides below are TEST-ONLY (applied to the
+        // live queue tuning or a synthetic roster); the production arrival interval in
+        // GameConfigSO is never touched to make a proof finish faster.
+        private static void QueueProof(GameRoot root)
+        {
+            Console.WriteLine("== QUEUE proofs (Phase 9 + 11.1-11.4, headless) ==");
+            bool exhibition = root.Config.exhibitionMode;
+
+            // ---- Q1 arrivals accumulate FIFO while an inspection stays unresolved
+            FreshGame(root);
+            var cp = root.Checkpoint;
+            var roster = root.CurrentRoster;
+            Check(root.Queue.Tuning.ArrivalMinSeconds == root.Config.queueArrivalMinSeconds &&
+                  root.Queue.Tuning.ArrivalMaxSeconds == root.Config.queueArrivalMaxSeconds &&
+                  root.Queue.Tuning.PressureWarnAt == root.Config.queuePressureWarnAt &&
+                  root.Queue.Tuning.OverwhelmedAt == root.Config.queueOverwhelmedAt &&
+                  Math.Abs(root.Queue.Tuning.MissingStudentChance - root.Config.missingStudentChance) < 1e-6f &&
+                  root.Queue.Tuning.MissingStudentLimit == root.Config.missingStudentLimit,
+                  "Q1: production config feeds the queue tuning before any override");
+            IsolateMissingStudent(root);
+            Check(FindDeep(cp.transform, "StickyNoteOverlay").gameObject.activeSelf, "Q1: the fresh shift waits behind the note");
+            ClickStickyNote(root);
+            Check(cp.CurrentVisitor == roster[0], "Q1: note click presents the first visitor");
+            for (int i = 0; i < 3; i++) cp.AdvanceQueue(6f);   // inspection left unresolved ~18s
+            Check(cp.CurrentVisitor == roster[0], "Q1: an unresolved inspection keeps its visitor");
+            Check(root.Queue.WaitingCount == 3, "Q1: three arrivals accumulated in the line (got " + root.Queue.WaitingCount + ")");
+            Check(string.Join(",", root.Queue.WaitingLine.Select(v => v.VisitorIndex.ToString())) == "1,2,3",
+                  "Q1: the line is FIFO in arrival order");
+            Check(Silhouettes(root) == 3, "Q1: one silhouette per waiting visitor (" + Silhouettes(root) + " lit)");
+            Check(StatusText(root).Contains("QUEUE: 3") && StatusText(root).Contains("CURRENT: 4/4"),
+                  "Q1: top bar reads '" + StatusText(root) + "'");
+
+            // ---- Q2 the oldest waiter steps up after the banner, with no second wait
+            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            Check(cp.CurrentVisitor == roster[1], "Q2: oldest waiting visitor stepped up immediately after the banner");
+            Check(root.Queue.WaitingCount == 2 && Silhouettes(root) == 2, "Q2: exactly one silhouette left the line");
+            Check(StatusText(root).Contains("QUEUE: 2"), "Q2: counters updated immediately ('" + StatusText(root) + "')");
+            int guard = 0;
+            while (cp.CurrentVisitor != null && guard++ < 6)
+                cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            Check(root.Queue.ShiftComplete && guard <= 3, "Q2: the fully resolved roster completes the shift");
+
+            // ---- Q3 an empty queue never completes the shift early (11.1 step 11)
+            FreshGame(root);
+            IsolateMissingStudent(root);
+            cp = root.Checkpoint;
+            ClickStickyNote(root);
+            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            Check(cp.CurrentVisitor == null && root.Queue.WaitingCount == 0, "Q3: window and line are empty");
+            Check(!root.Queue.ShiftComplete, "Q3: empty line with pending arrivals is NOT completion");
+            Check(!Btn(root, "endshift").interactable, "Q3: END SHIFT stays dimmed while the source can produce");
+            cp.AdvanceQueue(6f);
+            Check(cp.CurrentVisitor == root.CurrentRoster[1], "Q3: the checkpoint waits, then the clock delivers");
+
+            // ---- Q4 queue pressure warns once, overwhelm collapses once (11.2)
+            var night4 = new RosterFactory(5).GenerateShift(ShiftPlan.Build()[3]);   // 8 visitors
+            Check(night4.Count == 8, "Q4: pressure roster has eight visitors");
+            FreshGame(root);
+            root.Queue.AttachRoster(night4, new QueueTuning
+            {
+                ArrivalMinSeconds = 0.01f, ArrivalMaxSeconds = 0.02f,   // test-only acceleration
+                PressureWarnAt = root.Config.queuePressureWarnAt,
+                OverwhelmedAt = root.Config.queueOverwhelmedAt,
+                MissingStudentChance = 0f,
+            }, 4242);
+            cp = root.Checkpoint;
+            int warnToasts = 0, overrunToasts = 0;
+            var toastSub = root.Bus.Subscribe(EventIds.Notification, e =>
+            {
+                string t = e.Text ?? e.Data as string;
+                if (t == null) return;
+                if (t.Contains("QUEUE PRESSURE")) warnToasts++;
+                if (t.Contains("OVERRUN")) overrunToasts++;
+            });
+            ClickStickyNote(root);
+            Check(cp.CurrentVisitor == night4[0], "Q4: synthetic roster drives the same note-click start");
+            for (int i = 0; i < 7; i++) cp.AdvanceQueue(1f);
+            Check(warnToasts == 1, "Q4: pressure warning fired exactly once at 5 waiting (got " + warnToasts + ")");
+            Check(overrunToasts == 1, "Q4: overwhelmed fired exactly once at 7 waiting (got " + overrunToasts + ")");
+            Check(root.Queue.WaitingCount == 7 && root.Queue.ArrivalCount == 8, "Q4: 7 waiting + 1 at the window when the line overran");
+            Check(root.Queue.Collapsed, "Q4: the queue collapsed");
+            Check(root.State == AppViewState.Ending && root.Session.QueueOverwhelmed, "Q4: overwhelmed ended the run through the existing ending route");
+            Check(root.Session.RunFinished && root.Records.EndingsSeen.Contains("lose"), "Q4: recorded once as a lose, run finished");
+            int arrivalsFrozen = root.Queue.ArrivalCount;
+            int processedBefore = root.Session.Processed;
+            cp.AdvanceQueue(60f);
+            cp.Stamp(Verdict.Allow);
+            root.TriggerQueueOverwhelmed();
+            Check(root.Queue.ArrivalCount == arrivalsFrozen, "Q4: no further arrivals after the collapse");
+            Check(root.Session.Processed == processedBefore, "Q4: verdict interaction disabled after the run ended");
+            Check(overrunToasts == 1 && root.State == AppViewState.Ending, "Q4: no duplicate ending transition");
+            toastSub.Dispose();
+
+            // ---- Q5 missing student: forced incident, line-preferred victim, permanent (11.3)
+            int seedWait = FindQueueSeed(rr => rr.Count > 3 && !rr[0].IsAnomaly && !rr[1].IsAnomaly && rr[2].IsAnomaly);
+            Check(seedWait > 0, "Q5: found a deterministic seed with legit, legit, anomaly order");
+            var mRoster = new RosterFactory(seedWait).GenerateShift(ShiftPlan.Build()[1]);  // night 2: 6 visitors
+            var victimExpected = mRoster[1];
+            FreshGame(root);
+            root.Queue.AttachRoster(mRoster, new QueueTuning
+            {
+                ArrivalMinSeconds = 0.01f, ArrivalMaxSeconds = 0.02f,
+                MissingStudentChance = 1f,          // forced for the proof
+                MissingStudentLimit = root.Config.missingStudentLimit,
+            }, 777);
+            cp = root.Checkpoint;
+            ClickStickyNote(root);                    // #0 legit -> window
+            cp.AdvanceQueue(1f);                      // #1 legit -> line
+            cp.AdvanceQueue(1f);                      // #2 anomaly -> line, incident fires
+            Check(root.Queue.MissingIncidents == 1, "Q5: the anomaly's arrival triggered one incident");
+            Check(root.Queue.WaitingCount == 1 && root.Queue.WaitingLine.First() == mRoster[2],
+                  "Q5: the waiting legitimate student vanished from the line");
+            Check(root.Queue.EffectiveTotal == mRoster.Count - 1, "Q5: effective total dropped by one (" + root.Queue.EffectiveTotal + ")");
+            Check(StatusText(root).Contains("CURRENT: 2/" + (mRoster.Count - 1)),
+                  "Q5: counter reflects the smaller night ('" + StatusText(root) + "')");
+            string speech = FindDeep(cp.transform, "speechlog").GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
+            Check(speech.Contains("Roll call"), "Q5: subtle radio feedback, no anomaly revealed");
+            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));   // resolve #0 -> anomaly steps up
+            Check(cp.CurrentVisitor == mRoster[2], "Q5: the anomaly itself steps up to the window");
+            cp.Stamp(Verdict.Allow);                    // let the anomaly in — the loss must stand
+            Check(root.Queue.MissingIncidents == 1 && root.Queue.EffectiveTotal == mRoster.Count - 1,
+                  "Q5: allowing the anomaly never restores the vanished student");
+            var arrivedNames = new List<string>();
+            guard = 0;
+            while (!root.Queue.ShiftComplete && guard++ < 12)
+            {
+                if (cp.CurrentVisitor == null) { cp.AdvanceQueue(1f); continue; }
+                arrivedNames.Add(cp.CurrentVisitor.ClaimedName);
+                cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            }
+            Check(root.Queue.ShiftComplete, "Q5: the shift still completes with a vanished student");
+            Check(!arrivedNames.Contains(victimExpected.ClaimedName), "Q5: the vanished student never arrived later");
+            Check(root.Queue.ArrivalCount == root.Queue.EffectiveTotal, "Q5: arrivals == effective total (bookkeeping consistent)");
+            Check(!root.Session.TonightLog.WasPresented(victimExpected.IdNumber),
+                  "Q5: a student who never arrived is never recorded as inspected");
+
+            // ---- Q6 probability-failure path: an anomaly arrives, nobody vanishes
+            FreshGame(root);
+            root.Queue.AttachRoster(mRoster, new QueueTuning
+            {
+                ArrivalMinSeconds = 0.01f, ArrivalMaxSeconds = 0.02f, MissingStudentChance = 0f,
+            }, 777);
+            cp = root.Checkpoint;
+            ClickStickyNote(root);
+            for (int i = 0; i < 3; i++) cp.AdvanceQueue(1f);
+            Check(root.Queue.MissingIncidents == 0 && root.Queue.EffectiveTotal == mRoster.Count &&
+                  root.Queue.WaitingCount == 3,
+                  "Q6: chance-0 roll leaves the line intact (full effective total)");
+
+            // ---- Q7 patrol transition: the line rides in GameRoot, the clock pauses (11.4)
+            FreshGame(root);
+            IsolateMissingStudent(root);
+            cp = root.Checkpoint;
+            var pRoster = root.CurrentRoster;
+            ClickStickyNote(root);
+            cp.AdvanceQueue(6f);                                   // #2 arrives behind #1
+            Check(root.Queue.WaitingCount == 1, "Q7: a visitor is waiting before the patrol");
+            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));   // #1 resolved, #2 steps up
+            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));   // #2 resolved, line empty
+            Check(cp.CurrentVisitor == null && root.Queue.RosterCursor == 2, "Q7: window free, cursor at 2");
+            float timerBeforePatrol = root.Queue.TimerSeconds;
+            Check(timerBeforePatrol > 0f, "Q7: the arrival clock is mid-interval");
+            cp.GoPatrol();
+            SchoolSceneBootstrap.Build(root);                      // what Unity does after LoadScene(School)
+            Check(root.State == AppViewState.Exploration, "Q7: patrol started");
+            Check(root.Queue.Started && root.Queue.RosterCursor == 2 && root.Queue.ArrivalCount == 2 &&
+                  Math.Abs(root.Queue.TimerSeconds - timerBeforePatrol) < 0.0001f,
+                  "Q7: queue state frozen and intact while off-desk (timer never advanced)");
+            root.ReturnToCheckpoint();
+            CheckpointSceneBootstrap.Build(root);
+            cp = root.Checkpoint;
+            Check(!FindDeep(cp.transform, "StickyNoteOverlay").gameObject.activeSelf, "Q7: returning never re-shows the note");
+            Check(cp.CurrentVisitor == null, "Q7: no visitor duplicated on return");
+            cp.AdvanceQueue(timerBeforePatrol + 0.1f);
+            Check(cp.CurrentVisitor == pRoster[2] && root.Queue.ArrivalCount == 3,
+                  "Q7: the paused clock resumes and delivers exactly the next visitor");
+
+            // ---- Q8 quit + continue mid-inspection: window visitor, budget and line restored
+            cp.AdvanceQueue(6f);                                   // #4 arrives behind #3
+            Check(root.Queue.WaitingCount == 1, "Q8: one waiting before the quit");
+            cp.AskQuestion(QuestionId.Year);
+            Check(root.Queue.ActiveBudgetMask == 1 << (int)QuestionId.Year, "Q8: the question budget synced into the queue");
+            root.TogglePause(true);
+            root.QuitToMenu(true);                                 // saves at the quit boundary
+            root.ContinueGame();
+            CheckpointSceneBootstrap.Build(root);
+            for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
+            cp = root.Checkpoint;
+            Check(!FindDeep(cp.transform, "StickyNoteOverlay").gameObject.activeSelf, "Q8: a restored shift shows no note");
+            Check(cp.CurrentVisitor != null && cp.CurrentVisitor.VisitorIndex == pRoster[2].VisitorIndex,
+                  "Q8: the same visitor is back at the window");
+            string budgetText = FindDeep(cp.transform, "budget").GetComponent<UnityEngine.UI.Text>().text;
+            Check(budgetText.Contains("1 LEFT"), "Q8: the question budget was NOT refunded ('" + budgetText + "')");
+            Check(root.Queue.WaitingCount == 1 && Silhouettes(root) == 1, "Q8: the waiting line was restored, not duplicated");
+            Check(StatusText(root).Contains("QUEUE: 1") && StatusText(root).Contains("CURRENT: 4/4"),
+                  "Q8: counters restored ('" + StatusText(root) + "')");
+            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            Check(cp.CurrentVisitor != null && cp.CurrentVisitor.VisitorIndex == pRoster[3].VisitorIndex,
+                  "Q8: after the verdict the restored waiter steps up");
+
+            // ---- Q9 Endless/Challenge keep working through their own arrival source (9.8)
+            root.StartNewGame(GameMode.Endless);
+            CheckpointSceneBootstrap.Build(root);
+            for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
+            cp = root.Checkpoint;
+            Check(root.Queue.InfiniteSource && root.Queue.EffectiveTotal == -1, "Q9: endless run attaches the generator source");
+            Check(FindDeep(cp.transform, "StickyNoteOverlay").gameObject.activeSelf, "Q9: run modes use the same start gate");
+            ClickStickyNote(root);
+            Check(cp.CurrentVisitor != null, "Q9: first run visitor arrives on the note click");
+            cp.AdvanceQueue(6f);
+            Check(root.Queue.WaitingCount == 1, "Q9: run visitors accumulate in the same line");
+            Check(!StatusText(root).Contains("CURRENT:"), "Q9: no finite counter for infinite sources ('" + StatusText(root) + "')");
+            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            Check(cp.CurrentVisitor != null && root.Session.RunProcessed == 1,
+                  "Q9: promotion + run scoring still flow through OnVerdictResolved");
+
+            // ---- Q10 shift boundary: clocking out never leaks the line into the next night
+            root.Config.exhibitionMode = false;        // full five-night arc (test-only override)
+            FreshGame(root);
+            IsolateMissingStudent(root);
+            cp = root.Checkpoint;
+            ClickStickyNote(root);
+            guard = 0;
+            while (!Btn(root, "endshift").interactable && guard++ < 20)
+            {
+                if (cp.CurrentVisitor == null) { cp.AdvanceQueue(6f); continue; }
+                cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            }
+            Check(guard < 20 && root.Queue.ShiftComplete, "Q10: night 1 walked to completion through the queue");
+            Btn(root, "endshift").onClick.Invoke();
+            Check(root.State == AppViewState.ShiftResults, "Q10: clocking out lands on the shift results");
+            root.QuitToMenu(true);
+            root.ContinueGame();
+            CheckpointSceneBootstrap.Build(root);
+            for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
+            cp = root.Checkpoint;                      // the rebuild created a fresh desk view
+            Check(root.Session.CurrentShift == 2, "Q10: CONTINUE after clock-out starts night 2");
+            Check(!root.Queue.Started && root.Queue.ArrivalCount == 0 && root.Queue.RosterCursor == 0 &&
+                  root.Queue.WaitingCount == 0,
+                  "Q10: the finished night's line never leaks into night 2");
+            Check(root.CurrentRoster.Count == 6, "Q10: night 2 regenerated its own 6-visitor roster");
+            Check(FindDeep(cp.transform, "StickyNoteOverlay").gameObject.activeSelf,
+                  "Q10: every freshly started shift gets the sticky note");
+            ClickStickyNote(root);
+            Check(root.Checkpoint.CurrentVisitor != null && root.Queue.ArrivalCount == 1,
+                  "Q10: night 2 starts cleanly behind its own note");
+
+            // ---- Q11 the district administrator's special encounter survives the queue
+            var night5 = new RosterFactory(3).GenerateShift(ShiftPlan.Build()[4]);   // 8 + admin
+            Check(night5.Count == 9 && night5[8].IsAdministrator,
+                  "Q11: night 5 roster ends with the administrator");
+            FreshGame(root);
+            IsolateMissingStudent(root);
+            root.Queue.AttachRoster(night5, new QueueTuning
+            {
+                ArrivalMinSeconds = 0.01f, ArrivalMaxSeconds = 0.02f,   // test-only acceleration
+                MissingStudentChance = 0f,
+            }, 31337);
+            cp = root.Checkpoint;
+            ClickStickyNote(root);
+            guard = 0;
+            while (guard++ < 40)
+            {
+                for (int i = 0; i < 12 && root.Dialogue != null && root.Dialogue.IsActive; i++)
+                    root.Dialogue.Advance();
+                if (root.Queue.Active == null)
+                {
+                    if (root.Queue.ShiftComplete) break;
+                    cp.AdvanceQueue(1f);
+                    continue;
+                }
+                if (cp.CurrentVisitor == null) continue;   // defensive: view/queue out of sync
+                cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            }
+            Check(root.Queue.ProcessedCount == 9, "Q11: all nine visitors resolved through the queue (" +
+                  root.Queue.ProcessedCount + ")");
+            Check(root.Session.AdminRejected && !root.Session.AdminAllowed,
+                  "Q11: the administrator was rejected through the queue flow");
+            for (int i = 0; i < 12 && root.Dialogue != null && root.Dialogue.IsActive; i++)
+                root.Dialogue.Advance();               // play the outro to its callback
+            Check(root.Queue.ShiftComplete, "Q11: rejecting the administrator completes the night");
+            Check(Btn(root, "endshift").interactable, "Q11: END SHIFT lights up after the outro");
+            Btn(root, "endshift").onClick.Invoke();
+            Check(root.State == AppViewState.ShiftResults && root.Session.CompletedShifts == 1,
+                  "Q11: clocking out lands on shift results (story arc intact)");
+
+            root.Config.exhibitionMode = exhibition;   // restore the production default
+        }
+
+        // ------------------------------------------------- settings modal proofs
+        // Phase 10.3-10.5 + 11.5, headless: the audio-only modal from the main menu and
+        // from the pause menu (pause stays paused; closing returns to the pause sheet).
+        private static void SettingsProof(GameRoot root)
+        {
+            Console.WriteLine("== SETTINGS modal proofs (Phase 10 + 11.5, headless) ==");
+
+            root.BootToMainMenu();
+            MenuSceneBootstrap.Build(root);            // what Unity does after LoadScene(MainMenu)
+            var settingsBtn = root.MainMenu.transform.Find("buttons").Find("SETTINGS");
+            Check(settingsBtn != null, "S1: the menu SETTINGS button exists");
+            settingsBtn.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            var sv = root.SettingsScreen;
+            Check(sv != null && sv.gameObject.activeSelf, "S1: settings opens over the main menu (no scene load)");
+            Check(root.State == AppViewState.MainMenu && root.MainMenu.gameObject.activeSelf,
+                  "S1: the menu state is untouched underneath");
+
+            Check(FindDeep(sv.transform, "master") != null && FindDeep(sv.transform, "music") != null &&
+                  FindDeep(sv.transform, "sfx") != null, "S2: exactly the three audio rows exist");
+            Check(FindDeep(sv.transform, "fullscreen") == null && FindDeep(sv.transform, "resrow") == null &&
+                  FindDeep(sv.transform, "textscale") == null && FindDeep(sv.transform, "datarow") == null &&
+                  FindDeep(sv.transform, "resetdata") == null && FindDeep(sv.transform, "controls") == null,
+                  "S2: display / accessibility / data-reset / controls are gone from the modal");
+            Check(FindDeep(sv.transform, "back") != null, "S2: a clear BACK button exists");
+            Check(FindDeep(sv.transform, "dim") != null &&
+                  FindDeep(sv.transform, "dim").GetComponent<UnityEngine.UI.Image>().raycastTarget,
+                  "S2: the dimmer blocks clicks behind the modal");
+
+            var master = FindDeep(sv.transform, "master").GetComponent<UnityEngine.UI.Slider>();
+            var music = FindDeep(sv.transform, "music").GetComponent<UnityEngine.UI.Slider>();
+            var sfx = FindDeep(sv.transform, "sfx").GetComponent<UnityEngine.UI.Slider>();
+            var s = root.Settings;
+
+            SetSlider(master, 0.5f);
+            Check(Math.Abs(s.Current.MasterVolume - 0.5f) < 0.0001f, "S3: master slider writes through SettingsSystem immediately");
+            SetSlider(music, 0.4f);
+            Check(Math.Abs(s.MusicVolume - 0.2f) < 0.0001f, "S3: music volume = master x music (0.5 x 0.4)");
+            Check(Math.Abs(s.SfxVolume - 0.4f) < 0.0001f, "S3: moving music did NOT change the sfx mix (0.5 x 0.8)");
+            SetSlider(sfx, 0.25f);
+            Check(Math.Abs(s.SfxVolume - 0.125f) < 0.0001f, "S3: sfx volume = master x sfx (0.5 x 0.25)");
+            Check(Math.Abs(s.MusicVolume - 0.2f) < 0.0001f, "S3: moving sfx did NOT change the music mix");
+
+            // the music bed reacts without a scene reload (existing SettingsChanged path)
+            var sources = root.Audio.gameObject.GetComponentsInChildren<UnityEngine.AudioSource>(true);
+            UnityEngine.AudioSource playingMusic = null;
+            foreach (var src in sources) if (src.isPlaying && src.loop) { playingMusic = src; break; }
+            Check(playingMusic != null, "S4: a music source is playing (menu bed)");
+            if (playingMusic != null)
+            {
+                SetSlider(music, 1f);
+                Check(Math.Abs(playingMusic.volume - s.MusicVolume) < 0.0001f,
+                      "S4: the playing music source refreshed to master x music = " + s.MusicVolume);
+                SetSlider(master, 0f);
+                Check(Math.Abs(playingMusic.volume) < 0.0001f, "S4: master at zero mutes music");
+                Check(Math.Abs(s.SfxVolume) < 0.0001f, "S4: master at zero mutes sfx too");
+                SetSlider(master, 0.8f);
+            }
+
+            // persistence across an application restart (PlayerPrefs path)
+            var fresh = new SettingsSystem(root.Bus);
+            Check(Math.Abs(fresh.Current.MasterVolume - 0.8f) < 0.0001f &&
+                  Math.Abs(fresh.Current.MusicVolume - 1f) < 0.0001f &&
+                  Math.Abs(fresh.Current.SfxVolume - 0.25f) < 0.0001f,
+                  "S5: a fresh SettingsSystem reloads the exact stored volumes (restart persistence)");
+
+            FindDeep(sv.transform, "back").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(!sv.gameObject.activeSelf && root.MainMenu.gameObject.activeSelf &&
+                  root.State == AppViewState.MainMenu,
+                  "S6: BACK closes to an intact main menu");
+
+            // pause-menu path: Options over PAUSED must stay paused and return to the sheet
+            FreshGame(root);
+            ClickStickyNote(root);
+            root.TogglePause(true);
+            Check(root.Paused && Time.timeScale == 0f && root.PauseScreen.gameObject.activeSelf, "S7: pause menu is up, game paused");
+            root.OpenSettings();
+            Check(root.SettingsScreen.gameObject.activeSelf && !root.PauseScreen.gameObject.activeSelf,
+                  "S7: options replaces the pause sheet");
+            Check(root.Paused && Time.timeScale == 0f, "S7: the game stays paused while options is open");
+            Check(root.BlockingOverlayOpen, "S7: the modal reports itself as a blocking overlay");
+            SetSlider(FindDeep(root.SettingsScreen.transform, "music").GetComponent<UnityEngine.UI.Slider>(), 0.55f);
+            Check(Math.Abs(root.Settings.Current.MusicVolume - 0.55f) < 0.0001f, "S7: sliders work while paused (no scaled time involved)");
+            Input.KeysDown.Add(KeyCode.Escape);
+            root.Checkpoint.TickHotkeys();               // the frame's Esc for the desk view
+            Input.KeysDown.Clear();
+            Check(root.Paused && root.SettingsScreen.gameObject.activeSelf,
+                  "S7: Esc while options is open does NOT unpause behind it");
+            root.CloseSettings();
+            Check(!root.SettingsScreen.gameObject.activeSelf && root.PauseScreen.gameObject.activeSelf &&
+                  root.Paused && Time.timeScale == 0f,
+                  "S7: closing options returns to the pause menu, still paused");
+            Input.KeysDown.Add(KeyCode.Escape);
+            root.Checkpoint.TickHotkeys();               // deliberate resume by the player
+            Input.KeysDown.Clear();
+            Check(!root.Paused && Time.timeScale == 1f, "S7: Esc with no overlay resumes gameplay");
+            root.TogglePause(true);
+            root.OpenSettings();
+            var reopened = FindDeep(root.SettingsScreen.transform, "music").GetComponent<UnityEngine.UI.Slider>();
+            Check(Math.Abs(reopened.value - 0.55f) < 0.0001f, "S8: reopening options shows the retained value");
+            root.CloseSettings();
+            root.TogglePause(false);
+        }
+
+        // ------------------------------------------------------------ queue helpers
+        private static void FreshGame(GameRoot root)
+        {
+            root.StartNewGame(GameMode.Normal);
+            CheckpointSceneBootstrap.Build(root);        // what Unity does after LoadScene(Hollowbrook)
+            for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
+        }
+
+        // isolate a scenario from the (separately proven) missing-student roll;
+        // the production config -> tuning wiring is asserted in Q1 before any override
+        private static void IsolateMissingStudent(GameRoot root) =>
+            root.Queue.Tuning.MissingStudentChance = 0f;
+
+        private static void ClickStickyNote(GameRoot root)
+        {
+            var note = FindDeep(root.Checkpoint.transform, "stickynote_border");
+            note.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+        }
+
+        private static string NoteTextOf(Transform t)
+        {
+            var sb = new System.Text.StringBuilder();
+            CollectText(t, sb);
+            return sb.ToString();
+        }
+
+        private static void CollectText(Transform t, System.Text.StringBuilder sb)
+        {
+            var txt = t.GetComponent<UnityEngine.UI.Text>();
+            if (txt != null && !string.IsNullOrEmpty(txt.text)) sb.Append(txt.text).Append('\n');
+            for (int i = 0; i < t.childCount; i++) CollectText(t.GetChild(i), sb);
+        }
+
+        private static int Silhouettes(GameRoot root)
+        {
+            int n = 0;
+            for (int i = 0; i < 8; i++)
+            {
+                var fig = FindDeep(root.Checkpoint.transform, "qsil" + i);
+                if (fig != null && fig.gameObject.activeSelf) n++;
+            }
+            return n;
+        }
+
+        private static string StatusText(GameRoot root) =>
+            FindDeep(root.Checkpoint.transform, "queuestatus").GetComponent<UnityEngine.UI.Text>().text;
+
+        private static UnityEngine.UI.Button Btn(GameRoot root, string name) =>
+            FindDeep(root.Checkpoint.transform, name).GetComponent<UnityEngine.UI.Button>();
+
+        private static void SetSlider(UnityEngine.UI.Slider slider, float v)
+        {
+            slider.value = v;                            // the stub field has no side effects...
+            slider.onValueChanged.Invoke(v);             // ...so fire the callback like the engine does
+        }
+
+        private static int FindQueueSeed(Func<List<VisitorData>, bool> pred)
+        {
+            for (int seed = 1; seed <= 400; seed++)
+            {
+                var rr = new RosterFactory(seed).GenerateShift(ShiftPlan.Build()[1]);   // night 2 shape
+                if (pred(rr)) return seed;
+            }
+            return -1;
         }
 
         // ------------------------------------------------- patrol world loop

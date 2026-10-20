@@ -47,6 +47,25 @@ namespace Hollowbrook.Logic
             }
 
             public void Reset() => _asked.Clear();
+
+            /// <summary>Asked questions as a bitmask of QuestionId — small enough to ride
+            /// in the save file so a mid-inspection quit/continue cannot refund the budget.</summary>
+            public int Mask
+            {
+                get
+                {
+                    int m = 0;
+                    foreach (var q in _asked) m |= 1 << (int)q;
+                    return m;
+                }
+            }
+
+            public void RestoreFromMask(int mask)
+            {
+                _asked.Clear();
+                foreach (QuestionId q in All)
+                    if ((mask & (1 << (int)q)) != 0) _asked.Add(q);
+            }
         }
     }
 

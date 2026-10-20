@@ -13,8 +13,13 @@ MonoBehaviour:
   m_Name: GameConfig
   m_EditorClassIdentifier: 
   verdictBannerSeconds: 3.2
-  betweenVisitorsSeconds: 1.6
   shiftStartHour: 22
+  queueArrivalMinSeconds: 3
+  queueArrivalMaxSeconds: 5
+  queuePressureWarnAt: 5
+  queueOverwhelmedAt: 7
+  missingStudentChance: 0.25
+  missingStudentLimit: 1
   walkSpeed: 3.4
   runSpeed: 6
   interactRange: 1.35

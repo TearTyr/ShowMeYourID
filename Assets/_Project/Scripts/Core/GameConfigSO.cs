@@ -10,10 +10,22 @@ namespace Hollowbrook.Core
         [Header("Checkpoint pacing")]
         [Tooltip("Seconds the result banner stays up after a verdict.")]
         public float verdictBannerSeconds = 3.2f;
-        [Tooltip("Seconds between visitors (breathing room / dread pacing).")]
-        public float betweenVisitorsSeconds = 1.6f;
         [Tooltip("In-story shift starts at 22:00 and ends at 02:00.")]
         public int shiftStartHour = 22;
+
+        [Header("Checkpoint queue")]
+        [Tooltip("Lower bound of the randomized visitor arrival interval while a shift runs.")][Range(0.5f, 60f)]
+        public float queueArrivalMinSeconds = 3f;
+        [Tooltip("Upper bound of the randomized visitor arrival interval.")][Range(0.5f, 120f)]
+        public float queueArrivalMaxSeconds = 5f;
+        [Tooltip("Waiting visitors (window excluded) at which the queue-pressure warning fires once.")][Range(1, 30)]
+        public int queuePressureWarnAt = 5;
+        [Tooltip("Waiting visitors at which the line overruns the checkpoint — a one-shot run failure.")][Range(2, 40)]
+        public int queueOverwhelmedAt = 7;
+        [Tooltip("Chance that an arriving anomaly (not the administrator) makes one legitimate student vanish. Normal mode only.")][Range(0f, 1f)]
+        public float missingStudentChance = 0.25f;
+        [Tooltip("Missing-student incidents allowed per shift.")][Range(0, 5)]
+        public int missingStudentLimit = 1;
 
         [Header("Exploration")]
         public float walkSpeed = 3.4f;
@@ -98,7 +110,6 @@ namespace Hollowbrook.Core
         [Tooltip("One curated night (4 visitors, 1 anomaly) then the demo closes. Off = full five-shift story.")]
         public bool exhibitionMode = true;
         public float exhibitionBannerSeconds = 2.2f;
-        public float exhibitionBetweenVisitors = 1.0f;
 
         [Header("Shift clock")]
         [Tooltip("In-story minutes per real second while a shift is running, in ANY scene.")]

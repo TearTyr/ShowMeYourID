@@ -382,3 +382,173 @@ Unity glue:
   from `Tools/FlowCheck` manually (each check maps 1:1 to an editor action).
 - Manual 12-step test sequence from the task: the headless WorldLoop covers steps 1–12
   behaviorally; the visual half (what the beam LOOKS like) needs one editor session.
+
+# Checkpoint queue, missing students, sticky note + audio-only Options (branch feat/queue-options-rework)
+
+Baseline audited at `f9bdffd`; findings and decisions in `docs/QUEUE-OPTIONS-AUDIT.md` (A1–A16).
+Phases 9–11 of the additional agentic development task.
+
+## What was replaced (verified in the baseline audit)
+
+- `CheckpointView` walked the roster with ONE `_index` field that conflated roster cursor, arrival
+  count, processed count, "current" and completion; `AfterBanner` hard-coded a second waiting
+  period (`BetweenSeconds + 2.2f`) after every verdict; nothing but the cursor survived patrol;
+  saves carried a single `visitorAtSave` int. No queue pressure, no overwhelmed state, no
+  missing students, no shift-start gate.
+- `SettingsView` mixed audio, display (fullscreen/resolution/revert countdown), accessibility and
+  data reset in one scrolling sheet; Escape while Options was open over the pause menu closed
+  Options AND unpaused in the same frame (`CheckpointView.Update` / `PlayerController.Tick` both
+  handled Esc unconditionally).
+- `AudioDirector.Crossfade` captured the music volume once at fade start, so slider moves during a
+  crossfade were overwritten by the stale value at fade end.
+
+## The rebuild
+
+**`GameLogic/CheckpointQueue.cs` (new, engine-free, unit-tested).** The single authority for the
+arrival flow, with the concepts the task demands kept separate: roster source (finite list in
+Normal, `GameRoot.NextRunVisitor` generator in Endless/Challenge), waiting line (real FIFO
+`Queue<VisitorData>`), active window visitor, arrival clock (seeded random 3–5 s from
+`QueueTuning`, at most one arrival per tick, overshoot carries), arrival/processed counters,
+effective total (roster minus vanished; −1 when infinite), and completion (started + source dry +
+line empty + window free — never "line temporarily empty"). `Tick`/`ForceNextArrival`/
+`ResumePresentation` return a `QueueTickResult` struct (ToWindow/ToLine/Vanished/LineChanged/
+PressureWarning/Overwhelmed) — the pure layer reports, the desk view presents and sounds.
+Pressure edges are crossed-threshold events (warning once at 5; collapse once at 7 — the task's
+initial thresholds, all in `GameConfigSO`). `AbandonLine()` closes a night on a story beat (the
+administrator outro) even if waiters remain — the promoted-next window closes with it, so the
+admin rejection can never soft-lock the END SHIFT gate. Missing students: when an eligible (non-admin)
+anomaly first enters the line, one seeded roll against `missingStudentChance` (limit
+`missingStudentLimit` = 1/shift); the victim is a random legitimate visitor, preferred from the
+waiting line, else from the un-arrived source (cursor skips vanished entries — no negative
+indices, no double removal, never active/processed/admin/anomaly). A line victim also decrements
+the arrival progression, so `CURRENT: a/t` and the end-of-shift invariant `arrivals == effective
+total` stay honest. Run modes never vanish anyone (finite-roster story mechanic).
+
+**Ownership + persistence.** `GameRoot.Queue` owns the instance (persistent run state). Chosen
+patrol rule (applied consistently): the clock runs only while the desk is the active screen — the
+desk view is the only ticker (`AdvanceQueue(Time.deltaTime)` from `Update`, so `timeScale = 0`
+pauses it with no unscaled-time leak), patrol destroys the view and freezes the line, `ResumeRun`
+rebuilds silhouettes/counters/window from the same object. `QueueSnapshot` (started, cursor,
+arrived, processed, timer, waiting/vanished as `VisitorIndex` lists, active, incidents, budget
+mask, collapsed, resolution-pending) rides in `GameSession` and serializes as additive `queue*` save
+keys; pre-queue saves fall back to the legacy `visitorAtSave` cursor. Resolution is two-phase —
+`CommitActiveResolution` books the processed count and consumes the budget mask at the stamp,
+`CompleteActive` frees the window and promotes after the banner — so a pause→quit *during the
+banner* restores as a finished resolution instead of a stampable visitor (found by tracing the
+banner coroutine against the pause menu; nine pure-logic checks pin it). `FinishShift` resets the
+queue before persisting so a finished night's line can never leak into the next one.
+`QuestionSystem.Budget` gained `Mask`/`RestoreFromMask` so a mid-inspection quit/continue cannot
+refund questions.
+
+**Desk view.** `NextVisitor`/`ResumeAfterExploration`/`DelayedNext` and the `_index`/`_roster`/
+`_rosterComplete`/`_waitingReturnFromPatrol` fields are gone (replaced coherently, not wrapped).
+`BeginRun(shift)` shows the sticky note for unstarted shifts or restores the presentation from
+queue state; `AfterBanner` → `CompleteActive()` promotes the oldest waiter immediately (no second
+wait) or frees the window for the clock; `Stamp` gates on collapse; verdicts still run through
+`GameRoot.OnVerdictResolved` exactly once; the administrator outro branch is intact. Queue UI on
+the approved grid discipline: two silhouette strips in the free yard gaps either side of the
+booth (`QueueStripL/R`, 4 identical `custodian_0` figures each + `+n` overflow — legit and
+anomaly indistinguishable), a `LINE n` badge above the right strip, and the
+`QUEUE: n | CURRENT: a/t` readout as the day banner's second line (`Inner.BannerQueue`; the
+top bar's right side is fully claimed by the frozen wireframe's clock/pause/findings, so no new
+top-level top-bar region exists). Amber at pressure, red `OVERRUN` at collapse. All new elements
+are registered in `CheckpointLayout` + `DeskLayoutAudit` and pinned by the FlowCheck layout audit.
+
+**Overwhelmed consequence.** No existing lose route represents "the line overran the checkpoint"
+accurately (breaches/false rejections would misrepresent it), so per the task's fallback the
+consequence is a one-shot run failure through the EXISTING ending route: `Session.QueueOverwhelmed`
++ additive `EndingRules` lose reason `"overwhelmed"` (evaluated after admin/breaches/false-rejects,
+so frozen tests and priorities are untouched) → `GameRoot.TriggerQueueOverwhelmed` (alarm, caption,
+toast, `TriggerEnding`). The queue collapses first, so arrivals stop, `Stamp` is dead, and
+re-entry is guarded (`RunFinished`/state checks) — no duplicate endings, no repeated penalties.
+
+**Sticky note (Phase 10.1).** Centered paper panel over a click-blocking full-desk dimmer with the
+exact required text ("NIGHT SHIFT BEGINS." / "Rules: Check IDs, ask questions, stamp. Don't let the
+wrong faces in." / "[CLICK TO BEGIN]"). A genuine gate: before the click the queue is unstarted —
+no first visitor, no clock, no enqueues, verdict/question controls dimmed, patrol refused — and
+there is exactly one clock to start. The click plays `sfx_ui_open`, hides the note, marks the shift
+started in persistent run state, presents the first eligible visitor immediately and arms the
+arrival clock. Resume paths (patrol return, CONTINUE) never re-show it, never double-arm the
+clock, never re-spawn the first visitor, never erase the line, never refund the budget.
+
+**Options modal (Phase 10.3–10.5).** `SettingsView` refined (not duplicated) into the compact
+audio-only modal on the existing `LeftSheet` + `OpenSettings`/`CloseSettings` paths: AUDIO header +
+MASTER/MUSIC/SFX `SliderRow`s (live % read-out built in) + `◂ BACK`; dimmer blocks clicks behind;
+Escape closes; Tab cycles the three sliders. Display/fullscreen/resolution/text-size/
+accessibility/CONTROLS/RESET-DATA rows removed from the panel — `SettingsSystem`, `SettingsData`
+persistence, `DisplayPolicy`, boot-time `ApplyStoredDisplay` and the menu's `F2`×3 reset are
+untouched. `AudioDirector`: crossfade now reads `_settings.MusicVolume` live per frame;
+`ApplyVolumes` on `SettingsChanged` refreshes playing music sources; SFX volume applies per
+`PlaySfx` as before. Master multiplies both mixes; zero mutes; nothing depends on scaled time.
+`GameRoot.BlockingOverlayOpen` (Settings/Controls/Credits visible) gates the Esc-unpause hotkeys in
+`CheckpointView.TickHotkeys` and `PlayerController.Tick` — pause stays paused while Options is
+open, and closing Options returns to the pause sheet.
+
+**Config.** `GameConfigSO` + `GameConfig.asset` in lockstep: `queueArrivalMinSeconds` 3,
+`queueArrivalMaxSeconds` 5, `queuePressureWarnAt` 5, `queueOverwhelmedAt` 7,
+`missingStudentChance` 0.25, `missingStudentLimit` 1. The dead `betweenVisitorsSeconds` /
+`exhibitionBetweenVisitors` knobs (only reader was the deleted `AfterBanner` wait) were removed.
+
+## Behavior changes (documented)
+
+- Visitors arrive on a clock instead of one-at-a-time-on-demand; an unresolved inspection lets the
+  yard fill up. Exhibition nights are playable at booth pace but the 5/7 thresholds are live —
+  all knobs are in `GameConfig` for tuning.
+- Patrol explicitly pauses the line (radio says so: "The line starts again when you're back.").
+- The desk top bar's `VISITOR n/m` suffix became the banner's second queue line; night/date label
+  unchanged.
+- Options no longer exposes display/accessibility/reset (still available via boot apply + F2×3);
+  Pause → CONTROLS still opens the controls sheet.
+- New lose ending reason `overwhelmed` (same ending screen, records it under the `lose` key).
+- Saves gained additive `queue*` keys (version still 1; old saves load and resume via the legacy
+  cursor; new saves restore the exact line, timer and question budget).
+
+## Verification (all green at this commit)
+
+- `Tools/Verify/verify.sh`: compile 0 errors / 0 warnings vs BOTH the minimal and full Unity
+  assembly sets; static audit clean.
+- `Tools/LogicTests`: **27,336/27,336** (was 27,225) — new groups: CheckpointQueue start gate /
+  interval bounds + randomization / FIFO promotion / completion invariants / pressure + collapse
+  one-shot edges / missing-student eligibility, preference, limit, permanence, bookkeeping /
+  snapshot + save round-trip + legacy resume + run-mode source / budget mask; overwhelmed ending
+  priority; options-sheet row budget updated for the audio-only modal.
+- `Tools/FlowCheck`: **830 OK / 0 BAD across 5 consecutive runs** (was 647) — sticky-note gate +
+  exact text in Main; queue proofs Q1–Q11 (FIFO accumulation, immediate promotion, empty≠complete,
+  pressure/overwhelm ending once with arrivals stopped and verdicts dead, forced missing-student
+  with line-preferred victim + radio feedback + permanence under ALLOW, chance-0 path, patrol
+  round trip with frozen timer, mid-inspection quit+continue restoring visitor/budget/line,
+  endless generator source, shift-boundary leak guard, night-5 administrator walk: intro dialogue,
+  rejection, outro, completion and clock-out through the queue); settings proofs S1–S8 (menu +
+  pause paths,
+  audio-only rows, dimmer, slider independence, live music refresh, mute-at-zero, restart
+  persistence, Esc guard); layout audit extended for the new regions; existing desk/save/world
+  suites intact.
+- Frozen `Tools/Verification/LogicTests`: **663/663**, untouched.
+- `Tools/Verification/CompileCheck`: builds, 0 errors.
+- `Tools/Verification/EngineSmoke`: still frozen-broken by decision (deleted `SimulateLoad`,
+  pre-rework `LightController.Mode`) — not fixed, not deleted, not relied on.
+- UnityStubs: no changes this pass (existing stubs covered sliders/buttons/PlayerPrefs).
+
+## NOT RUN (no Unity editor in this sandbox)
+
+Editor-only items, with exact repro:
+1. **Play-mode pass of the Phase 11.1 sequence** — open `Assets/_Project/Scenes/Hollowbrook.unity`
+   (or any scene; bootstraps self-build), Play → NEW GAME → advance the intro → the sticky note
+   must appear; wait ≥6 s (nobody arrives); click it (first visitor + clock); leave the inspection
+   ≥6 s (a second visitor's silhouette appears in the yard strip and `QUEUE:` counts it); keep
+   waiting (FIFO accumulation); stamp (oldest waiter steps up after the banner, counters update);
+   let the yard empty before the next arrival (desk waits — END SHIFT stays dim).
+2. **11.2 pressure/overwhelm in-editor** — temporarily set `GameConfig.queueArrivalMin/Max` to
+   ~1 s (test-only; restore 3/5 afterwards) or simply idle: at 5 waiting the amber banner line +
+   intercom + radio warning fire once; at 7 the alarm + caption + "overwhelmed" lose ending fire
+   once (no second ending, stamps dead).
+3. **11.3 missing student in-editor** — set `missingStudentChance = 1` temporarily: on the first
+   anomaly joining the line, one silhouette disappears (or a future visitor never comes), the
+   radio roll-call line plays, `CURRENT: a/t` total drops by 1; allow the anomaly in and confirm
+   the student stays gone. Restore 0.25.
+4. **11.5 settings in-editor** — menu SETTINGS → only three sliders + BACK; move sliders while a
+   music bed plays (immediate); pause in-game → SETTINGS (pause sheet hides, game stays paused) →
+   BACK returns to the pause sheet → RESUME; Esc over Options must not unpause.
+5. **Visual checks** — silhouette strips readable against the yard at 1280×720 / 1920×1080 /
+   1366×768; sticky-note paper panel centered over the dimmer; banner second line legible;
+   LayoutAudit console line reports zero warnings.

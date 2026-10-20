@@ -42,6 +42,13 @@ namespace Hollowbrook.Core
         public bool Paused { get; private set; }
         public int EndlessProcessed { get; private set; }
 
+        /// <summary>The checkpoint arrival queue — persistent run state. Owned here (not by
+        /// the desk view) so the waiting line, roster cursor, arrival timer and start gate
+        /// survive scene reloads; the desk view is only its presenter and ticker. The clock
+        /// runs while the desk is the active screen — patrol explicitly pauses the line.</summary>
+        public CheckpointQueue Queue { get; private set; } = new CheckpointQueue();
+        private bool _continuePending;
+
         // ---- views (explicit references, set by GameBootstrap) ----
         public Camera MainCamera;
         public ViewManager Views;
@@ -62,8 +69,13 @@ namespace Hollowbrook.Core
         public CaptionBar Captions;
         public Hollowbrook.World.SecurityRoomView SecurityRoom;
 
-        /// <summary>Roster cursor shared across scene reloads (patrol ↔ checkpoint).</summary>
-        public int CurrentVisitorIndex = 0;
+        /// <summary>True while a full-screen sheet (Options/Controls/Credits) owns the
+        /// screen: Escape belongs to that sheet then, and the in-game Esc-unpause hotkeys
+        /// must stand down or they would tear the player out of the pause menu.</summary>
+        public bool BlockingOverlayOpen =>
+            (SettingsScreen != null && SettingsScreen.gameObject.activeInHierarchy) ||
+            (ControlsScreen != null && ControlsScreen.gameObject.activeInHierarchy) ||
+            (CreditsScreen != null && CreditsScreen.gameObject.activeInHierarchy);
 
         private System.Action _queuedSceneAction;
         public void QueueSceneAction(System.Action a)
@@ -163,9 +175,11 @@ namespace Hollowbrook.Core
                 AdvanceShiftClock(Time.deltaTime * (Config != null ? Config.clockMinutesPerSecond : 0.25f));
             }
 
-            // Endless / Challenge countdown — only while actually inspecting.
+            // Endless / Challenge countdown — only while actually inspecting (and only
+            // once the shift has begun; the sticky note must not burn run time).
             if ((Session.Mode == GameMode.Endless || Session.Mode == GameMode.Challenge) &&
-                State == AppViewState.Checkpoint && Dialogue != null && !Dialogue.IsActive)
+                State == AppViewState.Checkpoint && Dialogue != null && !Dialogue.IsActive &&
+                Queue != null && Queue.Started)
             {
                 Session.RunTimer -= Time.deltaTime;
                 Bus.Publish(GameEvent.Of(EventIds.RunTimerTick, Session.RunTimer));
@@ -222,6 +236,7 @@ namespace Hollowbrook.Core
         public void BootToMainMenu()
         {
             Session = new GameSession();
+            Queue = new CheckpointQueue();
             SetState(AppViewState.MainMenu);
             Audio.PlayMusic("menu");
         }
@@ -242,6 +257,7 @@ namespace Hollowbrook.Core
             int seed = mode == GameMode.Normal ? 20261102 : (int)(System.DateTime.UtcNow.Ticks & 0x7FFFFFFF);
             Session = new GameSession { Mode = mode, Seed = seed };
             _runRng = new GameRng(seed ^ 0x5EED);
+            _continuePending = false;
             EndlessProcessed = 0;
 
             if (mode == GameMode.Normal)
@@ -252,6 +268,9 @@ namespace Hollowbrook.Core
             {
                 Session.RunTimer = EndlessRules.StartSeconds;
                 Roster = new RosterFactory(seed);
+                // run modes draw visitors on demand — the queue gets the same infinite source
+                Queue = new CheckpointQueue();
+                Queue.AttachRunSource(NextRunVisitor, BuildQueueTuning(), seed ^ 0x9E37);
                 var intro = mode == GameMode.Endless
                     ? new List<DialogueLine>
                     {
@@ -279,6 +298,7 @@ namespace Hollowbrook.Core
             Records = save.Records;
             Settings.AdoptFromSaveIfFresh(save.Settings);
             _runRng = new GameRng(Session.Seed ^ 0x5EED);
+            _continuePending = true;
             if (Session.Mode == GameMode.Normal)
             {
                 int shift = Mathf.Clamp(Session.CurrentShift, 1, ShiftPlan.TotalShifts);
@@ -289,6 +309,7 @@ namespace Hollowbrook.Core
             else
             {
                 // Run modes only persist records; restart the mode fresh.
+                _continuePending = false;
                 StartNewGame(Session.Mode);
             }
         }
@@ -314,6 +335,7 @@ namespace Hollowbrook.Core
             Session.Pool.Seed(kinds);
             Session.TonightLog.Clear();
             _shiftMinutes = 0f;
+            SetupShiftQueue(number, resumeFromVisitor);
 
             var intro = new List<DialogueLine>
             {
@@ -324,11 +346,61 @@ namespace Hollowbrook.Core
             {
                 intro.Add(new DialogueLine { Speaker = "???", Text = "Tonight the district sends an administrator to 'take control'. Check the credentials like you would check anyone else's. Trust the evidence." });
             }
-            PlayIntroThenCheckpoint(intro, CurrentShiftDef, _resumeFromVisitor);
+            PlayIntroThenCheckpoint(intro, CurrentShiftDef);
             _resumeFromVisitor = 0;
         }
 
-        private void PlayIntroThenCheckpoint(List<DialogueLine> intro, ShiftDef shift, int resumeFromVisitor = 0)
+        /// <summary>Attach the fresh shift roster to a new queue. A pending CONTINUE restores
+        /// the saved line instead (snapshot first; pre-queue saves fall back to the legacy
+        /// visitorAtSave cursor). A brand-new shift always starts behind the sticky note.</summary>
+        private void SetupShiftQueue(int shiftNumber, int resumeFromVisitor)
+        {
+            var snapshot = _continuePending ? Session.QueueState : null;
+            _continuePending = false;
+            Session.QueueState = null;              // the live queue is truth until the next PersistRun
+            Session.QueueOverwhelmed = false;
+            Queue = new CheckpointQueue();
+            Queue.AttachRoster(CurrentRoster, BuildQueueTuning(), QueueSeed(shiftNumber));
+            if (snapshot != null)
+            {
+                if (snapshot.HasProgress) Queue.RestoreFromSnapshot(snapshot, QueueSeed(shiftNumber));
+                // a save made before the sticky note was clicked resumes as a fresh start
+            }
+            else if (resumeFromVisitor > 0)
+            {
+                Queue.RestoreLegacy(resumeFromVisitor);   // pre-queue save format
+            }
+        }
+
+        private int QueueSeed(int shiftNumber) => Session.Seed ^ (shiftNumber * 0x9E37);
+
+        private QueueTuning BuildQueueTuning()
+        {
+            var t = new QueueTuning();
+            if (Config == null) return t;
+            t.ArrivalMinSeconds = Config.queueArrivalMinSeconds;
+            t.ArrivalMaxSeconds = Config.queueArrivalMaxSeconds;
+            t.PressureWarnAt = Config.queuePressureWarnAt;
+            t.OverwhelmedAt = Config.queueOverwhelmedAt;
+            t.MissingStudentChance = Config.missingStudentChance;
+            t.MissingStudentLimit = Config.missingStudentLimit;
+            return t;
+        }
+
+        /// <summary>The configured overwhelmed consequence (Phase 9.5): the waiting line
+        /// overran the checkpoint. One-shot — the queue has already collapsed, so no
+        /// arrivals follow and no second ending/penalty can fire.</summary>
+        public void TriggerQueueOverwhelmed()
+        {
+            if (Session.QueueOverwhelmed || Session.RunFinished || State == AppViewState.Ending) return;
+            Session.QueueOverwhelmed = true;
+            Audio.PlaySfx("sfx_alarm", 1f);
+            Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the line surges against the glass — too many, too fast*", 3.5f, null));
+            Bus.Publish(GameEvent.Of(EventIds.Notification, "THE LINE HAS OVERRUN THE CHECKPOINT."));
+            TriggerEnding(Session.EvaluateEnding());
+        }
+
+        private void PlayIntroThenCheckpoint(List<DialogueLine> intro, ShiftDef shift)
         {
             if (Loading != null)
                 Loading.Show(shift != null
@@ -350,7 +422,7 @@ namespace Hollowbrook.Core
                     if (VerboseFlow) Debug.Log("[Flow] intro callback fired");
                     if (Loading != null) Loading.Hide();
                     SetState(AppViewState.Checkpoint);
-                    if (Checkpoint != null) Checkpoint.BeginRun(CurrentRoster, shift, resumeFromVisitor);
+                    if (Checkpoint != null) Checkpoint.BeginRun(shift);
                     else Debug.LogError("[GameRoot] intro finished but Checkpoint is still NULL.");
                     Debug.Log("[Flow] intro done -> checkpoint state");
                 });
@@ -358,7 +430,7 @@ namespace Hollowbrook.Core
             {
                 if (Loading != null) Loading.Hide();
                 SetState(AppViewState.Checkpoint);
-                if (Checkpoint != null) Checkpoint.BeginRun(CurrentRoster, shift);
+                if (Checkpoint != null) Checkpoint.BeginRun(shift);
             }
         }
 
@@ -502,6 +574,10 @@ namespace Hollowbrook.Core
         {
             Bus.Publish(GameEvent.Of(EventIds.ShiftEnded, CurrentShiftDef));
             Session.CompleteShift();
+            // the finished shift's line must never leak into the next one: the queue
+            // resets here, so the save written below resumes as "next shift, not started"
+            Queue = new CheckpointQueue();
+            Session.QueueState = null;
             PersistRun();
 
             var eval = Session.EvaluateEnding();
@@ -576,6 +652,11 @@ namespace Hollowbrook.Core
         /// <summary>Save at safe boundaries (shift end / run end / quit). Corrupt-safe by design.</summary>
         public void PersistRun()
         {
+            if (Queue != null && Queue.IsAttached)
+            {
+                Session.QueueState = Queue.BuildSnapshot();
+                Session.QueueOverwhelmed = Queue.Collapsed;
+            }
             var save = new SaveGame
             {
                 Session = Session,
@@ -583,7 +664,8 @@ namespace Hollowbrook.Core
                 Records = Records,
                 SavedAtLabel = "Night " + Session.CurrentShift + " · " + ClockString,
             };
-            save.Session.VisitorIndexAtSave = CurrentVisitorIndex;
+            save.Session.VisitorIndexAtSave = Queue != null && Queue.IsAttached && !Queue.InfiniteSource
+                ? Queue.RosterCursor : 0;
             Saves.Write(save);
         }
 

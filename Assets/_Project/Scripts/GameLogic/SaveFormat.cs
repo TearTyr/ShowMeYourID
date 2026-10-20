@@ -34,6 +34,22 @@ namespace Hollowbrook.Logic
             sb.Append("anomRej=").Append(s.AnomaliesRejected).Append('\n');
             sb.Append("tokens=").Append(s.TokensCollected).Append('\n');
             sb.Append("visitorAtSave=").Append(s.VisitorIndexAtSave).Append('\n');
+            var q = s.QueueState;
+            if (q != null)
+            {
+                sb.Append("queueStarted=").Append(q.Started ? 1 : 0).Append('\n');
+                sb.Append("queueCursor=").Append(q.RosterCursor).Append('\n');
+                sb.Append("queueArrived=").Append(q.Arrived).Append('\n');
+                sb.Append("queueProcessed=").Append(q.Processed).Append('\n');
+                KV(sb, "queueTimer", Inv(q.TimerSeconds));
+                KV(sb, "queueWaiting", JoinIdx(q.WaitingIdx));
+                sb.Append("queueActive=").Append(q.ActiveIdx).Append('\n');
+                KV(sb, "queueVanished", JoinIdx(q.VanishedIdx));
+                sb.Append("queueMissing=").Append(q.MissingIncidents).Append('\n');
+                sb.Append("queueBudget=").Append(q.BudgetMask).Append('\n');
+                sb.Append("queueCollapsed=").Append(q.Overwhelmed ? 1 : 0).Append('\n');
+                sb.Append("queuePending=").Append(q.ResolutionPending ? 1 : 0).Append('\n');
+            }
             KV(sb, "pool", s.Pool.Encode());
             sb.Append("adminAllowed=").Append(s.AdminAllowed ? 1 : 0).Append('\n');
             sb.Append("adminRejected=").Append(s.AdminRejected ? 1 : 0).Append('\n');
@@ -107,6 +123,27 @@ namespace Hollowbrook.Logic
                 s.AnomaliesRejected = Int(map, "anomRej", 0);
                 s.TokensCollected = Int(map, "tokens", 0);
                 s.VisitorIndexAtSave = Int(map, "visitorAtSave", 0);
+                if (map.ContainsKey("queueStarted"))
+                {
+                    var q = new QueueSnapshot
+                    {
+                        Started = Int(map, "queueStarted", 0) == 1,
+                        RosterCursor = Int(map, "queueCursor", 0),
+                        Arrived = Int(map, "queueArrived", 0),
+                        Processed = Int(map, "queueProcessed", 0),
+                        TimerSeconds = Flt(map, "queueTimer", 0f),
+                        WaitingIdx = IntList(Str(map, "queueWaiting", "")),
+                        ActiveIdx = Int(map, "queueActive", -1),
+                        VanishedIdx = IntList(Str(map, "queueVanished", "")),
+                        MissingIncidents = Int(map, "queueMissing", 0),
+                        BudgetMask = Int(map, "queueBudget", 0),
+                        Overwhelmed = Int(map, "queueCollapsed", 0) == 1,
+                        ResolutionPending = Int(map, "queuePending", 0) == 1,
+                    };
+                    s.QueueState = q;
+                    s.QueueOverwhelmed = q.Overwhelmed;
+                }
+                else s.QueueState = null;   // a pre-queue save: ContinueGame falls back to visitorAtSave
                 s.Pool.Decode(Str(map, "pool", ""));
                 s.AdminAllowed = Int(map, "adminAllowed", 0) == 1;
                 s.AdminRejected = Int(map, "adminRejected", 0) == 1;
@@ -153,6 +190,21 @@ namespace Hollowbrook.Logic
             sb.Append(key).Append('=').Append(value ?? "").Append('\n');
 
         private static string Inv(float f) => f.ToString("0.###", CultureInfo.InvariantCulture);
+
+        private static string JoinIdx(List<int> idx)
+        {
+            var parts = new List<string>();
+            foreach (int i in idx) parts.Add(i.ToString(CultureInfo.InvariantCulture));
+            return string.Join(",", parts.ToArray());
+        }
+
+        private static List<int> IntList(string csv)
+        {
+            var l = new List<int>();
+            foreach (var p in Split(csv))
+                if (int.TryParse(p, out int v)) l.Add(v);
+            return l;
+        }
 
         public static long Checksum(string body)
         {
