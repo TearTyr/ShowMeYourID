@@ -27,8 +27,8 @@ namespace Hollowbrook.Checkpoint
         public VisitorData CurrentVisitor => _current;
 
         // The queue itself lives in GameRoot (persistent run state); the view only
-        // presents it. Q is null-safe so bootstraps without a run stay quiet.
-        private CheckpointQueue Q => _gameRoot != null ? _gameRoot.Queue : null;
+        // presents it. Queue is null-safe so bootstraps without a run stay quiet.
+        private CheckpointQueue Queue => _gameRoot != null ? _gameRoot.Queue : null;
 
         private ShiftDef _shift;
         private VisitorData _current;
@@ -79,11 +79,13 @@ namespace Hollowbrook.Checkpoint
             "Course matches", "Status matches", "Record name matches", "Behavior / answers",
         };
 
+        // Amber readout color while the waiting line is backing up (pressure level 1+).
+        private static readonly Color PressureColor = new Color(0.95f, 0.72f, 0.30f);
+
         public void Init(GameRoot root)
         {
             _gameRoot = root;
             _root = (RectTransform)transform;
-            for (int i = 0; i < _checklist.Length; i++) _checklist[i] = 0;
 
             var bg = UIFactory.Img(_root, "bg", ProceduralArt.Get("security_bg"));
             UIFactory.AnchorsFull(bg.rectTransform);
@@ -100,17 +102,11 @@ namespace Hollowbrook.Checkpoint
             BuildQueueStrips();
             BuildOverlays();
             BuildStickyNote();
+            ClearChecklist();   // the clipboard starts blank (rows exist now)
 
             _subscriptions.Add(_gameRoot.Bus.Subscribe(EventIds.RunTimerTick, e => OnRunTimerTick(e.Value)));
-            _subscriptions.Add(_gameRoot.Bus.Subscribe(EventIds.MutationChanged, e =>
-            {
-                var m = e.Payload<RuleMutationDef>();
-                bool active = m != null && !string.IsNullOrEmpty(m.RuleText);
-                _mutationStrip.gameObject.SetActive(active);
-                if (!active) return;
-                _mutationStrip.text = BulletinShort;         // full rule text: speech entry + RULES NOTE
-                SayLine("DISTRICT BULLETIN", m.RuleText);
-            }));
+            _subscriptions.Add(_gameRoot.Bus.Subscribe(EventIds.MutationChanged,
+                e => ShowBulletin(e.Payload<RuleMutationDef>())));
             gameObject.SetActive(false);
         }
 
@@ -120,6 +116,35 @@ namespace Hollowbrook.Checkpoint
         {
             L.Place(rt, r);
             _audit.Register(name, rt, r);
+        }
+
+        // Buttons only hand over their Button reference; the audit still tracks the rect.
+        private void Reg(string name, Button button, L.Region r)
+        {
+            Reg(name, button.GetComponent<RectTransform>(), r);
+        }
+
+        // The challenge-mode district bulletin: a short strip on the desk plus the full
+        // rule text in the speech log. A null or textless mutation hides the strip again.
+        private void ShowBulletin(RuleMutationDef mutation)
+        {
+            bool active = mutation != null && !string.IsNullOrEmpty(mutation.RuleText);
+            _mutationStrip.gameObject.SetActive(active);
+            if (!active) return;
+            _mutationStrip.text = BulletinShort;         // full rule text: speech entry + RULES NOTE
+            SayLine("DISTRICT BULLETIN", mutation.RuleText);
+        }
+
+        // Blanks the 8 checklist rows for a fresh inspection: the model counts and the
+        // row labels/colors on the clipboard.
+        private void ClearChecklist()
+        {
+            for (int i = 0; i < _checklist.Length; i++)
+            {
+                _checklist[i] = 0;
+                _checkRows[i].text = "[  ] " + ChecklistLabels[i];
+                _checkRows[i].color = UIFactory.PaperInk;
+            }
         }
 
         private static void SizeLabel(Button b, int size)
@@ -163,7 +188,7 @@ namespace Hollowbrook.Checkpoint
 
 
             var pause = GridButton(_desk, "pause", "II  PAUSE", () => _gameRoot.TogglePause(true), L.Pause, 12);
-            Reg("pause", pause.GetComponent<RectTransform>(), L.Pause);
+            Reg("pause", pause, L.Pause);
 
             _runStats = UIFactory.Label(_desk, "runstats", "", 13, UIFactory.Ink, TextAnchor.MiddleCenter);
             Reg("runstats", _runStats.rectTransform, L.RunStats);
@@ -282,10 +307,10 @@ namespace Hollowbrook.Checkpoint
             _noteText = Body(note, "notebody", L.Inner.NoteBody, 11, true);
 
             _patrolBtn = GridButton(_desk, "patrol", "PATROL HALLWAY  ▸", GoPatrol, L.PatrolBtn, 12);
-            Reg("patrol", _patrolBtn.GetComponent<RectTransform>(), L.PatrolBtn);
+            Reg("patrol", _patrolBtn, L.PatrolBtn);
             _endShiftBtn = GridButton(_desk, "endshift", "END SHIFT — CLOCK OUT",
                 () => _gameRoot.FinishShift(), L.EndShiftBtn, 11);
-            Reg("endshift", _endShiftBtn.GetComponent<RectTransform>(), L.EndShiftBtn);
+            Reg("endshift", _endShiftBtn, L.EndShiftBtn);
             UIFactory.SetButtonEnabled(_patrolBtn, false);
             UIFactory.SetButtonEnabled(_endShiftBtn, false);
         }
@@ -323,22 +348,22 @@ namespace Hollowbrook.Checkpoint
             L.Place(_testimony.rectTransform, L.Inner.QTestimony);
 
             _scanBtn = GridButton(_desk, "scan", "SCAN ID", DoScan, L.UtilityScan, 12);
-            Reg("scan", _scanBtn.GetComponent<RectTransform>(), L.UtilityScan);
+            Reg("scan", _scanBtn, L.UtilityScan);
             _recordsBtn = GridButton(_desk, "records", "TONIGHT'S LOG",
                 () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, L.UtilityRecords, 12);
-            Reg("records", _recordsBtn.GetComponent<RectTransform>(), L.UtilityRecords);
+            Reg("records", _recordsBtn, L.UtilityRecords);
             _mapBtn = GridButton(_desk, "map", "MAP", () => _gameRoot.OpenMap(), L.UtilityMap, 12);
-            Reg("map", _mapBtn.GetComponent<RectTransform>(), L.UtilityMap);
+            Reg("map", _mapBtn, L.UtilityMap);
             _notesBtn = GridButton(_desk, "notes", "RULES NOTE",
                 () => ToggleOverlay(_notesRoot), L.UtilityNotes, 12);
-            Reg("notes", _notesBtn.GetComponent<RectTransform>(), L.UtilityNotes);
+            Reg("notes", _notesBtn, L.UtilityNotes);
 
             _rejectBtn = GridButton(_desk, "reject", "CALL PRINCIPAL", AskPrincipal, L.StampReject, 12, true);
             MakeRound(_rejectBtn, false);
-            Reg("callprincipal", _rejectBtn.GetComponent<RectTransform>(), L.StampReject);
+            Reg("callprincipal", _rejectBtn, L.StampReject);
             _allowBtn = GridButton(_desk, "allow", "ALLOW", () => Stamp(Verdict.Allow), L.StampAllow, 12);
             MakeRound(_allowBtn, true);
-            Reg("allow", _allowBtn.GetComponent<RectTransform>(), L.StampAllow);
+            Reg("allow", _allowBtn, L.StampAllow);
 
             var mon = UIFactory.BorderedPanel(_desk, "monitor", new Color(0.055f, 0.062f, 0.055f),
                 UIFactory.Border, 2);
@@ -450,12 +475,12 @@ namespace Hollowbrook.Checkpoint
 
         private void OnStickyClicked()
         {
-            if (Q == null || Q.Started || !_flowActive) return;
+            if (Queue == null || Queue.Started || !_flowActive) return;
             _gameRoot.Audio.PlaySfx("sfx_ui_open", 0.7f);
             _stickyRoot.SetActive(false);
-            Q.MarkStarted();
+            Queue.MarkStarted();
             Debug.Log("[Flow] sticky note clicked — shift started, first visitor arriving");
-            ApplyTickResult(Q.ForceNextArrival(), false);
+            ApplyTickResult(Queue.ForceNextArrival(), false);
             RefreshHud();
         }
 
@@ -537,8 +562,8 @@ namespace Hollowbrook.Checkpoint
             var sb = new StringBuilder();
             sb.Append("PRESENTED TONIGHT:\n");
             sb.Append(_tonightsLog.Length == 0 ? "  (no one yet)\n" : _tonightsLog.ToString());
-            if (Q != null && Q.MissingIncidents > 0)
-                sb.Append("\nROSTER DISCREPANCY: ").Append(Q.MissingIncidents)
+            if (Queue != null && Queue.MissingIncidents > 0)
+                sb.Append("\nROSTER DISCREPANCY: ").Append(Queue.MissingIncidents)
                   .Append(" expected student(s) never reached the window.\n");
             sb.Append("\nBREACHES (anomalies allowed in): ").Append(_gameRoot.Session.Breaches).Append(" / 3\n");
             sb.Append("FALSE REJECTIONS: ").Append(_gameRoot.Session.FalseRejections).Append(" / 3\n");
@@ -557,36 +582,51 @@ namespace Hollowbrook.Checkpoint
 
         public void BeginRun(ShiftDef shift)
         {
-            Debug.Log("[Flow] BeginRun queue=" + (Q != null ? Q.EffectiveTotal : -1));
+            Debug.Log("[Flow] BeginRun queue=" + (Queue != null ? Queue.EffectiveTotal : -1));
             if (_noteText != null && _gameRoot.CurrentShiftDef != null) _noteText.text = _gameRoot.CurrentShiftDef.RuleNoteAddendum;
             _shift = shift;
+            ResetShiftState();
+            RestoreQueuePresentation();
+        }
+
+        public void ResumeRun()
+        {
+            _shift = ShiftPlan.Get(Mathf.Clamp(_gameRoot.Session.CurrentShift, 1, ShiftPlan.TotalShifts));
+            ResetShiftState();
+            Show();
+
+            // returning from patrol: the queue survived in GameRoot (clock paused while
+            // the desk was gone) — rebuild the presentation from it
+            RestoreQueuePresentation();
+        }
+
+        // Shared start-of-shift reset for BeginRun (new game / continue) and ResumeRun
+        // (back from patrol): clear per-visitor state, re-post the challenge bulletin,
+        // and show the score strip only in endless/challenge.
+        private void ResetShiftState()
+        {
             _tonightsLog.Clear();
             _speechEntries.Clear();
             _flowActive = true;
             _current = null;
             _verdictLocked = true;
-            _mutationStrip.gameObject.SetActive(false);
-            if (_gameRoot.Session.Mode == GameMode.Challenge)
-            {
-                var m = _gameRoot.Session.ActiveMutation;
-                if (m != null && !string.IsNullOrEmpty(m.RuleText))
-                {
-                    _mutationStrip.text = BulletinShort;
-                    _mutationStrip.gameObject.SetActive(true);
-                    SayLine("DISTRICT BULLETIN", m.RuleText);
-                }
-            }
+            if (_gameRoot.Session.Mode == GameMode.Challenge) ShowBulletin(_gameRoot.Session.ActiveMutation);
+            else ShowBulletin(null);
             bool runMode = _gameRoot.Session.Mode != GameMode.Normal;
             _runStats.gameObject.SetActive(runMode);
+        }
 
-            if (Q != null && Q.Started)
+        // Rebuilds what the player sees at the window from the persistent queue: a started
+        // shift restores its waiting line and current visitor (no sticky note, no second
+        // arrival clock); an unstarted shift waits behind the sticky-note gate.
+        private void RestoreQueuePresentation()
+        {
+            if (Queue != null && Queue.Started)
             {
-                // an already-started shift (CONTINUE): restore the presentation from
-                // persistent queue state — no sticky note, no second arrival clock
                 _stickyRoot.SetActive(false);
-                if (Q.ResolutionPending) Q.CompleteActive();   // a quit mid-banner finishes the step-up
-                if (Q.Active != null) PresentFromQueue(Q.Active, true);
-                else ApplyTickResult(Q.ResumePresentation(), true);
+                if (Queue.ResolutionPending) Queue.CompleteActive();   // a quit mid-banner finishes the step-up
+                if (Queue.Active != null) PresentFromQueue(Queue.Active, true);
+                else ApplyTickResult(Queue.ResumePresentation(), true);
             }
             else
             {
@@ -595,43 +635,6 @@ namespace Hollowbrook.Checkpoint
                 SetVisitorVisible(false);
                 _stickyRoot.SetActive(true);
             }
-            RefreshQueueLine();
-            RefreshHud();
-        }
-
-        public void ResumeRun()
-        {
-            _shift = ShiftPlan.Get(Mathf.Clamp(_gameRoot.Session.CurrentShift, 1, ShiftPlan.TotalShifts));
-            _tonightsLog.Clear();
-            _speechEntries.Clear();
-            _flowActive = true;
-            _current = null;
-            _verdictLocked = true;
-            _mutationStrip.gameObject.SetActive(false);
-            if (_gameRoot.Session.Mode == GameMode.Challenge)
-            {
-                var m = _gameRoot.Session.ActiveMutation;
-                if (m != null && !string.IsNullOrEmpty(m.RuleText))
-                {
-                    _mutationStrip.text = BulletinShort;
-                    _mutationStrip.gameObject.SetActive(true);
-                    SayLine("DISTRICT BULLETIN", m.RuleText);
-                }
-            }
-            bool runMode = _gameRoot.Session.Mode != GameMode.Normal;
-            _runStats.gameObject.SetActive(runMode);
-            Show();
-
-            // returning from patrol: the queue survived in GameRoot (clock paused while
-            // the desk was gone) — rebuild the presentation, never the sticky note
-            _stickyRoot.SetActive(Q == null || !Q.Started);
-            if (Q != null && Q.Started)
-            {
-                if (Q.ResolutionPending) Q.CompleteActive();   // defensive: same as the CONTINUE path
-                if (Q.Active != null) PresentFromQueue(Q.Active, true);
-                else ApplyTickResult(Q.ResumePresentation(), true);
-            }
-            else SetVisitorVisible(false);
             RefreshQueueLine();
             RefreshHud();
         }
@@ -680,11 +683,11 @@ namespace Hollowbrook.Checkpoint
         // stops it entirely — the chosen rule: the line waits while you walk.
         public void AdvanceQueue(float dt)
         {
-            if (!_flowActive || Q == null || !Q.Started || Q.Collapsed) return;
+            if (!_flowActive || Queue == null || !Queue.Started || Queue.Collapsed) return;
             if (_gameRoot.State != AppViewState.Checkpoint) return;
             if (!gameObject.activeInHierarchy) return;
             if (_gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive) return;
-            var r = Q.Tick(dt);
+            var r = Queue.Tick(dt);
             ApplyTickResult(r, false);
             if (r.Any) RefreshHud();
         }
@@ -713,7 +716,7 @@ namespace Hollowbrook.Checkpoint
             {
                 SayLine("RADIO", "Custodian — your line is backing up. Pick up the pace.");
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    "QUEUE PRESSURE — " + Q.WaitingCount + " waiting at the gate."));
+                    "QUEUE PRESSURE — " + Queue.WaitingCount + " waiting at the gate."));
                 _gameRoot.Audio.PlaySfx("sfx_intercom", 0.6f);
             }
             if (r.Overwhelmed)
@@ -740,8 +743,8 @@ namespace Hollowbrook.Checkpoint
             if (_testimony != null) _testimony.text = "";
             _current = v;
             _budget = new QuestionSystem.Budget();
-            if (restoreBudget && Q != null) _budget.RestoreFromMask(Q.ActiveBudgetMask);
-            for (int i = 0; i < _checklist.Length; i++) { _checklist[i] = 0; _checkRows[i].text = "[  ] " + ChecklistLabels[i]; _checkRows[i].color = UIFactory.PaperInk; }
+            if (restoreBudget && Queue != null) _budget.RestoreFromMask(Queue.ActiveBudgetMask);
+            ClearChecklist();
             _monitorOutput.text = "SCANNER READY";
             _verdictLocked = false;
             PresentVisitor(v);
@@ -749,7 +752,20 @@ namespace Hollowbrook.Checkpoint
             RefreshHud();
         }
 
+        // One visitor reached the window: portrait, papers, then voices — in that order.
         private void PresentVisitor(VisitorData v)
+        {
+            bool admin = v.IsAdministrator;
+            ShowVisitorPortrait(v);
+            FillIdCard(v, admin);
+            FillRecordSheet(v, admin);
+            PlayArrivalVoices(v, admin);
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VisitorArrived, v));
+        }
+
+        // Swaps in the new faces and clears the old stamp; the fade-in coroutine is
+        // instant under Reduced Motion (the coroutine itself checks the setting).
+        private void ShowVisitorPortrait(VisitorData v)
         {
             SetVisitorVisible(true);
             _visitorPortrait.sprite = ProceduralArt.Portrait("window", v.WindowPortrait, 240, 296);
@@ -761,11 +777,13 @@ namespace Hollowbrook.Checkpoint
             }
             var pc = _visitorPortrait.color; pc.a = 0f; _visitorPortrait.color = pc;
             StartCoroutine(PortraitFadeIn());
+        }
 
-            bool admin = v.IsAdministrator;
+        // The card the visitor holds up. The Night-5 administrator carries a district
+        // badge, so every line has an admin wording.
+        private void FillIdCard(VisitorData v, bool admin)
+        {
             _idHeader.text = admin ? "DISTRICT STAFF BADGE" : "HOLLOWBROOK COLLEGE — STUDENT ID";
-            _recHeader.text = admin ? "DISTRICT ROSTER MEMO" : "STUDENT RECORD — FORM 11-C";
-
             _idName.text = "NAME: " + v.ClaimedName;
             _idNumber.text = (admin ? "BADGE NO: " : "ID NO: ") + v.IdNumber;
             if (admin)
@@ -773,6 +791,22 @@ namespace Hollowbrook.Checkpoint
                 _idYear.text = "DIVISION: Facilities Oversight";
                 _idCourse.text = "AUTHORITY: District Office";
                 _idStatus.text = "CLEARANCE: Full building";
+            }
+            else
+            {
+                _idYear.text = "YEAR: " + Content.YearNames[v.IdYearLevel - 1];
+                _idCourse.text = "COURSE: " + Content.Courses[v.IdCourseIndex];
+                _idStatus.text = "STATUS: " + (v.IdIsTransferee ? "TRANSFEREE" : "REGULAR");
+            }
+            _idExpires.text = admin ? "VALID THRU: " + v.ExpirationDisplay : "EXPIRES: " + v.ExpirationDisplay;
+        }
+
+        // The school's own record sheet — the paper the card gets compared against.
+        private void FillRecordSheet(VisitorData v, bool admin)
+        {
+            _recHeader.text = admin ? "DISTRICT ROSTER MEMO" : "STUDENT RECORD — FORM 11-C";
+            if (admin)
+            {
                 _recName.text = "ASSIGNED: " + v.RecordName;
                 _recNumber.text = "BADGE NO: " + v.RecordIdNumber;
                 _recYear.text = "EFFECTIVE: " + Content.ShiftDates[Mathf.Clamp(_gameRoot.Session.CurrentShift - 1, 0, 4)];
@@ -783,9 +817,6 @@ namespace Hollowbrook.Checkpoint
             }
             else
             {
-                _idYear.text = "YEAR: " + Content.YearNames[v.IdYearLevel - 1];
-                _idCourse.text = "COURSE: " + Content.Courses[v.IdCourseIndex];
-                _idStatus.text = "STATUS: " + (v.IdIsTransferee ? "TRANSFEREE" : "REGULAR");
                 _recName.text = "NAME: " + v.RecordName;
                 _recNumber.text = "ID NO: " + v.RecordIdNumber;
                 _recYear.text = "YEAR LEVEL: " + Content.YearNames[v.RecordYearLevel - 1];
@@ -794,12 +825,16 @@ namespace Hollowbrook.Checkpoint
                 _recClassroom.text = "FIRST CLASS: " + v.RecordFirstClassroom;
                 _recEnrolled.text = "EXPIRES: " + v.ExpirationDisplay;
             }
-            _idExpires.text = admin ? "VALID THRU: " + v.ExpirationDisplay : "EXPIRES: " + v.ExpirationDisplay;
+        }
 
+        // Knock and paper shuffle first, then either the administrator's scripted
+        // dialogue or the visitor's greeting (plus a one-off glitch flash for visibly
+        // glitchy anomalies at low sanity).
+        private void PlayArrivalVoices(VisitorData v, bool admin)
+        {
             _gameRoot.Audio.PlaySfx("sfx_knock", 0.7f);
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.DocumentsShown, v));
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.6f);
-
             if (admin)
             {
                 var lines = new List<DialogueLine>
@@ -820,7 +855,6 @@ namespace Hollowbrook.Checkpoint
                 if (v.IsAnomaly && v.BehaviorGlitchVisible && _gameRoot.Session.Sanity < 70f)
                     StartCoroutine(GlitchHint());
             }
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VisitorArrived, v));
         }
 
         private IEnumerator GlitchHint()
@@ -873,7 +907,7 @@ namespace Hollowbrook.Checkpoint
             SayLine("YOU", QuestionSpeech(q));
             SayLine("AT THE WINDOW", "“" + answer.Text + "”" + tone);
             AppendTestimony(q, answer);
-            if (Q != null) Q.ActiveBudgetMask = _budget.Mask;   // survives quit/continue
+            if (Queue != null) Queue.ActiveBudgetMask = _budget.Mask;   // survives quit/continue
             _gameRoot.Audio.PlaySfx("sfx_intercom", 0.5f);
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.QuestionAsked, q));
             RefreshHud();
@@ -953,7 +987,7 @@ namespace Hollowbrook.Checkpoint
         public void Stamp(Verdict verdict)
         {
             if (_current == null || _verdictLocked) return;
-            if (Q != null && Q.Collapsed) return;   // the line overran the checkpoint — verdicts are dead
+            if (Queue != null && Queue.Collapsed) return;   // the line overran the checkpoint — verdicts are dead
             _verdictLocked = true; // §2.4 — decisions are permanent
             var mutation = _gameRoot.Session.Mode == GameMode.Challenge ? _gameRoot.Session.ActiveMutation : null;
             var outcome = InspectionRules.Apply(_current, verdict, mutation);
@@ -970,7 +1004,7 @@ namespace Hollowbrook.Checkpoint
             var resolved = _current;
             _gameRoot.OnVerdictResolved(resolved, outcome);           // counters update BEFORE the banner reads them
             if (_gameRoot.State == AppViewState.Ending) { Hide(); return; } // ending took over (C3/C4)
-            if (Q != null) Q.CommitActiveResolution();                // the queue books it NOW — a
+            if (Queue != null) Queue.CommitActiveResolution();                // the queue books it NOW — a
                                                                       // quit mid-banner can never make
                                                                       // this visitor stampable again
             ShowBanner(verdict, outcome, checklistHits);
@@ -1080,26 +1114,11 @@ namespace Hollowbrook.Checkpoint
 
             // the resolved visitor leaves the window; the oldest waiting visitor steps up
             // immediately (no second waiting period when someone is already queued)
-            var promoted = Q != null ? Q.CompleteActive() : null;
+            var promoted = Queue != null ? Queue.CompleteActive() : null;
 
             if (resolved.IsAdministrator && _gameRoot.Session.AdminRejected)
             {
-                var outro = new List<DialogueLine>
-                {
-                    new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = "…You will regret this. We are already inside your records." },
-                    new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "The thing wearing Marlowe's face unfolds itself from the window and walks back into the dark. The seal on the server room holds — for tonight." },
-                };
-                _gameRoot.Dialogue.Play(outro, () =>
-                {
-                    // the night is over whatever is still waiting: the line is sent home
-                    if (Q != null) Q.AbandonLine();
-                    _current = null;
-                    _verdictLocked = true;
-                    SetVisitorVisible(false);
-                    RefreshQueueLine();
-                    RefreshHud();
-                    Bus_MusicCheckpoint();
-                });
+                PlayAdminRejectOutro();
                 yield break;
             }
 
@@ -1113,14 +1132,34 @@ namespace Hollowbrook.Checkpoint
             _verdictLocked = true;
             SetVisitorVisible(false);
             RefreshQueueLine();
-            if (Q != null && Q.ShiftComplete)
+            if (Queue != null && Queue.ShiftComplete)
                 SayLine("RADIO", "That's the last of them… for now. Clock out when the floor is clear.");
-            else if (Q == null || Q.InfiniteSource || Q.RemainingSource > 0)
+            else if (Queue == null || Queue.InfiniteSource || Queue.RemainingSource > 0)
                 SayLine("RADIO", "Yard's quiet for a moment — patrol now if you need to. The line starts again when you're back.");
             RefreshHud();
         }
 
-        private void Bus_MusicCheckpoint() => _gameRoot.Audio.PlayMusic("checkpoint");
+        // Rejecting the district administrator ends the night: their parting threat plays,
+        // then the callback sends the waiting line home whatever is still in it.
+        private void PlayAdminRejectOutro()
+        {
+            var outro = new List<DialogueLine>
+            {
+                new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = "…You will regret this. We are already inside your records." },
+                new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "The thing wearing Marlowe's face unfolds itself from the window and walks back into the dark. The seal on the server room holds — for tonight." },
+            };
+            _gameRoot.Dialogue.Play(outro, () =>
+            {
+                // the night is over whatever is still waiting: the line is sent home
+                if (Queue != null) Queue.AbandonLine();
+                _current = null;
+                _verdictLocked = true;
+                SetVisitorVisible(false);
+                RefreshQueueLine();
+                RefreshHud();
+                _gameRoot.Audio.PlayMusic("checkpoint");
+            });
+        }
 
         public void GoPatrol()
         {
@@ -1129,10 +1168,10 @@ namespace Hollowbrook.Checkpoint
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, "Finish the inspection at the window first."));
                 return;
             }
-            if (Q != null && (!Q.Started || Q.Collapsed))
+            if (Queue != null && (!Queue.Started || Queue.Collapsed))
             {
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    Q.Started ? "The line has overrun the checkpoint." : "Begin the night shift first."));
+                    Queue.Started ? "The line has overrun the checkpoint." : "Begin the night shift first."));
                 return;
             }
             _gameRoot.EnterExploration();   // the queue rides in GameRoot; the clock pauses off-desk
@@ -1156,9 +1195,20 @@ namespace Hollowbrook.Checkpoint
             if (Input.GetKeyDown(KeyCode.M) && _gameRoot.State == AppViewState.Checkpoint) _gameRoot.OpenMap();
         }
 
+        // Everything on the desk that mirrors run state, refreshed after any change:
+        // top bar, queue readout, question budget, and which buttons may be clicked.
         private void RefreshHud()
         {
             if (_gameRoot == null || _gameRoot.Session == null) return;
+            RefreshTopBar();
+            RefreshQueueStatus();
+            _budgetLabel.text = "QUESTIONS: " + _budget.Remaining + " LEFT";
+            RefreshDecisionButtons();
+        }
+
+        // Night/clock line in Normal mode; mode/score line in endless and challenge.
+        private void RefreshTopBar()
+        {
             if (_gameRoot.Session.Mode == GameMode.Normal)
             {
                 _topLeft.text = "NIGHT " + _gameRoot.Session.CurrentShift + " · " + (_shift != null ? _shift.DateLabel : "");
@@ -1173,18 +1223,21 @@ namespace Hollowbrook.Checkpoint
                              (_gameRoot.Session.Mode == GameMode.Challenge ? ChallengeRules.ScoreMultiplier : 1f);
                 _runStats.text = "SCORE " + _gameRoot.Session.Score + "   ·   STREAK " + _gameRoot.Session.Streak + " (×" + mult.ToString("0.0") + ")";
             }
-            RefreshQueueStatus();
-            _budgetLabel.text = "QUESTIONS: " + _budget.Remaining + " LEFT";
-            bool collapsed = Q != null && Q.Collapsed;
+        }
+
+        // Decisions are clickable only while an inspection is live; patrol/end-shift stay
+        // visible per the wireframe but dim until usable.
+        private void RefreshDecisionButtons()
+        {
+            bool collapsed = Queue != null && Queue.Collapsed;
             bool live = _current != null && !_verdictLocked && !collapsed;
             for (int i = 0; i < 4; i++)
                 UIFactory.SetButtonEnabled(_questionButtons[i], live && !_budget.HasAsked(QuestionSystem.All[i]) && _budget.Remaining > 0);
             UIFactory.SetButtonEnabled(_allowBtn, live);
             UIFactory.SetButtonEnabled(_rejectBtn, live);
-            // patrol/end-shift stay visible per the wireframe; they dim until usable
             UIFactory.SetButtonEnabled(_patrolBtn, !live && !_bannerRoot.activeSelf &&
-                Q != null && Q.Started && !collapsed);
-            UIFactory.SetButtonEnabled(_endShiftBtn, Q != null && Q.ShiftComplete &&
+                Queue != null && Queue.Started && !collapsed);
+            UIFactory.SetButtonEnabled(_endShiftBtn, Queue != null && Queue.ShiftComplete &&
                 _gameRoot.Session.Mode == GameMode.Normal);
         }
 
@@ -1193,34 +1246,46 @@ namespace Hollowbrook.Checkpoint
         private void RefreshQueueStatus()
         {
             if (_queueStatus == null) return;
-            if (Q == null || !Q.IsAttached)
+            if (Queue == null || !Queue.IsAttached)
             {
                 _queueStatus.text = "";
                 if (_queueBadge != null) _queueBadge.text = "LINE 0";
                 return;
             }
-            string text = Q.Collapsed
-                ? "QUEUE: " + Q.WaitingCount + "  —  OVERRUN"
-                : "QUEUE: " + Q.WaitingCount +
-                  (Q.EffectiveTotal >= 0 ? "  |  CURRENT: " + Q.ArrivalCount + "/" + Q.EffectiveTotal : "");
-            var color = Q.Collapsed ? UIFactory.AccentBright
-                : Q.PressureLevel >= 1 ? new Color(0.95f, 0.72f, 0.30f)
-                : (Color)UIFactory.PaperInk;
+            bool collapsed = Queue.Collapsed;
+            bool pressured = Queue.PressureLevel >= 1;
+
+            string text;
+            if (collapsed)
+            {
+                text = "QUEUE: " + Queue.WaitingCount + "  —  OVERRUN";
+            }
+            else
+            {
+                text = "QUEUE: " + Queue.WaitingCount;
+                if (Queue.EffectiveTotal >= 0)
+                    text += "  |  CURRENT: " + Queue.ArrivalCount + "/" + Queue.EffectiveTotal;
+            }
+
+            Color statusColor;
+            Color badgeColor;
+            if (collapsed) { statusColor = UIFactory.AccentBright; badgeColor = UIFactory.AccentBright; }
+            else if (pressured) { statusColor = PressureColor; badgeColor = PressureColor; }
+            else { statusColor = UIFactory.PaperInk; badgeColor = UIFactory.InkDim; }
+
             _queueStatus.text = text;
-            _queueStatus.color = color;
+            _queueStatus.color = statusColor;
             if (_queueBadge != null)
             {
-                _queueBadge.text = Q.Collapsed ? "LINE " + Q.WaitingCount + " !" : "LINE " + Q.WaitingCount;
-                _queueBadge.color = Q.Collapsed ? UIFactory.AccentBright
-                    : Q.PressureLevel >= 1 ? new Color(0.95f, 0.72f, 0.30f)
-                    : UIFactory.InkDim;
+                _queueBadge.text = collapsed ? "LINE " + Queue.WaitingCount + " !" : "LINE " + Queue.WaitingCount;
+                _queueBadge.color = badgeColor;
             }
         }
 
         // One identical silhouette per waiting visitor (left strip first), overflow as "+n".
         private void RefreshQueueLine()
         {
-            int n = Q != null ? Q.WaitingCount : 0;
+            int n = Queue != null ? Queue.WaitingCount : 0;
             bool overflow = n > _silhouettes.Length;
             int shown = overflow ? _silhouettes.Length - 1 : Mathf.Min(n, _silhouettes.Length);
             for (int i = 0; i < _silhouettes.Length; i++)
