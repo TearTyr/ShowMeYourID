@@ -26,10 +26,12 @@ namespace Hollowbrook.Core
         public float queueBusyHurryMultiplier = 2f;
         [Tooltip("Normal mode: base arrival interval is multiplied by this per night after night 1.")][Range(0.3f, 1f)]
         public float queueNightScale = 0.8f;
-        [Tooltip("Waiting visitors (window excluded) at which the queue-pressure warning fires once.")][Range(1, 30)]
-        public int queuePressureWarnAt = 5;
-        [Tooltip("Waiting visitors at which the line overruns the checkpoint — a one-shot run failure.")][Range(2, 40)]
-        public int queueOverwhelmedAt = 7;
+        // Showcase build: the line pressure rules are switched off (set sane values such as
+        // 5 / 7 to bring the feature back). The waiting line itself is hidden in the view.
+        [Tooltip("Waiting visitors (window excluded) at which the queue-pressure warning fires once.")][Range(1, 9999)]
+        public int queuePressureWarnAt = 9999;
+        [Tooltip("Waiting visitors at which the line overruns the checkpoint — a one-shot run failure.")][Range(2, 9999)]
+        public int queueOverwhelmedAt = 9999;
         [Tooltip("Chance that an arriving anomaly (not the administrator) makes one legitimate student vanish. Normal mode only.")][Range(0f, 1f)]
         public float missingStudentChance = 0.25f;
         [Tooltip("Missing-student incidents allowed per shift.")][Range(0, 5)]

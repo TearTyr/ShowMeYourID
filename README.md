@@ -76,15 +76,16 @@ them automatically (keys are listed in `ProceduralArt` / `ProceduralAudio`).
   `GameLogic/AnomalyEncounter.cs`, the rates in `GameLogic/TrackingPolicy.cs` — both engine-free
   and unit-tested; the beam is a true cone (`GameLogic/BeamGeometry.cs`).
 - **The line** (Phase 9): every shift starts behind a **sticky note** ("CLICK TO BEGIN"); from that
-  click the booth runs a real **arrival queue** — a randomized 3–5 s clock walks the roster up,
-  a randomized 25-30 s clock walks the roster up on Night 1 (x0.8 per later night, and it runs
- double-speed while you are still interviewing, so dawdling grows the line; Endless/Challenge
- keep the fast 3-5 s race clock); busy-window arrivals wait in the yard as identical silhouettes, the oldest waiter steps up right
-  after your verdict banner, `QUEUE: n | CURRENT: a/t` lives in the day banner, 5 waiting warns
-  once and 7 waiting ends the run (the line overran the checkpoint). Anomalies entering the line
-  can make one legitimate student **vanish** (seeded chance, one per shift, permanent, line-first).
-  The queue is engine-free pure logic (`GameLogic/CheckpointQueue.cs`) owned by `GameRoot`, so
-  patrol pauses it and saves restore it exactly.
+  click the booth runs a real **arrival queue** — a randomized 25–30 s clock walks the roster up
+  on Night 1 (x0.8 per later night, double-speed while you are still interviewing, so dawdling
+  grows the line; Endless/Challenge keep the fast 3–5 s race clock); the oldest waiter steps up
+  right after your verdict banner. SHOWCASE BUILD: the line display, its `QUEUE: n | CURRENT: a/t`
+  readout and its pressure rules (warn at 5 / overrun at 7) are switched off
+  (`CheckpointView.LineFeatureEnabled`, pressure knobs in `GameConfigSO`); the queue itself still
+  paces arrivals behind the scenes. Anomalies entering the line can make one legitimate student
+  **vanish** (seeded chance, one per shift, permanent, line-first). The queue is engine-free pure
+  logic (`GameLogic/CheckpointQueue.cs`) owned by `GameRoot`, so patrol pauses it and saves
+  restore it exactly.
 - **Normal mode** — five shifts (4/6/7/8 students, then 8 + the district administrator on
   Night 5). Three endings: **Surviving Hollowbrook** (win), **Another Custodian** (lose at
   3 breaches or 3 false rejections), **The Truth Behind Hollowbrook** (secret: all ten

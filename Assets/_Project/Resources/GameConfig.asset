@@ -20,8 +20,8 @@ MonoBehaviour:
   queueRunMaxSeconds: 5
   queueBusyHurryMultiplier: 2
   queueNightScale: 0.8
-  queuePressureWarnAt: 5
-  queueOverwhelmedAt: 7
+  queuePressureWarnAt: 9999
+  queueOverwhelmedAt: 9999
   missingStudentChance: 0.25
   missingStudentLimit: 1
   walkSpeed: 3.4

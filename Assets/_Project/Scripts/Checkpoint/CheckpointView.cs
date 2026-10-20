@@ -17,6 +17,10 @@ namespace Hollowbrook.Checkpoint
     public class CheckpointView : MonoBehaviour, IScreenView
     {
         private const int SpeechKeep = 6;   // last ~3 exchanges, newest at the bottom
+        // Showcase build: the waiting-line display and its top-bar readout are switched off.
+        // Arrivals still queue invisibly inside GameRoot's queue and step up as usual;
+        // flipping this back to true (plus sane pressure values in GameConfig) restores it.
+        private const bool LineFeatureEnabled = false;
         private const string BulletinShort = "⚠ DISTRICT BULLETIN — NEW RULE IN EFFECT · SEE RULES NOTE";
 
         private GameRoot _gameRoot;
@@ -98,6 +102,7 @@ namespace Hollowbrook.Checkpoint
             var bg = UIFactory.Img(_root, "bg", ProceduralArt.Get("security_bg"));
             UIFactory.AnchorsFull(bg.rectTransform);
             bg.raycastTarget = false;
+            bg.color = Color.black;   // showcase build: the room behind the desk is black
 
             _desk = L.DeskFrame(_root, "DeskFrame");
             _audit = _desk.gameObject.AddComponent<DeskLayoutAudit>();
@@ -191,6 +196,7 @@ namespace Hollowbrook.Checkpoint
             _queueStatus = UIFactory.Label(banner, "queuestatus", "", 13,
                 new Color(0.30f, 0.30f, 0.29f), TextAnchor.MiddleCenter);
             L.Place(_queueStatus.rectTransform, L.Inner.BannerQueue);
+            _queueStatus.gameObject.SetActive(false);   // showcase: the line readout is off
 
             _topClock = UIFactory.Label(_desk, "clock", "22:00", 20, UIFactory.InkDim, TextAnchor.MiddleCenter);
             Reg("clock", _topClock.rectTransform, L.Clock);
@@ -511,6 +517,10 @@ namespace Hollowbrook.Checkpoint
             L.Place(_queueOverflow.rectTransform, new L.Region(L.Inner.QueueSlotRX,
                 L.Inner.QueueSlotRY0 + 3 * L.Inner.QueueSlotStep, L.Inner.QueueSlotW, L.Inner.QueueSlotH));
             _queueOverflow.gameObject.SetActive(false);
+            // showcase build: the waiting line is not displayed (arrivals still queue
+            // invisibly and step up after each verdict)
+            stripL.gameObject.SetActive(false);
+            stripR.gameObject.SetActive(false);
         }
 
         // Phase 10.1 — the shift-start gate. A centered sticky note over a click-blocking
@@ -846,7 +856,7 @@ namespace Hollowbrook.Checkpoint
         {
             if (_recordGo != null) _recordGo.SetActive(on);
             if (_idCardGo != null) _idCardGo.SetActive(on);
-            if (_checklistGo != null) _checklistGo.SetActive(on);
+            // showcase build: the checklist widget is removed from the desk entirely
         }
 
         // Click on the window slot: the visitor offers the ID across the glass.
@@ -1365,7 +1375,7 @@ namespace Hollowbrook.Checkpoint
         // person at the window; the counter never counts vanished students as inspected.
         private void RefreshQueueStatus()
         {
-            if (_queueStatus == null) return;
+            if (!LineFeatureEnabled || _queueStatus == null) return;
             if (Queue == null || !Queue.IsAttached)
             {
                 _queueStatus.text = "";
@@ -1405,6 +1415,7 @@ namespace Hollowbrook.Checkpoint
         // One identical silhouette per waiting visitor (left strip first), overflow as "+n".
         private void RefreshQueueLine()
         {
+            if (!LineFeatureEnabled) return;
             int n = Queue != null ? Queue.WaitingCount : 0;
             bool overflow = n > _silhouettes.Length;
             int shown = overflow ? _silhouettes.Length - 1 : Mathf.Min(n, _silhouettes.Length);

@@ -466,16 +466,15 @@ namespace FlowCheck
             Check(root.Queue.WaitingCount == 3, "Q1: three arrivals accumulated in the line (got " + root.Queue.WaitingCount + ")");
             Check(string.Join(",", root.Queue.WaitingLine.Select(v => v.VisitorIndex.ToString())) == "1,2,3",
                   "Q1: the line is FIFO in arrival order");
-            Check(Silhouettes(root) == 3, "Q1: one silhouette per waiting visitor (" + Silhouettes(root) + " lit)");
-            Check(StatusText(root).Contains("QUEUE: 3") && StatusText(root).Contains("CURRENT: 4/4"),
-                  "Q1: top bar reads '" + StatusText(root) + "'");
+            Check(Silhouettes(root) == 0, "Q1: the line display is off for the showcase (no silhouettes)");
+            Check(StatusText(root) == "", "Q1: the queue readout is hidden for the showcase");
 
             // ---- Q2 the oldest waiter steps up after the banner, with no second wait
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             Check(cp.CurrentVisitor == roster[1], "Q2: oldest waiting visitor stepped up immediately after the banner");
-            Check(root.Queue.WaitingCount == 2 && Silhouettes(root) == 2, "Q2: exactly one silhouette left the line");
-            Check(StatusText(root).Contains("QUEUE: 2"), "Q2: counters updated immediately ('" + StatusText(root) + "')");
+            Check(root.Queue.WaitingCount == 2 && Silhouettes(root) == 0, "Q2: the line queues invisibly (showcase)");
+            Check(StatusText(root) == "", "Q2: the readout stays hidden ('" + StatusText(root) + "')");
             int guard = 0;
             while (cp.CurrentVisitor != null && guard++ < 6)
             {
@@ -504,8 +503,9 @@ namespace FlowCheck
             root.Queue.AttachRoster(night4, new QueueTuning
             {
                 ArrivalMinSeconds = 0.01f, ArrivalMaxSeconds = 0.02f,   // test-only acceleration
-                PressureWarnAt = root.Config.queuePressureWarnAt,
-                OverwhelmedAt = root.Config.queueOverwhelmedAt,
+                PressureWarnAt = 5, OverwhelmedAt = 7,   // prove the pressure feature with real
+                                                          // values even though shipping config
+                                                          // disables it for the showcase
                 MissingStudentChance = 0f,
             }, 4242);
             cp = root.Checkpoint;
@@ -557,8 +557,7 @@ namespace FlowCheck
             Check(root.Queue.WaitingCount == 1 && root.Queue.WaitingLine.First() == mRoster[2],
                   "Q5: the waiting legitimate student vanished from the line");
             Check(root.Queue.EffectiveTotal == mRoster.Count - 1, "Q5: effective total dropped by one (" + root.Queue.EffectiveTotal + ")");
-            Check(StatusText(root).Contains("CURRENT: 2/" + (mRoster.Count - 1)),
-                  "Q5: counter reflects the smaller night ('" + StatusText(root) + "')");
+            Check(StatusText(root) == "", "Q5: the readout stays hidden for the showcase");
             string speech = FindDeep(cp.transform, "speechlog").GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
             Check(speech.Contains("Roll call"), "Q5: subtle radio feedback, no anomaly revealed");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
@@ -644,9 +643,8 @@ namespace FlowCheck
                   "Q8: the same visitor is back at the window");
             string budgetText = FindDeep(cp.transform, "budget").GetComponent<UnityEngine.UI.Text>().text;
             Check(budgetText.Contains("1 LEFT"), "Q8: the question budget was NOT refunded ('" + budgetText + "')");
-            Check(root.Queue.WaitingCount == 1 && Silhouettes(root) == 1, "Q8: the waiting line was restored, not duplicated");
-            Check(StatusText(root).Contains("QUEUE: 1") && StatusText(root).Contains("CURRENT: 4/4"),
-                  "Q8: counters restored ('" + StatusText(root) + "')");
+            Check(root.Queue.WaitingCount == 1 && Silhouettes(root) == 0, "Q8: the waiting line was restored, not duplicated (silhouettes off)");
+            Check(StatusText(root) == "", "Q8: the readout stays hidden after restore");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             Check(cp.CurrentVisitor != null && cp.CurrentVisitor.VisitorIndex == pRoster[3].VisitorIndex,

@@ -30,6 +30,7 @@ namespace Hollowbrook.UI
         {
             _gameRoot = root;
             var bg = UIFactory.Img(transform, "bg", ProceduralArt.Get("menu_bg"));
+            bg.color = Color.black;   // showcase build: black backdrop behind the menu
             UIFactory.AnchorsFull(bg.rectTransform);
             bg.raycastTarget = true;
 

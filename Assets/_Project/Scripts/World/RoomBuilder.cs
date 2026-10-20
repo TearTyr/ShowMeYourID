@@ -36,6 +36,13 @@ namespace Hollowbrook.World
             return go;
         }
 
+        // Showcase build: rooms sit on a plain black backdrop (the art sprite tinted black).
+        private static GameObject BlackBg(GameObject bg)
+        {
+            bg.GetComponent<SpriteRenderer>().color = Color.black;
+            return bg;
+        }
+
         public RoomInstance BuildRoom(RoomId id)
         {
             var room = new RoomInstance { Id = id };
@@ -50,7 +57,7 @@ namespace Hollowbrook.World
                 {
                     room.DisplayName = "MAIN HALLWAY";
                     room.HalfWidth = 11.4f;
-                    SpriteGO(root.transform, "bg", ProceduralArt.Get("hallway_bg"), Vector3.zero, 0);
+                    BlackBg(SpriteGO(root.transform, "bg", ProceduralArt.Get("hallway_bg"), Vector3.zero, 0));
                     AddDoor(room, "Security Door", -10.6f, floorY, RoomId.Security, "prop_door_security");
                     AddDoor(room, "Classroom 1", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), floorY, RoomId.Classroom1, "prop_door");
                     AddDoor(room, "Classroom 2", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), floorY, RoomId.Classroom2, "prop_door");
@@ -74,7 +81,7 @@ namespace Hollowbrook.World
                 {
                     room.DisplayName = "CLASSROOM 1";
                     room.HalfWidth = 8.2f;
-                    SpriteGO(root.transform, "bg", ProceduralArt.Get("classroom1_bg"), Vector3.zero, 0);
+                    BlackBg(SpriteGO(root.transform, "bg", ProceduralArt.Get("classroom1_bg"), Vector3.zero, 0));
                     AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.Classroom1, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door");
                     AddLightSwitch(room, 6.4f, floorY);
                     AddClue(room, "chalkboard", -6.2f, floorY, "Chalkboard");
@@ -91,7 +98,7 @@ namespace Hollowbrook.World
                 {
                     room.DisplayName = "CLASSROOM 2";
                     room.HalfWidth = 8.2f;
-                    SpriteGO(root.transform, "bg", ProceduralArt.Get("classroom2_bg"), Vector3.zero, 0);
+                    BlackBg(SpriteGO(root.transform, "bg", ProceduralArt.Get("classroom2_bg"), Vector3.zero, 0));
                     AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.Classroom2, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door");
                     AddLightSwitch(room, 6.4f, floorY);
                     AddClue(room, "window", -6.6f, floorY, "Classroom Window");

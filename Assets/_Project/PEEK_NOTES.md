@@ -99,11 +99,10 @@ hard requirements/acceptance tests):
    hard requirements, and `PeekLight.Update` also skips while paused or while an overlay
    sheet is open. If a clue dialogue and the pause menu are opened in quick succession the
    peek simply freezes until both are closed — correct, but it can feel like a hiccup.
-3. **Clue sprites are `solid_white` placeholders.** `ClueObject.Init` now builds a small
-   `visual` child (0.35 scale, paper-white, `sortingOrder = 45`) so the peek light has
-   something to reveal; real art should replace the sprite key there. Related cosmetic:
-   already-discovered clues keep their red `found_marker` at `sortingOrder = 76`, which stays
-   visible over the peek black — intentional for now (it marks "already inspected").
+3. **Clues have no sprite in the showcase build.** The placeholder `visual` child was
+   removed (it read as a floating white block in lit rooms); peek reveals clues through the
+   prompt + E only, until real clue art exists. Already-discovered clues keep their red
+   `found_marker` at `sortingOrder = 76`, visible over the peek black on purpose.
 4. **Design doc drift.** The `showmeyourid.txt` copy in this workspace still describes
    classrooms as enter-and-walk (§1.3, §2.5). The doc-side patch describing peek mode is
    pending from the design side; this implementation follows the peek spec, not those
