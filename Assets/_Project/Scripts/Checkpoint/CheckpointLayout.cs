@@ -42,7 +42,6 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region IdCard = new Region(16, 362, 320, 220);
         // the offered ID during the hand-over step: same card size, centred over the window
         public static readonly Region OfferedId = new Region(480, 190, 320, 220);
-        public static readonly Region Checklist = new Region(16, 590, 320, 122);
 
         // ---- centre column --------------------------------------------------
         public static readonly Region Window = new Region(405, 88, 470, 316);
@@ -51,8 +50,8 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region Glitch = new Region(560, 99, 160, 190);        // transient flash
         public static readonly Region Sill = new Region(405, 404, 470, 24);
         public static readonly Region Speech = new Region(490, 436, 300, 110);
-        // reserved slot: the principal note moved into the RULES NOTE overlay (showcase
-        // build), but the wireframe cell stays documented and FlowCheck still bounds-checks it
+        // reserved slot: the principal note lives in the RULES NOTE overlay now, but the
+        // wireframe cell stays documented and FlowCheck still bounds-checks it
         public static readonly Region Note = new Region(500, 554, 280, 110);
         public static readonly Region PatrolBtn = new Region(490, 672, 180, 36);
         public static readonly Region EndShiftBtn = new Region(680, 672, 200, 36);
@@ -111,11 +110,6 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region IdPhoto = new Region(10, 46, 90, 118);
             public const float IdRowX = 112f, IdRowW = 200f, IdRowH = 16f;
             public static readonly float[] IdRules = { 52f, 75f, 99f, 123f, 146f, 179f };
-
-            // checklist
-            public static readonly Region ChecklistHead = new Region(8, 4, 304, 16);
-            public const float CheckRowX = 6f, CheckRowY0 = 22f, CheckRowStep = 12.5f;
-            public const float CheckRowW = 308f, CheckRowH = 12f;
 
             // speech / note
             public static readonly Region SpeechText = new Region(10, 8, 280, 94);

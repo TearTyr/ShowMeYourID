@@ -13,7 +13,8 @@ security office. The core survives loads via DontDestroyOnLoad; per-scene roots 
 **Desk vs patrol:** the desk is a state machine over an **arrival queue** (`GameLogic/CheckpointQueue`,
 pure): a seeded clock pulls from the roster source (Normal: 25–30 s on night 1, x0.8 per night,
  double-speed while the window is busy; Endless/Challenge: 3–5 s); window free → present, busy → FIFO line
-(one identical silhouette per waiter); verdict → banner → `CompleteActive()` promotes the oldest
+(one identical silhouette per waiter — the desk display of that line is owned by
+`ShowcaseBuild.LineDisplay`, off in the current build; the queue itself always runs); verdict → banner → `CompleteActive()` promotes the oldest
 waiter with no second wait; completion only when source dry + line empty + window free. `GameRoot`
 owns the queue so it survives scene reloads — patrol pauses the clock (the desk view, the only
 ticker, is destroyed) and snapshots (waiting line, cursor, timer, budget mask) ride in the save.

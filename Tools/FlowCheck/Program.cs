@@ -107,17 +107,32 @@ namespace FlowCheck
             string[] deskNames =
             {
                 "DeskFrame", "topbar", "daybanner_border", "clock", "pause", "runstats", "mutationbg",
-                "record", "idcard", "checklist_border",
+                "record", "idcard",
                 "windowframe", "glass", "facade", "visitor", "glitch", "sill",
                 "speech_border", "speechlog", "handover", "offeredid", "interview", "patrol", "endshift",
                 "qpanel_border", "q0", "q1", "q2", "q3", "testimony",
                 "scan", "records", "map", "notes", "reject", "allow", "monitor_border", "out",
                 "confirmbox_border", "Banner", "OverlayRules", "OverlayLog",
-                "queuestatus", "queuestripL", "queuestripR", "qsil0", "qsil7", "qoverflow", "qbadge",
                 "StickyNoteOverlay", "stickynote_border",
             };
             foreach (var n in deskNames)
                 Check(FindDeep(root.Checkpoint.transform, n) != null, "desk element '" + n + "'");
+
+            // presentation cuts: the checklist widget is gone for good, and the waiting-line
+            // display is built exactly when ShowcaseBuild.LineDisplay says so (never built
+            // then hidden, never referenced from anywhere else)
+            Check(FindDeep(root.Checkpoint.transform, "checklist_border") == null,
+                "the checklist widget is removed from the desk");
+            string[] lineNames =
+            {
+                "queuestatus", "queuestripL", "queuestripR", "qsil0", "qsil7", "qoverflow", "qbadge",
+            };
+            foreach (var n in lineNames)
+            {
+                bool present = FindDeep(root.Checkpoint.transform, n) != null;
+                Check(present == ShowcaseBuild.LineDisplay,
+                    "line display element '" + n + "' is built exactly when LineDisplay is on");
+            }
 
             string[] hudNames =
             {
@@ -165,7 +180,6 @@ namespace FlowCheck
             ExpectRegion("pause", L.Pause, 1160, 8, 104, 36);
             ExpectRegion("record sheet", L.Record, 16, 64, 320, 290);
             ExpectRegion("id card", L.IdCard, 16, 362, 320, 220);
-            ExpectRegion("checklist", L.Checklist, 16, 590, 320, 122);
             ExpectRegion("window frame", L.Window, 405, 88, 470, 316);
             ExpectRegion("glass", L.Glass, 420, 98, 440, 296);
             ExpectRegion("portrait", L.Portrait, 565, 104, 150, 180);
@@ -214,7 +228,6 @@ namespace FlowCheck
             Add("prompt", L.Prompt, "E");
             Add("record sheet", L.Record, "C");
             Add("id card", L.IdCard, "C");
-            Add("checklist", L.Checklist, "C");
             Add("window", L.Window, "C");
             Add("sill", L.Sill, "C");
             Add("speech", L.Speech, "C");
@@ -890,8 +903,12 @@ namespace FlowCheck
             return n;
         }
 
-        private static string StatusText(GameRoot root) =>
-            FindDeep(root.Checkpoint.transform, "queuestatus").GetComponent<UnityEngine.UI.Text>().text;
+        private static string StatusText(GameRoot root)
+        {
+            // the readout label only exists when ShowcaseBuild.LineDisplay is on
+            var go = FindDeep(root.Checkpoint.transform, "queuestatus");
+            return go == null ? "" : go.GetComponent<UnityEngine.UI.Text>().text;
+        }
 
         private static UnityEngine.UI.Button Btn(GameRoot root, string name) =>
             FindDeep(root.Checkpoint.transform, name).GetComponent<UnityEngine.UI.Button>();

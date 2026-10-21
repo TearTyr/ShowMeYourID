@@ -247,30 +247,9 @@ namespace Hollowbrook.Horror
             var step = AnomalyEncounter.Step(_state, _meter, _stateTimer,
                 beam || roomLit, focused, rig == null || !rig.BatteryDead, dist, dt, _tuning);
 
-            bool changed = step.State != _state;
-            _stateTimer = changed ? 0f : _stateTimer + dt;
-            var prev = _state;
-            _state = step.State;
-
-            if (changed)
-            {
-                if (prev == AnomalyState.Exposed && _state != AnomalyState.Repelled) HideFace();
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.AnomalyStateChanged, _state.ToString()));
-            }
-            if (step.JustExposed)
-            {
-                ShowFace();
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*under the beam the face is WRONG*", 2.6f, null));
-                _gameRoot.Audio.PlaySfx("sfx_glitch", 0.6f);
-            }
-            if (step.JustRepelled)
-            {
-                ResolveOnce();       // token + pool marker, exactly once
-                BeginRetreat(views); // physical withdrawal starts NOW; hunting is over
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.AnomalyRevealed, Kind));
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it tears itself away from the light*", 2.6f, null));
-                _gameRoot.Audio.PlaySfx("sfx_stinger", 0.7f);
-            }
+            bool changed = ApplyStateStep(step, dt);
+            if (step.JustExposed) AnnounceExposure();
+            if (step.JustRepelled) AnnounceRepel(views);
             if (changed && _state == AnomalyState.Recovering)
             {
                 // leaves the stage; the spawner owns the recovery countdown and re-enters it
@@ -279,27 +258,58 @@ namespace Hollowbrook.Horror
                 Despawn(true);
                 return;
             }
+            TickCatch(dt, step.Threatening, beam || roomLit, active);
+        }
 
-            // fair catch: continuously threatening for this behavior's OWN grace seconds,
-            // only while sharing the room with the player, and never while pinned (a frozen
-            // Blink under the beam cannot also maul you).
-            bool pinned = _profile.FreezesWhenObserved && (beam || roomLit);
-            if (step.Threatening && active && !pinned)
-            {
-                if (!_threatTold)
-                {
-                    _threatTold = true;
-                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*footsteps, close, behind you*", 2.2f, null));
-                    _gameRoot.Audio.PlaySfx("sfx_heartbeat", 0.7f);
-                }
-                _threatSeconds += dt;
-                if (_threatSeconds >= _profile.CatchGraceSeconds) CatchPlayer();
-            }
-            else
+        // Lands the pure state machine's verdict in the live object; true when the state moved.
+        private bool ApplyStateStep(EncounterStep step, float dt)
+        {
+            bool changed = step.State != _state;
+            _stateTimer = changed ? 0f : _stateTimer + dt;
+            var prev = _state;
+            _state = step.State;
+            if (!changed) return false;
+            if (prev == AnomalyState.Exposed && _state != AnomalyState.Repelled) HideFace();
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.AnomalyStateChanged, _state.ToString()));
+            return true;
+        }
+
+        private void AnnounceExposure()
+        {
+            ShowFace();
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*under the beam the face is WRONG*", 2.6f, null));
+            _gameRoot.Audio.PlaySfx("sfx_glitch", 0.6f);
+        }
+
+        private void AnnounceRepel(ViewManager views)
+        {
+            ResolveOnce();       // token + pool marker, exactly once
+            BeginRetreat(views); // physical withdrawal starts NOW; hunting is over
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.AnomalyRevealed, Kind));
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it tears itself away from the light*", 2.6f, null));
+            _gameRoot.Audio.PlaySfx("sfx_stinger", 0.7f);
+        }
+
+        // Fair catch: continuously threatening for this behavior's OWN grace seconds, only
+        // while sharing the room with the player, and never while pinned (a frozen Blink
+        // under the beam cannot also maul you).
+        private void TickCatch(float dt, bool threatening, bool observed, bool active)
+        {
+            bool pinned = _profile.FreezesWhenObserved && observed;
+            if (!threatening || !active || pinned)
             {
                 _threatSeconds = 0f;
-                if (!step.Threatening) _threatTold = false;
+                if (!threatening) _threatTold = false;
+                return;
             }
+            if (!_threatTold)
+            {
+                _threatTold = true;
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*footsteps, close, behind you*", 2.2f, null));
+                _gameRoot.Audio.PlaySfx("sfx_heartbeat", 0.7f);
+            }
+            _threatSeconds += dt;
+            if (_threatSeconds >= _profile.CatchGraceSeconds) CatchPlayer();
         }
 
         private void BeginRetreat(ViewManager views)
@@ -336,72 +346,84 @@ namespace Hollowbrook.Horror
             bool stalking = _state == AnomalyState.Stalking;
             float dist = Mathf.Abs(player.x - p.x);
 
+            // one method per behavior kind: each reads as its own little rule sheet
             switch (Kind)
             {
-                case AnomalyBehaviorKind.Blink:
-                {
-                    // moves only when not effectively observed: any beam or the room lights
-                    // hold it still. Detection is not defeat — Focus is still needed to repel.
-                    if (views.BeamCovers(p) || views.RoomLit) break;
-                    float tx = stalking ? player.x : _targetX;
-                    p.x = Mathf.MoveTowards(p.x, tx, _profile.MoveSpeed * dt);
-                    if (!stalking && Mathf.Abs(p.x - _targetX) < 0.2f) PickWanderTarget(player);
-                    break;
-                }
-                case AnomalyBehaviorKind.Slide:
-                {
-                    // readable lateral glide: commits to a point, re-picks on arrival; while
-                    // stalking it picks flank points near the player — no teleporting.
-                    p.x = Mathf.MoveTowards(p.x, _targetX, _profile.MoveSpeed * dt);
-                    if (Mathf.Abs(p.x - _targetX) < 0.2f) PickSlideTarget(player, stalking);
-                    break;
-                }
-                case AnomalyBehaviorKind.Sprint:
-                {
-                    if (_dashTimer > 0f)
-                    {
-                        _dashTimer -= dt;
-                        p.x = Mathf.MoveTowards(p.x, player.x, _profile.DashSpeed * dt);
-                        if (Mathf.Abs(p.x - player.x) < 0.15f || _dashTimer <= 0f)
-                        { _dashTimer = 0f; _dashRecover = _profile.DashRecoverSeconds; }
-                        break;
-                    }
-                    if (_dashRecover > 0f) { _dashRecover -= dt; break; }
-
-                    if (dist < _profile.AggroRange && !views.BeamCovers(p))
-                    {
-                        if (_telegraph < 0f)
-                        {
-                            // understandable warning BEFORE the burst — the reaction window
-                            _telegraph = _profile.TelegraphSeconds;
-                            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it tenses — MOVE*", 1.6f, null));
-                            _gameRoot.Audio.PlaySfx("sfx_heartbeat", 0.8f);
-                        }
-                        _telegraph -= dt;
-                        if (_telegraph <= 0f)
-                        {
-                            _telegraph = -1f;
-                            _dashTimer = _profile.DashSeconds;
-                            _gameRoot.Audio.PlaySfx("sfx_glitch", 0.8f);
-                        }
-                    }
-                    else
-                    {
-                        _telegraph = -1f;   // light on it interrupts the windup (Sweep has a job)
-                        p.x = Mathf.MoveTowards(p.x, _targetX, _profile.MoveSpeed * dt);
-                        if (Mathf.Abs(p.x - _targetX) < 0.2f) PickWanderTarget(player);
-                    }
-                    break;
-                }
-                default: // CoverHug — ceiling lurker: slow drift inside its own high band
-                {
-                    float tx = stalking ? player.x : _targetX;
-                    p.x = Mathf.MoveTowards(p.x, tx, _profile.MoveSpeed * dt);
-                    if (!stalking && Mathf.Abs(p.x - _targetX) < 0.2f) PickWanderTarget(player);
-                    break;
-                }
+                case AnomalyBehaviorKind.Blink: p = MoveBlink(dt, views, player, stalking, p); break;
+                case AnomalyBehaviorKind.Slide: p = MoveSlide(dt, player, stalking, p); break;
+                case AnomalyBehaviorKind.Sprint: p = MoveSprint(dt, views, player, dist, p); break;
+                default: p = MoveCoverHug(dt, player, stalking, p); break;   // CoverHug
             }
             transform.localPosition = ClampToBand(p);
+        }
+
+        // Blink: moves only when not effectively observed — any beam or the room lights
+        // hold it still. Detection is not defeat — Focus is still needed to repel.
+        private Vector3 MoveBlink(float dt, ViewManager views, Vector3 player, bool stalking, Vector3 p)
+        {
+            if (views.BeamCovers(p) || views.RoomLit) return p;
+            float tx = stalking ? player.x : _targetX;
+            p.x = Mathf.MoveTowards(p.x, tx, _profile.MoveSpeed * dt);
+            if (!stalking && Mathf.Abs(p.x - _targetX) < 0.2f) PickWanderTarget(player);
+            return p;
+        }
+
+        // Slide: readable lateral glide — commits to a point, re-picks on arrival; while
+        // stalking it picks flank points near the player. No teleporting.
+        private Vector3 MoveSlide(float dt, Vector3 player, bool stalking, Vector3 p)
+        {
+            p.x = Mathf.MoveTowards(p.x, _targetX, _profile.MoveSpeed * dt);
+            if (Mathf.Abs(p.x - _targetX) < 0.2f) PickSlideTarget(player, stalking);
+            return p;
+        }
+
+        // Sprint: telegraphed burst — windup under darkness, dash, recover; light on it
+        // interrupts the windup (Sweep has a job).
+        private Vector3 MoveSprint(float dt, ViewManager views, Vector3 player, float dist, Vector3 p)
+        {
+            if (_dashTimer > 0f)
+            {
+                _dashTimer -= dt;
+                p.x = Mathf.MoveTowards(p.x, player.x, _profile.DashSpeed * dt);
+                if (Mathf.Abs(p.x - player.x) < 0.15f || _dashTimer <= 0f)
+                { _dashTimer = 0f; _dashRecover = _profile.DashRecoverSeconds; }
+                return p;
+            }
+            if (_dashRecover > 0f) { _dashRecover -= dt; return p; }
+
+            if (dist < _profile.AggroRange && !views.BeamCovers(p))
+            {
+                if (_telegraph < 0f)
+                {
+                    // understandable warning BEFORE the burst — the reaction window
+                    _telegraph = _profile.TelegraphSeconds;
+                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it tenses — MOVE*", 1.6f, null));
+                    _gameRoot.Audio.PlaySfx("sfx_heartbeat", 0.8f);
+                }
+                _telegraph -= dt;
+                if (_telegraph <= 0f)
+                {
+                    _telegraph = -1f;
+                    _dashTimer = _profile.DashSeconds;
+                    _gameRoot.Audio.PlaySfx("sfx_glitch", 0.8f);
+                }
+            }
+            else
+            {
+                _telegraph = -1f;
+                p.x = Mathf.MoveTowards(p.x, _targetX, _profile.MoveSpeed * dt);
+                if (Mathf.Abs(p.x - _targetX) < 0.2f) PickWanderTarget(player);
+            }
+            return p;
+        }
+
+        // CoverHug: ceiling lurker — slow drift inside its own high band.
+        private Vector3 MoveCoverHug(float dt, Vector3 player, bool stalking, Vector3 p)
+        {
+            float tx = stalking ? player.x : _targetX;
+            p.x = Mathf.MoveTowards(p.x, tx, _profile.MoveSpeed * dt);
+            if (!stalking && Mathf.Abs(p.x - _targetX) < 0.2f) PickWanderTarget(player);
+            return p;
         }
 
         // Off-stage roaming: walk to the door of the next hop toward the player's room, pass

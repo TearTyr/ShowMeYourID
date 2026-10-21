@@ -111,8 +111,8 @@ namespace Hollowbrook.World
             _clueKey = clueKey;
             _def = root.Session.Clues.Get(clueKey); // def content is static; tracker state lives in session
             Prompt = "Inspect " + label + " [E]";
-            // showcase build: no placeholder sprite — clues are revealed by the peek prompt
-            // and E only, until real clue art exists
+            // no world sprite by design: the peek prompt and E reveal clues until real art
+            // exists — hang a SpriteRenderer here when it does
         }
 
         public override void Interact()

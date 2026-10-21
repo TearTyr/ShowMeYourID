@@ -22,7 +22,7 @@ namespace Hollowbrook.UI
 
             string body =
                 "CHECKPOINT (mouse)\n" +
-                "   Click documents, checklist rows, SCAN, questions, ALLOW / REJECT.\n" +
+                "   Click documents, SCAN, questions, ALLOW / REJECT.\n" +
                 "   At most 2 questions per visitor. Decisions are permanent.\n\n" +
                 "EXPLORATION\n" +
                 "   A / D  or  ← / →     walk left / right\n" +

@@ -183,23 +183,4 @@ namespace Hollowbrook.World
             room.Interactables.Add(co);
         }
     }
-    internal static class UIFactoryLocal
-    {
-        public static RectTransform NewRect(GameObject go)
-        {
-            var rt = go.GetComponent<RectTransform>();
-            if (rt == null) rt = go.AddComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
-            return rt;
-        }
-
-        public static UnityEngine.UI.Image FullImage(GameObject go, Color c)
-        {
-            var img = go.AddComponent<UnityEngine.UI.Image>();
-            img.color = c;
-            NewRect(go);
-            return img;
-        }
-    }
 }

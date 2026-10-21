@@ -35,7 +35,7 @@ them automatically (keys are listed in `ProceduralArt` / `ProceduralAudio`).
 
 | Context | Input |
 |---|---|
-| Checkpoint | Mouse: click the window to be offered the ID, click the card to take it, checklist rows, SCAN, QUESTION then questions, ALLOW / REJECT |
+| Checkpoint | Mouse: click the window to be offered the ID, click the card to take it, SCAN, QUESTION then questions, ALLOW / REJECT |
 | Walk / Run | `A`/`D` or `◂`/`▸`, hold `Shift` to run |
 | Interact | `E` (doors, clues, light switches) |
 | Flashlight | `F` Sweep (wide) / `Q` Focus (tight) / `L` off — or hold `LMB` / `RMB` for a temporary beam |
@@ -79,10 +79,10 @@ them automatically (keys are listed in `ProceduralArt` / `ProceduralAudio`).
   click the booth runs a real **arrival queue** — a randomized 25–30 s clock walks the roster up
   on Night 1 (x0.8 per later night, double-speed while you are still interviewing, so dawdling
   grows the line; Endless/Challenge keep the fast 3–5 s race clock); the oldest waiter steps up
-  right after your verdict banner. SHOWCASE BUILD: the line display, its `QUEUE: n | CURRENT: a/t`
-  readout and its pressure rules (warn at 5 / overrun at 7) are switched off
-  (`CheckpointView.LineFeatureEnabled`, pressure knobs in `GameConfigSO`); the queue itself still
-  paces arrivals behind the scenes. Anomalies entering the line can make one legitimate student
+  right after your verdict banner. The line's desk display (silhouettes + `QUEUE: n | CURRENT: a/t`
+  readout) is owned by one flag, `ShowcaseBuild.LineDisplay` (off in the current build: the UI is
+  simply never built, while the queue itself still paces arrivals behind the scenes; the pressure
+  knobs live in `GameConfigSO`). Anomalies entering the line can make one legitimate student
   **vanish** (seeded chance, one per shift, permanent, line-first). The queue is engine-free pure
   logic (`GameLogic/CheckpointQueue.cs`) owned by `GameRoot`, so patrol pauses it and saves
   restore it exactly.

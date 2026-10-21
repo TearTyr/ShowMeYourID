@@ -75,6 +75,25 @@ namespace Hollowbrook.UI
             rt.offsetMax = Vector2.zero;
         }
 
+        // Stretch an existing GameObject across its parent (adding the RectTransform when
+        // the GO does not carry one yet) — for full-screen layers built outside the factory.
+        public static RectTransform NewRect(GameObject go)
+        {
+            var rt = go.GetComponent<RectTransform>();
+            if (rt == null) rt = go.AddComponent<RectTransform>();
+            AnchorsFull(rt);
+            return rt;
+        }
+
+        // A plain stretched Image on an existing GameObject (transition fades, dimmers).
+        public static Image FullImage(GameObject go, Color c)
+        {
+            var img = go.AddComponent<Image>();
+            img.color = c;
+            NewRect(go);
+            return img;
+        }
+
         public static void Anchor(RectTransform rt, Vector2 anchor, Vector2 size, Vector2 pos)
         {
             rt.anchorMin = anchor; rt.anchorMax = anchor;

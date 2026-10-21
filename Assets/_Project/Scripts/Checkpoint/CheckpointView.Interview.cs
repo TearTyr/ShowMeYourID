@@ -1,0 +1,95 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Text;
+using Hollowbrook.Bootstrap;
+using Hollowbrook.Core;
+using Hollowbrook.Logic;
+using Hollowbrook.UI;
+using UnityEngine;
+using UnityEngine.UI;
+using L = Hollowbrook.Checkpoint.CheckpointLayout;
+
+namespace Hollowbrook.Checkpoint
+{
+    // The interview: QUESTION toggle, the four questions, testimony lines.
+    // One area of the inspection desk; see CheckpointView.cs for the state machine,
+    // the shared fields and the whole-class comment. Same class, split by desk area.
+    public partial class CheckpointView
+    {
+        // Interview gate: questions exist only after you deliberately open them.
+        private void ToggleInterview()
+        {
+            if (_current == null || _verdictLocked) return;
+            _interviewOpen = !_interviewOpen;
+            _gameRoot.Audio.PlaySfx(_interviewOpen ? "sfx_ui_open" : "sfx_ui_close", 0.5f);
+            RefreshHud();
+        }
+
+        // Headless harnesses/FlowCheck drive the same path the buttons use.
+        internal void OpenInterview() { if (!_interviewOpen) ToggleInterview(); }
+
+        public void AskQuestion(QuestionId q)
+        {
+            if (_current == null || _verdictLocked) return;
+            if (!_interviewOpen) return;   // questions live behind the QUESTION gate
+            if (!_budget.TryAsk(_current, q, out var answer))
+            {
+                _monitorOutput.text = _budget.HasAsked(q) ? "ALREADY ASKED THAT." : "NO MORE QUESTIONS — DISTRICT POLICY.";
+                _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.35f);
+                return;
+            }
+            string tone = answer.Tone == ToneTag.Normal ? "" : "  [" + ToneLabel(answer.Tone) + "]";
+            SayLine("YOU", QuestionSpeech(q));
+            SayLine("AT THE WINDOW", "“" + answer.Text + "”" + tone);
+            AppendTestimony(q, answer);
+            if (Queue != null) Queue.ActiveBudgetMask = _budget.Mask;   // survives quit/continue
+            _gameRoot.Audio.PlaySfx("sfx_intercom", 0.5f);
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.QuestionAsked, q));
+            RefreshHud();
+        }
+
+        private void AppendTestimony(QuestionId q, Answer answer)
+        {
+            if (_testimony == null) return;
+            string check = answer.ContradictsDocuments ? " x PAPERS DISAGREE"
+                         : " = matches papers";
+            string tone = answer.Tone == ToneTag.Normal ? "" : " (" + ToneLabel(answer.Tone).ToLowerInvariant() + " voice)";
+            string line = "• " + QuestionTextShort(q) + ": " + check + tone;
+            _testimony.text = string.IsNullOrEmpty(_testimony.text)
+                ? line : _testimony.text + "\n" + line;
+        }
+
+        private static string ToneLabel(ToneTag t)
+        {
+            switch (t)
+            {
+                case ToneTag.Hesitant: return "hesitant";
+                case ToneTag.Flat: return "flat, rehearsed";
+                case ToneTag.TooSmooth: return "too smooth";
+                default: return "echoing, as if reading";
+            }
+        }
+
+        private static string QuestionTextShort(QuestionId q)
+        {
+            switch (q)
+            {
+                case QuestionId.Course: return "COURSE";
+                case QuestionId.Year: return "YEAR";
+                case QuestionId.Status: return "STATUS";
+                default: return "FIRST CLASS";
+            }
+        }
+
+        private static string QuestionSpeech(QuestionId q)
+        {
+            switch (q)
+            {
+                case QuestionId.Course: return "Your course?";
+                case QuestionId.Year: return "Your year?";
+                case QuestionId.Status: return "Regular or transferee?";
+                default: return "Which classroom is your first class in?";
+            }
+        }
+    }
+}

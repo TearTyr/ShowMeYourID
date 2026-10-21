@@ -9,7 +9,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.World
 {
-    // The door-facing late-students office, showcase build: the room is DARK. Late students
+    // The door-facing late-students office: the room is DARK by design. Late students
     // do not walk in on their own — you sweep the cursor lamp over the black until the clear
     // circle finds them (FNaF-3 style), and only then do they step forward for the interview
     // (ID panel + ALLOW / REJECT). The same circle searches the three room spots; one of them
@@ -60,7 +60,7 @@ namespace Hollowbrook.World
             var bg = UIFactory.Img(transform, "bg", ProceduralArt.Get("security_bg"));
             UIFactory.AnchorsFull(bg.rectTransform);
             bg.raycastTarget = true;
-            bg.color = Color.black;   // showcase: the office is dark before the lamp exists
+            bg.color = Color.black;   // the office is dark before the lamp exists
 
             var title = UIFactory.Label(transform, "title", "SECURITY OFFICE — LATE ARRIVALS", 24,
                 UIFactory.Ink, TextAnchor.MiddleCenter);

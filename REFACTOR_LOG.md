@@ -1,5 +1,42 @@
 # Refactor log — readability pass (branch refactor/readability)
 
+## Readability pass for a beginner team (five committed steps)
+
+1. **Showcase-cut cleanup** — `ShowcaseBuild` owns presentation cuts; checklist cut for good
+   (see the entry below).
+2. **`ProceduralArt` split by art family** — one `partial class` over five files (core cache +
+   key switch + Canvas2D, then `.Rooms / .Props / .Faces / .Documents`). 1042 lines became
+   338 + four ~200-line files; zero call-site changes.
+3. **One helper vocabulary** — `UIFactoryLocal` (RoomBuilder) merged into `UIFactory`;
+   `NewRect` / `FullImage` live with the rest of the rect vocabulary.
+4. **`WanderingAnomaly` long methods split** — `MoveBehavior` is a 5-line dispatch over
+   `MoveBlink / MoveSlide / MoveSprint / MoveCoverHug` (one rule sheet per behavior; adding a
+   behavior = adding one method, as ARCHITECTURE promises); `TickStates` lands reactions via
+   `ApplyStateStep / AnnounceExposure / AnnounceRepel / TickCatch`.
+5. **`CheckpointView` split by desk area** — same class over nine partial files
+   (`TopBar, Papers, Window, Speech, Interview, Decision, Overlays, QueueLine, Sticky`);
+   the core file keeps the state machine, shared fields and orchestration (1371 → 427 lines).
+   Chosen over extracting widget classes on purpose: the desk is one tightly-coupled state
+   machine, and partial files give per-area navigation without callback/context plumbing —
+   the friendlier read for a beginner team. Promoting an area to a real class later stays
+   possible, one area at a time, with FlowCheck as the safety net.
+
+Every step: one commit, then FlowCheck + LogicTests + Verification/LogicTests +
+verify.sh (compile vs real Unity assemblies + static audit). All green at every step.
+
+## Showcase-cut cleanup (one owner per presentation decision)
+
+- `ShowcaseBuild` (Core) now owns the build's presentation cuts; first flag: `LineDisplay`
+  (waiting-line silhouettes + banner readout). The strips are built **only when the flag is
+  on** — nothing is ever built-then-hidden — and refresh paths null-guard, so flag off means
+  the code paths simply do not exist at runtime. FlowCheck asserts each line element is
+  present exactly when the flag says so.
+- The checklist clipboard was cut for good (it was built hidden with a commented-out show
+  line): widget, row model, `CycleCheckRow`, `StylePaperRow`, layout regions, wireframe-table
+  rows and the README/Controls mentions are gone. Git holds the restore path.
+- Remaining "showcase" comments reworded into permanent art-direction notes (black backdrops,
+  clue sprites, dark security office) so no reader mistakes a decision for a temporary hack.
+
 ## Floating box + vanishing doors (placeholder quad scale, post-simplification)
 
 **Symptom:** a small translucent box floats at the centre of every patrol room (grey when lit,

@@ -4,6 +4,7 @@ using Hollowbrook.Bootstrap;
 using Hollowbrook.Core;
 using Hollowbrook.Horror;
 using Hollowbrook.Logic;
+using Hollowbrook.UI;
 using UnityEngine;
 
 namespace Hollowbrook.World
@@ -57,8 +58,7 @@ namespace Hollowbrook.World
             fadeCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
             fadeCanvas.sortingOrder = 8;
             fadeGo.AddComponent<UnityEngine.UI.GraphicRaycaster>();
-            var fadeRt = UIFactoryLocal.NewRect(fadeGo);
-            _fade = UIFactoryLocal.FullImage(fadeGo, Color.black);
+            _fade = UIFactory.FullImage(fadeGo, Color.black);   // also stretches it full-screen
             _fade.raycastTarget = false;
             SetFade(0f);
 
