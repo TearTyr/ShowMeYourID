@@ -148,14 +148,11 @@ namespace Hollowbrook.World
         {
             if (_discovered || _marker != null) return;
             _discovered = true;
-            _marker = new GameObject("found_marker");
-            _marker.transform.SetParent(Room.Root.transform, false);
-            _marker.transform.localPosition = new Vector3(AnchorX, -1.35f, 0);
-            var sr = _marker.AddComponent<SpriteRenderer>();
-            sr.sprite = ProceduralArt.Get("solid_white");
-            sr.color = new Color(0.75f, 0.14f, 0.18f, 0.9f); // restrained red = interacted/interactive
-            sr.sortingOrder = 76;
-            _marker.transform.localScale = new Vector3(0.14f, 0.14f, 1f);
+            // same flat-quad convention as every other world placeholder (size in units)
+            _marker = RoomBuilder.Quad(Room.Root.transform, "found_marker",
+                new Vector3(AnchorX, -1.35f, 0), 76,
+                new Vector2(0.14f, 0.14f),
+                new Color(0.75f, 0.14f, 0.18f, 0.9f)); // restrained red = interacted/interactive
         }
 
         public void SyncFromSession()

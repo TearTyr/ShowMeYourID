@@ -11,6 +11,9 @@ namespace Hollowbrook.Bootstrap
         private static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>();
         public const float WorldPpu = 64f;   // world sprites: 64 px per unit
         public const float UiPpu = 100f;     // UI/document sprites
+        // flat quad sprite (solid_white): 4 px texture at 4 px per unit => native 1x1 world
+        // unit, so world placeholder quads can scale in plain units (see MakeSolid).
+        public const float QuadPpu = 4f;
 
         public static Sprite Get(string key)
         {
@@ -324,7 +327,14 @@ namespace Hollowbrook.Bootstrap
             var t = new Texture2D(4, 4, TextureFormat.RGBA32, false);
             var px = new Color[16]; for (int i = 0; i < 16; i++) px[i] = c;
             t.SetPixels(px); t.Apply(false, false); t.name = "solid";
-            var s = Sprite.Create(t, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f), UiPpu);
+            // The one flat quad sprite every world placeholder is built from: its native size
+            // is exactly 1x1 WORLD UNIT (4 px texture at 4 px per unit), so a placeholder's
+            // localScale IS its size in units (a 1.7x3.4 door quad scales 1.7x3.4). Drawing it
+            // at UiPpu shrank every world quad to 1/25th: the darkness overlay became a small
+            // floating box and doors/switches/wall bands vanished into dots.
+            // uGUI Images ignore pixelsPerUnit (they stretch to their RectTransform), so the
+            // UI uses of this sprite are unaffected.
+            var s = Sprite.Create(t, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f), QuadPpu);
             s.name = "solid_white";
             return s;
         }

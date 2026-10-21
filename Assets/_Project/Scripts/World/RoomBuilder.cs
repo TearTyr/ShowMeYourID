@@ -40,14 +40,23 @@ namespace Hollowbrook.World
         // and trivial to swap for real room art later (replace with a single sprite GO).
         private static void PlaceholderBg(Transform parent, float floorY)
         {
-            var wall = SpriteGO(parent, "bg_wall", ProceduralArt.Get("solid_white"),
-                new Vector3(0f, floorY + 3.2f, 0f), 0);
-            wall.transform.localScale = new Vector3(26f, 6.4f, 1f);
-            wall.GetComponent<SpriteRenderer>().color = new Color(0.13f, 0.13f, 0.14f);
-            var floor = SpriteGO(parent, "bg_floor", ProceduralArt.Get("solid_white"),
-                new Vector3(0f, floorY - 1.2f, 0f), 0);
-            floor.transform.localScale = new Vector3(26f, 2.4f, 1f);
-            floor.GetComponent<SpriteRenderer>().color = new Color(0.07f, 0.07f, 0.075f);
+            Quad(parent, "bg_wall", new Vector3(0f, floorY + 3.2f, 0f), 0,
+                new Vector2(26f, 6.4f), new Color(0.13f, 0.13f, 0.14f));
+            Quad(parent, "bg_floor", new Vector3(0f, floorY - 1.2f, 0f), 0,
+                new Vector2(26f, 2.4f), new Color(0.07f, 0.07f, 0.075f));
+        }
+
+        // One flat placeholder quad. The solid_white sprite is exactly 1x1 world unit, so
+        // `size` is in world units and equals the localScale — every placeholder in the patrol
+        // scene (wall/floor bands, doors, switches, darkness overlay, markers) is this one
+        // call, which keeps the convention in a single place.
+        public static GameObject Quad(Transform parent, string name, Vector3 pos, int order,
+            Vector2 size, Color color)
+        {
+            var go = SpriteGO(parent, name, ProceduralArt.Get("solid_white"), pos, order);
+            go.transform.localScale = new Vector3(size.x, size.y, 1f);
+            go.GetComponent<SpriteRenderer>().color = color;
+            return go;
         }
 
         public RoomInstance BuildRoom(RoomId id)
@@ -68,10 +77,8 @@ namespace Hollowbrook.World
                     AddDoor(room, "Security Door", -10.6f, floorY, RoomId.Security, "prop_door_security");
                     AddDoor(room, "Classroom 1", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), floorY, RoomId.Classroom1, "prop_door");
                     AddDoor(room, "Classroom 2", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), floorY, RoomId.Classroom2, "prop_door");
-                    var server = SpriteGO(root.transform, "server_door_art", ProceduralArt.Get("solid_white"),
-                        new Vector3(10.4f, floorY + 1.5f, 0), 10);
-                    server.transform.localScale = new Vector3(2.4f, 3.0f, 1f);
-                    server.GetComponent<SpriteRenderer>().color = new Color(0.17f, 0.17f, 0.19f);
+                    Quad(root.transform, "server_door_art", new Vector3(10.4f, floorY + 1.5f, 0), 10,
+                        new Vector2(2.4f, 3.0f), new Color(0.17f, 0.17f, 0.19f));
                     AddLightSwitch(room, -9.2f, floorY);
                     AddClue(room, "light", -7.0f, floorY, "Flickering Light (switch panel)");
                     AddClue(room, "door", 10.0f, floorY, "Sealed Door");
@@ -120,9 +127,11 @@ namespace Hollowbrook.World
                 }
             }
 
-            var dark = SpriteGO(root.transform, "darkness", ProceduralArt.Get("solid_white"),
-                new Vector3(0, 0, 0), 70);
-            dark.transform.localScale = new Vector3(room.HalfWidth * 2f + 4f, 11f, 1f);
+            // Ambient dim layer: BLACK at the LightController's alpha (0.12 lit .. 0.62 dark,
+            // 1 while peeking). It draws only outside sprite masks, so the peek lamp punches
+            // a hole in it. A white tint here would wash rooms out instead of darkening them.
+            var dark = Quad(root.transform, "darkness", Vector3.zero, 70,
+                new Vector2(room.HalfWidth * 2f + 4f, 11f), Color.black);
             var lightCtl = root.AddComponent<LightController>();
             lightCtl.Init(_root, room, dark.GetComponent<SpriteRenderer>(),
                 startLit: id != RoomId.Classroom2);   // classroom 2 is the dark room
@@ -139,10 +148,8 @@ namespace Hollowbrook.World
         {
             // placeholder art: one flat slab standing on the floor band (spriteKey kept in the
             // signature so real art can return without touching call sites)
-            var go = SpriteGO(room.Root.transform, "door_" + target, ProceduralArt.Get("solid_white"),
-                new Vector3(x, floorY + 1.7f, 0), 10);
-            go.transform.localScale = new Vector3(1.7f, 3.4f, 1f);
-            go.GetComponent<SpriteRenderer>().color = new Color(0.20f, 0.20f, 0.22f);
+            var go = Quad(room.Root.transform, "door_" + target, new Vector3(x, floorY + 1.7f, 0), 10,
+                new Vector2(1.7f, 3.4f), new Color(0.20f, 0.20f, 0.22f));
             var d = go.AddComponent<Doorway>();
             d.Init(_root, room, label, target, x);
             room.Interactables.Add(d);
@@ -159,14 +166,8 @@ namespace Hollowbrook.World
 
         private void AddLightSwitch(RoomInstance room, float x, float floorY)
         {
-            var go = new GameObject("lightswitch");
-            go.transform.SetParent(room.Root.transform, false);
-            go.transform.localPosition = new Vector3(x, floorY + 2.1f, 0);
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = ProceduralArt.Get("solid_white");
-            sr.color = new Color(0.8f, 0.8f, 0.78f);
-            sr.sortingOrder = 75;
-            go.transform.localScale = new Vector3(0.16f, 0.26f, 1f);
+            var go = Quad(room.Root.transform, "lightswitch", new Vector3(x, floorY + 2.1f, 0), 75,
+                new Vector2(0.16f, 0.26f), new Color(0.8f, 0.8f, 0.78f));
             var sw = go.AddComponent<LightSwitchObject>();
             sw.Init(_root, room, x);
             room.Interactables.Add(sw);

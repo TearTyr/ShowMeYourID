@@ -940,6 +940,34 @@ namespace FlowCheck
             Check(rig != null && !rig.BatteryDead && rig.Battery >= 0.999f, "W0: the battery starts full");
             if (rig == null) return;
 
+            // ---- placeholder quad sanity (the floating-box regression) ----
+            // Every flat placeholder is a solid_white quad whose native size is 1x1 world
+            // unit, so localScale IS its drawn size. If that sprite ever returns at UI ppu,
+            // placeholders shrink to 1/25th: doors vanish and the darkness overlay degenerates
+            // into a small floating box mid-room.
+            Console.WriteLine("== placeholder quads draw at authored size ==");
+            float QuadW(SpriteRenderer sr) =>
+                sr.sprite.rect.width / sr.sprite.pixelsPerUnit * sr.gameObject.transform.localScale.x;
+            float QuadH(SpriteRenderer sr) =>
+                sr.sprite.rect.height / sr.sprite.pixelsPerUnit * sr.gameObject.transform.localScale.y;
+            Check(Mathf.Abs(QuadW(hall.Darkness) - (hall.HalfWidth * 2f + 4f)) < 0.01f &&
+                  Mathf.Abs(QuadH(hall.Darkness) - 11f) < 0.01f,
+                  "P: the darkness overlay spans the whole room (no floating box)");
+            Check(hall.Darkness.color.r < 0.01f && hall.Darkness.color.g < 0.01f && hall.Darkness.color.b < 0.01f,
+                  "P: the darkness overlay is black (its alpha dims, never washes out)");
+            int doors = 0; bool doorsFullHeight = true;
+            bool switchVisible = false;
+            foreach (var it in hall.Interactables)
+            {
+                var d = it as Doorway;
+                if (d != null && d.Art != null) { doors++; if (QuadH(d.Art) < 3f) doorsFullHeight = false; }
+                var ls = it as LightSwitchObject;
+                if (ls != null && ls.Art != null && QuadW(ls.Art) > 0.1f) switchVisible = true;
+            }
+            Check(doors == 3 && doorsFullHeight,
+                  "P: all " + doors + " hallway doors draw as full-height slabs at their anchors");
+            Check(switchVisible, "P: the wall switch plate is visible (not a sub-pixel dot)");
+
             var cfg = root.Config;
             float chanceSave = cfg.anomalySpawnChancePerSecond;
             cfg.anomalySpawnChancePerSecond = 0f;    // deterministic scenarios; W9 restores real pressure

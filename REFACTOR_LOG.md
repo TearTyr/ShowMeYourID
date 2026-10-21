@@ -1,5 +1,36 @@
 # Refactor log — readability pass (branch refactor/readability)
 
+## Floating box + vanishing doors (placeholder quad scale, post-simplification)
+
+**Symptom:** a small translucent box floats at the centre of every patrol room (grey when lit,
+brighter when dark, solid white while peeking); rooms sit on pure black; doors and wall-switch
+plates draw as invisible dots even though their prompts and interactions still work.
+
+**Root cause:** `ProceduralArt.MakeSolid` built `solid_white` — the one flat quad sprite every
+world placeholder is scaled from — as a 4x4 texture at `UiPpu` (100 px/unit), i.e. a native size
+of 0.04x0.04 world units. Placeholders set `localScale` in world units assuming a 1x1-unit quad,
+so every one of them drew at 1/25th of its authored size: the room darkness overlay (scale
+26.8x11) degenerated into the 1.07x0.44 floating box, door slabs into 4x8 px dots, switch plates
+into sub-pixel specks. Headless proof: the FlowCheck dump printed
+`darkness ... size=(1.07x0.44) screen=(632..692, 268..293)` — exactly the box in the screenshot.
+
+**Fixes:**
+- `solid_white` is now natively 1x1 world unit (`QuadPpu = 4`); uGUI Images ignore pixelsPerUnit,
+  so every UI use of the sprite is untouched.
+- `RoomBuilder.Quad(parent, name, pos, order, size, color)` is the single flat-placeholder
+  constructor (size in units == localScale). Wall/floor bands, door slabs, server-door art,
+  switch plates, the darkness overlay and the clue found-marker all route through it; the
+  marker's hand-rolled duplicate in `Interactables` was removed.
+- The darkness overlay is tinted BLACK (LightController only varies its alpha): it dims rooms
+  instead of washing them white, peek holds it solid black, and the PeekLight SpriteMask hole
+  (VisibleOutsideMask) finally works at full size, as documented.
+- The custodian draws above the darkness (order 73 > 70) exactly as his comment always claimed
+  ("lit by design"); anomalies remain under it (40) as silhouettes.
+
+**Proof:** FlowCheck section `== placeholder quads draw at authored size ==` (darkness spans the
+room and is black; all 3 hallway doors full-height at their RoomGraph anchors; switch plate
+visible) plus the existing W-chain (door transitions, roaming crossings) and LogicTests.
+
 ## Symptom 0 diagnostic (ordered [Flow] chain, headless FlowCheck harness)
 Unity is not available in this sandbox, so the chain below was produced by
 `Tools/FlowCheck` (boots the real menu, clicks the real NEW GAME button, runs the
