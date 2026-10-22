@@ -94,6 +94,8 @@ namespace Hollowbrook.Logic
             };
             v.ExpirationDisplay = DisplayOf(expDay);
             BuildAnswers(v, id, truthful: true);
+            v.SlipName = v.ClaimedName;             // legit slips always agree with the card
+            v.SlipIdNumber = v.IdNumber;
             return v;
         }
 
@@ -127,6 +129,10 @@ namespace Hollowbrook.Logic
                 Greeting = _rng.Pick(Content.AnomalyGreetings),
             };
             v.ExpirationDisplay = DisplayOf(v.ExpirationDay);
+            // slip baseline agrees with the card; defects below may move it (seeded, so
+            // resumes replay the identical ticket)
+            v.SlipName = v.ClaimedName;
+            v.SlipIdNumber = v.IdNumber;
 
             int defectCount = _rng.NextInt(1, shift.MaxDefectsPerAnomaly + 1);
             var pool = BuildDefectPool(shift);
@@ -158,7 +164,25 @@ namespace Hollowbrook.Logic
             {
                 var p = v.WindowPortrait; p.Distorted = true; v.WindowPortrait = p;
             }
+            // defects that rewrote the card ID (duplicate/format) resync an unbooked slip,
+            // so a slip disagrees with the card exactly when SlipMismatch is booked
+            if (!v.Defects.Contains(DefectType.SlipMismatch))
+            {
+                v.SlipName = v.ClaimedName;
+                v.SlipIdNumber = v.IdNumber;
+            }
             return v;
+        }
+
+        private static string MutateSerial(string id)
+        {
+            // format-broken IDs (a defect of their own) still get a visibly different slip
+            if (id == null || id.Length != 12) return id + "X";
+            if (!int.TryParse(id.Substring(8, 4), System.Globalization.NumberStyles.Integer,
+                              System.Globalization.CultureInfo.InvariantCulture, out int serial))
+                return id.Substring(0, 11) + (id[11] == '7' ? '8' : '7');
+            serial = serial > 5000 ? serial - 1 : serial + 1;
+            return id.Substring(0, 8) + serial.ToString("D4", System.Globalization.CultureInfo.InvariantCulture);
         }
 
         private bool HasDuplicateCandidate(StudentIdentity self)
@@ -183,6 +207,7 @@ namespace Hollowbrook.Logic
             if (shift.SubtleDefectsAllowed) pool.Add(DefectType.PhotoSubtleMismatch);
             if (shift.BehaviorOddityAllowed) pool.Add(DefectType.BehaviorOddity);
             if (shift.DuplicateIdsAllowed) pool.Add(DefectType.DuplicateId);
+            if (shift.Number >= 2) pool.Add(DefectType.SlipMismatch);   // slip vs card, shift 2+
             return pool;
         }
 
@@ -252,6 +277,13 @@ namespace Hollowbrook.Logic
                 }
                 case DefectType.BehaviorOddity:
                     v.BehaviorGlitchVisible = _rng.Chance(0.5f);
+                    break;
+                case DefectType.SlipMismatch:
+                    // the ticket disagrees with the card: serial nudge or name typo
+                    v.SlipName = v.ClaimedName;
+                    v.SlipIdNumber = v.IdNumber;
+                    if (_rng.Chance(0.5f)) v.SlipIdNumber = MutateSerial(v.IdNumber);
+                    else v.SlipName = v.ClaimedName + "E";
                     break;
                 default:
                     return false;
@@ -363,6 +395,9 @@ namespace Hollowbrook.Logic
             v.Answers[QuestionId.Year] = new Answer { Text = "That is not relevant to my visit.", Tone = ToneTag.Flat };
             v.Answers[QuestionId.Status] = new Answer { Text = "I am an administrator.", Tone = ToneTag.TooSmooth };
             v.Answers[QuestionId.FirstClassroom] = new Answer { Text = "My first stop is your server room.", Tone = ToneTag.Echoing, ContradictsDocuments = true };
+            v.SlipName = v.ClaimedName;
+            v.SlipIdNumber = v.IdNumber;
+            v.SlipReason = "DISTRICT BUSINESS — SEE OFFICE";
             return v;
         }
 

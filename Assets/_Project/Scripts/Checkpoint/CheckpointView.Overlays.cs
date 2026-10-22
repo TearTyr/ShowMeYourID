@@ -18,17 +18,8 @@ namespace Hollowbrook.Checkpoint
     {
         private void BuildOverlays()
         {
-            var brt = UIFactory.NewUI(_desk, "Banner");
-            Reg("verdictbanner", brt, L.VerdictBanner);
-            _bannerRoot = brt.gameObject;
-            var bgPanel = UIFactory.BorderedPanel(brt, "bg", new Color(0.04f, 0.04f, 0.05f, 0.97f),
-                UIFactory.Border, 2);
-            UIFactory.AnchorsFull(bgPanel);
-            _bannerTitle = UIFactory.Label(brt, "title", "", 34, UIFactory.Ink, TextAnchor.MiddleCenter);
-            L.Place(_bannerTitle.rectTransform, L.Inner.BannerTitle);
-            _bannerBody = UIFactory.Label(brt, "body", "", 16, UIFactory.InkDim, TextAnchor.UpperLeft);
-            L.Place(_bannerBody.rectTransform, L.Inner.BannerBody);
-            _bannerRoot.SetActive(false);
+            // the verdict banner retired: post-decision feedback is the stamp mark, the
+            // sound and the subject walking off — never text
 
             _notesRoot = BuildPaperOverlay("OverlayRules", "PAPER NOTE — INSPECTION RULES", out _notesText);
             _recordsRoot = BuildPaperOverlay("OverlayLog", "TONIGHT'S LOG — ANOMALY RECORD", out _recordsText);

@@ -91,6 +91,11 @@ namespace Hollowbrook.Logic
         public string RecordFirstClassroom;   // schedule line on the record form
         public List<DefectType> Defects = new List<DefectType>();
         public string Greeting = "...";
+        // the paper slip (ticket) the student carries with the ID: checked against the card
+        // and the file. On legitimate visitors it always agrees (fairness invariant).
+        public string SlipName;
+        public string SlipIdNumber;
+        public string SlipReason = "NIGHT CLASS — LATE LIST";
         public Dictionary<QuestionId, Answer> Answers = new Dictionary<QuestionId, Answer>();
         public bool BehaviorGlitchVisible;    // rare visual micro-glitch hint for BehaviorOddity
         public bool OnLateList = true;        // office rule: on tonight's late list
@@ -115,6 +120,7 @@ namespace Hollowbrook.Logic
                     case DefectType.NotInDatabase: lines.Add("ID number not found in the student database."); break;
                     case DefectType.DuplicateId: lines.Add("ID number already used by a visitor from " + DuplicateOfShift + "."); break;
                     case DefectType.BehaviorOddity: lines.Add("Behavior and answers did not match the class schedule."); break;
+                    case DefectType.SlipMismatch: lines.Add("The paper slip (" + SlipName + " / " + SlipIdNumber + ") does not match the ID card."); break;
                 }
             }
             if (lines.Count == 0) lines.Add("No discrepancies — documents were consistent.");

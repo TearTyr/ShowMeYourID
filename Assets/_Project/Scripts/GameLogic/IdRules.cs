@@ -61,6 +61,9 @@ namespace Hollowbrook.Logic
             if (playLog != null && IsFormatValid(v.IdNumber) &&
                 playLog.WasPresentedWithDifferentCard(v.IdNumber, v.IdPhoto))
                 found.Add(DefectType.DuplicateId);
+            // the paper slip vs the card: the third document pair, cross-checked by eye
+            if (v.SlipName != null && (v.SlipName != v.ClaimedName || v.SlipIdNumber != v.IdNumber))
+                found.Add(DefectType.SlipMismatch);
             return found;
         }
 

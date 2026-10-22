@@ -80,6 +80,16 @@ namespace UnityEngine.UI
     }
 
     public class GraphicRaycaster : Behaviour { }
+
+    // Minimal headless InputField: the text plus the two events real uGUI fires.
+    // Headless proofs set .text and invoke onEndEdit directly.
+    public class InputField : Behaviour
+    {
+        public string text = "";
+        public Text textComponent;
+        public UnityEngine.Events.UnityEvent<string> onEndEdit = new UnityEngine.Events.UnityEvent<string>();
+        public UnityEngine.Events.UnityEvent<string> onValueChanged = new UnityEngine.Events.UnityEvent<string>();
+    }
     public class Mask : Behaviour { public bool showMaskGraphic = true; }
     public class RectMask2D : Behaviour { }
 

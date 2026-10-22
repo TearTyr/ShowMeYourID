@@ -1,5 +1,26 @@
 # Refactor log — readability pass (branch refactor/readability)
 
+## Desk flow rework — slips, stamps, records station (Papers-Please pass)
+
+- Detain retired: Accept / Deny only. Post-decision text/popups retired: the verdict banner,
+  the admin outro dialogue and the post-verdict radio lines are gone; feedback is the stamp
+  mark on the paper, the thud, the subject walking off, the score/streak tick.
+- New desk flow: ID **and paper slip** slide to the counter on arrival; both are dragged to the
+  desk (move/flip/zoom/stack, drop-outside returns). The slip carries name/ID/reason and can
+  hold the new `SlipMismatch` defect (capped pool defect, shift 2+, seeded, fairness-tested).
+- The stamp lands ON THE SLIP where dropped (child layer, seeded ±rotation), one per slip,
+  recording a PENDING verdict; the decision counts when ID + stamped slip are handed back
+  (window zone, or `H`). Missing paper = the student waits.
+- Records station replaces the auto-opening record sheet: search by ID/name via new pure
+  `RecordSearch` (canon = StudentIdentity); NO RECORD is itself a clue; the file window is
+  draggable, tap/X-closable, clamped left of the stamp tray.
+- Latent bug found & fixed en route: booked slip defects could lose their slip name to
+  baseline ordering; unbooked slips resync after ID-rewriting defects (duplicate/format),
+  keeping "slip disagrees iff defect booked" invariant-tested.
+- FlowCheck: hand-back proofs, pending-vs-scored proofs, slip/flip/zoom/station checks
+  (825 OK). LogicTests +RecordSearchTests +SlipFairnessTests (27,396 / 27,398 de-DE).
+
+
 ## Inspection-table rework, slice A — verdicts become physical (Papers, Please pass)
 
 - Verdicts are stamps, not buttons: APPROVE / DENY / DETAIN live in a tray and commit when

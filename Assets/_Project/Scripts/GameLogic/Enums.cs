@@ -2,7 +2,7 @@ namespace Hollowbrook.Logic
 {
     public enum GameMode { Normal, Endless, Challenge }
 
-    public enum Verdict { None, Allow, Reject, Detain }
+    public enum Verdict { None, Allow, Reject }
 
     public enum EndingType { None, Win, Lose, Secret }
 
@@ -30,6 +30,7 @@ namespace Hollowbrook.Logic
         NotInDatabase,        // ID number not in the student registry (ghost student)
         DuplicateId,          // ID number already used by an earlier visitor (shift 3+)
         BehaviorOddity,       // documents clean; questioning/behavior gives it away
+        SlipMismatch,           // the paper slip disagrees with the ID card (eye-check)
     }
 
     public enum ToneTag { Normal, Hesitant, Flat, TooSmooth, Echoing }

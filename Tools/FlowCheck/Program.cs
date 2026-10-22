@@ -116,13 +116,13 @@ namespace FlowCheck
             string[] deskNames =
             {
                 "DeskFrame", "topbar", "daybanner_border", "clock", "pause", "runstats", "mutationbg",
-                "record", "idcard",
+                "record", "station", "find", "closefile", "idcard",
                 "windowframe", "glass", "facade", "visitor", "glitch", "sill",
-                "speech_border", "speechlog", "handover", "offeredid", "interview", "patrol", "endshift",
+                "speech_border", "speechlog", "offeredid", "interview", "patrol", "endshift",
                 "qpanel_border", "q0", "q1", "q2", "q3", "testimony",
-                "scan", "records", "map", "notes", "stamp_allow", "stamp_deny", "stamp_detain",
+                "scan", "records", "map", "notes", "stamp_allow", "stamp_deny",
                 "monitor_border", "out",
-                "Banner", "OverlayRules", "OverlayLog",
+                "OverlayRules", "OverlayLog",
                 "StickyNoteOverlay", "stickynote_border",
             };
             foreach (var n in deskNames)
@@ -188,7 +188,7 @@ namespace FlowCheck
             ExpectRegion("track", L.TrackMeter, 864, 4, 120, 44);
             ExpectRegion("clock", L.Clock, 1000, 4, 150, 44);
             ExpectRegion("pause", L.Pause, 1160, 8, 104, 36);
-            ExpectRegion("record sheet", L.Record, 16, 64, 320, 290);
+            ExpectRegion("records station", L.Station, 16, 100, 320, 262);
             ExpectRegion("id card", L.IdCard, 405, 436, 320, 220);
             ExpectRegion("window frame", L.Window, 405, 88, 470, 316);
             ExpectRegion("glass", L.Glass, 420, 98, 440, 296);
@@ -202,9 +202,8 @@ namespace FlowCheck
             ExpectRegion("tonight's log", L.UtilityRecords, 1124, 356, 140, 36);
             ExpectRegion("map", L.UtilityMap, 968, 396, 140, 36);
             ExpectRegion("rules note", L.UtilityNotes, 1124, 396, 140, 36);
-            ExpectRegion("deny stamp", L.StampDeny, 968, 440, 96, 96);
-            ExpectRegion("detain stamp", L.StampDetain, 1072, 440, 96, 96);
-            ExpectRegion("allow stamp", L.StampAllow, 1176, 440, 96, 96);
+            ExpectRegion("deny stamp", L.StampDeny, 984, 440, 110, 110);
+            ExpectRegion("allow stamp", L.StampAllow, 1148, 440, 110, 110);
             ExpectRegion("camera", L.Monitor, 968, 558, 296, 146);
             // Phase 9/10 grid extensions (queue strips + sticky note; the queue readout
             // is the banner's second line, inside the existing registered Banner region)
@@ -236,7 +235,7 @@ namespace FlowCheck
             Add("hint", L.Hint, "E");
             Add("room info", L.RoomInfo, "E");
             Add("prompt", L.Prompt, "E");
-            Add("record sheet", L.Record, "C");
+            Add("records station", L.Station, "B");
             Add("id card", L.IdCard, "C");
             Add("window", L.Window, "C");
             Add("sill", L.Sill, "C");
@@ -249,14 +248,12 @@ namespace FlowCheck
             Add("map button", L.UtilityMap, "C");
             Add("rules button", L.UtilityNotes, "C");
             Add("deny stamp", L.StampDeny, "C");
-            Add("detain stamp", L.StampDetain, "C");
             Add("allow stamp", L.StampAllow, "C");
             Add("camera monitor", L.Monitor, "C");
             Add("queue strip left", L.QueueStripL, "C");
             Add("queue strip right", L.QueueStripR, "C");
             Add("toast", L.Toast, "T");
             Add("confirm box", L.ConfirmBox, "T");
-            Add("verdict banner", L.VerdictBanner, "T");
             Add("paper overlay", L.PaperOverlay, "T");
             Add("sticky note", L.StickyNote, "T");
 
@@ -319,18 +316,47 @@ namespace FlowCheck
         private static float StampAlpha(GameRoot root, string stampName) =>
             FindDeep(root.Checkpoint.transform, stampName).GetComponent<UnityEngine.UI.Image>().color.a;
 
-        // drag a stamp from its tray onto the subject's ID card, exactly like the pointer does
-        private static void DropStamp(GameRoot root, Verdict v)
+        // drag a stamp from its tray onto a paper's centre, exactly like the pointer does
+        private static void DropStamp(GameRoot root, Verdict v) => DropStampOn(root, v, "idcard");
+
+        private static void StampSlip(GameRoot root, Verdict v) => DropStampOn(root, v, "slip");
+
+        private static void DropStampOn(GameRoot root, Verdict v, string paperName)
         {
-            var name = v == Verdict.Allow ? "stamp_allow" : v == Verdict.Reject ? "stamp_deny" : "stamp_detain";
+            var name = v == Verdict.Allow ? "stamp_allow" : "stamp_deny";
             var drag = FindDeep(root.Checkpoint.transform, name).GetComponent<DragPaper>();
-            var rt = FindDeep(root.Checkpoint.transform, "idcard").GetComponent<RectTransform>();
+            var r = FindDeep(root.Checkpoint.transform, paperName);
+            if (r == null) return;
+            var rt = r.GetComponent<RectTransform>();
             var s = rt.rect.size;
             var own = drag.GetComponent<RectTransform>().rect.size;
             drag.BeginDrag();
             drag.PlaceAt(new Vector2(rt.anchoredPosition.x + s.x / 2f - own.x / 2f,
                                      -rt.anchoredPosition.y + s.y / 2f - own.y / 2f));
             drag.EndDrag();
+        }
+
+        private static void TakeSlip(GameRoot root)
+        {
+            var d = FindDeep(root.Checkpoint.transform, "slip").GetComponent<DragPaper>();
+            d.BeginDrag();
+            d.PlaceCenter(new Vector2(760f, 500f));
+            d.EndDrag();
+        }
+
+        private static void HandBack(GameRoot root, bool id, bool slip)
+        {
+            var desk = root.Checkpoint.transform;
+            if (id)
+            {
+                var d = FindDeep(desk, "idcard").GetComponent<DragPaper>();
+                d.BeginDrag(); d.PlaceCenter(new Vector2(640f, 300f)); d.EndDrag();
+            }
+            if (slip)
+            {
+                var d = FindDeep(desk, "slip").GetComponent<DragPaper>();
+                d.BeginDrag(); d.PlaceCenter(new Vector2(640f, 320f)); d.EndDrag();
+            }
         }
 
         private static void PapersProof(GameRoot root)
@@ -354,15 +380,21 @@ namespace FlowCheck
             var recDrag = FindDeep(cp.transform, "record").GetComponent<DragPaper>();
             Check(idDrag != null && recDrag != null, "ID card and record sheet carry DragPaper");
             if (idDrag == null) return;
+            var home = idDrag.CenterInBounds();
             idDrag.BeginDrag();
-            idDrag.DragBy(new Vector2(99999f, -99999f));   // screen: right + down
+            idDrag.DragBy(new Vector2(99999f, -99999f));   // dragged clean off the desk
+            idDrag.EndDrag();
             var c = idDrag.CenterInBounds();
-            Check(Mathf.Abs(c.x - (1280f - 160f)) < 0.5f && Mathf.Abs(c.y - (720f - 110f)) < 0.5f,
-                  "drag clamps inside the desk frame (bottom-right corner)");
-            idDrag.DragBy(new Vector2(-99999f, 99999f));    // screen: left + up
+            Check(Mathf.Abs(c.x - home.x) < 0.5f && Mathf.Abs(c.y - home.y) < 0.5f,
+                  "a paper dropped outside the desk returns to its slot");
+            idDrag.BeginDrag();
+            idDrag.DragBy(new Vector2(120f, -40f));        // a normal desk move
+            idDrag.EndDrag();
             c = idDrag.CenterInBounds();
-            Check(Mathf.Abs(c.x - 160f) < 0.5f && Mathf.Abs(c.y - 110f) < 0.5f,
-                  "drag clamps inside the desk frame (top-left corner)");
+            Check(Mathf.Abs(c.x - (home.x + 120f)) < 0.5f && Mathf.Abs(c.y - (home.y + 40f)) < 0.5f,
+                  "a paper dropped on the desk stays where the player put it");
+            idDrag.BeginDrag();
+            idDrag.PlaceCenter(home);                      // tidy back for the next checks
             idDrag.EndDrag();
 
             // dropping the ID on the scanner scans it — exactly one scan, same rules path
@@ -406,6 +438,48 @@ namespace FlowCheck
             var testimonyHost = FindDeep(cp.transform, "testimony");
             Check(testimonyHost.GetComponentInChildren<UnityEngine.UI.ScrollRect>() != null,
                   "testimony scrolls instead of clipping");
+
+            // records station: the file opens only when the player opens it
+            Check(!FindDeep(cp.transform, "record").gameObject.activeSelf,
+                  "the student file stays shut until the player searches for it");
+            cp.SearchRecords(cp.CurrentVisitor.IdNumber);
+            Check(FindDeep(cp.transform, "record").gameObject.activeSelf,
+                  "searching the claimed ID opens the matching file");
+            cp.SearchRecords("HB-1999-0000");
+            Check(!FindDeep(cp.transform, "record").gameObject.activeSelf,
+                  "a ghost ID answers NO RECORD and shuts the window (a clue in itself)");
+            cp.ToggleFileWindow();
+            Check(FindDeep(cp.transform, "record").gameObject.activeSelf, "the station tap reopens the file");
+            cp.ToggleFileWindow();
+            Check(!FindDeep(cp.transform, "record").gameObject.activeSelf, "and closes it again");
+
+            // the slip: counter -> desk, stamp target, one stamp, pending until hand-back
+            var slipGo = FindDeep(cp.transform, "slip");
+            var slipDrag = slipGo.GetComponent<DragPaper>();
+            slipDrag.BeginDrag();
+            slipDrag.PlaceCenter(new Vector2(760f, 500f));
+            slipDrag.EndDrag();
+            Check(cp.PendingVerdict == Verdict.None, "an unstamped slip commits nothing");
+            DropStamp(root, Verdict.Reject);          // stamp dropped on the ID, not the slip
+            Check(!cp.SlipStamped, "a stamp dropped off the slip returns to the rack (no mark)");
+            StampSlip(root, Verdict.Reject);
+            Check(cp.SlipStamped && cp.PendingVerdict == Verdict.Reject,
+                  "the stamp lands on the slip and records a pending verdict");
+            StampSlip(root, Verdict.Allow);
+            Check(cp.PendingVerdict == Verdict.Reject, "one stamp per slip: the second returns to the rack");
+
+            // flip + zoom on the held ID (desk is live here): tap retargets to the ID
+            var idGo = FindDeep(cp.transform, "idcard");
+            var idDrag2 = idGo.GetComponent<DragPaper>();
+            idDrag2.BeginDrag(); idDrag2.EndDrag();      // a tap: flips the ID itself
+            Check(idGo.Find("idback").gameObject.activeSelf, "tapping the held ID flips it to the back face");
+            cp.FlipId();
+            Check(!idGo.Find("idback").gameObject.activeSelf, "F flips back to the face");
+            cp.DebugZoom(9f);
+            Check(Mathf.Abs(idGo.localScale.x - 1.8f) < 0.01f, "zoom clamps at 1.8");
+            cp.DebugZoom(0.1f);
+            Check(Mathf.Abs(idGo.localScale.x - 1f) < 0.01f, "zoom clamps at 1.0");
+            cp.DebugZoom(1f);
         }
 
         private static void SpeechProof(GameRoot root)
@@ -461,10 +535,17 @@ namespace FlowCheck
             DropStamp(root, Verdict.Reject);
             Check(root.Queue.ProcessedCount == procBefore && cp.CurrentVisitor != null,
                   "a stamp drop with no documents in hand is a no-op");
+            Check(FindDeep(desk, "offeredid").gameObject.activeInHierarchy,
+                  "the ID slides to the counter edge on arrival, unasked");
+            var offerDrag = FindDeep(desk, "offeredid").GetComponent<DragPaper>();
+            offerDrag.BeginDrag();
+            offerDrag.PlaceCenter(new Vector2(600f, 520f));
+            offerDrag.EndDrag();
+            Check(FindDeep(desk, "idcard").gameObject.activeSelf,
+                  "dragging the ID onto the desk takes it (drop where you let go)");
             Check(!live("patrol"), "PATROL HALLWAY dimmed mid-inspection");
             Check(!live("endshift"), "END SHIFT dimmed before the roster is done");
 
-            cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             Check(StampAlpha(root, "stamp_allow") > 0.9f, "stamps ink up once the ID is in hand");
             cp.DoScan();
             Check(monOut() != "SCANNER READY" && monOut().Length > 0,
@@ -473,12 +554,24 @@ namespace FlowCheck
             cp.GoPatrol();
             Check(root.State == AppViewState.Checkpoint, "PATROL refused mid-inspection (state stays Checkpoint)");
 
-            string beforeYes = cp.CurrentVisitor != null ? cp.CurrentVisitor.ClaimedName : "?";
-            DropStamp(root, Verdict.Reject);   // the stamp act IS the confirmation: no popup
             Check(FindDeep(desk, "confirmbox_border") == null,
                   "the yes/no confirm popup is retired from the desk");
-            // the stub runs the banner coroutine synchronously, so by the time the drop
-            // returns the verdict is resolved: the stamped visitor is the proof
+            string beforeYes = cp.CurrentVisitor != null ? cp.CurrentVisitor.ClaimedName : "?";
+            int procBeforeStamp = root.Queue.ProcessedCount;
+            TakeSlip(root);
+            StampSlip(root, Verdict.Reject);
+            Check(cp.SlipStamped && cp.PendingVerdict == Verdict.Reject,
+                  "the stamp on the slip is pending: wordless, unscored");
+            Check(root.Queue.ProcessedCount == procBeforeStamp,
+                  "nothing is scored at the stamp drop — the decision waits for hand-back");
+            HandBack(root, true, false);
+            Check(root.Queue.ProcessedCount == procBeforeStamp &&
+                  cp.CurrentVisitor != null && cp.CurrentVisitor.ClaimedName == beforeYes,
+                  "the student waits while one paper is missing");
+            HandBack(root, false, true);
+            Check(root.Queue.ProcessedCount == procBeforeStamp + 1,
+                  "hand-back of ID + stamped slip commits the verdict");
+            // the stub runs the commit coroutine synchronously: the walked-off visitor is proof
             Check(cp.CurrentVisitor == null || cp.CurrentVisitor.ClaimedName != beforeYes,
                 "verdict registered: " + beforeYes + " was processed and left the window");
             if (cp.CurrentVisitor == null) cp.AdvanceQueue(6f);   // the arrival clock delivers the next
@@ -488,9 +581,12 @@ namespace FlowCheck
             while (!live("endshift") && guard++ < 16)
             {
                 if (cp.CurrentVisitor == null) { cp.AdvanceQueue(6f); continue; }
-                cp.DebugTakeDocuments();   // hand-over gate before either verdict path
-                DropStamp(root, InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null) == Verdict.Allow
-                    ? Verdict.Allow : Verdict.Reject);        // exercises the stamp-drop path
+                cp.DebugTakeDocuments();   // hand-over gate before the verdict path
+                TakeSlip(root);
+                var want = InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null) == Verdict.Allow
+                    ? Verdict.Allow : Verdict.Reject;
+                StampSlip(root, want);
+                HandBack(root, true, true);   // full hand-back commits the verdict
             }
             Check(guard < 16, "roster walked to the end without runaway (" + guard + " steps)");
             Check(root.Queue.ShiftComplete, "P9: shift complete = source dry + line empty + window free");

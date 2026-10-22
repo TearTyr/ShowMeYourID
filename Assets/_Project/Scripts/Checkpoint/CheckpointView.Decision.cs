@@ -74,9 +74,8 @@ namespace Hollowbrook.Checkpoint
 
             // verdicts are physical: drag a stamp onto the subject's ID to commit.
             // No confirm buttons anywhere — the stamp act IS the confirmation.
-            BuildStamp("stamp_allow", "APPROVE", new Color(0.42f, 0.58f, 0.42f), L.StampAllow, Verdict.Allow, 0);
+            BuildStamp("stamp_allow", "ACCEPT", new Color(0.42f, 0.58f, 0.42f), L.StampAllow, Verdict.Allow, 0);
             BuildStamp("stamp_deny", "DENY", new Color(0.58f, 0.28f, 0.28f), L.StampDeny, Verdict.Reject, 1);
-            BuildStamp("stamp_detain", "DETAIN", new Color(0.58f, 0.48f, 0.22f), L.StampDetain, Verdict.Detain, 2);
 
             var mon = UIFactory.BorderedPanel(_desk, "monitor", new Color(0.055f, 0.062f, 0.055f),
                 UIFactory.Border, 2);
@@ -145,16 +144,64 @@ namespace Hollowbrook.Checkpoint
             _stampBase[idx] = tint;
         }
 
-        // A stamp commits only when it lands on the subject's papers (ID in hand).
+        // The stamp lands ON THE SLIP, exactly where it was dropped, with a small seeded
+        // rotation. It records a PENDING verdict: nothing is scored until hand-back.
         private void TryStampOnDrop(Vector2 center, Verdict v)
         {
-            if (_idCardGo == null || !_idCardGo.activeSelf) return;
-            var rt = _idCardGo.GetComponent<RectTransform>();
-            var s = rt.rect.size;
-            float cx = rt.anchoredPosition.x + s.x / 2f;
-            float cy = -rt.anchoredPosition.y + s.y / 2f;
-            if (Mathf.Abs(center.x - cx) <= s.x / 2f + 24f && Mathf.Abs(center.y - cy) <= s.y / 2f + 24f)
-                Stamp(v);
+            if (_slipGo == null || !_slipGo.activeSelf || !_slipTaken || _current == null || _verdictLocked) return;
+            var srt = _slipGo.GetComponent<RectTransform>();
+            var ss = srt.rect.size;
+            var top = new Vector2(srt.anchoredPosition.x, -srt.anchoredPosition.y);
+            bool onSlip = center.x >= top.x - 8f && center.x <= top.x + ss.x + 8f &&
+                          center.y >= top.y - 8f && center.y <= top.y + ss.y + 8f;
+            if (!onSlip) return;                                    // off the slip: back to the rack
+            if (_slipStamped) { _gameRoot.Audio.PlaySfx("sfx_paper", 0.25f); return; }   // one stamp per slip
+            _pendingVerdict = v;
+            _slipStamped = true;
+            PlaceStampMark(center, v);
+            _gameRoot.Audio.PlaySfx(v == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 0.8f);
+        }
+
+        // Keyboard path: stamp the slip's centre (with the same seeded jitter).
+        internal void StampSlipByKey(Verdict v)
+        {
+            if (!_slipTaken || _slipStamped || _current == null || _verdictLocked) return;
+            var srt = _slipGo.GetComponent<RectTransform>();
+            var ss = srt.rect.size;
+            var top = new Vector2(srt.anchoredPosition.x, -srt.anchoredPosition.y);
+            var center = top + new Vector2(ss.x / 2f + _stampRng.NextInt(-30, 31),
+                                           ss.y / 2f + _stampRng.NextInt(-20, 21));
+            _pendingVerdict = v;
+            _slipStamped = true;
+            PlaceStampMark(center, v);
+            _gameRoot.Audio.PlaySfx(v == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 0.8f);
+        }
+
+        internal void HandBackByKey()
+        {
+            if (!_slipStamped || !_documentsTaken) return;
+            HandBackId();
+            HandBackSlip();
+        }
+
+        // Free placement: the mark becomes a layer of the slip at the drop point, so it
+        // moves, flips and zooms with the paper. Rotation is seeded per inspection.
+        private void PlaceStampMark(Vector2 deskCenter, Verdict v)
+        {
+            if (_stampOverlay == null || _slipGo == null) return;
+            var srt = _slipGo.GetComponent<RectTransform>();
+            _stampOverlay.transform.SetParent(srt, false);
+            var rt = _stampOverlay.rectTransform;
+            rt.anchorMin = new Vector2(0, 1); rt.anchorMax = new Vector2(0, 1);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            var top = new Vector2(srt.anchoredPosition.x, -srt.anchoredPosition.y);
+            var local = deskCenter - top;
+            rt.anchoredPosition = new Vector2(local.x, -local.y);
+            rt.localEulerAngles = new Vector3(0, 0, -12 + _stampRng.NextInt(-6, 7));
+            _stampOverlay.sprite = ProceduralArt.Get(v == Verdict.Allow ? "stamp_allow" : "stamp_reject");
+            rt.localScale = Vector3.one;
+            var c = _stampOverlay.color; c.a = 0f; _stampOverlay.color = c;
+            StartCoroutine(StampPunch(v));
         }
 
         private void RefreshStamps(bool live)
@@ -186,9 +233,8 @@ namespace Hollowbrook.Checkpoint
             _testimony.gameObject.SetActive(_interviewOpen);
             _qHint.gameObject.SetActive(_interviewOpen);
             RefreshQuestionsPanel();
-            if (_handoverTarget != null) _handoverTarget.SetActive(atWindow && !_documentsTaken);
             RefreshStamps(live);
-            UIFactory.SetButtonEnabled(_patrolBtn, !atWindow && !_bannerRoot.activeSelf &&
+            UIFactory.SetButtonEnabled(_patrolBtn, !atWindow &&
                 Queue != null && Queue.Started && !collapsed);
             UIFactory.SetButtonEnabled(_endShiftBtn, Queue != null && Queue.ShiftComplete &&
                 _gameRoot.Session.Mode == GameMode.Normal);
@@ -230,21 +276,13 @@ namespace Hollowbrook.Checkpoint
             if (Queue != null) Queue.CommitActiveResolution();                // the queue books it NOW — a
                                                                       // quit mid-banner can never make
                                                                       // this visitor stampable again
-            ShowBanner(verdict);
             RefreshHud();
 
-            StartCoroutine(AfterBanner(resolved));
+            StartCoroutine(AfterStamp(resolved));
         }
 
         // Silent verdict: the banner states the decision and nothing else — never whether
         // the call was correct. The thrill lives in not knowing until the night judges you.
-        private void ShowBanner(Verdict verdict)
-        {
-            _bannerTitle.text = verdict == Verdict.Allow ? "ACCESS GRANTED" : "ACCESS DENIED";
-            _bannerTitle.color = verdict == Verdict.Allow ? UIFactory.Ink : UIFactory.AccentBright;
-            _bannerBody.text = "";
-            _bannerRoot.SetActive(true);
-        }
 
         private IEnumerator StampPunch(Verdict verdict)
         {
@@ -275,10 +313,11 @@ namespace Hollowbrook.Checkpoint
             var ce = _stampOverlay.color; ce.a = 0f; _stampOverlay.color = ce;
         }
 
-        private IEnumerator AfterBanner(VisitorData resolved)
+        // The post-stamp beat: the mark lands, the subject leaves, the next steps up.
+        // Deliberately wordless — feedback is the stamp, the sound, the walking figure.
+        private IEnumerator AfterStamp(VisitorData resolved)
         {
             yield return WaitUnpaused(BannerSeconds);
-            _bannerRoot.SetActive(false);
             if (_gameRoot.State != AppViewState.Checkpoint && _gameRoot.State != AppViewState.AdminEncounter) yield break;
 
             // the resolved visitor leaves the window; the oldest waiting visitor steps up
@@ -287,7 +326,13 @@ namespace Hollowbrook.Checkpoint
 
             if (resolved.IsAdministrator && _gameRoot.Session.AdminRejected)
             {
-                PlayAdminRejectOutro();
+                // the night ends without words: the line is sent home, the window closes
+                if (Queue != null) Queue.AbandonLine();
+                _current = null;
+                SetVisitorVisible(false);
+                RefreshQueueLine();
+                RefreshHud();
+                _gameRoot.Audio.PlayMusic("checkpoint");
                 yield break;
             }
 
@@ -301,34 +346,9 @@ namespace Hollowbrook.Checkpoint
             _verdictLocked = true;
             SetVisitorVisible(false);
             RefreshQueueLine();
-            if (Queue != null && Queue.ShiftComplete)
-                SayLine("RADIO", "That's the last of them… for now. Clock out when the floor is clear.");
-            else if (Queue == null || Queue.InfiniteSource || Queue.RemainingSource > 0)
-                SayLine("RADIO", "Yard's quiet for a moment — patrol now if you need to. The line starts again when you're back.");
             RefreshHud();
         }
 
-        // Rejecting the district administrator ends the night: their parting threat plays,
-        // then the callback sends the waiting line home whatever is still in it.
-        private void PlayAdminRejectOutro()
-        {
-            var outro = new List<DialogueLine>
-            {
-                new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = "…You will regret this. We are already inside your records." },
-                new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "The thing wearing Marlowe's face unfolds itself from the window and walks back into the dark. The seal on the server room holds — for tonight." },
-            };
-            _gameRoot.Dialogue.Play(outro, () =>
-            {
-                // the night is over whatever is still waiting: the line is sent home
-                if (Queue != null) Queue.AbandonLine();
-                _current = null;
-                _verdictLocked = true;
-                SetVisitorVisible(false);
-                RefreshQueueLine();
-                RefreshHud();
-                _gameRoot.Audio.PlayMusic("checkpoint");
-            });
-        }
 
     }
 }

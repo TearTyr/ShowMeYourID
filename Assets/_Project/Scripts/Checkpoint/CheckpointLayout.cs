@@ -38,12 +38,17 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region RoomInfo = new Region(894, 76, 370, 16);       // exploration only
 
         // ---- left column ----------------------------------------------------
-        public static readonly Region Record = new Region(16, 64, 320, 290);
+        // records station slot: below the hint row, above the chat column
+        public static readonly Region Station = new Region(16, 100, 320, 262);
         // default slot for the held ID card; the card is draggable, so this is where it
         // rests, not where it stays (see DragPaper)
         public static readonly Region IdCard = new Region(405, 436, 320, 220);
         // the offered ID during the hand-over step: same card size, centred over the window
-        public static readonly Region OfferedId = new Region(480, 190, 320, 220);
+        // counter edge: the student slides the ID here on arrival (root is scaled 0.6,
+        // so the drawn card rests on the sill at ~192x132)
+        public static readonly Region OfferedId = new Region(565, 336, 320, 220);
+        // the paper slip rides beside it on the counter
+        public static readonly Region CounterSlip = new Region(775, 360, 200, 120);
 
         // ---- centre column --------------------------------------------------
         public static readonly Region Window = new Region(405, 88, 470, 316);
@@ -61,17 +66,15 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region UtilityRecords = new Region(1124, 356, 140, 36);
         public static readonly Region UtilityMap = new Region(968, 396, 140, 36);
         public static readonly Region UtilityNotes = new Region(1124, 396, 140, 36);
-        // the verdict tray: three physical stamps, dragged onto the ID to commit
-        public static readonly Region StampDeny = new Region(968, 440, 96, 96);
-        public static readonly Region StampDetain = new Region(1072, 440, 96, 96);
-        public static readonly Region StampAllow = new Region(1176, 440, 96, 96);
+        // the verdict tray: two physical stamps, dragged onto the ID to commit
+        public static readonly Region StampDeny = new Region(984, 440, 110, 110);
+        public static readonly Region StampAllow = new Region(1148, 440, 110, 110);
         public static readonly Region Monitor = new Region(968, 558, 296, 146);
 
         // ---- transient overlays (bounds-checked only; they cover the desk) ---
         public static readonly Region Toast = new Region(280, 116, 720, 30);
         public static readonly Region Prompt = new Region(320, 598, 640, 30);        // exploration only
         public static readonly Region ConfirmBox = new Region(430, 305, 420, 110);
-        public static readonly Region VerdictBanner = new Region(320, 235, 640, 250);
         public static readonly Region PaperOverlay = new Region(260, 120, 760, 480);
         public static readonly Region FullDesk = new Region(0, 0, 1280, 720);
 
@@ -134,8 +137,6 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region ConfirmYes = new Region(250, 64, 90, 30);
 
             // verdict banner
-            public static readonly Region BannerTitle = new Region(20, 22, 600, 44);
-            public static readonly Region BannerBody = new Region(24, 70, 592, 164);
 
             // paper overlays (rules note / tonight's log)
             public static readonly Region PaperHead = new Region(30, 22, 700, 32);

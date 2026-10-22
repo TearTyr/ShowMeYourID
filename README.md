@@ -5,7 +5,7 @@
 You are the newest temporary night custodian of **Hollowbrook College**, a school shut down
 mid-year without an official explanation — yet still open at night so its students can finish
 the term. Check IDs. Compare records. Ask up to **2 questions** — only after opening the interview.
-Verdicts are physical: drag the **APPROVE / DENY / DETAIN** stamp onto the subject's ID (or press `A` / `D` / `T`) — no confirm buttons, the stamp act is the commitment. The verdict banner never tells you whether you were right.
+Verdicts are physical and wordless: the student slides **ID + paper slip** to the counter; drag both to your desk (move / flip `F` / zoom wheel or `Z`), search the **registry terminal** by ID or name (NO RECORD is itself a clue), then stamp **ACCEPT / DENY onto the slip** (`A` / `D`; free placement, one stamp per slip) and **hand both papers back** at the window (`H`) — the decision counts at hand-back, never at the drop. No confirm buttons, no post-decision text: the stamp mark, the thud, the subject walking off and the score tick are the whole feedback.
 Walk the halls between visitors. Find the ten things the school is hiding. Keep them out.
 
 > “Everyone has an ID. Not everyone is a student.”

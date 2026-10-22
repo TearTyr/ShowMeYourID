@@ -44,16 +44,8 @@ namespace Hollowbrook.Checkpoint
             Reg("sill", sill.rectTransform, L.Sill);
             sill.raycastTarget = false;
 
-            // invisible click target over the slot: "interact with the table" — clicking it
-            // makes the visitor offer their ID across the glass
-            // raycast ON: this invisible panel is the "interact with the table" click target
-            var handImg = UIFactory.Img(_desk, "handover", null, new Color(0f, 0f, 0f, 0f), true);
-            Reg("handover", handImg.rectTransform, L.Window);
-            var handBtn = handImg.gameObject.AddComponent<Button>();
-            handBtn.targetGraphic = handImg;
-            handBtn.onClick.AddListener(OnWindowClicked);
-            _handoverTarget = handImg.gameObject;
-            _handoverTarget.SetActive(false);
+            // the student slides their ID to the counter edge on arrival (OfferAtCounter);
+            // nothing here needs a click target any more
         }
 
         // The hand-over step: a dimmer plus the centred offered ID. Clicking the card takes
@@ -75,15 +67,153 @@ namespace Hollowbrook.Checkpoint
             _offeredName = OfferedRow(rt, 0);
             _offeredNumber = OfferedRow(rt, 1);
             _offeredExpires = OfferedRow(rt, 5);
-            var hint = UIFactory.Label(rt, "hint", "CLICK TO TAKE THE ID", 12,
+            var hint = UIFactory.Label(rt, "hint", "DRAG ME TO YOUR DESK", 12,
                 UIFactory.InkDim, TextAnchor.MiddleCenter);
             L.Place(hint.rectTransform, new L.Region(0, 202, 320, 16));
-            var btn = rt.gameObject.AddComponent<Button>();
-            btn.targetGraphic = frame;
-            btn.onClick.AddListener(TakeId);
 
+            // the card on the counter is physical: drag it onto the desk to take it,
+            // tap it to take it to the default slot, let go off-desk and it rides back
             _offeredRoot = rootRt.gameObject;
+            // the placed card rect (not the stretched container) is the physical object;
+            // scaled down so it rests small on the counter edge
+            rt.localScale = new Vector3(0.6f, 0.6f, 1f);
+            var offerDrag = rt.gameObject.AddComponent<DragPaper>();
+            offerDrag.Init(_desk, 0f);
+            offerDrag.ReturnsHome = true;
+            offerDrag.OnDropped = center => { if (center.y >= 420f) TakeIdAt(center); };
+            offerDrag.OnTapped = center => TakeIdAt(new Vector2(
+                L.IdCard.X + L.IdCard.W / 2f, L.IdCard.Y + L.IdCard.H / 2f));
             _offeredRoot.SetActive(false);
+
+            // The paper slip (ticket): arrives with the ID, carries name/ID/reason, takes
+            // the stamp, and goes back to the student with the ID to close the inspection.
+            var slipRt = UIFactory.NewUI(_desk, "slip");
+            L.Place(slipRt, L.CounterSlip);
+            slipRt.localScale = new Vector3(0.6f, 0.6f, 1f);
+            var slipBg = UIFactory.Panel(slipRt, "bg", new Color(0.88f, 0.86f, 0.80f));
+            UIFactory.AnchorsFull(slipBg.rectTransform);
+            _slipName = UIFactory.Label(slipRt, "sname", "", 11, UIFactory.PaperInk, TextAnchor.UpperLeft);
+            L.Place(_slipName.rectTransform, new L.Region(8, 8, 184, 16));
+            _slipId = UIFactory.Label(slipRt, "sid", "", 11, UIFactory.PaperInk, TextAnchor.UpperLeft);
+            L.Place(_slipId.rectTransform, new L.Region(8, 28, 184, 16));
+            _slipReason = UIFactory.Label(slipRt, "sreason", "", 10, UIFactory.PaperInk, TextAnchor.UpperLeft);
+            L.Place(_slipReason.rectTransform, new L.Region(8, 52, 184, 56));
+            var slipBack = UIFactory.Panel(slipRt, "slipback", new Color(0.84f, 0.82f, 0.76f));
+            UIFactory.AnchorsFull(slipBack.rectTransform);
+            var backNote = UIFactory.Label(slipBack.rectTransform, "note", "RADIO NOTE: verify against the registry", 10,
+                UIFactory.PaperInk, TextAnchor.MiddleCenter);
+            UIFactory.AnchorsFull(backNote.rectTransform);
+            slipBack.gameObject.SetActive(false);
+            _slipGo = slipRt.gameObject;
+            var slipDrag = _slipGo.AddComponent<DragPaper>();
+            slipDrag.Init(_desk, 1.2f);
+            slipDrag.OnLift = () => _lastPaper = _slipGo;
+            slipDrag.OnTapped = c => { if (!_slipTaken) TakeSlipAt(new Vector2(760f, 500f)); else FlipId(); };
+            slipDrag.OnDropped = c => SlipDropped(c);
+            _slipGo.SetActive(false);
+        }
+
+        private void OfferSlipAtCounter()
+        {
+            if (_current == null || _slipTaken) return;
+            FillSlip(_current);
+            var rt = _slipGo.GetComponent<RectTransform>();
+            rt.localScale = new Vector3(0.6f, 0.6f, 1f);
+            L.Place(rt, L.CounterSlip);
+            _slipGo.GetComponent<DragPaper>().SetHome(new Vector2(L.CounterSlip.X, L.CounterSlip.Y));
+            _slipGo.SetActive(true);
+        }
+
+        private void FillSlip(VisitorData v)
+        {
+            if (_slipName != null) _slipName.text = "NAME: " + v.SlipName;
+            if (_slipId != null) _slipId.text = "ID: " + v.SlipIdNumber;
+            if (_slipReason != null) _slipReason.text = "REASON: " + v.SlipReason;
+        }
+
+        private void TakeSlipAt(Vector2 deskCenter)
+        {
+            if (_current == null || _slipTaken) return;
+            _slipTaken = true;
+            var rt = _slipGo.GetComponent<RectTransform>();
+            rt.localScale = Vector3.one;
+            var drag = _slipGo.GetComponent<DragPaper>();
+            drag.PlaceCenter(deskCenter);
+            drag.SetHome(new Vector2(660f, 440f));   // desk slot if it ever returns home
+            _gameRoot.Audio.PlaySfx("sfx_paper", 0.5f);
+        }
+
+        private void SlipDropped(Vector2 center)
+        {
+            if (!_slipTaken)
+            {
+                if (center.y >= 420f) TakeSlipAt(center);
+                else
+                {
+                    var rt = _slipGo.GetComponent<RectTransform>();
+                    rt.anchoredPosition = new Vector2(L.CounterSlip.X, -L.CounterSlip.Y);
+                }
+                return;
+            }
+            if (InWindowZone(center)) HandBackSlip();
+        }
+
+        private bool InWindowZone(Vector2 c) =>
+            c.x >= L.Window.X - 10f && c.x <= L.Window.Right + 10f &&
+            c.y >= L.Window.Y - 10f && c.y <= L.Sill.Bottom + 10f;
+
+        private void HandBackSlip()
+        {
+            if (!_slipStamped) { _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.25f); return; }
+            if (_backSlip) return;
+            _backSlip = true;
+            SetPaperHeld(_slipGo, false);
+            _gameRoot.Audio.PlaySfx("sfx_paper", 0.4f);
+            FinalizeIfReady();
+        }
+
+        internal void HandBackId()
+        {
+            if (_backId) return;
+            _backId = true;
+            SetPaperHeld(_idCardGo, false);
+            _gameRoot.Audio.PlaySfx("sfx_paper", 0.4f);
+            FinalizeIfReady();
+        }
+
+        // dimmed = "with the student"; full = on your desk
+        private static void SetPaperHeld(GameObject go, bool held)
+        {
+            if (go == null) return;
+            foreach (var img in go.GetComponentsInChildren<Image>(true))
+            { var c = img.color; c.a = held ? 1f : 0.55f; img.color = c; }
+            foreach (var t in go.GetComponentsInChildren<Text>(true))
+            { var c = t.color; c.a = held ? 1f : 0.55f; t.color = c; }
+        }
+
+        // The decision counts HERE — when the student has both papers back, never earlier.
+        private void FinalizeIfReady()
+        {
+            if (!_backId || !_backSlip || !_slipStamped || _pendingVerdict == Verdict.None) return;
+            var v = _pendingVerdict;
+            _pendingVerdict = Verdict.None;
+            _slipGo.SetActive(false);
+            if (_idCardGo != null) _idCardGo.SetActive(false);
+            Stamp(v);
+        }
+
+        // Fresh hand-over state per visitor, incl. the per-inspection stamp-rotation seed.
+        private void ResetHandover(VisitorData v)
+        {
+            _slipTaken = false; _slipStamped = false; _pendingVerdict = Verdict.None;
+            _backId = false; _backSlip = false;
+            _stampRng = new GameRng((_gameRoot.Session != null ? _gameRoot.Session.Seed : 1) ^ (v.VisitorIndex * 131 + 7));
+            SetPaperHeld(_idCardGo, true);
+            SetPaperHeld(_slipGo, true);
+            if (_stampOverlay != null) { var c = _stampOverlay.color; c.a = 0f; _stampOverlay.color = c; }
+            _lastPaper = _idCardGo;
+            OfferAtCounter();          // the ID slides to the counter edge
+            OfferSlipAtCounter();      // and the slip beside it
         }
 
         // Offered card rows reuse the ID-card grid offsets (same card size).
@@ -95,15 +225,24 @@ namespace Hollowbrook.Checkpoint
             return t;
         }
 
-        // Click on the window slot: the visitor offers the ID across the glass.
-        private void OnWindowClicked()
+        // Arrival beat: the student slides the ID to the counter edge, unasked.
+        private void OfferAtCounter()
         {
             if (_current == null || _verdictLocked || _documentsTaken) return;
             if (_offeredRoot.activeSelf) return;
-            _gameRoot.Audio.PlaySfx("sfx_paper", 0.6f);
             FillOfferedCard(_current);
             _offeredRoot.SetActive(true);
+            _gameRoot.Audio.PlaySfx("sfx_paper", 0.45f);   // the slide across the counter
             RefreshHandoverPrompt();
+        }
+
+        // The drag-to-take path: the held card appears exactly where the player dropped it.
+        private void TakeIdAt(Vector2 deskCenter)
+        {
+            if (_current == null || _documentsTaken) return;
+            TakeId();
+            var drag = _idCardGo.GetComponent<DragPaper>();
+            if (drag != null) drag.PlaceCenter(deskCenter);
         }
 
         // The centred card shows just enough to read at arm's length: face, name, number, expiry.

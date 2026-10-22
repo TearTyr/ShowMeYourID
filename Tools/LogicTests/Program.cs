@@ -57,6 +57,8 @@ namespace Hollowbrook.LogicTests
             QueueBusyHurryTests();
             QueueInvariantTests();
             StampRulesTests();
+            RecordSearchTests();
+            SlipFairnessTests();
             SeatPlannerTests();
             CultureRoundTripTests();
             ResumeReplayTests();
@@ -1061,23 +1063,60 @@ namespace Hollowbrook.LogicTests
             foreach (var v in roster) { if (legit == null && !v.IsAnomaly) legit = v; if (anom == null && v.IsAnomaly) anom = v; }
             Check(legit != null && anom != null, "roster provides a legit and an anomaly subject");
 
-            var dA = InspectionRules.Apply(anom, Verdict.Detain, null);
-            Check(dA.Correct && !dA.FalseRejection && dA.WasDetained, "detaining an anomaly is a correct stop");
-            var dL = InspectionRules.Apply(legit, Verdict.Detain, null);
-            Check(!dL.Correct && dL.FalseRejection && dL.WasDetained, "detaining a legitimate student is a serious false rejection");
             var rA = InspectionRules.Apply(anom, Verdict.Reject, null);
-            Check(rA.Correct && !rA.WasDetained, "reject still scores anomalies correctly");
+            Check(rA.Correct, "reject scores anomalies correctly");
             var aL = InspectionRules.Apply(legit, Verdict.Allow, null);
-            Check(aL.Correct && !aL.WasDetained, "allow still scores legit students correctly");
+            Check(aL.Correct, "allow scores legit students correctly");
 
             var sN = new GameSession { Mode = GameMode.Normal, Score = 250 };
             sN.RecordVerdict(InspectionRules.Apply(legit, Verdict.Reject, null));   // miss 1
             sN.RecordVerdict(InspectionRules.Apply(legit, Verdict.Allow, null));   // correct
             sN.RecordVerdict(InspectionRules.Apply(anom, Verdict.Allow, null));    // miss 2
-            sN.RecordVerdict(InspectionRules.Apply(legit, Verdict.Detain, null));  // miss 3 -> fine
+            sN.RecordVerdict(InspectionRules.Apply(legit, Verdict.Reject, null));  // miss 3 -> fine
             Eq(sN.Warnings, 3, "three mistakes book three warnings");
             Eq(sN.Fines, 1, "the third warning draws a fine");
             Eq(sN.Score, 150, "the fine costs 100 score (penalty, not game over)");
+        }
+
+        private static void RecordSearchTests()
+        {
+            Group("RecordSearch — registry lookup for the records station");
+            var canon = new RosterFactory(12).Canon;
+            var target = canon[5];
+            Eq(RecordSearch.FindInCanon(canon, target.IdNumber), 5, "exact ID match wins");
+            Eq(RecordSearch.FindInCanon(canon, target.IdNumber.ToLowerInvariant()), 5,
+               "ID match is case-insensitive");
+            string frag = target.FullName.Length >= 4 ? target.FullName.Substring(2, 4) : target.FullName;
+            int byName = RecordSearch.FindInCanon(canon, frag);
+            Check(byName >= 0 && canon[byName].FullName.ToUpperInvariant().Contains(frag.ToUpperInvariant()),
+                  "a name fragment opens a matching file");
+            Eq(RecordSearch.FindInCanon(canon, "HB-1999-0000"), -1, "ghost ID answers NO RECORD");
+            Eq(RecordSearch.FindInCanon(canon, "ab"), -1, "queries under 3 chars match nothing");
+            Eq(RecordSearch.FindInCanon(canon, ""), -1, "empty query matches nothing");
+            Eq(RecordSearch.FindInCanon(null, "x"), -1, "a null canon is safe");
+        }
+
+        private static void SlipFairnessTests()
+        {
+            Group("Slip generation — fairness across seeds and shifts");
+            bool legitOk = true, mismatchOk = true;
+            int mismatchSeen = 0;
+            for (int seed = 1; seed <= 6; seed++)
+                for (int sh = 1; sh <= 5; sh++)
+                    foreach (var v in RosterFor(seed, sh))
+                    {
+                        bool agrees = v.SlipName == v.ClaimedName && v.SlipIdNumber == v.IdNumber;
+                        if (!v.IsAnomaly) { if (!agrees) legitOk = false; }
+                        else
+                        {
+                            bool has = v.Defects.Contains(DefectType.SlipMismatch);
+                            if (has) { mismatchSeen++; if (agrees) mismatchOk = false; }
+                            else if (!agrees) mismatchOk = false;
+                        }
+                    }
+            Check(legitOk, "legitimate slips always agree with the card (fairness invariant)");
+            Check(mismatchSeen > 0, "slip discrepancies really occur on anomalies");
+            Check(mismatchOk, "a slip disagrees exactly when the SlipMismatch defect is booked");
         }
 
         private static void SeatPlannerTests()
