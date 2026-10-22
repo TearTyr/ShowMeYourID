@@ -28,6 +28,14 @@ namespace Hollowbrook.Checkpoint
         // Headless harnesses/FlowCheck drive the same path the buttons use.
         internal void OpenInterview() { if (!_interviewOpen) ToggleInterview(); }
 
+        internal void AskByHotkey(int i)
+        {
+            if (_gameRoot == null || _gameRoot.State != AppViewState.Checkpoint) return;
+            if (!_interviewOpen || _gameRoot.Paused) return;
+            if (i < 0 || i >= QuestionSystem.All.Length) return;
+            AskQuestion(QuestionSystem.All[i]);
+        }
+
         public void AskQuestion(QuestionId q)
         {
             if (_current == null || _verdictLocked) return;

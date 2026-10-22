@@ -38,6 +38,7 @@ them automatically (keys are listed in `ProceduralArt` / `ProceduralAudio`).
 | Checkpoint | Mouse: click the window to be offered the ID, click the card to take it, SCAN, QUESTION then questions, ALLOW / REJECT |
 | Walk / Run | `A`/`D` or `◂`/`▸`, hold `Shift` to run |
 | Interact | `E` (doors, clues, light switches) |
+| Desk papers | drag the ID card / record sheet to arrange your desk (drop the ID on SCAN to scan); hover a question for what it cross-checks; `1`–`4` ask while the interview is open |
 | Flashlight | `F` Sweep (wide) / `Q` Focus (tight) / `L` off — or hold `LMB` / `RMB` for a temporary beam |
 | Map | `M` |
 | Pause | `Esc` |

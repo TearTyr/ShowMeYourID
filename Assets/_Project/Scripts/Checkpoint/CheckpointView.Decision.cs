@@ -47,12 +47,19 @@ namespace Hollowbrook.Checkpoint
                         L.Inner.QBtnW, L.Inner.QBtnH));
                 SizeLabel(b, 13);
                 _questionButtons[i] = b;
+                _qLabels[i] = qs[i];
+                var hh = b.gameObject.AddComponent<HoverHint>();
+                hh.Init(HintFor(qids[i]), SetQHint);
                 b.gameObject.SetActive(false);
             }
-            _testimony = UIFactory.Label(qPanel, "testimony", "", 10,
-                new Color(0.30f, 0.30f, 0.29f), TextAnchor.UpperLeft);
-            L.Place(_testimony.rectTransform, L.Inner.QTestimony);
+            _testimony = UIFactory.MaskedLabel(qPanel, "testimony",
+                L.Inner.QTestimony.X, L.Inner.QTestimony.Y, L.Inner.QTestimony.W, L.Inner.QTestimony.H,
+                10, new Color(0.30f, 0.30f, 0.29f), TextAnchor.UpperLeft, true);
             _testimony.gameObject.SetActive(false);
+            _qHint = UIFactory.Label(qPanel, "qhint", "", 10,
+                new Color(0.42f, 0.42f, 0.42f), TextAnchor.MiddleLeft);
+            L.Place(_qHint.rectTransform, L.Inner.QHint);
+            _qHint.gameObject.SetActive(false);
 
             _scanBtn = GridButton(_desk, "scan", "SCAN ID", DoScan, L.UtilityScan, 12);
             Reg("scan", _scanBtn, L.UtilityScan);
@@ -80,6 +87,48 @@ namespace Hollowbrook.Checkpoint
             _monitorOutput = UIFactory.MaskedLabel(mon, "out",
                 L.Inner.MonitorOut.X, L.Inner.MonitorOut.Y, L.Inner.MonitorOut.W, L.Inner.MonitorOut.H,
                 13, new Color(0.55f, 0.75f, 0.55f));
+        }
+
+        // The interview at a glance: budget pips, asked-tags on the four buttons, and the
+        // hint line (hover copy, or the budget-spent reason when the policy caps you out).
+        private void RefreshQuestionsPanel()
+        {
+            if (_budgetLabel != null)
+            {
+                string pips = "";
+                for (int i = 0; i < _budget.Max; i++) pips += (i < _budget.Remaining ? "● " : "○ ");
+                _budgetLabel.text = "QUESTIONS: " + _budget.Remaining + " LEFT  " + pips.Trim();
+            }
+            for (int i = 0; i < 4; i++)
+            {
+                if (_questionButtons[i] == null) continue;
+                bool asked = _budget.HasAsked(QuestionSystem.All[i]);
+                var t = _questionButtons[i].GetComponentInChildren<Text>();
+                if (t != null) t.text = asked ? _qLabels[i] + "  ✓ ASKED" : _qLabels[i];
+            }
+            SetQHint("");
+        }
+
+        private void SetQHint(string hover)
+        {
+            if (_qHint == null) return;
+            _qHint.text = string.IsNullOrEmpty(hover) ? DefaultQHint() : hover;
+        }
+
+        private string DefaultQHint() =>
+            _interviewOpen && _budget.Remaining <= 0
+                ? "No more questions — they're getting nervous."
+                : "Hover a question: each cross-checks one paper line. Two per inspection.";
+
+        private static string HintFor(QuestionId q)
+        {
+            switch (q)
+            {
+                case QuestionId.Course: return "Cross-check the course against the record sheet.";
+                case QuestionId.Year: return "Must match the year level on both papers.";
+                case QuestionId.Status: return "Transferees enrol mid-year — the record says.";
+                default: return "Rooming lists live in the RULES NOTE overlay.";
+            }
         }
 
         // Flat wireframe circles: art is baked into the border sprite, the inner rect only
@@ -113,6 +162,8 @@ namespace Hollowbrook.Checkpoint
             _interviewBtn.gameObject.SetActive(atWindow && !_interviewOpen);
             _budgetLabel.gameObject.SetActive(_interviewOpen);
             _testimony.gameObject.SetActive(_interviewOpen);
+            _qHint.gameObject.SetActive(_interviewOpen);
+            RefreshQuestionsPanel();
             if (_handoverTarget != null) _handoverTarget.SetActive(atWindow && !_documentsTaken);
             UIFactory.SetButtonEnabled(_allowBtn, live);
             UIFactory.SetButtonEnabled(_rejectBtn, live);

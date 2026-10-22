@@ -39,7 +39,9 @@ namespace Hollowbrook.Checkpoint
 
         // ---- left column ----------------------------------------------------
         public static readonly Region Record = new Region(16, 64, 320, 290);
-        public static readonly Region IdCard = new Region(16, 362, 320, 220);
+        // default slot for the held ID card; the card is draggable, so this is where it
+        // rests, not where it stays (see DragPaper)
+        public static readonly Region IdCard = new Region(405, 436, 320, 220);
         // the offered ID during the hand-over step: same card size, centred over the window
         public static readonly Region OfferedId = new Region(480, 190, 320, 220);
 
@@ -49,10 +51,7 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region Portrait = new Region(565, 104, 150, 180);     // inside the glass
         public static readonly Region Glitch = new Region(560, 99, 160, 190);        // transient flash
         public static readonly Region Sill = new Region(405, 404, 470, 24);
-        public static readonly Region Speech = new Region(490, 436, 300, 110);
-        // reserved slot: the principal note lives in the RULES NOTE overlay now, but the
-        // wireframe cell stays documented and FlowCheck still bounds-checks it
-        public static readonly Region Note = new Region(500, 554, 280, 110);
+        public static readonly Region Speech = new Region(16, 362, 320, 342);   // bottom-left chat column
         public static readonly Region PatrolBtn = new Region(490, 672, 180, 36);
         public static readonly Region EndShiftBtn = new Region(680, 672, 200, 36);
 
@@ -112,7 +111,7 @@ namespace Hollowbrook.Checkpoint
             public static readonly float[] IdRules = { 52f, 75f, 99f, 123f, 146f, 179f };
 
             // speech / note
-            public static readonly Region SpeechText = new Region(10, 8, 280, 94);
+            public static readonly Region SpeechText = new Region(10, 8, 300, 326);
             public static readonly Region NoteHead = new Region(10, 6, 260, 18);
             public static readonly Region NoteBody = new Region(10, 28, 260, 74);
 
@@ -120,7 +119,8 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region QHead = new Region(12, 6, 140, 20);
             public static readonly Region QBudget = new Region(146, 6, 138, 16);
             public const float QBtnX = 12f, QBtnY0 = 30f, QBtnStep = 42f, QBtnW = 272f, QBtnH = 38f;
-            public static readonly Region QTestimony = new Region(12, 200, 272, 54);
+            public static readonly Region QHint = new Region(12, 196, 272, 16);
+            public static readonly Region QTestimony = new Region(12, 214, 272, 40);
 
             // camera monitor
             public static readonly Region MonitorCaption = new Region(0, 2, 296, 16);

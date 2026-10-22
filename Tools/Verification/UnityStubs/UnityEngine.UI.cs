@@ -300,6 +300,23 @@ namespace UnityEngine.EventSystems
 
     public class BaseEventData { }
 
+    // Pointer payload + the handler interfaces real uGUI dispatches to. The stubs never
+    // dispatch pointer events themselves; headless proofs call the handler methods or the
+    // components' public entry points directly.
+    public class PointerEventData : BaseEventData
+    {
+        public Vector2 position = Vector2.zero;
+        public Vector2 delta = Vector2.zero;
+        public int pointerId = -1;
+    }
+
+    public interface IPointerEnterHandler { void OnPointerEnter(PointerEventData eventData); }
+    public interface IPointerExitHandler { void OnPointerExit(PointerEventData eventData); }
+    public interface IPointerClickHandler { void OnPointerClick(PointerEventData eventData); }
+    public interface IBeginDragHandler { void OnBeginDrag(PointerEventData eventData); }
+    public interface IDragHandler { void OnDrag(PointerEventData eventData); }
+    public interface IEndDragHandler { void OnEndDrag(PointerEventData eventData); }
+
     public enum EventTriggerType
     {
         PointerEnter = 0, PointerExit = 1, PointerDown = 2, PointerUp = 3, PointerClick = 4,

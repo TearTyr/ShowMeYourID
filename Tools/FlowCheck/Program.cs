@@ -88,6 +88,7 @@ namespace FlowCheck
             RequiredElements(root);
             LayoutAudit(root);
             SpeechProof(root);
+            PapersProof(root);
             SaveContinueResume();
             DeskLoop(root);
             QueueProof(root);
@@ -187,13 +188,12 @@ namespace FlowCheck
             ExpectRegion("clock", L.Clock, 1000, 4, 150, 44);
             ExpectRegion("pause", L.Pause, 1160, 8, 104, 36);
             ExpectRegion("record sheet", L.Record, 16, 64, 320, 290);
-            ExpectRegion("id card", L.IdCard, 16, 362, 320, 220);
+            ExpectRegion("id card", L.IdCard, 405, 436, 320, 220);
             ExpectRegion("window frame", L.Window, 405, 88, 470, 316);
             ExpectRegion("glass", L.Glass, 420, 98, 440, 296);
             ExpectRegion("portrait", L.Portrait, 565, 104, 150, 180);
             ExpectRegion("sill", L.Sill, 405, 404, 470, 24);
-            ExpectRegion("speech", L.Speech, 490, 436, 300, 110);
-            ExpectRegion("principal note", L.Note, 500, 554, 280, 110);
+            ExpectRegion("speech", L.Speech, 16, 362, 320, 342);
             ExpectRegion("patrol button", L.PatrolBtn, 490, 672, 180, 36);
             ExpectRegion("end shift", L.EndShiftBtn, 680, 672, 200, 36);
             ExpectRegion("questions", L.Questions, 968, 88, 296, 260);
@@ -239,7 +239,6 @@ namespace FlowCheck
             Add("window", L.Window, "C");
             Add("sill", L.Sill, "C");
             Add("speech", L.Speech, "C");
-            Add("principal note", L.Note, "C");
             Add("patrol button", L.PatrolBtn, "C");
             Add("end shift button", L.EndShiftBtn, "C");
             Add("questions panel", L.Questions, "C");
@@ -312,6 +311,83 @@ namespace FlowCheck
         // ------------------------------------------------------------- speech proof
         // The speech box must show BOTH sides: the visitor's line, the player's question
         // under "YOU", and the visitor's answer — newest at the bottom.
+
+        // ------------------------------------------------- papers pass (drag, pips, hints)
+        private static void PapersProof(GameRoot root)
+        {
+            Console.WriteLine("== papers pass: chat column, draggable ID, question panel ==");
+            var cp = root.Checkpoint;
+
+            // chat lives bottom-left and speaks in three inks
+            var speech = FindDeep(cp.transform, "speech_border");
+            var srt = speech.GetComponent<RectTransform>();
+            Check(Mathf.Abs(srt.anchoredPosition.x - L.Speech.X) < 0.5f &&
+                  Mathf.Abs(-srt.anchoredPosition.y - L.Speech.Y) < 0.5f &&
+                  L.Speech.X == 16 && L.Speech.Y == 362,
+                  "the chat log sits in the bottom-left column (16,362)");
+            var logText = FindDeep(cp.transform, "speechlog").GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
+            Check(logText.Contains("<color=#4a5a49>YOU</color>") && logText.Contains("<color=#6f6d68>AT THE WINDOW</color>"),
+                  "chat lines carry per-speaker colours");
+
+            // both papers are physical
+            var idDrag = FindDeep(cp.transform, "idcard").GetComponent<DragPaper>();
+            var recDrag = FindDeep(cp.transform, "record").GetComponent<DragPaper>();
+            Check(idDrag != null && recDrag != null, "ID card and record sheet carry DragPaper");
+            if (idDrag == null) return;
+            idDrag.BeginDrag();
+            idDrag.DragBy(new Vector2(99999f, -99999f));   // screen: right + down
+            var c = idDrag.CenterInBounds();
+            Check(Mathf.Abs(c.x - (1280f - 160f)) < 0.5f && Mathf.Abs(c.y - (720f - 110f)) < 0.5f,
+                  "drag clamps inside the desk frame (bottom-right corner)");
+            idDrag.DragBy(new Vector2(-99999f, 99999f));    // screen: left + up
+            c = idDrag.CenterInBounds();
+            Check(Mathf.Abs(c.x - 160f) < 0.5f && Mathf.Abs(c.y - 110f) < 0.5f,
+                  "drag clamps inside the desk frame (top-left corner)");
+            idDrag.EndDrag();
+
+            // dropping the ID on the scanner scans it — exactly one scan, same rules path
+            int scans = 0;
+            var sub = root.Bus.Subscribe(EventIds.ScanPerformed, e => scans++);
+            idDrag.BeginDrag();
+            idDrag.PlaceAt(new Vector2(L.UtilityScan.X + L.UtilityScan.W / 2f - 160f,
+                                       L.UtilityScan.Y + L.UtilityScan.H / 2f - 110f));
+            idDrag.EndDrag();
+            Check(scans == 1, "drop-on-scanner triggers exactly one scan");
+            idDrag.BeginDrag();
+            idDrag.PlaceAt(new Vector2(600f - 160f, 500f - 110f));
+            idDrag.EndDrag();
+            Check(scans == 1, "dropping elsewhere is just repositioning (no scan)");
+            sub.Dispose();
+
+            // question panel: pips, asked-tags, hotkeys, budget-spent reason, scroll testimony
+            var budget = FindDeep(cp.transform, "budget").GetComponent<UnityEngine.UI.Text>();
+            Check(budget.text.Contains("1 LEFT") && budget.text.Contains("●") && budget.text.Contains("○"),
+                  "budget pips show one question left after the first ask (got '" + budget.text + "')");
+            var q0 = FindDeep(cp.transform, "q0");
+            Check(q0.GetComponent<UnityEngine.UI.Button>().interactable == false &&
+                  q0.GetComponentInChildren<UnityEngine.UI.Text>().text.Contains("ASKED"),
+                  "the asked question is tagged and disabled");
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Alpha2);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            var q1 = FindDeep(cp.transform, "q1");
+            Check(q1.GetComponentInChildren<UnityEngine.UI.Text>().text.Contains("ASKED"),
+                  "hotkey 2 asks the second question while the interview is open");
+            Check(budget.text.Contains("0 LEFT") && !budget.text.Contains("●"),
+                  "budget pips empty out (got '" + budget.text + "')");
+            var hint = FindDeep(cp.transform, "qhint").GetComponent<UnityEngine.UI.Text>();
+            Check(hint.text == "No more questions — they're getting nervous.",
+                  "budget-spent reason line replaces the hover hint");
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Alpha3);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            Check(!FindDeep(cp.transform, "q2").GetComponentInChildren<UnityEngine.UI.Text>().text.Contains("ASKED"),
+                  "hotkeys respect the spent budget (no third question)");
+            var testimonyHost = FindDeep(cp.transform, "testimony");
+            Check(testimonyHost.GetComponentInChildren<UnityEngine.UI.ScrollRect>() != null,
+                  "testimony scrolls instead of clipping");
+        }
+
         private static void SpeechProof(GameRoot root)
         {
             Console.WriteLine("== speech box carries both sides ==");

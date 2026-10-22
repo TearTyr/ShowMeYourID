@@ -59,7 +59,9 @@ namespace Hollowbrook.Checkpoint
         private StringBuilder _tonightsLog = new StringBuilder();
 
         private Button[] _questionButtons = new Button[4];
+        private readonly string[] _qLabels = new string[4];
         private Text _budgetLabel;
+        private Text _qHint;
         private Button _interviewBtn;      // the QUESTION gate: reveals the four questions
         private bool _interviewOpen;
         private bool _documentsTaken;      // the ID is in your hand: papers, scan and stamps unlock
@@ -398,6 +400,9 @@ namespace Hollowbrook.Checkpoint
             if (Input.GetKeyDown(KeyCode.Escape) && !_bannerRoot.activeSelf && !_gameRoot.BlockingOverlayOpen)
                 _gameRoot.TogglePause();
             if (Input.GetKeyDown(KeyCode.M) && _gameRoot.State == AppViewState.Checkpoint) _gameRoot.OpenMap();
+            // 1-4 ask the four questions while the interview is open (labels say so)
+            for (int k = 0; k < 4; k++)
+                if (Input.GetKeyDown((KeyCode)(KeyCode.Alpha1 + k))) AskByHotkey(k);
         }
 
         // Everything on the desk that mirrors run state, refreshed after any change:
@@ -408,7 +413,6 @@ namespace Hollowbrook.Checkpoint
             RefreshTopBar();
             RefreshHandoverPrompt();
             RefreshQueueStatus();
-            _budgetLabel.text = "QUESTIONS: " + _budget.Remaining + " LEFT";
             RefreshDecisionButtons();
         }
 

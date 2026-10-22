@@ -59,6 +59,20 @@ namespace Hollowbrook.Checkpoint
             // clean desk: the papers stay hidden until the ID is actually in your hand
             _recordGo.SetActive(false);
             _idCardGo.SetActive(false);
+
+            // papers are physical: draggable over the desk, lifted while held, settling
+            // back with their tilt on drop. Dropping the ID on the scanner scans it —
+            // same rules path as the SCAN button, zero new rules.
+            var recordDrag = _recordGo.AddComponent<DragPaper>();
+            recordDrag.Init(_desk, -0.6f);
+            var idDrag = _idCardGo.AddComponent<DragPaper>();
+            idDrag.Init(_desk, 0.8f);
+            idDrag.OnDropped = center =>
+            {
+                if (center.x >= L.UtilityScan.X - 20 && center.x <= L.UtilityScan.Right + 20 &&
+                    center.y >= L.UtilityScan.Y - 20 && center.y <= L.UtilityScan.Bottom + 20)
+                    DoScan();
+            };
         }
 
         private Text Row(RectTransform parent, string name, int rowIndex)

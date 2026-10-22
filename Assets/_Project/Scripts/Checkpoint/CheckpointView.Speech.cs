@@ -50,10 +50,19 @@ namespace Hollowbrook.Checkpoint
             foreach (var entry in _speechEntries)
             {
                 if (sb.Length > 0) sb.Append('\n');
-                sb.Append("<b><color=#6f6d68>").Append(entry[0]).Append("</color></b>\n").Append(entry[1]);
+                sb.Append("<b><color=").Append(SpeakerColor(entry[0])).Append('>')
+                  .Append(entry[0]).Append("</color></b>\n").Append(entry[1]);
             }
             _speechLog.text = sb.ToString();
             _speechPanel.gameObject.SetActive(true);
+        }
+
+        // chat colours: you, the window, the intercom — three voices, three inks
+        private static string SpeakerColor(string who)
+        {
+            if (who == "YOU") return "#4a5a49";
+            if (who == "RADIO") return "#7a4a4a";
+            return "#6f6d68";
         }
 
         private void RefreshHandoverPrompt()

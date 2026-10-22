@@ -1,5 +1,20 @@
 # Refactor log — readability pass (branch refactor/readability)
 
+## Papers pass — desk chat, physical papers, question-panel upgrade
+
+- Chat (speech log) moved to the bottom-left column (16,362,320,342) with per-speaker inks
+  (YOU / window / RADIO); the retired principal-note slot left the layout tables.
+- Papers are physical: new `DragPaper` (drag with lift + tilt settle, clamped to the desk
+  frame, headless-drivable) on the ID card and record sheet; dropping the ID on the scanner
+  scans through the same rules path as the SCAN button. New `HoverHint` feeds the panel hint.
+- Question panel: budget pips, ASKED tags + disabled state, per-question cross-check hints,
+  hotkeys 1-4, budget-spent reason line, scrolling testimony.
+- Layout contract updated in one place (CheckpointLayout) — DeskLayoutAudit and FlowCheck's
+  wireframe table follow; FlowCheck gained a 14-check PapersProof (drag clamps, drop-scan
+  exactly-once, pips, asked-state, hotkeys, reason line, scroll, chat position + colours).
+- Rules, fairness and saves untouched: dragging is positional only; scanning path unchanged.
+
+
 ## Readability pass for a beginner team (five committed steps)
 
 1. **Showcase-cut cleanup** — `ShowcaseBuild` owns presentation cuts; checklist cut for good
