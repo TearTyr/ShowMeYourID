@@ -64,12 +64,12 @@ namespace Hollowbrook.Checkpoint
         private Text _qHint;
         private Text _stationOut;
         private UnityEngine.UI.InputField _searchField;
-        private float _idZoom = 1f;
         private GameObject _slipGo;
         private Text _slipName, _slipId, _slipReason;
         private bool _slipTaken, _slipStamped, _backId, _backSlip;
         private Verdict _pendingVerdict = Verdict.None;
         private GameRng _stampRng = new GameRng(1);
+        private Coroutine _punch;
         private GameObject _lastPaper;
         internal Verdict PendingVerdict => _pendingVerdict;
         internal bool SlipStamped => _slipStamped;
@@ -416,12 +416,9 @@ namespace Hollowbrook.Checkpoint
         // Zoom the held ID: wheel (or Vertical axis) nudges, Z toggles. Clamped 1..1.8.
         internal void DebugZoom(float z)
         {
-            _idZoom = Mathf.Clamp(z, 1f, 1.8f);
-            ApplyZoom(_lastPaper != null ? _lastPaper : _idCardGo);
-        }
-        private void ApplyZoom(GameObject paper)
-        {
-            if (paper != null) paper.transform.localScale = new Vector3(_idZoom, _idZoom, 1f);
+            var paper = _lastPaper != null ? _lastPaper : _idCardGo;
+            var dp = paper != null ? paper.GetComponent<DragPaper>() : null;
+            if (dp != null) dp.Zoom = z;
         }
 
         private void Update()
@@ -429,13 +426,17 @@ namespace Hollowbrook.Checkpoint
             if (_gameRoot == null || !gameObject.activeInHierarchy) return;
             AdvanceQueue(Time.deltaTime);
             TickHotkeys();
-            // zoom the paper you last touched: wheel nudges, Z toggles — clamped, never runaway
+            // zoom the paper you last touched: real wheel axis, per-paper, clamped
             var zoomPaper = _lastPaper != null ? _lastPaper : _idCardGo;
             if (zoomPaper != null && zoomPaper.activeSelf)
             {
-                float wheel = Input.GetAxisRaw("Vertical");
-                if (wheel != 0f) { _idZoom = Mathf.Clamp(_idZoom + wheel * 0.15f, 1f, 1.8f); ApplyZoom(zoomPaper); }
-                else if (Input.GetKeyDown(KeyCode.Z)) { _idZoom = _idZoom > 1.25f ? 1f : 1.5f; ApplyZoom(zoomPaper); }
+                var dp = zoomPaper.GetComponent<DragPaper>();
+                if (dp != null)
+                {
+                    float wheel = Input.mouseScrollDelta.y;
+                    if (wheel != 0f) dp.Zoom = dp.Zoom + wheel * 0.15f;
+                    else if (Input.GetKeyDown(KeyCode.Z)) dp.Zoom = dp.Zoom > 1.25f ? 1f : 1.5f;
+                }
             }
         }
 
@@ -443,6 +444,8 @@ namespace Hollowbrook.Checkpoint
         // (stub MonoBehaviours never get Update calls).
         internal void TickHotkeys()
         {
+            // typing a query must never ask questions or stamp verdicts
+            if (_searchField != null && _searchField.isFocused) return;
             // Escape belongs to an open overlay sheet (Options/Controls/Credits) first —
             // without this guard Esc over the pause menu would close Options AND unpause.
             if (Input.GetKeyDown(KeyCode.Escape) && !_gameRoot.BlockingOverlayOpen)

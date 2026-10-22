@@ -24,6 +24,12 @@ namespace Hollowbrook.Checkpoint
         private const float TapThreshold = 6f;
 
         public bool Dragging { get; private set; }
+        /// <summary>Per-paper zoom (1..1.8). Lift/drop preserve it; arrival resets it.</summary>
+        public float Zoom
+        {
+            get => _rt != null ? _rt.localScale.x : 1f;
+            set { if (_rt != null) { var z = Mathf.Clamp(value, 1f, 1.8f); _rt.localScale = new Vector3(z, z, 1f); } }
+        }
         /// <summary>Tools (stamps, the offered ID) return to their slot after every drop;
         /// papers stay where the player left them.</summary>
         public bool ReturnsHome;
@@ -60,10 +66,22 @@ namespace Hollowbrook.Checkpoint
             _rt.localEulerAngles = Vector3.zero;          // straighten while held
         }
 
+        // pointer deltas arrive in screen pixels; the desk lives in canvas-scaled units
+        private float ScaleFactor
+        {
+            get
+            {
+                if (_bounds == null) return 1f;
+                var c = _bounds.GetComponentInParent<Canvas>();
+                var r = c != null ? c.rootCanvas : null;
+                return r != null && r.scaleFactor > 0.01f ? r.scaleFactor : 1f;
+            }
+        }
+
         public void DragBy(Vector2 delta)
         {
             if (!Dragging) return;
-            _rt.anchoredPosition += delta;                // free hover: the drop decides
+            _rt.anchoredPosition += delta / ScaleFactor;  // 1:1 with the cursor at any resolution
             _moved += Mathf.Abs(delta.x) + Mathf.Abs(delta.y);
         }
 

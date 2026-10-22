@@ -70,8 +70,9 @@ namespace Hollowbrook.Checkpoint
             string want = "";
             if (_current != null && !_verdictLocked)
             {
-                if (_offeredRoot.activeSelf) want = "CLICK THE CARD TO TAKE THE ID";
-                else if (!_documentsTaken) want = "CLICK THE WINDOW — THEY ARE HOLDING THEIR ID";
+                if (!_documentsTaken) want = "DRAG THE ID AND THE SLIP FROM THE COUNTER TO YOUR DESK";
+                else if (!_slipStamped) want = "STAMP THE SLIP — DRAG A STAMP ONTO IT (A / D)";
+                else want = "HAND BACK BOTH PAPERS AT THE WINDOW (H)";
             }
             if (want == _lastHandoverPrompt) return;
             _lastHandoverPrompt = want;

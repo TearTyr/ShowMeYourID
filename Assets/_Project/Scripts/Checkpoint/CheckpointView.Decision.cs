@@ -151,9 +151,11 @@ namespace Hollowbrook.Checkpoint
             if (_slipGo == null || !_slipGo.activeSelf || !_slipTaken || _current == null || _verdictLocked) return;
             var srt = _slipGo.GetComponent<RectTransform>();
             var ss = srt.rect.size;
+            var sc = srt.localScale;                 // zoomed slip = bigger target, true placement
+            float w = ss.x * sc.x, h = ss.y * sc.y;
             var top = new Vector2(srt.anchoredPosition.x, -srt.anchoredPosition.y);
-            bool onSlip = center.x >= top.x - 8f && center.x <= top.x + ss.x + 8f &&
-                          center.y >= top.y - 8f && center.y <= top.y + ss.y + 8f;
+            bool onSlip = center.x >= top.x - 8f && center.x <= top.x + w + 8f &&
+                          center.y >= top.y - 8f && center.y <= top.y + h + 8f;
             if (!onSlip) return;                                    // off the slip: back to the rack
             if (_slipStamped) { _gameRoot.Audio.PlaySfx("sfx_paper", 0.25f); return; }   // one stamp per slip
             _pendingVerdict = v;
@@ -162,15 +164,15 @@ namespace Hollowbrook.Checkpoint
             _gameRoot.Audio.PlaySfx(v == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 0.8f);
         }
 
-        // Keyboard path: stamp the slip's centre (with the same seeded jitter).
+        // Keyboard path: same placement rule as a drop on the slip's centre (rotation seeded).
         internal void StampSlipByKey(Verdict v)
         {
             if (!_slipTaken || _slipStamped || _current == null || _verdictLocked) return;
             var srt = _slipGo.GetComponent<RectTransform>();
             var ss = srt.rect.size;
+            var sc = srt.localScale;
             var top = new Vector2(srt.anchoredPosition.x, -srt.anchoredPosition.y);
-            var center = top + new Vector2(ss.x / 2f + _stampRng.NextInt(-30, 31),
-                                           ss.y / 2f + _stampRng.NextInt(-20, 21));
+            var center = top + new Vector2(ss.x * sc.x / 2f, ss.y * sc.y / 2f);
             _pendingVerdict = v;
             _slipStamped = true;
             PlaceStampMark(center, v);
@@ -191,17 +193,19 @@ namespace Hollowbrook.Checkpoint
             if (_stampOverlay == null || _slipGo == null) return;
             var srt = _slipGo.GetComponent<RectTransform>();
             _stampOverlay.transform.SetParent(srt, false);
+            if (_punch != null) StopCoroutine(_punch);      // one punch at a time
             var rt = _stampOverlay.rectTransform;
             rt.anchorMin = new Vector2(0, 1); rt.anchorMax = new Vector2(0, 1);
             rt.pivot = new Vector2(0.5f, 0.5f);
             var top = new Vector2(srt.anchoredPosition.x, -srt.anchoredPosition.y);
             var local = deskCenter - top;
-            rt.anchoredPosition = new Vector2(local.x, -local.y);
+            var sc2 = srt.localScale;
+            rt.anchoredPosition = new Vector2(local.x / sc2.x, -local.y / sc2.y);
             rt.localEulerAngles = new Vector3(0, 0, -12 + _stampRng.NextInt(-6, 7));
             _stampOverlay.sprite = ProceduralArt.Get(v == Verdict.Allow ? "stamp_allow" : "stamp_reject");
             rt.localScale = Vector3.one;
             var c = _stampOverlay.color; c.a = 0f; _stampOverlay.color = c;
-            StartCoroutine(StampPunch(v));
+            _punch = StartCoroutine(StampPunch(v));
         }
 
         private void RefreshStamps(bool live)
@@ -262,9 +266,8 @@ namespace Hollowbrook.Checkpoint
             var mutation = _gameRoot.Session.Mode == GameMode.Challenge ? _gameRoot.Session.ActiveMutation : null;
             var outcome = InspectionRules.Apply(_current, verdict, mutation);
 
-            _gameRoot.Audio.PlaySfx(verdict == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 1f);
+            // the thud already played when the stamp landed; hand-back owns its own sound
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VerdictStamped, outcome));
-            if (_stampOverlay != null) StartCoroutine(StampPunch(verdict));
 
             // silent verdict: the log records the call, never whether it was right
             _tonightsLog.Append("  ").Append(_current.IsAdministrator ? "ADMINISTRATOR" : _current.ClaimedName)
@@ -302,15 +305,7 @@ namespace Hollowbrook.Checkpoint
             }
             _stampOverlay.rectTransform.localScale = Vector3.one;
             var c = _stampOverlay.color; c.a = 1f; _stampOverlay.color = c;
-            yield return new WaitForSecondsRealtime(1.8f);
-            float f = 0f;
-            while (f < 0.5f)
-            {
-                f += Time.unscaledDeltaTime;
-                var cf = _stampOverlay.color; cf.a = 1f - Mathf.Clamp01(f / 0.5f); _stampOverlay.color = cf;
-                yield return null;
-            }
-            var ce = _stampOverlay.color; ce.a = 0f; _stampOverlay.color = ce;
+            // the mark STAYS on the slip: the student gets their stamped paper back
         }
 
         // The post-stamp beat: the mark lands, the subject leaves, the next steps up.

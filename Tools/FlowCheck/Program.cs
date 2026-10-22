@@ -460,11 +460,27 @@ namespace FlowCheck
             slipDrag.PlaceCenter(new Vector2(760f, 500f));
             slipDrag.EndDrag();
             Check(cp.PendingVerdict == Verdict.None, "an unstamped slip commits nothing");
+            Check(FindDeep(FindDeep(cp.transform, "offeredid").parent, "dim") == null,
+                  "no full-desk dimmer blocks stamps or tools during the hand-over");
+            HandBack(root, true, false);
+            Check(FindDeep(cp.transform, "idcard").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
+                  "hand-back before stamping is refused: the ID stays on your desk");
+            var field = FindDeep(cp.transform, "station").GetComponent<UnityEngine.UI.InputField>();
+            field.isFocused = true;
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.A);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            field.isFocused = false;
+            Check(!cp.SlipStamped, "typing in the search box never stamps a verdict");
+            Check(FindDeep(cp.transform, "query").GetComponent<UnityEngine.UI.Text>() != null &&
+                  field.textComponent != null, "the search field shows what you type");
             DropStamp(root, Verdict.Reject);          // stamp dropped on the ID, not the slip
             Check(!cp.SlipStamped, "a stamp dropped off the slip returns to the rack (no mark)");
             StampSlip(root, Verdict.Reject);
             Check(cp.SlipStamped && cp.PendingVerdict == Verdict.Reject,
                   "the stamp lands on the slip and records a pending verdict");
+            Check(FindDeep(cp.transform, "stampoverlay").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
+                  "the stamp mark persists on the slip (no fade-out before hand-back)");
             StampSlip(root, Verdict.Allow);
             Check(cp.PendingVerdict == Verdict.Reject, "one stamp per slip: the second returns to the rack");
 

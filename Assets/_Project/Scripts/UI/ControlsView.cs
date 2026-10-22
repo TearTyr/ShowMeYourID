@@ -22,7 +22,9 @@ namespace Hollowbrook.UI
 
             string body =
                 "CHECKPOINT (mouse)\n" +
-                "   Click documents, SCAN, questions, ALLOW / REJECT.\n" +
+                "   Drag the ID + slip from the counter; move / flip (F) / zoom (wheel, Z).\n" +
+                "   Registry terminal: search by ID or name — NO RECORD is a clue.\n" +
+                "   Stamp the slip (drag, or A / D), then hand back BOTH papers (H).\n" +
                 "   At most 2 questions per visitor. Decisions are permanent.\n\n" +
                 "EXPLORATION\n" +
                 "   A / D  or  ← / →     walk left / right\n" +

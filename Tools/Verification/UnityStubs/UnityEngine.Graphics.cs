@@ -204,6 +204,7 @@ namespace UnityEngine
     {
         // stub state: tests/tools can set these to simulate input
         public static Vector3 mousePosition = Vector3.zero;
+        public static Vector2 mouseScrollDelta = Vector2.zero;
         public static bool mousePresent = true;
         public static HashSet<KeyCode> KeysDown = new HashSet<KeyCode>();
         public static HashSet<KeyCode> KeysHeld = new HashSet<KeyCode>();

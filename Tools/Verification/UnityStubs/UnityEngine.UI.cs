@@ -16,10 +16,11 @@ namespace UnityEngine
 
     public class Canvas : Behaviour
     {
+        public Canvas rootCanvas => this;
         public RenderMode renderMode = RenderMode.ScreenSpaceOverlay;
         public Camera worldCamera;
         public int sortingOrder = 0;
-        public float scaleFactor = 1f;
+        public float scaleFactor = 1f;      // stub: harnesses run at reference resolution
         public float referencePixelsPerUnit = 100f;
         public float planeDistance = 100f;
     }
@@ -86,6 +87,7 @@ namespace UnityEngine.UI
     public class InputField : Behaviour
     {
         public string text = "";
+        public bool isFocused;
         public Text textComponent;
         public UnityEngine.Events.UnityEvent<string> onEndEdit = new UnityEngine.Events.UnityEvent<string>();
         public UnityEngine.Events.UnityEvent<string> onValueChanged = new UnityEngine.Events.UnityEvent<string>();

@@ -54,7 +54,7 @@ namespace Hollowbrook.Checkpoint
         {
             var rootRt = UIFactory.NewUI(_desk, "offeredroot");
             L.Place(rootRt, L.FullDesk);
-            UIFactory.Dimmer(rootRt, "dim", 0.4f);   // focus the card; blocks the desk beneath
+            // no full-desk dimmer: the counter card must never block stamps or tools
 
             var rt = UIFactory.NewUI(rootRt, "offeredid");
             L.Place(rt, L.OfferedId);
@@ -175,6 +175,7 @@ namespace Hollowbrook.Checkpoint
         internal void HandBackId()
         {
             if (_backId) return;
+            if (!_slipStamped) { _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.25f); return; }  // decide first
             _backId = true;
             SetPaperHeld(_idCardGo, false);
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.4f);
@@ -207,6 +208,13 @@ namespace Hollowbrook.Checkpoint
         {
             _slipTaken = false; _slipStamped = false; _pendingVerdict = Verdict.None;
             _backId = false; _backSlip = false;
+            // a fresh desk per student: zoom resets, the old file closes, the query clears
+            var idp = _idCardGo != null ? _idCardGo.GetComponent<DragPaper>() : null;
+            if (idp != null) idp.Zoom = 1f;
+            var slp = _slipGo != null ? _slipGo.GetComponent<DragPaper>() : null;
+            if (slp != null) slp.Zoom = 1f;
+            if (_recordGo != null) _recordGo.SetActive(false);
+            if (_searchField != null) _searchField.text = "";
             _stampRng = new GameRng((_gameRoot.Session != null ? _gameRoot.Session.Seed : 1) ^ (v.VisitorIndex * 131 + 7));
             SetPaperHeld(_idCardGo, true);
             SetPaperHeld(_slipGo, true);

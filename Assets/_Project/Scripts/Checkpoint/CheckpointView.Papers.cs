@@ -31,10 +31,19 @@ namespace Hollowbrook.Checkpoint
             var field = station.gameObject.AddComponent<UnityEngine.UI.InputField>();
             field.onEndEdit.AddListener(SearchRecords);
             _searchField = field;
+            var query = UIFactory.Label(station.rectTransform, "query", "", 12,
+                new Color(0.75f, 0.90f, 0.75f), TextAnchor.MiddleLeft);
+            L.Place(query.rectTransform, new L.Region(8, 214, 200, 24));
+            field.textComponent = query;      // typed text is visible, not blind
             GridButton(station.rectTransform, "find", "FIND", () => SearchRecords(_searchField.text),
                 new L.Region(110, 250, 100, 30), 12);
-            var stBtn = station.gameObject.AddComponent<Button>();   // tap the station body
-            stBtn.targetGraphic = station;
+            // tap zone as a FIRST child: real Unity forbids two Selectables on one object
+            // (the InputField already owns the station), and siblings above it keep input
+            var tap = UIFactory.Panel(station.rectTransform, "stationtap", new Color(0f, 0f, 0f, 0f));
+            UIFactory.AnchorsFull(tap.rectTransform);
+            tap.rectTransform.SetAsFirstSibling();
+            var stBtn = tap.gameObject.AddComponent<Button>();
+            stBtn.targetGraphic = tap;
             stBtn.onClick.AddListener(ToggleFileWindow);
 
             // The student file: a draggable window, opened only by a registry search.

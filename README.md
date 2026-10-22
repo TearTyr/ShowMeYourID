@@ -35,7 +35,7 @@ them automatically (keys are listed in `ProceduralArt` / `ProceduralAudio`).
 
 | Context | Input |
 |---|---|
-| Checkpoint | Mouse: click the window to be offered the ID, click the card to take it, SCAN, QUESTION then questions, ALLOW / REJECT |
+| Checkpoint | Mouse/touch: drag the ID + slip from the counter, arrange/flip/zoom them, search the registry terminal, drag a stamp onto the slip, drag both papers back to the window. Keys: `1`–`4` questions, `A`/`D` stamp, `H` hand back, `F` flip, `Z`/wheel zoom, `E` scan-drop equivalent via scanner drop |
 | Walk / Run | `A`/`D` or `◂`/`▸`, hold `Shift` to run |
 | Interact | `E` (doors, clues, light switches) |
 | Desk papers | drag the ID card / record sheet to arrange your desk (drop the ID on SCAN to scan); hover a question for what it cross-checks; `1`–`4` ask while the interview is open |
