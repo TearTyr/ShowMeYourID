@@ -16,7 +16,7 @@ namespace Hollowbrook.Checkpoint
     // CheckpointLayout grid — see desk_layout_wireframe.svg for the approved design.
     public partial class CheckpointView : MonoBehaviour, IScreenView
     {
-        private const int SpeechKeep = 6;   // last ~3 exchanges, newest at the bottom
+        private const int SpeechKeep = 3;   // last three lines, newest at the bottom
         private const string BulletinShort = "⚠ DISTRICT BULLETIN — NEW RULE IN EFFECT · SEE RULES NOTE";
 
         private GameRoot _gameRoot;
@@ -61,10 +61,10 @@ namespace Hollowbrook.Checkpoint
         private Button[] _questionButtons = new Button[4];
         private readonly string[] _qLabels = new string[4];
         private Text _budgetLabel;
-        private Text _qHint;
         private Text _stationOut;
         private UnityEngine.UI.InputField _searchField;
         private GameObject _slipGo;
+        private GameObject _papersLayer;
         private Text _slipName, _slipId, _slipReason;
         private bool _slipTaken, _slipStamped, _backId, _backSlip;
         private Verdict _pendingVerdict = Verdict.None;
@@ -73,8 +73,7 @@ namespace Hollowbrook.Checkpoint
         private GameObject _lastPaper;
         internal Verdict PendingVerdict => _pendingVerdict;
         internal bool SlipStamped => _slipStamped;
-        private Button _interviewBtn;      // the QUESTION gate: reveals the four questions
-        private bool _interviewOpen;
+        private bool _interviewOpen = true;   // the interview row is always live
         private bool _documentsTaken;      // the ID is in your hand: papers, scan and stamps unlock
         private GameObject _offeredRoot;      // centred offered ID + its dimmer
         private Image _offeredPhoto;
@@ -83,7 +82,6 @@ namespace Hollowbrook.Checkpoint
         private Button _scanBtn, _notesBtn, _recordsBtn, _mapBtn, _patrolBtn, _endShiftBtn;
         private readonly Image[] _stampTints = new Image[3];
         private readonly Color[] _stampBase = new Color[3];
-        private Text _testimony;
         private readonly List<EventSubscription> _subscriptions = new List<EventSubscription>();
 
         private Image _stampOverlay;
@@ -109,6 +107,7 @@ namespace Hollowbrook.Checkpoint
             BuildTopBar();
             BuildLeftColumn();
             BuildWindowArea();
+            BuildPapersLayer();      // papers live above the window, below stamps/overlays
             BuildOfferedId();
             BuildCenterColumn();
             BuildRightColumn();
@@ -317,7 +316,6 @@ namespace Hollowbrook.Checkpoint
         private void PresentFromQueue(VisitorData v, bool restoreBudget)
         {
             Debug.Log("[Flow] PresentVisitor " + v.ClaimedName);
-            if (_testimony != null) _testimony.text = "";
             _current = v;
             _budget = new QuestionSystem.Budget();
             if (restoreBudget && Queue != null) _budget.RestoreFromMask(Queue.ActiveBudgetMask);
@@ -325,7 +323,6 @@ namespace Hollowbrook.Checkpoint
             _verdictLocked = false;
             // fresh hand-over state: nothing on the desk until the ID is offered and taken
             _documentsTaken = false;
-            _interviewOpen = false;
             SetDocumentsVisible(false);
             _offeredRoot.SetActive(false);
             PresentVisitor(v);

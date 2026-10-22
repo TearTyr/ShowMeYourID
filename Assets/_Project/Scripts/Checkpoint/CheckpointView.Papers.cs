@@ -24,30 +24,34 @@ namespace Hollowbrook.Checkpoint
             Reg("station", station.rectTransform, L.Station);
             var cap = UIFactory.Label(station.rectTransform, "cap", "REGISTRY TERMINAL", 12,
                 new Color(0.55f, 0.75f, 0.55f), TextAnchor.MiddleCenter);
-            L.Place(cap.rectTransform, new L.Region(0, 8, 320, 20));
-            _stationOut = UIFactory.Label(station.rectTransform, "stationout", "SEARCH: ID NUMBER OR NAME", 11,
-                new Color(0.55f, 0.75f, 0.55f), TextAnchor.UpperLeft);
-            L.Place(_stationOut.rectTransform, new L.Region(8, 40, 304, 60));
+            L.Place(cap.rectTransform, new L.Region(0, 4, 320, 18));
+            // one visible search box: own background, placeholder, click focuses (the box is
+            // the InputField's targetGraphic), Enter or FIND searches, one result line below
+            var box = UIFactory.Panel(station.rectTransform, "searchbox", new Color(0.05f, 0.06f, 0.05f));
+            L.Place(box.rectTransform, new L.Region(8, 26, 240, 28));
+            var query = UIFactory.Label(box.rectTransform, "query", "", 12,
+                new Color(0.75f, 0.90f, 0.75f), TextAnchor.MiddleLeft);
+            UIFactory.AnchorsFull(query.rectTransform);
+            query.rectTransform.offsetMin = new Vector2(6, 0);
+            var ph = UIFactory.Label(box.rectTransform, "placeholder", "ID or name", 12,
+                new Color(0.35f, 0.45f, 0.35f), TextAnchor.MiddleLeft);
+            UIFactory.AnchorsFull(ph.rectTransform);
+            ph.rectTransform.offsetMin = new Vector2(6, 0);
             var field = station.gameObject.AddComponent<UnityEngine.UI.InputField>();
+            field.targetGraphic = box;
+            field.textComponent = query;
+            field.placeholder = ph;
             field.onEndEdit.AddListener(SearchRecords);
             _searchField = field;
-            var query = UIFactory.Label(station.rectTransform, "query", "", 12,
-                new Color(0.75f, 0.90f, 0.75f), TextAnchor.MiddleLeft);
-            L.Place(query.rectTransform, new L.Region(8, 214, 200, 24));
-            field.textComponent = query;      // typed text is visible, not blind
             GridButton(station.rectTransform, "find", "FIND", () => SearchRecords(_searchField.text),
-                new L.Region(110, 250, 100, 30), 12);
-            // tap zone as a FIRST child: real Unity forbids two Selectables on one object
-            // (the InputField already owns the station), and siblings above it keep input
-            var tap = UIFactory.Panel(station.rectTransform, "stationtap", new Color(0f, 0f, 0f, 0f));
-            UIFactory.AnchorsFull(tap.rectTransform);
-            tap.rectTransform.SetAsFirstSibling();
-            var stBtn = tap.gameObject.AddComponent<Button>();
-            stBtn.targetGraphic = tap;
-            stBtn.onClick.AddListener(ToggleFileWindow);
+                new L.Region(254, 26, 58, 28), 11);
+            _stationOut = UIFactory.Label(station.rectTransform, "stationout", "", 11,
+                new Color(0.55f, 0.75f, 0.55f), TextAnchor.UpperLeft);
+            L.Place(_stationOut.rectTransform, new L.Region(8, 60, 304, 30));
 
             // The student file: a draggable window, opened only by a registry search.
             var rec = UIFactory.Img(_desk, "record", ProceduralArt.Get("record_sheet"));
+            rec.raycastTarget = true;   // the file window must grab the pointer to drag
             L.Place(rec.rectTransform, new L.Region(350, 80, 320, 290));
             rec.gameObject.AddComponent<RectMask2D>();   // rows can never spill off the sheet
             _recHeader = UIFactory.Label(rec.rectTransform, "header", "STUDENT RECORD — FORM 11-C", 12,
@@ -70,6 +74,7 @@ namespace Hollowbrook.Checkpoint
             rec.gameObject.SetActive(false);   // opens only via the station search
 
             var idCard = UIFactory.Img(_desk, "idcard", ProceduralArt.Get("id_card_frame"));
+            idCard.raycastTarget = true;   // draggable paper: the frame takes pointer events
             Reg("idcard", idCard.rectTransform, L.IdCard);
             idCard.gameObject.AddComponent<RectMask2D>();
 
@@ -201,6 +206,16 @@ namespace Hollowbrook.Checkpoint
             if (_idCardGo != null) _idCardGo.SetActive(on);
         }
 
+        // Papers render above the window and below the stamps/overlays: one layer.
+        private void BuildPapersLayer()
+        {
+            var layer = UIFactory.NewUI(_desk, "PapersLayer");
+            UIFactory.AnchorsFull(layer);          // layer rect == desk rect, coords preserved
+            _papersLayer = layer.gameObject;
+            if (_recordGo != null) _recordGo.transform.SetParent(layer, false);
+            if (_idCardGo != null) _idCardGo.transform.SetParent(layer, false);
+        }
+
         // The registry file, filled from a canon row (the ground-truth student record).
         private void FillRecordSheet(StudentIdentity v)
         {
@@ -229,14 +244,14 @@ namespace Hollowbrook.Checkpoint
             }
             var v = _gameRoot.Roster.Canon[idx];
             FillRecordSheet(v);
-            if (_recordGo != null) _recordGo.SetActive(true);
+            if (_recordGo != null)
+            {
+                _recordGo.SetActive(true);
+                _recordGo.transform.SetAsLastSibling();   // opened paper rises to the top
+            }
             if (_stationOut != null) _stationOut.text = "FOUND: " + v.FullName.ToUpperInvariant();
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.4f);
         }
 
-        internal void ToggleFileWindow()
-        {
-            if (_recordGo != null) _recordGo.SetActive(!_recordGo.activeSelf);
-        }
     }
 }

@@ -19,6 +19,7 @@ namespace Hollowbrook.UI
         private Image _sanityFill;
         private Text _sanityLabel;
         private Text _objective;
+        private string _lastPrompt = "";   // the desk hint strip mirrors the interaction prompt
         private Text _prompt;
         private Text _toast;
         private Text _findings;
@@ -115,7 +116,14 @@ namespace Hollowbrook.UI
                     Notify("YOUR GRIP IS SLIPPING — GET BACK TO THE BOOTH");
             }));
             _subs.Add(root.Bus.Subscribe(EventIds.ObjectiveChanged, e => _objective.text = e.Text ?? ""));
-            _subs.Add(root.Bus.Subscribe(EventIds.InteractionPrompt, e => _prompt.text = e.Text ?? ""));
+            _subs.Add(root.Bus.Subscribe(EventIds.InteractionPrompt, e =>
+            {
+                _lastPrompt = e.Text ?? "";
+                _prompt.text = _lastPrompt;
+                // at the desk the free strip under the top bar carries the hand-over hint
+                if (_gameRoot != null && _gameRoot.State == AppViewState.Checkpoint && _objective != null)
+                    _objective.text = _lastPrompt;
+            }));
             _subs.Add(root.Bus.Subscribe(EventIds.Notification, e => Notify(e.Text)));
             _subs.Add(root.Bus.Subscribe(EventIds.ClueDiscovered, e => RefreshFindings()));
             _subs.Add(root.Bus.Subscribe(EventIds.TrackingChanged, e => SetTracking(e.Value)));
@@ -160,10 +168,13 @@ namespace Hollowbrook.UI
             bool atDesk = s == AppViewState.Checkpoint || s == AppViewState.AdminEncounter;
             _prompt.gameObject.SetActive(true);
             _roomInfo.gameObject.SetActive(exploring || peeking);
-            _objective.gameObject.SetActive(!atDesk);   // the hint line belongs to exploration; the desk grid keeps its own row
+            // the desk keeps only night/clock/pause/sanity: battery and track are patrol tools
+            if (_batteryBar != null) _batteryBar.SetActive(exploring || peeking);
+            if (_trackBar != null) _trackBar.SetActive(exploring || peeking);
+            _objective.gameObject.SetActive(true);   // exploration: objective; desk: the hint strip
             if (!exploring && !peeking) _prompt.text = "";
             if (!exploring && !peeking && _batteryBar != null) _batteryBar.SetActive(false); // desk has no flashlight
-            if (s == AppViewState.Checkpoint) _objective.text = "Inspect every visitor. Permanent decisions.";
+            if (s == AppViewState.Checkpoint) _objective.text = _lastPrompt;
             if (peeking) _objective.text = "Sweep the light — click the bottom edge to step back.";
             if (exploring) _objective.text = _gameRoot.ObjectiveText;   // restore after a peek overwrote the hint
             if (_peekExitBand != null) _peekExitBand.SetActive(peeking);

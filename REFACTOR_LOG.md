@@ -1,5 +1,34 @@
 # Refactor log — readability pass (branch refactor/readability)
 
+## Desk bug-fix + simplification pass (post-slip rework)
+
+Bugs (root causes from the desk-flow audit):
+1. Papers un-draggable in real Unity: `UIFactory.Img` defaults raycast off — idcard/record
+   frames now set `raycastTarget = true` (labels stay off; back faces are Panels = already on).
+2. Invisible stamp mark: `PlaceStampMark` re-anchored the overlay to a point anchor without a
+   size — now `sizeDelta 90x90`, `preserveAspect`, raycast off. Check/X marks show on the slip.
+3. Papers drew behind the window: new `PapersLayer` (created after the window, before the
+   stamps) parents ID, file and slip; opened/taken papers rise via SetAsLastSibling.
+4. Terminal unusable: the full-size tap button swallowed clicks — rebuilt as one visible
+   search box (own background, "ID or name" placeholder, box is the InputField targetGraphic so
+   click focuses), Enter/FIND searches, one result line; body-tap toggle removed; file opens in
+   PapersLayer with its X close.
+5. Hint line: state-driven (nothing taken / slip on counter / unstamped / awaiting hand-back)
+   and moved into the free strip under the top bar (HUD objective label mirrors the prompt at
+   the desk); run-stats/mutation bulletin moved to a left strip, gated to Endless/Challenge.
+6. Counter slip readable and clear of the window frame (scale 1 at 890,308).
+
+Simplification: top bar = night/date + clock + pause + slim sanity; battery/track patrol-only;
+left = compact terminal (96px) + 3-line speech log; right = no QUESTION gate / hint / testimony
+(four compact question buttons + pips, answers live in the speech log); tools = one small row
+(SCAN/LOG/MAP/RULES) + one scan-result strip (drop the ID on it to scan); CAMERA panel removed;
+stamps stay large bottom-right; centre-bottom is open desk; patrol/end-shift smaller.
+
+FlowCheck grew the audit's requested asserts: raycast-on papers, stamp overlay size > 0 after a
+drop, PapersLayer sibling order above the window, hint text per hand-over state, search-box
+focus wiring (targetGraphic + placeholder, no tap-swallower). 840 OK.
+
+
 ## Desk flow rework — slips, stamps, records station (Papers-Please pass)
 
 - Detain retired: Accept / Deny only. Post-decision text/popups retired: the verdict banner,

@@ -24,22 +24,22 @@ namespace Hollowbrook.Checkpoint
         // ---- top bar --------------------------------------------------------
         public static readonly Region TopBar = new Region(0, 0, 1280, 52);
         public static readonly Region Banner = new Region(16, 4, 320, 44);
-        public static readonly Region SanityMeter = new Region(348, 4, 280, 44);
+        public static readonly Region SanityMeter = new Region(348, 15, 280, 22);   // slim
         public static readonly Region LightMeter = new Region(636, 4, 220, 44);      // patrol only
         public static readonly Region TrackMeter = new Region(864, 4, 120, 44);      // chase only
         public static readonly Region Clock = new Region(1000, 4, 150, 44);
         public static readonly Region Pause = new Region(1160, 8, 104, 36);
 
         // ---- row under the top bar (wireframe text baseline y=72) -----------
-        public static readonly Region Hint = new Region(20, 58, 370, 34);            // exploration only
-        public static readonly Region RunStats = new Region(400, 54, 410, 16);       // endless/challenge
-        public static readonly Region Mutation = new Region(400, 70, 410, 18);       // challenge bulletin
+        public static readonly Region Hint = new Region(348, 56, 540, 24);   // free strip under the top bar
+        public static readonly Region RunStats = new Region(20, 56, 320, 14);        // endless/challenge strip
+        public static readonly Region Mutation = new Region(20, 70, 320, 14);        // challenge bulletin strip
         public static readonly Region Findings = new Region(894, 58, 370, 16);       // right edge x=1264
         public static readonly Region RoomInfo = new Region(894, 76, 370, 16);       // exploration only
 
         // ---- left column ----------------------------------------------------
         // records station slot: below the hint row, above the chat column
-        public static readonly Region Station = new Region(16, 100, 320, 262);
+        public static readonly Region Station = new Region(16, 88, 320, 96);   // compact terminal
         // default slot for the held ID card; the card is draggable, so this is where it
         // rests, not where it stays (see DragPaper)
         public static readonly Region IdCard = new Region(405, 436, 320, 220);
@@ -48,7 +48,7 @@ namespace Hollowbrook.Checkpoint
         // so the drawn card rests on the sill at ~192x132)
         public static readonly Region OfferedId = new Region(565, 336, 320, 220);
         // the paper slip rides beside it on the counter
-        public static readonly Region CounterSlip = new Region(775, 360, 200, 120);
+        public static readonly Region CounterSlip = new Region(890, 308, 200, 120);  // clear of the window frame
 
         // ---- centre column --------------------------------------------------
         public static readonly Region Window = new Region(405, 88, 470, 316);
@@ -56,16 +56,17 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region Portrait = new Region(565, 104, 150, 180);     // inside the glass
         public static readonly Region Glitch = new Region(560, 99, 160, 190);        // transient flash
         public static readonly Region Sill = new Region(405, 404, 470, 24);
-        public static readonly Region Speech = new Region(16, 362, 320, 342);   // bottom-left chat column
-        public static readonly Region PatrolBtn = new Region(490, 672, 180, 36);
-        public static readonly Region EndShiftBtn = new Region(680, 672, 200, 36);
+        public static readonly Region Speech = new Region(16, 192, 320, 120);  // last lines under the terminal
+        public static readonly Region PatrolBtn = new Region(520, 686, 140, 26);
+        public static readonly Region EndShiftBtn = new Region(672, 686, 150, 26);
 
         // ---- right column ---------------------------------------------------
-        public static readonly Region Questions = new Region(968, 88, 296, 260);
-        public static readonly Region UtilityScan = new Region(968, 356, 140, 36);
-        public static readonly Region UtilityRecords = new Region(1124, 356, 140, 36);
-        public static readonly Region UtilityMap = new Region(968, 396, 140, 36);
-        public static readonly Region UtilityNotes = new Region(1124, 396, 140, 36);
+        public static readonly Region Questions = new Region(968, 88, 296, 190);
+        public static readonly Region UtilityScan = new Region(968, 300, 76, 26);   // one small tools row
+        public static readonly Region UtilityRecords = new Region(1046, 300, 76, 26);
+        public static readonly Region UtilityMap = new Region(1124, 300, 76, 26);
+        public static readonly Region UtilityNotes = new Region(1202, 300, 76, 26);
+        public static readonly Region ScanStrip = new Region(968, 330, 312, 22);
         // the verdict tray: two physical stamps, dragged onto the ID to commit
         public static readonly Region StampDeny = new Region(984, 440, 110, 110);
         public static readonly Region StampAllow = new Region(1148, 440, 110, 110);
@@ -116,14 +117,14 @@ namespace Hollowbrook.Checkpoint
             public static readonly float[] IdRules = { 52f, 75f, 99f, 123f, 146f, 179f };
 
             // speech / note
-            public static readonly Region SpeechText = new Region(10, 8, 300, 326);
+            public static readonly Region SpeechText = new Region(10, 6, 300, 108);
             public static readonly Region NoteHead = new Region(10, 6, 260, 18);
             public static readonly Region NoteBody = new Region(10, 28, 260, 74);
 
             // questions panel (buttons on the wireframe grid: x=980, y=118, step 42)
             public static readonly Region QHead = new Region(12, 6, 140, 20);
             public static readonly Region QBudget = new Region(146, 6, 138, 16);
-            public const float QBtnX = 12f, QBtnY0 = 30f, QBtnStep = 42f, QBtnW = 272f, QBtnH = 38f;
+            public const float QBtnX = 12f, QBtnY0 = 26f, QBtnStep = 32f, QBtnW = 272f, QBtnH = 30f;
             public static readonly Region QHint = new Region(12, 196, 272, 16);
             public static readonly Region QTestimony = new Region(12, 214, 272, 40);
 

@@ -89,7 +89,7 @@ namespace Hollowbrook.Checkpoint
             // the stamp, and goes back to the student with the ID to close the inspection.
             var slipRt = UIFactory.NewUI(_desk, "slip");
             L.Place(slipRt, L.CounterSlip);
-            slipRt.localScale = new Vector3(0.6f, 0.6f, 1f);
+            slipRt.localScale = Vector3.one;   // readable at the counter, clear of the frame
             var slipBg = UIFactory.Panel(slipRt, "bg", new Color(0.88f, 0.86f, 0.80f));
             UIFactory.AnchorsFull(slipBg.rectTransform);
             _slipName = UIFactory.Label(slipRt, "sname", "", 11, UIFactory.PaperInk, TextAnchor.UpperLeft);
@@ -105,6 +105,7 @@ namespace Hollowbrook.Checkpoint
             UIFactory.AnchorsFull(backNote.rectTransform);
             slipBack.gameObject.SetActive(false);
             _slipGo = slipRt.gameObject;
+            if (_papersLayer != null) _slipGo.transform.SetParent(_papersLayer.transform, false);
             var slipDrag = _slipGo.AddComponent<DragPaper>();
             slipDrag.Init(_desk, 1.2f);
             slipDrag.OnLift = () => _lastPaper = _slipGo;
@@ -118,7 +119,7 @@ namespace Hollowbrook.Checkpoint
             if (_current == null || _slipTaken) return;
             FillSlip(_current);
             var rt = _slipGo.GetComponent<RectTransform>();
-            rt.localScale = new Vector3(0.6f, 0.6f, 1f);
+            rt.localScale = Vector3.one;
             L.Place(rt, L.CounterSlip);
             _slipGo.GetComponent<DragPaper>().SetHome(new Vector2(L.CounterSlip.X, L.CounterSlip.Y));
             _slipGo.SetActive(true);
@@ -135,12 +136,14 @@ namespace Hollowbrook.Checkpoint
         {
             if (_current == null || _slipTaken) return;
             _slipTaken = true;
+            _slipGo.transform.SetAsLastSibling();      // taken paper rises to the top
             var rt = _slipGo.GetComponent<RectTransform>();
             rt.localScale = Vector3.one;
             var drag = _slipGo.GetComponent<DragPaper>();
             drag.PlaceCenter(deskCenter);
             drag.SetHome(new Vector2(660f, 440f));   // desk slot if it ever returns home
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.5f);
+            RefreshHandoverPrompt();
         }
 
         private void SlipDropped(Vector2 center)
@@ -269,6 +272,7 @@ namespace Hollowbrook.Checkpoint
             if (_current == null || _documentsTaken) return;
             _offeredRoot.SetActive(false);
             _documentsTaken = true;
+            if (_idCardGo != null) _idCardGo.transform.SetAsLastSibling();
             SetDocumentsVisible(true);
             bool admin = _current.IsAdministrator;
             FillIdCard(_current, admin);

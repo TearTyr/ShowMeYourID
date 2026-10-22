@@ -17,16 +17,10 @@ namespace Hollowbrook.Checkpoint
     public partial class CheckpointView
     {
         // Interview gate: questions exist only after you deliberately open them.
-        private void ToggleInterview()
-        {
-            if (_current == null || _verdictLocked) return;
-            _interviewOpen = !_interviewOpen;
-            _gameRoot.Audio.PlaySfx(_interviewOpen ? "sfx_ui_open" : "sfx_ui_close", 0.5f);
-            RefreshHud();
-        }
+
 
         // Headless harnesses/FlowCheck drive the same path the buttons use.
-        internal void OpenInterview() { if (!_interviewOpen) ToggleInterview(); }
+        internal void OpenInterview() { _interviewOpen = true; }   // no gate left to open
 
         internal void AskByHotkey(int i)
         {
@@ -39,7 +33,6 @@ namespace Hollowbrook.Checkpoint
         public void AskQuestion(QuestionId q)
         {
             if (_current == null || _verdictLocked) return;
-            if (!_interviewOpen) return;   // questions live behind the QUESTION gate
             if (!_budget.TryAsk(_current, q, out var answer))
             {
                 _monitorOutput.text = _budget.HasAsked(q) ? "ALREADY ASKED THAT." : "NO MORE QUESTIONS — DISTRICT POLICY.";
@@ -49,23 +42,13 @@ namespace Hollowbrook.Checkpoint
             string tone = answer.Tone == ToneTag.Normal ? "" : "  [" + ToneLabel(answer.Tone) + "]";
             SayLine("YOU", QuestionSpeech(q));
             SayLine("AT THE WINDOW", "“" + answer.Text + "”" + tone);
-            AppendTestimony(q, answer);
             if (Queue != null) Queue.ActiveBudgetMask = _budget.Mask;   // survives quit/continue
             _gameRoot.Audio.PlaySfx("sfx_intercom", 0.5f);
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.QuestionAsked, q));
             RefreshHud();
         }
 
-        private void AppendTestimony(QuestionId q, Answer answer)
-        {
-            if (_testimony == null) return;
-            string check = answer.ContradictsDocuments ? " x PAPERS DISAGREE"
-                         : " = matches papers";
-            string tone = answer.Tone == ToneTag.Normal ? "" : " (" + ToneLabel(answer.Tone).ToLowerInvariant() + " voice)";
-            string line = "• " + QuestionTextShort(q) + ": " + check + tone;
-            _testimony.text = string.IsNullOrEmpty(_testimony.text)
-                ? line : _testimony.text + "\n" + line;
-        }
+
 
         private static string ToneLabel(ToneTag t)
         {

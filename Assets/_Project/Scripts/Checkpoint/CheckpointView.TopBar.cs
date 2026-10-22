@@ -66,8 +66,17 @@ namespace Hollowbrook.Checkpoint
         }
 
         // Night/clock line in Normal mode; mode/score line in endless and challenge.
-        private void RefreshTopBar()
+        private void ApplyModeGates()
         {
+            bool runMode = _gameRoot != null && _gameRoot.Session != null &&
+                           _gameRoot.Session.Mode != GameMode.Normal;
+            if (_runStats != null) _runStats.gameObject.SetActive(runMode);
+            if (_mutationStrip != null) _mutationStrip.gameObject.SetActive(runMode);
+        }
+
+        private void RefreshTopBar()
+        { 
+            ApplyModeGates();
             if (_gameRoot.Session.Mode == GameMode.Normal)
             {
                 _topLeft.text = "NIGHT " + _gameRoot.Session.CurrentShift + " · " + (_shift != null ? _shift.DateLabel : "");

@@ -88,7 +88,9 @@ namespace UnityEngine.UI
     {
         public string text = "";
         public bool isFocused;
+        public Graphic targetGraphic;
         public Text textComponent;
+        public Graphic placeholder;
         public UnityEngine.Events.UnityEvent<string> onEndEdit = new UnityEngine.Events.UnityEvent<string>();
         public UnityEngine.Events.UnityEvent<string> onValueChanged = new UnityEngine.Events.UnityEvent<string>();
     }

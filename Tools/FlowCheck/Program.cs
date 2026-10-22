@@ -118,10 +118,10 @@ namespace FlowCheck
                 "DeskFrame", "topbar", "daybanner_border", "clock", "pause", "runstats", "mutationbg",
                 "record", "station", "find", "closefile", "idcard",
                 "windowframe", "glass", "facade", "visitor", "glitch", "sill",
-                "speech_border", "speechlog", "offeredid", "interview", "patrol", "endshift",
-                "qpanel_border", "q0", "q1", "q2", "q3", "testimony",
+                "speech_border", "speechlog", "offeredid", "patrol", "endshift",
+                "qpanel_border", "q0", "q1", "q2", "q3", "scanstrip", "searchbox", "placeholder",
                 "scan", "records", "map", "notes", "stamp_allow", "stamp_deny",
-                "monitor_border", "out",
+                "out",
                 "OverlayRules", "OverlayLog",
                 "StickyNoteOverlay", "stickynote_border",
             };
@@ -183,25 +183,26 @@ namespace FlowCheck
             Console.WriteLine("== code table vs approved wireframe (desk_layout_wireframe.svg) ==");
             ExpectRegion("top bar", L.TopBar, 0, 0, 1280, 52);
             ExpectRegion("banner", L.Banner, 16, 4, 320, 44);
-            ExpectRegion("sanity", L.SanityMeter, 348, 4, 280, 44);
+            ExpectRegion("sanity", L.SanityMeter, 348, 15, 280, 22);
             ExpectRegion("light", L.LightMeter, 636, 4, 220, 44);
             ExpectRegion("track", L.TrackMeter, 864, 4, 120, 44);
             ExpectRegion("clock", L.Clock, 1000, 4, 150, 44);
             ExpectRegion("pause", L.Pause, 1160, 8, 104, 36);
-            ExpectRegion("records station", L.Station, 16, 100, 320, 262);
+            ExpectRegion("records station", L.Station, 16, 88, 320, 96);
             ExpectRegion("id card", L.IdCard, 405, 436, 320, 220);
             ExpectRegion("window frame", L.Window, 405, 88, 470, 316);
             ExpectRegion("glass", L.Glass, 420, 98, 440, 296);
             ExpectRegion("portrait", L.Portrait, 565, 104, 150, 180);
             ExpectRegion("sill", L.Sill, 405, 404, 470, 24);
-            ExpectRegion("speech", L.Speech, 16, 362, 320, 342);
-            ExpectRegion("patrol button", L.PatrolBtn, 490, 672, 180, 36);
-            ExpectRegion("end shift", L.EndShiftBtn, 680, 672, 200, 36);
-            ExpectRegion("questions", L.Questions, 968, 88, 296, 260);
-            ExpectRegion("scan id", L.UtilityScan, 968, 356, 140, 36);
-            ExpectRegion("tonight's log", L.UtilityRecords, 1124, 356, 140, 36);
-            ExpectRegion("map", L.UtilityMap, 968, 396, 140, 36);
-            ExpectRegion("rules note", L.UtilityNotes, 1124, 396, 140, 36);
+            ExpectRegion("speech", L.Speech, 16, 192, 320, 120);
+            ExpectRegion("patrol button", L.PatrolBtn, 520, 686, 140, 26);
+            ExpectRegion("end shift", L.EndShiftBtn, 672, 686, 150, 26);
+            ExpectRegion("questions", L.Questions, 968, 88, 296, 190);
+            ExpectRegion("scan", L.UtilityScan, 968, 300, 76, 26);
+            ExpectRegion("log", L.UtilityRecords, 1046, 300, 76, 26);
+            ExpectRegion("map", L.UtilityMap, 1124, 300, 76, 26);
+            ExpectRegion("rules", L.UtilityNotes, 1202, 300, 76, 26);
+            ExpectRegion("scan strip", L.ScanStrip, 968, 330, 312, 22);
             ExpectRegion("deny stamp", L.StampDeny, 984, 440, 110, 110);
             ExpectRegion("allow stamp", L.StampAllow, 1148, 440, 110, 110);
             ExpectRegion("camera", L.Monitor, 968, 558, 296, 146);
@@ -211,13 +212,13 @@ namespace FlowCheck
             ExpectRegion("queue strip R", L.QueueStripR, 884, 428, 80, 244);
             ExpectRegion("sticky note", L.StickyNote, 390, 200, 500, 320);
             // question buttons: wireframe x=980, y=118, 272x38, step 42 (panel-local grid)
-            Check(Math.Abs(L.Inner.QBtnX - (980 - 968)) < 0.01f && Math.Abs(L.Inner.QBtnY0 - (118 - 88)) < 0.01f &&
-                  Math.Abs(L.Inner.QBtnStep - 42) < 0.01f && Math.Abs(L.Inner.QBtnW - 272) < 0.01f &&
-                  Math.Abs(L.Inner.QBtnH - 38) < 0.01f,
-                "question buttons == wireframe grid (980,118 + i*42, 272x38)");
+            Check(Math.Abs(L.Inner.QBtnX - (980 - 968)) < 0.01f && Math.Abs(L.Inner.QBtnY0 - (114 - 88)) < 0.01f &&
+                  Math.Abs(L.Inner.QBtnStep - 32) < 0.01f && Math.Abs(L.Inner.QBtnW - 272) < 0.01f &&
+                  Math.Abs(L.Inner.QBtnH - 30) < 0.01f,
+                "question buttons == compact grid (980,114 + i*32, 272x30)");
             // hint/findings row: wireframe baseline y=72, findings right edge x=1264
             Check(Math.Abs(L.Findings.Right - 1264) < 0.01f, "findings right-aligned at x=1264");
-            Check(Math.Abs(L.Hint.X - 20) < 0.01f, "hint starts at x=20");
+            Check(Math.Abs(L.Hint.X - 348) < 0.01f, "hint lives in the free strip under the top bar (x=348)");
             Check(L.Hint.Y >= 52 && L.Hint.Bottom <= 96 && L.Findings.Y >= 52 && L.Findings.Bottom <= 96,
                 "hint/findings live in the row under the top bar (52..96), clear of the record sheet");
 
@@ -249,7 +250,7 @@ namespace FlowCheck
             Add("rules button", L.UtilityNotes, "C");
             Add("deny stamp", L.StampDeny, "C");
             Add("allow stamp", L.StampAllow, "C");
-            Add("camera monitor", L.Monitor, "C");
+            Add("scan strip", L.ScanStrip, "B");
             Add("queue strip left", L.QueueStripL, "C");
             Add("queue strip right", L.QueueStripR, "C");
             Add("toast", L.Toast, "T");
@@ -313,6 +314,9 @@ namespace FlowCheck
         // under "YOU", and the visitor's answer — newest at the bottom.
 
         // ------------------------------------------------- papers pass (drag, pips, hints)
+        private static string HintText(GameRoot root) =>
+            FindDeep(root.HUD.transform, "objective").GetComponent<UnityEngine.UI.Text>().text;
+
         private static float StampAlpha(GameRoot root, string stampName) =>
             FindDeep(root.Checkpoint.transform, stampName).GetComponent<UnityEngine.UI.Image>().color.a;
 
@@ -369,8 +373,8 @@ namespace FlowCheck
             var srt = speech.GetComponent<RectTransform>();
             Check(Mathf.Abs(srt.anchoredPosition.x - L.Speech.X) < 0.5f &&
                   Mathf.Abs(-srt.anchoredPosition.y - L.Speech.Y) < 0.5f &&
-                  L.Speech.X == 16 && L.Speech.Y == 362,
-                  "the chat log sits in the bottom-left column (16,362)");
+                  L.Speech.X == 16 && L.Speech.Y == 192,
+                  "the chat log sits under the terminal, last three lines (16,192)");
             var logText = FindDeep(cp.transform, "speechlog").GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
             Check(logText.Contains("<color=#4a5a49>YOU</color>") && logText.Contains("<color=#6f6d68>AT THE WINDOW</color>"),
                   "chat lines carry per-speaker colours");
@@ -427,17 +431,11 @@ namespace FlowCheck
                   "hotkey 2 asks the second question while the interview is open");
             Check(budget.text.Contains("0 LEFT") && !budget.text.Contains("●"),
                   "budget pips empty out (got '" + budget.text + "')");
-            var hint = FindDeep(cp.transform, "qhint").GetComponent<UnityEngine.UI.Text>();
-            Check(hint.text == "No more questions — they're getting nervous.",
-                  "budget-spent reason line replaces the hover hint");
             UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Alpha3);
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
             Check(!FindDeep(cp.transform, "q2").GetComponentInChildren<UnityEngine.UI.Text>().text.Contains("ASKED"),
                   "hotkeys respect the spent budget (no third question)");
-            var testimonyHost = FindDeep(cp.transform, "testimony");
-            Check(testimonyHost.GetComponentInChildren<UnityEngine.UI.ScrollRect>() != null,
-                  "testimony scrolls instead of clipping");
 
             // records station: the file opens only when the player opens it
             Check(!FindDeep(cp.transform, "record").gameObject.activeSelf,
@@ -448,10 +446,11 @@ namespace FlowCheck
             cp.SearchRecords("HB-1999-0000");
             Check(!FindDeep(cp.transform, "record").gameObject.activeSelf,
                   "a ghost ID answers NO RECORD and shuts the window (a clue in itself)");
-            cp.ToggleFileWindow();
-            Check(FindDeep(cp.transform, "record").gameObject.activeSelf, "the station tap reopens the file");
-            cp.ToggleFileWindow();
-            Check(!FindDeep(cp.transform, "record").gameObject.activeSelf, "and closes it again");
+            var closeBtn = FindDeep(cp.transform, "closefile").GetComponent<UnityEngine.UI.Button>();
+            closeBtn.onClick.Invoke();
+            Check(!FindDeep(cp.transform, "record").gameObject.activeSelf, "the file's X closes the window");
+            cp.SearchRecords(cp.CurrentVisitor.IdNumber);
+            Check(FindDeep(cp.transform, "record").gameObject.activeSelf, "searching again reopens the file");
 
             // the slip: counter -> desk, stamp target, one stamp, pending until hand-back
             var slipGo = FindDeep(cp.transform, "slip");
@@ -460,6 +459,8 @@ namespace FlowCheck
             slipDrag.PlaceCenter(new Vector2(760f, 500f));
             slipDrag.EndDrag();
             Check(cp.PendingVerdict == Verdict.None, "an unstamped slip commits nothing");
+            Check(HintText(root).Contains("STAMP THE SLIP"),
+                  "hint matches state: both papers on the desk (got '" + HintText(root) + "')");
             Check(FindDeep(FindDeep(cp.transform, "offeredid").parent, "dim") == null,
                   "no full-desk dimmer blocks stamps or tools during the hand-over");
             HandBack(root, true, false);
@@ -481,6 +482,24 @@ namespace FlowCheck
                   "the stamp lands on the slip and records a pending verdict");
             Check(FindDeep(cp.transform, "stampoverlay").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
                   "the stamp mark persists on the slip (no fade-out before hand-back)");
+            Check(HintText(root).Contains("HAND BACK"),
+                  "hint matches state: stamped, awaiting hand-back (got '" + HintText(root) + "')");
+            var soRt = FindDeep(cp.transform, "stampoverlay").GetComponent<RectTransform>();
+            Check(soRt.sizeDelta.x > 1f && soRt.sizeDelta.y > 1f,
+                  "the stamp overlay has a real size after the drop (visible mark)");
+            Check(FindDeep(cp.transform, "idcard").GetComponent<UnityEngine.UI.Image>().raycastTarget &&
+                  FindDeep(cp.transform, "record").GetComponent<UnityEngine.UI.Image>().raycastTarget,
+                  "draggable papers have raycast on (pointer can grab them)");
+            var layer = FindDeep(cp.transform, "PapersLayer");
+            Check(layer != null &&
+                  layer.GetSiblingIndex() > FindDeep(cp.transform, "glass").GetSiblingIndex() &&
+                  FindDeep(cp.transform, "idcard").parent == layer &&
+                  FindDeep(cp.transform, "record").parent == layer,
+                  "papers sit above the window in sibling order (one PapersLayer)");
+            var field2 = FindDeep(cp.transform, "station").GetComponent<UnityEngine.UI.InputField>();
+            Check(field2.targetGraphic != null && field2.placeholder != null &&
+                  FindDeep(cp.transform, "stationtap") == null,
+                  "the search box owns its focus target and placeholder; no tap-swallower left");
             StampSlip(root, Verdict.Allow);
             Check(cp.PendingVerdict == Verdict.Reject, "one stamp per slip: the second returns to the rack");
 
@@ -536,7 +555,7 @@ namespace FlowCheck
             Func<string, UnityEngine.UI.Button> btn =
                 n => FindDeep(desk, n).GetComponent<UnityEngine.UI.Button>();
             Func<string, bool> live = n => btn(n).interactable;
-            Func<string> monOut = () => FindDeep(desk, "out").GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
+            Func<string> monOut = () => FindDeep(desk, "out").GetComponent<UnityEngine.UI.Text>().text;
 
             // earlier proofs may have left an inspection mid-way: close it like a player
             // would, then make sure a fresh visitor (documents NOT taken) is at the window
@@ -553,12 +572,16 @@ namespace FlowCheck
                   "a stamp drop with no documents in hand is a no-op");
             Check(FindDeep(desk, "offeredid").gameObject.activeInHierarchy,
                   "the ID slides to the counter edge on arrival, unasked");
+            Check(HintText(root).Contains("DRAG THE ID AND THE SLIP"),
+                  "hint matches state: nothing taken yet (got '" + HintText(root) + "')");
             var offerDrag = FindDeep(desk, "offeredid").GetComponent<DragPaper>();
             offerDrag.BeginDrag();
             offerDrag.PlaceCenter(new Vector2(600f, 520f));
             offerDrag.EndDrag();
             Check(FindDeep(desk, "idcard").gameObject.activeSelf,
                   "dragging the ID onto the desk takes it (drop where you let go)");
+            Check(HintText(root).Contains("SLIP IS STILL"),
+                  "hint matches state: ID taken, slip on counter (got '" + HintText(root) + "')");
             Check(!live("patrol"), "PATROL HALLWAY dimmed mid-inspection");
             Check(!live("endshift"), "END SHIFT dimmed before the roster is done");
 

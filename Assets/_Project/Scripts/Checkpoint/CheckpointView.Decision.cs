@@ -24,8 +24,6 @@ namespace Hollowbrook.Checkpoint
             var qHead = UIFactory.Label(qPanel, "head", "QUESTIONS", 13, UIFactory.PaperInk, TextAnchor.UpperLeft);
             L.Place(qHead.rectTransform, L.Inner.QHead);
             // interview gate: the four questions stay hidden until YOU open them
-            _interviewBtn = GridButton(qPanel, "interview", "QUESTION", ToggleInterview, L.Inner.QBudget, 11);
-            L.Place(_interviewBtn.GetComponent<RectTransform>(), L.Inner.QBudget);
             _budgetLabel = UIFactory.Label(qPanel, "budget", "QUESTIONS: 3 LEFT", 11,
                 new Color(0.35f, 0.35f, 0.34f), TextAnchor.MiddleRight);
             L.Place(_budgetLabel.rectTransform, L.Inner.QBudget);
@@ -48,28 +46,19 @@ namespace Hollowbrook.Checkpoint
                 SizeLabel(b, 13);
                 _questionButtons[i] = b;
                 _qLabels[i] = qs[i];
-                var hh = b.gameObject.AddComponent<HoverHint>();
-                hh.Init(HintFor(qids[i]), SetQHint);
                 b.gameObject.SetActive(false);
             }
-            _testimony = UIFactory.MaskedLabel(qPanel, "testimony",
-                L.Inner.QTestimony.X, L.Inner.QTestimony.Y, L.Inner.QTestimony.W, L.Inner.QTestimony.H,
-                10, new Color(0.30f, 0.30f, 0.29f), TextAnchor.UpperLeft, true);
-            _testimony.gameObject.SetActive(false);
-            _qHint = UIFactory.Label(qPanel, "qhint", "", 10,
-                new Color(0.42f, 0.42f, 0.42f), TextAnchor.MiddleLeft);
-            L.Place(_qHint.rectTransform, L.Inner.QHint);
-            _qHint.gameObject.SetActive(false);
+            // answers live in the speech log now; no testimony box, no hint line
 
-            _scanBtn = GridButton(_desk, "scan", "SCAN ID", DoScan, L.UtilityScan, 12);
+            _scanBtn = GridButton(_desk, "scan", "SCAN", DoScan, L.UtilityScan, 11);
             Reg("scan", _scanBtn, L.UtilityScan);
-            _recordsBtn = GridButton(_desk, "records", "TONIGHT'S LOG",
-                () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, L.UtilityRecords, 12);
+            _recordsBtn = GridButton(_desk, "records", "LOG",
+                () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, L.UtilityRecords, 11);
             Reg("records", _recordsBtn, L.UtilityRecords);
-            _mapBtn = GridButton(_desk, "map", "MAP", () => _gameRoot.OpenMap(), L.UtilityMap, 12);
+            _mapBtn = GridButton(_desk, "map", "MAP", () => _gameRoot.OpenMap(), L.UtilityMap, 11);
             Reg("map", _mapBtn, L.UtilityMap);
-            _notesBtn = GridButton(_desk, "notes", "RULES NOTE",
-                () => ToggleOverlay(_notesRoot), L.UtilityNotes, 12);
+            _notesBtn = GridButton(_desk, "notes", "RULES",
+                () => ToggleOverlay(_notesRoot), L.UtilityNotes, 11);
             Reg("notes", _notesBtn, L.UtilityNotes);
 
             // verdicts are physical: drag a stamp onto the subject's ID to commit.
@@ -77,14 +66,13 @@ namespace Hollowbrook.Checkpoint
             BuildStamp("stamp_allow", "ACCEPT", new Color(0.42f, 0.58f, 0.42f), L.StampAllow, Verdict.Allow, 0);
             BuildStamp("stamp_deny", "DENY", new Color(0.58f, 0.28f, 0.28f), L.StampDeny, Verdict.Reject, 1);
 
-            var mon = UIFactory.BorderedPanel(_desk, "monitor", new Color(0.055f, 0.062f, 0.055f),
-                UIFactory.Border, 2);
-            Reg("monitor", mon, L.Monitor);
-            var camCap = UIFactory.Label(mon, "camcap", "CAMERA", 11, UIFactory.InkDim, TextAnchor.MiddleCenter);
-            L.Place(camCap.rectTransform, L.Inner.MonitorCaption);
-            _monitorOutput = UIFactory.MaskedLabel(mon, "out",
-                L.Inner.MonitorOut.X, L.Inner.MonitorOut.Y, L.Inner.MonitorOut.W, L.Inner.MonitorOut.H,
-                13, new Color(0.55f, 0.75f, 0.55f));
+            // one scan-result strip under the tools row; dropping the ID on it scans
+            var strip = UIFactory.Panel(_desk, "scanstrip", new Color(0.055f, 0.062f, 0.055f));
+            Reg("scanstrip", strip.rectTransform, L.ScanStrip);
+            _monitorOutput = UIFactory.Label(strip.rectTransform, "out", "SCANNER READY", 11,
+                new Color(0.55f, 0.75f, 0.55f), TextAnchor.MiddleLeft);
+            UIFactory.AnchorsFull(_monitorOutput.rectTransform);
+            _monitorOutput.rectTransform.offsetMin = new Vector2(6, 0);
         }
 
         // The interview at a glance: budget pips, asked-tags on the four buttons, and the
@@ -103,29 +91,6 @@ namespace Hollowbrook.Checkpoint
                 bool asked = _budget.HasAsked(QuestionSystem.All[i]);
                 var t = _questionButtons[i].GetComponentInChildren<Text>();
                 if (t != null) t.text = asked ? _qLabels[i] + "  ✓ ASKED" : _qLabels[i];
-            }
-            SetQHint("");
-        }
-
-        private void SetQHint(string hover)
-        {
-            if (_qHint == null) return;
-            _qHint.text = string.IsNullOrEmpty(hover) ? DefaultQHint() : hover;
-        }
-
-        private string DefaultQHint() =>
-            _interviewOpen && _budget.Remaining <= 0
-                ? "No more questions — they're getting nervous."
-                : "Hover a question: each cross-checks one paper line. Two per inspection.";
-
-        private static string HintFor(QuestionId q)
-        {
-            switch (q)
-            {
-                case QuestionId.Course: return "Cross-check the course against the record sheet.";
-                case QuestionId.Year: return "Must match the year level on both papers.";
-                case QuestionId.Status: return "Transferees enrol mid-year — the record says.";
-                default: return "Rooming lists live in the RULES NOTE overlay.";
             }
         }
 
@@ -161,6 +126,7 @@ namespace Hollowbrook.Checkpoint
             _pendingVerdict = v;
             _slipStamped = true;
             PlaceStampMark(center, v);
+            RefreshHandoverPrompt();
             _gameRoot.Audio.PlaySfx(v == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 0.8f);
         }
 
@@ -197,6 +163,9 @@ namespace Hollowbrook.Checkpoint
             var rt = _stampOverlay.rectTransform;
             rt.anchorMin = new Vector2(0, 1); rt.anchorMax = new Vector2(0, 1);
             rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(90f, 90f);            // point anchor: give it a real size
+            _stampOverlay.preserveAspect = true;
+            _stampOverlay.raycastTarget = false;             // the mark never eats clicks
             var top = new Vector2(srt.anchoredPosition.x, -srt.anchoredPosition.y);
             var local = deskCenter - top;
             var sc2 = srt.localScale;
@@ -228,14 +197,11 @@ namespace Hollowbrook.Checkpoint
             bool live = atWindow && _documentsTaken;
             for (int i = 0; i < 4; i++)
             {
-                _questionButtons[i].gameObject.SetActive(_interviewOpen);
+                _questionButtons[i].gameObject.SetActive(atWindow);   // compact row, no gate
                 UIFactory.SetButtonEnabled(_questionButtons[i],
-                    atWindow && _interviewOpen && !_budget.HasAsked(QuestionSystem.All[i]) && _budget.Remaining > 0);
+                    atWindow && !_budget.HasAsked(QuestionSystem.All[i]) && _budget.Remaining > 0);
             }
-            _interviewBtn.gameObject.SetActive(atWindow && !_interviewOpen);
-            _budgetLabel.gameObject.SetActive(_interviewOpen);
-            _testimony.gameObject.SetActive(_interviewOpen);
-            _qHint.gameObject.SetActive(_interviewOpen);
+            _budgetLabel.gameObject.SetActive(atWindow);
             RefreshQuestionsPanel();
             RefreshStamps(live);
             UIFactory.SetButtonEnabled(_patrolBtn, !atWindow &&
