@@ -72,12 +72,11 @@ namespace Hollowbrook.Checkpoint
                 () => ToggleOverlay(_notesRoot), L.UtilityNotes, 12);
             Reg("notes", _notesBtn, L.UtilityNotes);
 
-            _rejectBtn = GridButton(_desk, "reject", "CALL PRINCIPAL", AskPrincipal, L.StampReject, 12, true);
-            MakeRound(_rejectBtn, false);
-            Reg("callprincipal", _rejectBtn, L.StampReject);
-            _allowBtn = GridButton(_desk, "allow", "ALLOW", () => Stamp(Verdict.Allow), L.StampAllow, 12);
-            MakeRound(_allowBtn, true);
-            Reg("allow", _allowBtn, L.StampAllow);
+            // verdicts are physical: drag a stamp onto the subject's ID to commit.
+            // No confirm buttons anywhere — the stamp act IS the confirmation.
+            BuildStamp("stamp_allow", "APPROVE", new Color(0.42f, 0.58f, 0.42f), L.StampAllow, Verdict.Allow, 0);
+            BuildStamp("stamp_deny", "DENY", new Color(0.58f, 0.28f, 0.28f), L.StampDeny, Verdict.Reject, 1);
+            BuildStamp("stamp_detain", "DETAIN", new Color(0.58f, 0.48f, 0.22f), L.StampDetain, Verdict.Detain, 2);
 
             var mon = UIFactory.BorderedPanel(_desk, "monitor", new Color(0.055f, 0.062f, 0.055f),
                 UIFactory.Border, 2);
@@ -131,19 +130,42 @@ namespace Hollowbrook.Checkpoint
             }
         }
 
-        // Flat wireframe circles: art is baked into the border sprite, the inner rect only
-        // carries the label, and the border is the button's tint target.
-        private void MakeRound(Button b, bool paper)
+        private void BuildStamp(string goName, string label, Color tint, L.Region region, Verdict verdict, int idx)
         {
-            var border = b.GetComponent<Image>();
-            border.sprite = ProceduralArt.Get(paper ? "circle_paper" : "circle_dark");
-            border.color = Color.white;
-            var inner = b.transform.GetChild(0).GetComponent<Image>();
-            inner.color = new Color(0f, 0f, 0f, 0f);
-            b.targetGraphic = border;
-            var t = b.GetComponentInChildren<Text>();
-            UIFactory.SetBaseFontSize(t, 12);
-            t.color = paper ? UIFactory.PaperInk : UIFactory.Ink;
+            var panel = UIFactory.Panel(_desk, goName, tint);
+            Reg(goName, panel.rectTransform, region);
+            var t = UIFactory.Label(panel.rectTransform, "label", label, 13,
+                UIFactory.Ink, TextAnchor.MiddleCenter);
+            UIFactory.AnchorsFull(t.rectTransform);
+            var drag = panel.gameObject.AddComponent<DragPaper>();
+            drag.Init(_desk, 0f);
+            drag.ReturnsHome = true;                 // stamps live in the tray
+            drag.OnDropped = center => TryStampOnDrop(center, verdict);
+            _stampTints[idx] = panel;
+            _stampBase[idx] = tint;
+        }
+
+        // A stamp commits only when it lands on the subject's papers (ID in hand).
+        private void TryStampOnDrop(Vector2 center, Verdict v)
+        {
+            if (_idCardGo == null || !_idCardGo.activeSelf) return;
+            var rt = _idCardGo.GetComponent<RectTransform>();
+            var s = rt.rect.size;
+            float cx = rt.anchoredPosition.x + s.x / 2f;
+            float cy = -rt.anchoredPosition.y + s.y / 2f;
+            if (Mathf.Abs(center.x - cx) <= s.x / 2f + 24f && Mathf.Abs(center.y - cy) <= s.y / 2f + 24f)
+                Stamp(v);
+        }
+
+        private void RefreshStamps(bool live)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                if (_stampTints[i] == null) continue;
+                var c = _stampBase[i];
+                c.a = live ? 1f : 0.35f;             // dim tray until an inspection is live
+                _stampTints[i].color = c;
+            }
         }
 
         // Decisions are clickable only while an inspection is live AND the ID is in hand;
@@ -165,8 +187,7 @@ namespace Hollowbrook.Checkpoint
             _qHint.gameObject.SetActive(_interviewOpen);
             RefreshQuestionsPanel();
             if (_handoverTarget != null) _handoverTarget.SetActive(atWindow && !_documentsTaken);
-            UIFactory.SetButtonEnabled(_allowBtn, live);
-            UIFactory.SetButtonEnabled(_rejectBtn, live);
+            RefreshStamps(live);
             UIFactory.SetButtonEnabled(_patrolBtn, !atWindow && !_bannerRoot.activeSelf &&
                 Queue != null && Queue.Started && !collapsed);
             UIFactory.SetButtonEnabled(_endShiftBtn, Queue != null && Queue.ShiftComplete &&
@@ -309,11 +330,5 @@ namespace Hollowbrook.Checkpoint
             });
         }
 
-        private void AskPrincipal()
-        {
-            if (_current == null || _verdictLocked) return;
-            if (_confirmText != null) _confirmText.text = "PRINCIPAL... (Are you sure?)";
-            if (_confirmBox != null) _confirmBox.SetActive(true);
-        }
     }
 }

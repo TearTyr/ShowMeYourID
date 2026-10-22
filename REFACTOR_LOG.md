@@ -1,5 +1,21 @@
 # Refactor log — readability pass (branch refactor/readability)
 
+## Inspection-table rework, slice A — verdicts become physical (Papers, Please pass)
+
+- Verdicts are stamps, not buttons: APPROVE / DENY / DETAIN live in a tray and commit when
+  dragged onto the subject's ID (DropStamp hit-test with padding); keyboard path A / D / T.
+  The round ALLOW / CALL PRINCIPAL buttons and the yes/no confirm popup are retired —
+  stamping IS confirming (task: remove plain confirm-button steps).
+- New `Verdict.Detain` in pure rules: detaining an anomaly = correct stop; detaining a
+  legitimate student = serious false rejection. Mistakes now book warnings; every third
+  warning draws a fine (score penalty) — penalties, never instant game over. Both persist
+  in the save (tolerant keys).
+- Stamps reuse DragPaper with ReturnsHome; the tray dims until an inspection is live.
+- FlowCheck: DeskLoop now stamps by drag (DropStamp helper), popup checks retired, stamp
+  tray regions in the wireframe table; +8 stamp checks. LogicTests +8 (StampRulesTests).
+- Rules, fairness, saves otherwise untouched; QuestionSystem budget unchanged here.
+
+
 ## Papers pass — desk chat, physical papers, question-panel upgrade
 
 - Chat (speech log) moved to the bottom-left column (16,362,320,342) with per-speaker inks

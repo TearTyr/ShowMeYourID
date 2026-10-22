@@ -33,17 +33,7 @@ namespace Hollowbrook.Checkpoint
             _notesRoot = BuildPaperOverlay("OverlayRules", "PAPER NOTE — INSPECTION RULES", out _notesText);
             _recordsRoot = BuildPaperOverlay("OverlayLog", "TONIGHT'S LOG — ANOMALY RECORD", out _recordsText);
 
-            var conf = UIFactory.BorderedPanel(_desk, "confirmbox", UIFactory.Paper, UIFactory.Border, 2);
-            Reg("confirm", conf, L.ConfirmBox);
-            _confirmText = UIFactory.Label(conf, "txt", "", 14, UIFactory.PaperInk, TextAnchor.MiddleCenter);
-            L.Place(_confirmText.rectTransform, L.Inner.ConfirmText);
-            var no = GridButton(conf, "no", "No", () => _confirmBox.SetActive(false), L.Inner.ConfirmNo, 14);
-            L.Place(no.GetComponent<RectTransform>(), L.Inner.ConfirmNo);
-            var yes = GridButton(conf, "yes", "Yes",
-                () => { _confirmBox.SetActive(false); Stamp(Verdict.Reject); }, L.Inner.ConfirmYes, 14);
-            L.Place(yes.GetComponent<RectTransform>(), L.Inner.ConfirmYes);
-            _confirmBox = conf.gameObject;
-            _confirmBox.SetActive(false);
+            // the yes/no confirm popup retired with the button verdicts: stamping IS confirming
         }
 
         private GameObject BuildPaperOverlay(string goName, string title, out Text body)

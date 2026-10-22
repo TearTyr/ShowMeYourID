@@ -56,6 +56,7 @@ namespace Hollowbrook.LogicTests
             CheckpointQueueTests();
             QueueBusyHurryTests();
             QueueInvariantTests();
+            StampRulesTests();
             SeatPlannerTests();
             CultureRoundTripTests();
             ResumeReplayTests();
@@ -1050,6 +1051,33 @@ namespace Hollowbrook.LogicTests
             q.CommitActiveResolution(); q.CompleteActive();   // and leaves: window free
             Check(!q.Tick(9.7f).Any, "free window: 9.7s is not enough for the 9.8s left");
             Check(q.Tick(0.2f).Any, "free window: the remaining interval completes at base speed");
+        }
+
+        private static void StampRulesTests()
+        {
+            Group("InspectionRules — detain verdict + warnings/fines (stamp rework)");
+            var roster = RosterFor(3, 2);
+            VisitorData legit = null, anom = null;
+            foreach (var v in roster) { if (legit == null && !v.IsAnomaly) legit = v; if (anom == null && v.IsAnomaly) anom = v; }
+            Check(legit != null && anom != null, "roster provides a legit and an anomaly subject");
+
+            var dA = InspectionRules.Apply(anom, Verdict.Detain, null);
+            Check(dA.Correct && !dA.FalseRejection && dA.WasDetained, "detaining an anomaly is a correct stop");
+            var dL = InspectionRules.Apply(legit, Verdict.Detain, null);
+            Check(!dL.Correct && dL.FalseRejection && dL.WasDetained, "detaining a legitimate student is a serious false rejection");
+            var rA = InspectionRules.Apply(anom, Verdict.Reject, null);
+            Check(rA.Correct && !rA.WasDetained, "reject still scores anomalies correctly");
+            var aL = InspectionRules.Apply(legit, Verdict.Allow, null);
+            Check(aL.Correct && !aL.WasDetained, "allow still scores legit students correctly");
+
+            var sN = new GameSession { Mode = GameMode.Normal, Score = 250 };
+            sN.RecordVerdict(InspectionRules.Apply(legit, Verdict.Reject, null));   // miss 1
+            sN.RecordVerdict(InspectionRules.Apply(legit, Verdict.Allow, null));   // correct
+            sN.RecordVerdict(InspectionRules.Apply(anom, Verdict.Allow, null));    // miss 2
+            sN.RecordVerdict(InspectionRules.Apply(legit, Verdict.Detain, null));  // miss 3 -> fine
+            Eq(sN.Warnings, 3, "three mistakes book three warnings");
+            Eq(sN.Fines, 1, "the third warning draws a fine");
+            Eq(sN.Score, 150, "the fine costs 100 score (penalty, not game over)");
         }
 
         private static void SeatPlannerTests()

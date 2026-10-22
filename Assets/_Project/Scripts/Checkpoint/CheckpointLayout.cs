@@ -61,8 +61,10 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region UtilityRecords = new Region(1124, 356, 140, 36);
         public static readonly Region UtilityMap = new Region(968, 396, 140, 36);
         public static readonly Region UtilityNotes = new Region(1124, 396, 140, 36);
-        public static readonly Region StampReject = new Region(984, 440, 110, 110);  // CALL PRINCIPAL
-        public static readonly Region StampAllow = new Region(1148, 440, 110, 110);  // ALLOW
+        // the verdict tray: three physical stamps, dragged onto the ID to commit
+        public static readonly Region StampDeny = new Region(968, 440, 96, 96);
+        public static readonly Region StampDetain = new Region(1072, 440, 96, 96);
+        public static readonly Region StampAllow = new Region(1176, 440, 96, 96);
         public static readonly Region Monitor = new Region(968, 558, 296, 146);
 
         // ---- transient overlays (bounds-checked only; they cover the desk) ---

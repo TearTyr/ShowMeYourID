@@ -15,11 +15,15 @@ namespace Hollowbrook.Checkpoint
     {
         private RectTransform _rt;
         private RectTransform _bounds;
+        private Vector2 _home;
         private float _tilt;
         private Vector3 _baseScale = Vector3.one;
         private const float LiftScale = 1.04f;
 
         public bool Dragging { get; private set; }
+        /// <summary>Tools (stamps) return to their tray slot after every drop; papers stay
+        /// where the player left them.</summary>
+        public bool ReturnsHome;
         /// <summary>Invoked with the paper's desk-space centre on drop; the view decides
         /// whether a drop zone (scanner) was hit.</summary>
         public Action<Vector2> OnDropped;
@@ -29,6 +33,7 @@ namespace Hollowbrook.Checkpoint
             _rt = GetComponent<RectTransform>();
             _bounds = bounds;
             _tilt = tiltDegrees;
+            _home = _rt.anchoredPosition;
             _baseScale = _rt.localScale;
             _rt.localEulerAngles = new Vector3(0f, 0f, _tilt);
         }
@@ -57,10 +62,12 @@ namespace Hollowbrook.Checkpoint
         {
             if (!Dragging) return;
             Dragging = false;
+            Vector2 dropCenter = CenterInBounds();              // where the player let go
             _rt.localScale = _baseScale;
             _rt.localEulerAngles = new Vector3(0f, 0f, _tilt);   // settle back
+            if (ReturnsHome) _rt.anchoredPosition = _home;      // tools go back to the tray
             Clamp();
-            OnDropped?.Invoke(CenterInBounds());
+            OnDropped?.Invoke(dropCenter);
         }
 
         // Headless-friendly teleport (tests + future "tidy desk" action).

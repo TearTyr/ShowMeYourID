@@ -63,6 +63,10 @@ namespace Hollowbrook.Logic
         /// <summary>Everyone stamped ALLOW this shift, in stamp order (anomalies included):
         /// the classroom spawner seats exactly these ids. Cleared at shift start.</summary>
         public readonly List<StudentData> AdmittedStudents = new List<StudentData>();
+        /// <summary>Mistakes book warnings; every third warning draws a fine (score penalty).
+        /// Penalties, never instant game over.</summary>
+        public int Warnings;
+        public int Fines;
         public bool QueueOverwhelmed = false;      // the waiting line overran the checkpoint (lose)
         public QueueSnapshot QueueState;           // null until a shift queue has been persisted
 
@@ -94,6 +98,8 @@ namespace Hollowbrook.Logic
             else
             {
                 Streak = 0;
+                Warnings++;
+                if (Warnings % 3 == 0) { Fines++; Score = System.Math.Max(0, Score - 100); }
             }
             if (o.FalseRejection)
             {

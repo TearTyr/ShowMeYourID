@@ -70,11 +70,11 @@ namespace Hollowbrook.Checkpoint
         private Image _offeredPhoto;
         private Text _offeredName, _offeredNumber, _offeredExpires;
         private GameObject _recordGo, _idCardGo;   // hidden until the ID is taken
-        private Button _allowBtn, _rejectBtn, _scanBtn, _notesBtn, _recordsBtn, _mapBtn, _patrolBtn, _endShiftBtn;
+        private Button _scanBtn, _notesBtn, _recordsBtn, _mapBtn, _patrolBtn, _endShiftBtn;
+        private readonly Image[] _stampTints = new Image[3];
+        private readonly Color[] _stampBase = new Color[3];
         private Text _testimony;
         private readonly List<EventSubscription> _subscriptions = new List<EventSubscription>();
-        private GameObject _confirmBox;
-        private Text _confirmText;
 
         private GameObject _bannerRoot; private Text _bannerTitle, _bannerBody;
         private Image _stampOverlay;
@@ -403,6 +403,10 @@ namespace Hollowbrook.Checkpoint
             // 1-4 ask the four questions while the interview is open (labels say so)
             for (int k = 0; k < 4; k++)
                 if (Input.GetKeyDown((KeyCode)(KeyCode.Alpha1 + k))) AskByHotkey(k);
+            // A / D / T stamp Approve / Deny / Detain — the keyboard path for the stamps
+            if (Input.GetKeyDown(KeyCode.A)) Stamp(Verdict.Allow);
+            if (Input.GetKeyDown(KeyCode.D)) Stamp(Verdict.Reject);
+            if (Input.GetKeyDown(KeyCode.T)) Stamp(Verdict.Detain);
         }
 
         // Everything on the desk that mirrors run state, refreshed after any change:

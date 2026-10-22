@@ -80,6 +80,7 @@ namespace Hollowbrook.Logic
             public bool AnomalyBreach;    // anomaly allowed in
             public bool WasAnomaly;
             public bool WasAdministrator;
+            public bool WasDetained;         // the detain stamp: hold for the guards
             public string Id;              // admitted-student bookkeeping for the classroom
             public string Name;
             public List<string> RevealedDefects = new List<string>();
@@ -99,8 +100,11 @@ namespace Hollowbrook.Logic
             {
                 Verdict = verdict,
                 Expected = expected,
-                Correct = verdict == expected,
-                FalseRejection = verdict == Verdict.Reject && !v.IsAnomaly && !forcedByRule,
+                // detaining an anomaly is a correct stop; detaining a legitimate student
+                // is a false rejection of the serious kind
+                Correct = verdict == expected || (verdict == Verdict.Detain && v.IsAnomaly),
+                FalseRejection = (verdict == Verdict.Reject || verdict == Verdict.Detain) && !v.IsAnomaly && !forcedByRule,
+                WasDetained = verdict == Verdict.Detain,
                 AnomalyBreach = verdict == Verdict.Allow && v.IsAnomaly,
                 WasAnomaly = v.IsAnomaly,
                 WasAdministrator = v.IsAdministrator,

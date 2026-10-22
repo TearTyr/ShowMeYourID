@@ -120,8 +120,9 @@ namespace FlowCheck
                 "windowframe", "glass", "facade", "visitor", "glitch", "sill",
                 "speech_border", "speechlog", "handover", "offeredid", "interview", "patrol", "endshift",
                 "qpanel_border", "q0", "q1", "q2", "q3", "testimony",
-                "scan", "records", "map", "notes", "reject", "allow", "monitor_border", "out",
-                "confirmbox_border", "Banner", "OverlayRules", "OverlayLog",
+                "scan", "records", "map", "notes", "stamp_allow", "stamp_deny", "stamp_detain",
+                "monitor_border", "out",
+                "Banner", "OverlayRules", "OverlayLog",
                 "StickyNoteOverlay", "stickynote_border",
             };
             foreach (var n in deskNames)
@@ -201,8 +202,9 @@ namespace FlowCheck
             ExpectRegion("tonight's log", L.UtilityRecords, 1124, 356, 140, 36);
             ExpectRegion("map", L.UtilityMap, 968, 396, 140, 36);
             ExpectRegion("rules note", L.UtilityNotes, 1124, 396, 140, 36);
-            ExpectRegion("call principal", L.StampReject, 984, 440, 110, 110);
-            ExpectRegion("allow", L.StampAllow, 1148, 440, 110, 110);
+            ExpectRegion("deny stamp", L.StampDeny, 968, 440, 96, 96);
+            ExpectRegion("detain stamp", L.StampDetain, 1072, 440, 96, 96);
+            ExpectRegion("allow stamp", L.StampAllow, 1176, 440, 96, 96);
             ExpectRegion("camera", L.Monitor, 968, 558, 296, 146);
             // Phase 9/10 grid extensions (queue strips + sticky note; the queue readout
             // is the banner's second line, inside the existing registered Banner region)
@@ -246,8 +248,9 @@ namespace FlowCheck
             Add("log button", L.UtilityRecords, "C");
             Add("map button", L.UtilityMap, "C");
             Add("rules button", L.UtilityNotes, "C");
-            Add("call principal", L.StampReject, "C");
-            Add("allow", L.StampAllow, "C");
+            Add("deny stamp", L.StampDeny, "C");
+            Add("detain stamp", L.StampDetain, "C");
+            Add("allow stamp", L.StampAllow, "C");
             Add("camera monitor", L.Monitor, "C");
             Add("queue strip left", L.QueueStripL, "C");
             Add("queue strip right", L.QueueStripR, "C");
@@ -313,6 +316,23 @@ namespace FlowCheck
         // under "YOU", and the visitor's answer — newest at the bottom.
 
         // ------------------------------------------------- papers pass (drag, pips, hints)
+        private static float StampAlpha(GameRoot root, string stampName) =>
+            FindDeep(root.Checkpoint.transform, stampName).GetComponent<UnityEngine.UI.Image>().color.a;
+
+        // drag a stamp from its tray onto the subject's ID card, exactly like the pointer does
+        private static void DropStamp(GameRoot root, Verdict v)
+        {
+            var name = v == Verdict.Allow ? "stamp_allow" : v == Verdict.Reject ? "stamp_deny" : "stamp_detain";
+            var drag = FindDeep(root.Checkpoint.transform, name).GetComponent<DragPaper>();
+            var rt = FindDeep(root.Checkpoint.transform, "idcard").GetComponent<RectTransform>();
+            var s = rt.rect.size;
+            var own = drag.GetComponent<RectTransform>().rect.size;
+            drag.BeginDrag();
+            drag.PlaceAt(new Vector2(rt.anchoredPosition.x + s.x / 2f - own.x / 2f,
+                                     -rt.anchoredPosition.y + s.y / 2f - own.y / 2f));
+            drag.EndDrag();
+        }
+
         private static void PapersProof(GameRoot root)
         {
             Console.WriteLine("== papers pass: chat column, draggable ID, question panel ==");
@@ -428,31 +448,36 @@ namespace FlowCheck
             Func<string, bool> live = n => btn(n).interactable;
             Func<string> monOut = () => FindDeep(desk, "out").GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
 
-            cp.DebugTakeDocuments();   // stamps unlock only once the ID is in hand
-            Check(live("allow") && live("reject"), "ALLOW / CALL PRINCIPAL live while a visitor is at the window");
+            // earlier proofs may have left an inspection mid-way: close it like a player
+            // would, then make sure a fresh visitor (documents NOT taken) is at the window
+            if (FindDeep(desk, "idcard").gameObject.activeSelf && cp.CurrentVisitor != null)
+                cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            int freshGuard = 0;
+            while (cp.CurrentVisitor == null && freshGuard++ < 8) cp.AdvanceQueue(6f);
+            Check(cp.CurrentVisitor != null && !FindDeep(desk, "idcard").gameObject.activeSelf,
+                  "a fresh visitor waits with documents still untaken");
+            Check(StampAlpha(root, "stamp_allow") < 0.5f, "the stamp tray rests dim before the ID is taken");
+            int procBefore = root.Queue.ProcessedCount;
+            DropStamp(root, Verdict.Reject);
+            Check(root.Queue.ProcessedCount == procBefore && cp.CurrentVisitor != null,
+                  "a stamp drop with no documents in hand is a no-op");
             Check(!live("patrol"), "PATROL HALLWAY dimmed mid-inspection");
             Check(!live("endshift"), "END SHIFT dimmed before the roster is done");
 
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
+            Check(StampAlpha(root, "stamp_allow") > 0.9f, "stamps ink up once the ID is in hand");
             cp.DoScan();
             Check(monOut() != "SCANNER READY" && monOut().Length > 0,
                 "SCAN ID writes the scanner readout (" + monOut().Split('\n')[0] + ")");
-
-            var confirm = FindDeep(desk, "confirmbox_border");
-            btn("reject").onClick.Invoke();
-            Check(confirm.gameObject.activeSelf, "CALL PRINCIPAL opens the confirmation popup");
-            FindDeep(confirm, "no").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            Check(!confirm.gameObject.activeSelf, "popup 'No' closes it without stamping");
-            Check(live("allow"), "ALLOW still live after cancelling the popup");
 
             cp.GoPatrol();
             Check(root.State == AppViewState.Checkpoint, "PATROL refused mid-inspection (state stays Checkpoint)");
 
             string beforeYes = cp.CurrentVisitor != null ? cp.CurrentVisitor.ClaimedName : "?";
-            btn("reject").onClick.Invoke();
-            FindDeep(confirm, "yes").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            Check(!confirm.gameObject.activeSelf, "popup 'Yes' closes and stamps");
-            // the stub runs the banner coroutine synchronously, so by the time the click
+            DropStamp(root, Verdict.Reject);   // the stamp act IS the confirmation: no popup
+            Check(FindDeep(desk, "confirmbox_border") == null,
+                  "the yes/no confirm popup is retired from the desk");
+            // the stub runs the banner coroutine synchronously, so by the time the drop
             // returns the verdict is resolved: the stamped visitor is the proof
             Check(cp.CurrentVisitor == null || cp.CurrentVisitor.ClaimedName != beforeYes,
                 "verdict registered: " + beforeYes + " was processed and left the window");
@@ -464,10 +489,8 @@ namespace FlowCheck
             {
                 if (cp.CurrentVisitor == null) { cp.AdvanceQueue(6f); continue; }
                 cp.DebugTakeDocuments();   // hand-over gate before either verdict path
-                if (InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null) == Verdict.Allow)
-                    btn("allow").onClick.Invoke();          // exercises the ALLOW click path
-                else
-                    cp.Stamp(Verdict.Reject);
+                DropStamp(root, InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null) == Verdict.Allow
+                    ? Verdict.Allow : Verdict.Reject);        // exercises the stamp-drop path
             }
             Check(guard < 16, "roster walked to the end without runaway (" + guard + " steps)");
             Check(root.Queue.ShiftComplete, "P9: shift complete = source dry + line empty + window free");

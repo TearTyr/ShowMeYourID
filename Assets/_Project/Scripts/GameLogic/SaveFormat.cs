@@ -61,6 +61,8 @@ namespace Hollowbrook.Logic
             sb.Append("bestStreak=").Append(s.BestStreak).Append('\n');
             KV(sb, "runTimer", Inv(s.RunTimer));
             sb.Append("runProcessed=").Append(s.RunProcessed).Append('\n');
+            sb.Append("warnings=").Append(s.Warnings).Append('\n');
+            sb.Append("fines=").Append(s.Fines).Append('\n');
             KV(sb, "mutation", s.ActiveMutationKey);
             KV(sb, "seen", s.TonightLog.Encode());
             KV(sb, "clues", string.Join(",", s.Clues.SaveFound()));
@@ -156,6 +158,8 @@ namespace Hollowbrook.Logic
                 s.BestStreak = Int(map, "bestStreak", 0);
                 s.RunTimer = Flt(map, "runTimer", 0f);
                 s.RunProcessed = Int(map, "runProcessed", 0);
+                s.Warnings = Int(map, "warnings", 0);
+                s.Fines = Int(map, "fines", 0);
                 s.ActiveMutationKey = Str(map, "mutation", "none");
                 save.SavedAtLabel = Str(map, "savedAt", "");
 

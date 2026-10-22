@@ -2,7 +2,7 @@ namespace Hollowbrook.Logic
 {
     public enum GameMode { Normal, Endless, Challenge }
 
-    public enum Verdict { None, Allow, Reject }
+    public enum Verdict { None, Allow, Reject, Detain }
 
     public enum EndingType { None, Win, Lose, Secret }
 
