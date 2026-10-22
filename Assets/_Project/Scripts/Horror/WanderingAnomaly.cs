@@ -44,6 +44,8 @@ namespace Hollowbrook.Horror
         private float _targetX;                  // wander/slide waypoint in the owned room
         private float _telegraph = -1f;          // >= 0 while Sprint winds up (readable warning)
         private float _dashTimer;                // > 0 while Sprint bursts
+        private GameRng _moveRng;                  // per-spawn seed for wander/retreat rolls
+        private GameRng MoveRng => _moveRng ?? (_moveRng = new GameRng(0x5EED));
         private float _dashRecover;              // > 0 while Sprint catches its breath
         private float _retreatTargetX;           // where Repelled movement withdraws to
 
@@ -312,6 +314,10 @@ namespace Hollowbrook.Horror
             if (_threatSeconds >= _profile.CatchGraceSeconds) CatchPlayer();
         }
 
+        /// <summary>The spawner hands each anomaly a seed derived from the run rng, so
+        /// wander targets and retreat sides replay identically for the same run.</summary>
+        public void SeedMovement(int seed) => _moveRng = new GameRng(seed);
+
         private void BeginRetreat(ViewManager views)
         {
             float px = views.Player != null ? views.Player.transform.localPosition.x : 0f;
@@ -472,7 +478,7 @@ namespace Hollowbrook.Horror
         private void PickWanderTarget(Vector3 player)
         {
             float half = _room != null ? _room.HalfWidth : 10f;
-            _targetX = UnityEngine.Random.Range(-half + 1f, half - 1f);
+            _targetX = -half + 1f + MoveRng.NextFloat() * Mathf.Max(0.1f, (half - 1f) * 2f);
             if (Mathf.Abs(_targetX - player.x) < 2f) _targetX = -_targetX;
         }
 
@@ -480,8 +486,8 @@ namespace Hollowbrook.Horror
         {
             if (!stalking) { PickWanderTarget(player); return; }
             float half = _room != null ? _room.HalfWidth - 1f : 9f;
-            float side = UnityEngine.Random.value < 0.5f ? -1f : 1f;
-            float off = 2.5f + UnityEngine.Random.value * 2.5f;
+            float side = MoveRng.NextFloat() < 0.5f ? -1f : 1f;
+            float off = 2.5f + MoveRng.NextFloat() * 2.5f;
             _targetX = Mathf.Clamp(player.x + side * off, -half, half);
         }
 

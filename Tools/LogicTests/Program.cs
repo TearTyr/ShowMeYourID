@@ -55,6 +55,10 @@ namespace Hollowbrook.LogicTests
             TrackingAndTokenTests();
             CheckpointQueueTests();
             QueueBusyHurryTests();
+            QueueInvariantTests();
+            SeatPlannerTests();
+            CultureRoundTripTests();
+            ResumeReplayTests();
 
             Console.WriteLine("\n==============================================");
             Console.WriteLine($"  PASS {_pass}   FAIL {_fail}   TOTAL {_pass + _fail}");
@@ -1046,6 +1050,177 @@ namespace Hollowbrook.LogicTests
             q.CommitActiveResolution(); q.CompleteActive();   // and leaves: window free
             Check(!q.Tick(9.7f).Any, "free window: 9.7s is not enough for the 9.8s left");
             Check(q.Tick(0.2f).Any, "free window: the remaining interval completes at base speed");
+        }
+
+        private static void SeatPlannerTests()
+        {
+            Group("SeatPlanner — determinism, distinct seats, overflow, duplicates");
+            var ids = new List<string> { "HB-2026-0001", "HB-2026-0002", "HB-2026-0003", "HB-2026-0004" };
+            int[] a = SeatPlanner.Plan(ids, 6, new GameRng(42));
+            int[] b = SeatPlanner.Plan(ids, 6, new GameRng(42));
+            Check(a.SequenceEqual(b), "same seed + same list = identical seating");
+            Check(a.Where(s => s >= 0).Distinct().Count() == 4, "four students, four distinct seats");
+            Check(a.All(s => s >= 0 && s < 6), "every seat index is inside the room");
+
+            var many = new List<string>();
+            for (int i = 0; i < 10; i++) many.Add("HB-2026-" + (100 + i));
+            var over = SeatPlanner.Plan(many, 6, new GameRng(7));
+            Check(over.Count(s => s >= 0) == 6 && over.Count(s => s < 0) == 4,
+                  "overflow: six seated, four skipped with -1, no exception");
+            Check(over.Where(s => s >= 0).Distinct().Count() == 6, "overflow: seated seats stay distinct");
+
+            var dup = new List<string> { "HB-2026-0001", "HB-2026-0002", "HB-2026-0001" };
+            var dp = SeatPlanner.Plan(dup, 6, new GameRng(42));
+            Check(dp[0] == dp[2] && dp[1] != dp[0], "duplicate id shares one seat (one body)");
+            Check(SeatPlanner.Plan(new List<string>(), 6, new GameRng(1)).Length == 0, "empty list: empty plan");
+            Check(SeatPlanner.Plan(null, 6, new GameRng(1)).Length == 0, "null list: empty plan, no exception");
+            Check(SeatPlanner.Plan(ids, 0, new GameRng(1)).All(s => s == -1), "zero seats: everyone skipped");
+        }
+
+        private static void CultureRoundTripTests()
+        {
+            Group("SaveFormat/SettingsData — locale independence (I-05)");
+            var saved = System.Threading.Thread.CurrentThread.CurrentCulture;
+            System.Globalization.CultureInfo comma = null;
+            try { comma = new System.Globalization.CultureInfo("de-DE"); }
+            catch (System.Globalization.CultureNotFoundException) { }
+            if (comma == null)
+            {
+                Check(true, "skipped here: invariant-globalization process — rerun with ICU for the de-DE pass");
+                return;
+            }
+            System.Threading.Thread.CurrentThread.CurrentCulture = comma;
+            try
+            {
+                var save = new SaveGame();
+                save.Session.Mode = GameMode.Normal;
+                save.Session.Sanity = 63.5f;
+                save.Session.RunTimer = 187.25f;
+                save.Session.QueueState = new QueueSnapshot { Started = true, TimerSeconds = 4.5f, Warned = 1 };
+                save.Settings.MasterVolume = 0.55f;
+                save.Settings.MusicVolume = 0.3f;
+                var text = SaveFormat.Serialize(save);
+                Check(text.Contains("sanity=63.5") && text.Contains("queueTimer=4.5") && text.Contains("0.55"),
+                      "de-DE: floats serialize with a DOT, never a comma");
+                var back = SaveFormat.Deserialize(text);
+                Check(back != null && back.Session.Sanity == 63.5f && back.Session.RunTimer == 187.25f &&
+                      back.Session.QueueState.TimerSeconds == 4.5f && back.Settings.MasterVolume == 0.55f,
+                      "de-DE: checksummed round-trip parses back exactly");
+                var roster = RosterFor(5, 1);
+                Check(roster.All(v => v.IdNumber.All(c => c >= '0' && c <= '9' || c == '-' || (c >= 'A' && c <= 'Z'))),
+                      "de-DE: generated IDs stay ASCII digits (D4 formatting is invariant)");
+            }
+            finally
+            {
+                System.Threading.Thread.CurrentThread.CurrentCulture = saved;
+            }
+        }
+
+        private static void ResumeReplayTests()
+        {
+            Group("RosterFactory — resume replays identical visitors (I-09)");
+            var plan = ShiftPlan.Build();
+            var played = new RosterFactory(99);
+            List<VisitorData> shift4Played = null;
+            for (int i = 0; i < 4; i++) shift4Played = played.GenerateShift(plan[i]);   // a played run
+            var replay = new RosterFactory(99);
+            for (int i = 0; i < 3; i++) replay.GenerateShift(plan[i]);   // what Continue does
+            var shift4Replay = replay.GenerateShift(plan[3]);
+            Check(shift4Played.Count == shift4Replay.Count &&
+                  shift4Played.Zip(shift4Replay, (x, y) => x.IdNumber == y.IdNumber && x.IsAnomaly == y.IsAnomaly)
+                             .All(ok => ok),
+                  "shift 4 roster is identical whether played straight or replayed from the seed");
+        }
+
+        private static void QueueInvariantTests()
+        {
+            Group("CheckpointQueue — FIFO invariant + warned-edge persistence (audit fixes)");
+
+            // 1) a free window with a waiting line belongs to the head of the line: a fresh
+            //    arrival must never jump it. State is built through restore — the only path
+            //    that can legitimately hold Active==null with a non-empty line.
+            var roster = RosterFor(7, 1);
+            var q = new CheckpointQueue();
+            q.AttachRoster(roster, new QueueTuning { MissingStudentChance = 0f }, 7);
+            q.RestoreFromSnapshot(new QueueSnapshot
+            {
+                Started = true,
+                RosterCursor = 3,
+                Arrived = 3,
+                Processed = 0,
+                TimerSeconds = 5f,
+                WaitingIdx = new List<int> { roster[1].VisitorIndex, roster[2].VisitorIndex },
+                ActiveIdx = -1,
+                Warned = 0,
+            }, 0);
+            Check(q.Active == null && q.WaitingCount == 2, "setup: free window behind a two-student line");
+            var r = q.ForceNextArrival();
+            Check(r.ToWindow == roster[1], "FIFO: the line head steps up to the free window, not the fresh arrival");
+            Check(r.ToLine == roster[3], "FIFO: the fresh arrival joins the line behind it");
+            Check(q.WaitingCount == 2 && q.WaitingLine.First() == roster[2],
+                  "FIFO: line order is preserved behind the promoted head");
+
+            // 2) the pressure warning is once per shift — including across save/continue
+            var t = new QueueTuning
+            {
+                MissingStudentChance = 0f,
+                PressureWarnAt = 2,
+                OverwhelmedAt = 99,
+                ArrivalMinSeconds = 1f,
+                ArrivalMaxSeconds = 1f,
+            };
+            var a = new CheckpointQueue();
+            a.AttachRoster(roster, t.Clone(), 21);
+            a.MarkStarted();
+            a.ForceNextArrival();                              // window
+            Check(!a.ForceNextArrival().PressureWarning, "line 1: no warning yet");
+            Check(a.ForceNextArrival().PressureWarning, "line 2: the one-time warning fires");
+            a.CommitActiveResolution(); a.CompleteActive();    // line shrinks back to 1
+            var snap = a.BuildSnapshot();
+            Eq(snap.Warned, 1, "the snapshot carries the fired warning edge");
+
+            var b = new CheckpointQueue();
+            b.AttachRoster(roster, t.Clone(), 21);
+            b.RestoreFromSnapshot(snap, 0);
+            var grow = b.ForceNextArrival();                   // line back to the threshold
+            Check(b.WaitingCount == 2, "resume: the line is back at the warning threshold");
+            Check(!grow.PressureWarning, "continue never re-fires the already-fired warning");
+
+            // 3) the warned key survives the checksummed file; key-less (older) files fall
+            //    back to reconstructing the edge from the restored line length
+            var save = new SaveGame();
+            save.Session.Mode = GameMode.Normal;
+            save.Session.QueueState = snap;
+            var back = SaveFormat.Deserialize(SaveFormat.Serialize(save));
+            Check(back != null && back.Session.QueueState != null && back.Session.QueueState.Warned == 1,
+                  "queueWarned round-trips through the checksummed save file");
+
+            var legacyLong = new QueueSnapshot
+            {
+                Started = true,
+                RosterCursor = 3,
+                Arrived = 3,
+                WaitingIdx = new List<int> { roster[1].VisitorIndex, roster[2].VisitorIndex },
+                ActiveIdx = -1,
+            };
+            Eq(legacyLong.Warned, -1, "a snapshot without the key reads as unknown (-1)");
+            var c = new CheckpointQueue();
+            c.AttachRoster(roster, t.Clone(), 21);
+            c.RestoreFromSnapshot(legacyLong, 0);              // line 2 at restore: had warned
+            Check(!c.ForceNextArrival().PressureWarning, "legacy save at threshold: no second warning");
+
+            var legacyShort = new QueueSnapshot
+            {
+                Started = true,
+                RosterCursor = 2,
+                Arrived = 2,
+                WaitingIdx = new List<int> { roster[1].VisitorIndex },
+                ActiveIdx = roster[0].VisitorIndex,
+            };
+            var d = new CheckpointQueue();
+            d.AttachRoster(roster, t.Clone(), 21);
+            d.RestoreFromSnapshot(legacyShort, 0);             // line 1: warning still earnable
+            Check(d.ForceNextArrival().PressureWarning, "legacy save below threshold: the warning is still earnable once");
         }
 
         private static void CheckpointQueueTests()

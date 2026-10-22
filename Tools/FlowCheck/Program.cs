@@ -93,6 +93,14 @@ namespace FlowCheck
             QueueProof(root);
             SettingsProof(root);
             WorldLoop(root);
+            StudentsProof(root);
+
+            Console.WriteLine("== one persistent core across the scene chain ==");
+            Check(ReferenceEquals(root, GameRoot.Instance),
+                  "I-02: exactly one GameRoot after menu->desk->school->desk");
+            MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore());
+            Check(ReferenceEquals(root, GameRoot.Instance),
+                  "I-02: re-booting a scene never creates a second core");
 
             Console.WriteLine(_failures == 0 ? "== FLOW CHAIN COMPLETE ==" : "== " + _failures + " CHECK(S) FAILED ==");
             Environment.Exit(_failures == 0 ? 0 : 1);
@@ -934,6 +942,52 @@ namespace FlowCheck
         // never receive Update() calls, so ViewManager.TickWorld steps light, player, beam,
         // anomalies and spawner in a deterministic order — the real components, the real
         // config, the real event traffic. Mirrors the manual test sequence from the task.
+        private static void StudentsProof(GameRoot root)
+        {
+            Console.WriteLine("== classroom students (F-01/F-02) ==");
+            var sp = root.Students;
+            Check(sp != null && sp.Room != null && sp.Room.Seats.Length == 6,
+                  "F-01: the school scene wires a spawner and a 6-seat placeholder");
+            if (sp == null) return;
+
+            var list = new List<StudentData>
+            {
+                new StudentData { Id = "HB-2026-0001", Name = "Ana", IsAnomaly = false },
+                new StudentData { Id = "HB-2026-0002", Name = "Bre", IsAnomaly = true },
+                new StudentData { Id = "HB-2026-0001", Name = "Ana dup", IsAnomaly = false },
+            };
+            sp.Spawn(list, 42);
+            int[] first = sp.Students.Select(s => s.Seat).ToArray();
+            for (int i = 0; i < 400; i++) sp.Tick(0.05f);
+            Check(sp.Students.Count == 3 && sp.SeatedCount == 3,
+                  "F-01: three bodies enter one by one and sit (duplicate id shares a seat)");
+            Check(first[0] == first[2] && first[1] != first[0], "F-02: duplicate ids map to one seat, others distinct");
+            sp.Spawn(list, 42);
+            Check(sp.Students.Select(s => s.Seat).SequenceEqual(first), "F-02: same seed + same list = same seating");
+
+            var big = new List<StudentData>();
+            for (int i = 0; i < 10; i++) big.Add(new StudentData { Id = "HB-2026-" + (100 + i), Name = "S" + i });
+            sp.Spawn(big, 7);
+            var seats = sp.Students.Select(s => s.Seat).Where(s => s >= 0).ToList();
+            Check(sp.Students.Count == 6 && seats.Count == 6 && seats.Distinct().Count() == 6,
+                  "F-02: overflow beyond the seats is warned and skipped, seats stay distinct");
+
+            sp.Spawn(null, 1);
+            sp.Spawn(new List<StudentData>(), 1);
+            Check(sp.Students.Count == 0, "F-01: null/empty admitted list is a silent no-op");
+
+            sp.Spawn(list, 42);
+            root.TogglePause(true);
+            for (int i = 0; i < 50; i++) sp.Tick(0.05f);
+            Check(sp.SeatedCount == 0 && sp.Students.All(s => !s.gameObject.activeSelf),
+                  "F-01: pause freezes both entry and walking");
+            root.TogglePause(false);
+            for (int i = 0; i < 400; i++) sp.Tick(0.05f);
+            Check(sp.SeatedCount == 3, "F-01: unpausing finishes the seating");
+            sp.Clear();
+            Check(sp.Students.Count == 0, "F-01: Clear empties the room at patrol end");
+        }
+
         private static void WorldLoop(GameRoot root)
         {
             Console.WriteLine("== PATROL world loop (flashlight + roaming anomaly), headless frames ==");

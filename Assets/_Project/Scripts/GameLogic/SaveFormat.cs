@@ -49,6 +49,7 @@ namespace Hollowbrook.Logic
                 sb.Append("queueBudget=").Append(q.BudgetMask).Append('\n');
                 sb.Append("queueCollapsed=").Append(q.Overwhelmed ? 1 : 0).Append('\n');
                 sb.Append("queuePending=").Append(q.ResolutionPending ? 1 : 0).Append('\n');
+                sb.Append("queueWarned=").Append(q.Warned).Append('\n');
             }
             KV(sb, "pool", s.Pool.Encode());
             sb.Append("adminAllowed=").Append(s.AdminAllowed ? 1 : 0).Append('\n');
@@ -86,7 +87,7 @@ namespace Hollowbrook.Logic
             if (lines.Length < 3) return null;
             var head = lines[0].Split(' ');
             if (head.Length != 2 || head[0] != Header) return null;
-            if (!int.TryParse(head[1], out int ver) || ver != Version) return null;
+            if (!int.TryParse(head[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int ver) || ver != Version) return null;
 
             string checksumLine = null;
             var body = new StringBuilder();
@@ -97,7 +98,7 @@ namespace Hollowbrook.Logic
                 body.Append(lines[i]).Append('\n');
             }
             if (checksumLine == null) return null;
-            if (!long.TryParse(checksumLine.Substring("checksum=".Length), out long stored)) return null;
+            if (!long.TryParse(checksumLine.Substring("checksum=".Length), NumberStyles.Integer, CultureInfo.InvariantCulture, out long stored)) return null;
             if (Checksum(body.ToString()) != stored) return null;
 
             var map = new Dictionary<string, string>();
@@ -139,6 +140,7 @@ namespace Hollowbrook.Logic
                         BudgetMask = Int(map, "queueBudget", 0),
                         Overwhelmed = Int(map, "queueCollapsed", 0) == 1,
                         ResolutionPending = Int(map, "queuePending", 0) == 1,
+                        Warned = map.ContainsKey("queueWarned") ? Int(map, "queueWarned", -1) : -1,
                     };
                     s.QueueState = q;
                     s.QueueOverwhelmed = q.Overwhelmed;
@@ -202,7 +204,7 @@ namespace Hollowbrook.Logic
         {
             var l = new List<int>();
             foreach (var p in Split(csv))
-                if (int.TryParse(p, out int v)) l.Add(v);
+                if (int.TryParse(p, NumberStyles.Integer, CultureInfo.InvariantCulture, out int v)) l.Add(v);
             return l;
         }
 
@@ -230,7 +232,7 @@ namespace Hollowbrook.Logic
         }
 
         private static int Int(Dictionary<string, string> m, string k, int d) =>
-            m.TryGetValue(k, out var v) && int.TryParse(v, out int r) ? r : d;
+            m.TryGetValue(k, out var v) && int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out int r) ? r : d;
 
         private static float Flt(Dictionary<string, string> m, string k, float d) =>
             m.TryGetValue(k, out var v) && float.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out float r) ? r : d;

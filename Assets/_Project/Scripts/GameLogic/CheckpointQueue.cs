@@ -45,6 +45,9 @@ namespace Hollowbrook.Logic
         public int BudgetMask;
         public bool Overwhelmed;
         public bool ResolutionPending;   // quit happened between the stamp and the banner end
+        // -1 = the save file predates the key: RestoreFromSnapshot then reconstructs the
+        // warning edge from the restored line length (old behaviour).
+        public int Warned = -1;
 
         public bool HasProgress => Started || Arrived > 0 || WaitingIdx.Count > 0 || ActiveIdx >= 0;
     }
@@ -236,8 +239,14 @@ namespace Hollowbrook.Logic
             var v = InfiniteSource ? _runSource() : TakeFromRoster();
             if (v == null) return;
             ArrivalCount++;
-            if (Active == null) { Active = v; r.ToWindow = v; }
-            else { _waiting.Enqueue(v); r.ToLine = v; }
+            if (Active == null && _waiting.Count == 0) { Active = v; r.ToWindow = v; }
+            else
+            {
+                // strict FIFO: a free window with a waiting line belongs to the head of the
+                // line, never to a fresh arrival — the newcomer joins the line instead.
+                _waiting.Enqueue(v); r.ToLine = v;
+                if (Active == null) { Active = _waiting.Dequeue(); r.ToWindow = Active; }
+            }
             r.LineChanged = true;
             EvaluateMissingStudent(v, ref r);
             EvaluatePressure(ref r);
@@ -409,6 +418,7 @@ namespace Hollowbrook.Logic
                 BudgetMask = ActiveBudgetMask,
                 Overwhelmed = Collapsed,
                 ResolutionPending = ResolutionPending,
+                Warned = _warned ? 1 : 0,
             };
             if (!InfiniteSource)      // run modes never restore a mid-run line (they restart fresh)
             {
@@ -453,9 +463,11 @@ namespace Hollowbrook.Logic
             }
             Active = ByIndex(s.ActiveIdx);
             if (Active != null && _vanished.Contains(Active)) Active = null;
-            // reconstruct the warning edge: a line saved at/over the threshold had already
-            // warned; a shorter line can still earn its first warning after the resume.
-            _warned = Collapsed || _waiting.Count >= Tuning.PressureWarnAt;
+            // reconstruct the warning edge: files that carry it restore it exactly (once per
+            // shift stays once per shift across continue); older files fall back to the line
+            // length heuristic.
+            _warned = Collapsed ||
+                      (s.Warned >= 0 ? s.Warned == 1 : _waiting.Count >= Tuning.PressureWarnAt);
         }
 
         /// <summary>Pre-queue save fallback: resume as if the first `resumeFromVisitor`

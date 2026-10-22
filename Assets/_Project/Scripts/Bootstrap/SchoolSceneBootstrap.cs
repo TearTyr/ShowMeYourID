@@ -29,6 +29,15 @@ namespace Hollowbrook.Bootstrap
             views.Init(root, root.MainCamera, worldGo);
             root.Views = views;
 
+            // classroom placeholder + student spawner: explicit wiring, no Find (F-01)
+            var classroom = views.Room(Hollowbrook.Logic.RoomId.Classroom1);
+            var placeholder = World.ClassroomPlaceholder.Build(classroom.Root.transform,
+                World.RoomInstance.FloorY, Hollowbrook.Logic.RoomGraph.DoorX(Hollowbrook.Logic.RoomId.Classroom1, Hollowbrook.Logic.RoomId.Hallway));
+            var spawnerGo = new GameObject("StudentSpawner");
+            spawnerGo.transform.SetParent(sceneRoot.transform, false);
+            root.Students = spawnerGo.AddComponent<World.StudentSpawner>();
+            root.Students.Init(root, placeholder);
+
             var hallGo = new GameObject("Hallucinations");
             hallGo.transform.SetParent(sceneRoot.transform, false);
             root.Hallucinations = hallGo.AddComponent<Horror.HallucinationSystem>();

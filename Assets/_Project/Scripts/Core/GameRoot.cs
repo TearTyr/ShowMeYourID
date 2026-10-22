@@ -71,6 +71,7 @@ namespace Hollowbrook.Core
         public ConfirmationPopup Confirm;
         public CaptionBar Captions;
         public Hollowbrook.World.SecurityRoomView SecurityRoom;
+        public Hollowbrook.World.StudentSpawner Students;
         public SanityController SanityCtl;
         public ScareSystem Scares;
         public HallucinationSystem Hallucinations;
@@ -347,6 +348,7 @@ namespace Hollowbrook.Core
             Session.CurrentShift = number;
             PrepareShiftRoster(number);
             Session.TonightLog.Clear();
+            Session.AdmittedStudents.Clear();
             _shiftMinutes = 0f;
             SetupShiftQueue(number, resumeFromVisitor);
             PlayIntroThenCheckpoint(BuildShiftIntroLines(number), CurrentShiftDef);
@@ -556,6 +558,7 @@ namespace Hollowbrook.Core
             QueueSceneAction(() =>
             {
                 SetState(AppViewState.Exploration);
+                Bus.Publish(GameEvent.Of(EventIds.PatrolStarted));
                 ObjectiveText = "Night " + Session.CurrentShift + " — patrol: check the rooms, follow the chain, return to the checkpoint before dawn.";
                 Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));
                 if (Views != null) Views.EnterRoom(room);
@@ -597,6 +600,7 @@ namespace Hollowbrook.Core
         {
             QueueSceneAction(() =>
             {
+                Bus.Publish(GameEvent.Of(EventIds.PatrolEnded));
                 SetState(AppViewState.Checkpoint);
                 Audio.PlayMusic("checkpoint");
                 if (Checkpoint != null) Checkpoint.ResumeRun();
@@ -824,6 +828,9 @@ namespace Hollowbrook.Core
         {
             if (Instance == this) Instance = null;
             Time.timeScale = 1f;
+            // the procedural atlases are native allocations: release them with the core
+            Hollowbrook.Bootstrap.ProceduralArt.ClearCache();
+            Hollowbrook.Bootstrap.ProceduralAudio.ClearCache();
         }
     }
 }

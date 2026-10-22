@@ -42,5 +42,7 @@ namespace Hollowbrook.Core
         public const string TokenCollected = "anomaly.token";      // Value: tokens held this run
         public const string BatteryChanged = "light.battery";      // Value: 0..1 charge
         public const string AnomalyStateChanged = "anomaly.state"; // Data: AnomalyState name
+        public const string PatrolStarted = "patrol.started";       // scene B is up: students may fill the classroom
+        public const string PatrolEnded = "patrol.ended";           // leaving patrol: classroom empties
     }
 }

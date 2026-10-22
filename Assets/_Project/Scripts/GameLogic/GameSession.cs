@@ -23,11 +23,11 @@ namespace Hollowbrook.Logic
             if (parts.Length != 6) return null;
             return new ShiftSummary
             {
-                Shift = int.Parse(parts[0]),
-                Visitors = int.Parse(parts[1]),
-                Correct = int.Parse(parts[2]),
-                FalseRejections = int.Parse(parts[3]),
-                Breaches = int.Parse(parts[4]),
+                Shift = int.Parse(parts[0], System.Globalization.CultureInfo.InvariantCulture),
+                Visitors = int.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture),
+                Correct = int.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture),
+                FalseRejections = int.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture),
+                Breaches = int.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture),
                 SanityEnd = float.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture),
             };
         }
@@ -60,6 +60,9 @@ namespace Hollowbrook.Logic
         public List<ShiftSummary> History = new List<ShiftSummary>();
         public bool RunFinished = false;
         public PresentationLog TonightLog = new PresentationLog();
+        /// <summary>Everyone stamped ALLOW this shift, in stamp order (anomalies included):
+        /// the classroom spawner seats exactly these ids. Cleared at shift start.</summary>
+        public readonly List<StudentData> AdmittedStudents = new List<StudentData>();
         public bool QueueOverwhelmed = false;      // the waiting line overran the checkpoint (lose)
         public QueueSnapshot QueueState;           // null until a shift queue has been persisted
 
@@ -79,6 +82,8 @@ namespace Hollowbrook.Logic
         {
             if (o == null || o.Verdict == Verdict.None) return;
             Processed++;
+            if (o.Verdict == Verdict.Allow)
+                AdmittedStudents.Add(new StudentData { Id = o.Id, Name = o.Name, IsAnomaly = o.WasAnomaly });
             if (o.Correct)
             {
                 CorrectDecisions++;
@@ -189,14 +194,15 @@ namespace Hollowbrook.Logic
             var d = new SettingsData
             {
                 MasterVolume = F(p[0]), MusicVolume = F(p[1]), SfxVolume = F(p[2]),
-                TextScale = int.Parse(p[3]),
+                TextScale = int.Parse(p[3], System.Globalization.CultureInfo.InvariantCulture),
                 ReduceMotion = p[4] == "1", PhotosensitivitySafe = p[5] == "1", Captions = p[6] == "1",
             };
             if (p.Length >= 10)
             {
                 d.Fullscreen = p[7] != "0";
                 int w, h;
-                if (int.TryParse(p[8], out w) && int.TryParse(p[9], out h))
+                if (int.TryParse(p[8], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out w) &&
+                    int.TryParse(p[9], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out h))
                 {
                     d.DisplayWidth = w;
                     d.DisplayHeight = h;

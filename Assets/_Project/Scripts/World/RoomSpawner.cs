@@ -146,6 +146,7 @@ namespace Hollowbrook.World
             var an = go.AddComponent<WanderingAnomaly>();        // deactivate without freezing it
             _views.Register(an);
             an.Init(_root, room, kind, spawn, hallucination);
+            an.SeedMovement(_rng.NextInt(1, 1 << 30));   // movement rolls ride the run seed
             if (hallucination) return an;
             _liveAnomaly = an;
             _root.Bus.Publish(GameEvent.Of(EventIds.AnomalySighted, kind));

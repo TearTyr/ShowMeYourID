@@ -329,6 +329,15 @@ namespace Hollowbrook.Bootstrap
             return c.ToSprite("paper_flat", UiPpu);
         }
 
+        /// <summary>Stable string hash for art seeds: string.GetHashCode is randomized per
+        /// process, which would repaint noise differently every launch.</summary>
+        public static int StableHash(string s)
+        {
+            int h = 17;
+            if (s != null) for (int i = 0; i < s.Length; i++) h = h * 31 + s[i];
+            return h;
+        }
+
         public static void ClearCache()
         {
             foreach (var kv in Cache)

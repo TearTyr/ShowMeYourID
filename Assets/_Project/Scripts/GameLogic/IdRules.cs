@@ -14,8 +14,8 @@ namespace Hollowbrook.Logic
             if (id[7] != '-') return false;
             for (int i = 3; i <= 6; i++) if (!char.IsDigit(id[i])) return false;
             for (int i = 8; i <= 11; i++) if (!char.IsDigit(id[i])) return false;
-            int year = int.Parse(id.Substring(3, 4));
-            int serial = int.Parse(id.Substring(8, 4));
+            int year = int.Parse(id.Substring(3, 4), System.Globalization.CultureInfo.InvariantCulture);
+            int serial = int.Parse(id.Substring(8, 4), System.Globalization.CultureInfo.InvariantCulture);
             if (year < 2023 || year > 2027) return false;      // plausible enrollment years only
             if (serial < 1 || serial > 9999) return false;     // 0000 is not issued
             return true;
@@ -24,7 +24,7 @@ namespace Hollowbrook.Logic
         public static int SerialOf(string id)
         {
             if (!IsFormatValid(id)) return -1;
-            return int.Parse(id.Substring(8, 4));
+            return int.Parse(id.Substring(8, 4), System.Globalization.CultureInfo.InvariantCulture);
         }
 
         public static bool IsExpired(VisitorData v, int shiftNumber)

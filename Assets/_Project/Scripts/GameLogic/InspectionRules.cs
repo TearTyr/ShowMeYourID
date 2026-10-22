@@ -80,6 +80,8 @@ namespace Hollowbrook.Logic
             public bool AnomalyBreach;    // anomaly allowed in
             public bool WasAnomaly;
             public bool WasAdministrator;
+            public string Id;              // admitted-student bookkeeping for the classroom
+            public string Name;
             public List<string> RevealedDefects = new List<string>();
         }
 
@@ -102,6 +104,8 @@ namespace Hollowbrook.Logic
                 AnomalyBreach = verdict == Verdict.Allow && v.IsAnomaly,
                 WasAnomaly = v.IsAnomaly,
                 WasAdministrator = v.IsAdministrator,
+                Id = v.IdNumber,
+                Name = v.ClaimedName,
                 RevealedDefects = v.DescribeDefects(),
             };
             return o;

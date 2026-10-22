@@ -15,7 +15,7 @@ namespace Hollowbrook.Bootstrap
 
             var c = new Canvas2D(w, h);
             c.GradientV(G(0.80f), G(0.62f));            // paper-gray photo backdrop
-            c.Noise(0.05f, key.GetHashCode());
+            c.Noise(0.05f, StableHash(key));
             float cx = w / 2f, baseY = h * 0.98f;
 
             var skin = G(0.30f);

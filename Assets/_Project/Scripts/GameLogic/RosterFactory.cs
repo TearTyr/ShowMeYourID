@@ -229,7 +229,7 @@ namespace Hollowbrook.Logic
                 {
                     string candidate;
                     int guard = 0;
-                    do { candidate = "HB-2026-" + _rng.NextInt(9000, 10000).ToString("D4"); guard++; }
+                    do { candidate = "HB-2026-" + _rng.NextInt(9000, 10000).ToString("D4", System.Globalization.CultureInfo.InvariantCulture); guard++; }
                     while (_registry.Contains(candidate) && guard < 32);
                     v.IdNumber = candidate;
                     v.RecordIdNumber = candidate;
