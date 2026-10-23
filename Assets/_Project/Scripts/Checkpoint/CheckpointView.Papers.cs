@@ -52,7 +52,7 @@ namespace Hollowbrook.Checkpoint
             // The student file: a draggable window, opened only by a registry search.
             var rec = UIFactory.Img(_desk, "record", ProceduralArt.Get("record_sheet"));
             rec.raycastTarget = true;   // the file window must grab the pointer to drag
-            L.Place(rec.rectTransform, new L.Region(350, 80, 320, 290));
+            L.Place(rec.rectTransform, new L.Region(16, 168, 320, 290));
             rec.gameObject.AddComponent<RectMask2D>();   // rows can never spill off the sheet
             _recHeader = UIFactory.Label(rec.rectTransform, "header", "STUDENT RECORD — FORM 11-C", 12,
                 new Color(0.9f, 0.9f, 0.88f), TextAnchor.MiddleCenter);
@@ -71,10 +71,12 @@ namespace Hollowbrook.Checkpoint
             UIFactory.PlaceTL(fileBounds, 0, 0, 960, 720);
             var fileDrag = rec.gameObject.AddComponent<DragPaper>();
             fileDrag.Init(fileBounds, -0.6f);
+            fileDrag.SetHome(new Vector2(16f, 168f));   // left column under the terminal
             rec.gameObject.SetActive(false);   // opens only via the station search
 
             var idCard = UIFactory.Img(_desk, "idcard", ProceduralArt.Get("id_card_frame"));
             idCard.raycastTarget = true;   // draggable paper: the frame takes pointer events
+            idCard.rectTransform.localScale = new Vector3(0.95f, 0.95f, 1f);
             Reg("idcard", idCard.rectTransform, L.IdCard);
             idCard.gameObject.AddComponent<RectMask2D>();
 
@@ -131,6 +133,9 @@ namespace Hollowbrook.Checkpoint
                 if (center.x >= L.UtilityScan.X - 20 && center.x <= L.UtilityScan.Right + 20 &&
                     center.y >= L.UtilityScan.Y - 20 && center.y <= L.UtilityScan.Bottom + 20)
                     DoScan();
+                else if (center.x >= L.Monitor.X - 12 && center.x <= L.Monitor.Right + 12 &&
+                         center.y >= L.Monitor.Y - 12 && center.y <= L.Monitor.Bottom + 12)
+                    DoScan();   // the camera is the scan device
                 else if (InWindowZone(center)) HandBackId();   // hand the ID back to the student
             };
         }

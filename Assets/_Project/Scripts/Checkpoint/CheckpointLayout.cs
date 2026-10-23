@@ -42,13 +42,13 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region Station = new Region(16, 88, 320, 96);   // compact terminal
         // default slot for the held ID card; the card is draggable, so this is where it
         // rests, not where it stays (see DragPaper)
-        public static readonly Region IdCard = new Region(405, 436, 320, 220);
+        public static readonly Region IdCard = new Region(438, 478, 304, 209);   // default desk slot (0.95 scale)
         // the offered ID during the hand-over step: same card size, centred over the window
         // counter edge: the student slides the ID here on arrival (root is scaled 0.6,
         // so the drawn card rests on the sill at ~192x132)
-        public static readonly Region OfferedId = new Region(565, 336, 320, 220);
+        public static readonly Region OfferedId = new Region(405, 208, 320, 220);  // rests on the counter, in front of the glass
         // the paper slip rides beside it on the counter
-        public static readonly Region CounterSlip = new Region(890, 308, 200, 120);  // clear of the window frame
+        public static readonly Region CounterSlip = new Region(755, 288, 200, 120);  // counter edge, clear of camera + dialogue
 
         // ---- centre column --------------------------------------------------
         public static readonly Region Window = new Region(405, 88, 470, 316);
@@ -56,21 +56,20 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region Portrait = new Region(565, 104, 150, 180);     // inside the glass
         public static readonly Region Glitch = new Region(560, 99, 160, 190);        // transient flash
         public static readonly Region Sill = new Region(405, 404, 470, 24);
-        public static readonly Region Speech = new Region(16, 192, 320, 120);  // last lines under the terminal
-        public static readonly Region PatrolBtn = new Region(520, 686, 140, 26);
-        public static readonly Region EndShiftBtn = new Region(672, 686, 150, 26);
+        public static readonly Region Speech = new Region(405, 432, 470, 44);   // compact DIALOGUE strip under the window
+        public static readonly Region PatrolBtn = new Region(520, 690, 140, 24);
+        public static readonly Region EndShiftBtn = new Region(672, 690, 150, 24);
 
         // ---- right column ---------------------------------------------------
         public static readonly Region Questions = new Region(968, 88, 296, 190);
         public static readonly Region UtilityScan = new Region(968, 300, 76, 26);   // one small tools row
-        public static readonly Region UtilityRecords = new Region(1046, 300, 76, 26);
-        public static readonly Region UtilityMap = new Region(1124, 300, 76, 26);
-        public static readonly Region UtilityNotes = new Region(1202, 300, 76, 26);
-        public static readonly Region ScanStrip = new Region(968, 330, 312, 22);
+        public static readonly Region UtilityRecords = new Region(16, 466, 156, 36);   // TL
+        public static readonly Region UtilityMap = new Region(16, 510, 320, 96);        // MAP box
+        public static readonly Region UtilityNotes = new Region(180, 466, 156, 36);    // RN
         // the verdict tray: two physical stamps, dragged onto the ID to commit
-        public static readonly Region StampDeny = new Region(984, 440, 110, 110);
-        public static readonly Region StampAllow = new Region(1148, 440, 110, 110);
-        public static readonly Region Monitor = new Region(968, 558, 296, 146);
+        public static readonly Region StampDeny = new Region(1128, 470, 152, 150);  // big D box
+        public static readonly Region StampAllow = new Region(968, 470, 152, 150);  // big A box
+        public static readonly Region Monitor = new Region(968, 340, 312, 120);  // camera = the scan device
 
         // ---- transient overlays (bounds-checked only; they cover the desk) ---
         public static readonly Region Toast = new Region(280, 116, 720, 30);
@@ -117,7 +116,7 @@ namespace Hollowbrook.Checkpoint
             public static readonly float[] IdRules = { 52f, 75f, 99f, 123f, 146f, 179f };
 
             // speech / note
-            public static readonly Region SpeechText = new Region(10, 6, 300, 108);
+            public static readonly Region SpeechText = new Region(8, 4, 454, 36);
             public static readonly Region NoteHead = new Region(10, 6, 260, 18);
             public static readonly Region NoteBody = new Region(10, 28, 260, 74);
 
@@ -130,7 +129,7 @@ namespace Hollowbrook.Checkpoint
 
             // camera monitor
             public static readonly Region MonitorCaption = new Region(0, 2, 296, 16);
-            public static readonly Region MonitorOut = new Region(8, 20, 280, 118);
+            public static readonly Region MonitorOut = new Region(8, 20, 296, 92);
 
             // confirmation popup
             public static readonly Region ConfirmText = new Region(20, 12, 380, 40);

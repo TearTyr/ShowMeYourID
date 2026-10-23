@@ -1,5 +1,19 @@
 # Refactor log — readability pass (branch refactor/readability)
 
+## Owner-feedback pass — desk order & sizes (Messenger notes + redlined screenshot)
+
+- Owner asks (chat): questions already out, press the question itself (no gate button); the ID
+  slides out automatically per student (no click); the dialogue box was far too big for its
+  content; TL / RN as two compact buttons; MAP as its own box; A/D as two big stamp boxes; and
+  the CAMERA is the scan device — you put the ID on it to scan.
+- New desk grid: centre = window, counter papers on the sill, compact DIALOGUE strip under the
+  window (470x44, three lines), ID default slot below, patrol/end-shift at the very bottom;
+  left = terminal, file window, TL + RN buttons, MAP box; right = questions, SCAN, CAMERA panel
+  (drop-the-ID-to-scan, readout inside), then the two big stamps A—ACCEPT / D—DENY.
+- FlowCheck table + proofs follow the new grid (837 OK), including "drop the ID on the CAMERA
+  scans it" and the dialogue-strip position.
+
+
 ## Desk bug-fix + simplification pass (post-slip rework)
 
 Bugs (root causes from the desk-flow audit):

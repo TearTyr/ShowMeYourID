@@ -119,9 +119,9 @@ namespace FlowCheck
                 "record", "station", "find", "closefile", "idcard",
                 "windowframe", "glass", "facade", "visitor", "glitch", "sill",
                 "speech_border", "speechlog", "offeredid", "patrol", "endshift",
-                "qpanel_border", "q0", "q1", "q2", "q3", "scanstrip", "searchbox", "placeholder",
+                "qpanel_border", "q0", "q1", "q2", "q3", "searchbox", "placeholder",
                 "scan", "records", "map", "notes", "stamp_allow", "stamp_deny",
-                "out",
+                "monitor_border", "out",
                 "OverlayRules", "OverlayLog",
                 "StickyNoteOverlay", "stickynote_border",
             };
@@ -189,23 +189,22 @@ namespace FlowCheck
             ExpectRegion("clock", L.Clock, 1000, 4, 150, 44);
             ExpectRegion("pause", L.Pause, 1160, 8, 104, 36);
             ExpectRegion("records station", L.Station, 16, 88, 320, 96);
-            ExpectRegion("id card", L.IdCard, 405, 436, 320, 220);
+            ExpectRegion("id card", L.IdCard, 438, 478, 304, 209);
             ExpectRegion("window frame", L.Window, 405, 88, 470, 316);
             ExpectRegion("glass", L.Glass, 420, 98, 440, 296);
             ExpectRegion("portrait", L.Portrait, 565, 104, 150, 180);
             ExpectRegion("sill", L.Sill, 405, 404, 470, 24);
-            ExpectRegion("speech", L.Speech, 16, 192, 320, 120);
-            ExpectRegion("patrol button", L.PatrolBtn, 520, 686, 140, 26);
-            ExpectRegion("end shift", L.EndShiftBtn, 672, 686, 150, 26);
+            ExpectRegion("dialogue strip", L.Speech, 405, 432, 470, 44);
+            ExpectRegion("patrol button", L.PatrolBtn, 520, 690, 140, 24);
+            ExpectRegion("end shift", L.EndShiftBtn, 672, 690, 150, 24);
             ExpectRegion("questions", L.Questions, 968, 88, 296, 190);
             ExpectRegion("scan", L.UtilityScan, 968, 300, 76, 26);
-            ExpectRegion("log", L.UtilityRecords, 1046, 300, 76, 26);
-            ExpectRegion("map", L.UtilityMap, 1124, 300, 76, 26);
-            ExpectRegion("rules", L.UtilityNotes, 1202, 300, 76, 26);
-            ExpectRegion("scan strip", L.ScanStrip, 968, 330, 312, 22);
-            ExpectRegion("deny stamp", L.StampDeny, 984, 440, 110, 110);
-            ExpectRegion("allow stamp", L.StampAllow, 1148, 440, 110, 110);
-            ExpectRegion("camera", L.Monitor, 968, 558, 296, 146);
+            ExpectRegion("TL", L.UtilityRecords, 16, 466, 156, 36);
+            ExpectRegion("MAP", L.UtilityMap, 16, 510, 320, 96);
+            ExpectRegion("RN", L.UtilityNotes, 180, 466, 156, 36);
+            ExpectRegion("camera", L.Monitor, 968, 340, 312, 120);
+            ExpectRegion("D stamp", L.StampDeny, 1128, 470, 152, 150);
+            ExpectRegion("A stamp", L.StampAllow, 968, 470, 152, 150);
             // Phase 9/10 grid extensions (queue strips + sticky note; the queue readout
             // is the banner's second line, inside the existing registered Banner region)
             ExpectRegion("queue strip L", L.QueueStripL, 340, 436, 60, 240);
@@ -250,7 +249,7 @@ namespace FlowCheck
             Add("rules button", L.UtilityNotes, "C");
             Add("deny stamp", L.StampDeny, "C");
             Add("allow stamp", L.StampAllow, "C");
-            Add("scan strip", L.ScanStrip, "B");
+            Add("camera monitor", L.Monitor, "C");
             Add("queue strip left", L.QueueStripL, "C");
             Add("queue strip right", L.QueueStripR, "C");
             Add("toast", L.Toast, "T");
@@ -373,8 +372,8 @@ namespace FlowCheck
             var srt = speech.GetComponent<RectTransform>();
             Check(Mathf.Abs(srt.anchoredPosition.x - L.Speech.X) < 0.5f &&
                   Mathf.Abs(-srt.anchoredPosition.y - L.Speech.Y) < 0.5f &&
-                  L.Speech.X == 16 && L.Speech.Y == 192,
-                  "the chat log sits under the terminal, last three lines (16,192)");
+                  L.Speech.X == 405 && L.Speech.Y == 432,
+                  "the dialogue strip sits under the window, compact (405,432)");
             var logText = FindDeep(cp.transform, "speechlog").GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
             Check(logText.Contains("<color=#4a5a49>YOU</color>") && logText.Contains("<color=#6f6d68>AT THE WINDOW</color>"),
                   "chat lines carry per-speaker colours");
@@ -392,10 +391,10 @@ namespace FlowCheck
             Check(Mathf.Abs(c.x - home.x) < 0.5f && Mathf.Abs(c.y - home.y) < 0.5f,
                   "a paper dropped outside the desk returns to its slot");
             idDrag.BeginDrag();
-            idDrag.DragBy(new Vector2(120f, -40f));        // a normal desk move
+            idDrag.DragBy(new Vector2(120f, -20f));        // a normal desk move
             idDrag.EndDrag();
             c = idDrag.CenterInBounds();
-            Check(Mathf.Abs(c.x - (home.x + 120f)) < 0.5f && Mathf.Abs(c.y - (home.y + 40f)) < 0.5f,
+            Check(Mathf.Abs(c.x - (home.x + 120f)) < 0.5f && Mathf.Abs(c.y - (home.y + 20f)) < 0.5f,
                   "a paper dropped on the desk stays where the player put it");
             idDrag.BeginDrag();
             idDrag.PlaceCenter(home);                      // tidy back for the next checks
@@ -413,6 +412,10 @@ namespace FlowCheck
             idDrag.PlaceAt(new Vector2(600f - 160f, 500f - 110f));
             idDrag.EndDrag();
             Check(scans == 1, "dropping elsewhere is just repositioning (no scan)");
+            idDrag.BeginDrag();
+            idDrag.PlaceCenter(new Vector2(L.Monitor.X + L.Monitor.W / 2f, L.Monitor.Y + L.Monitor.H / 2f));
+            idDrag.EndDrag();
+            Check(scans == 2, "dropping the ID on the CAMERA scans it (the scan device)");
             sub.Dispose();
 
             // question panel: pips, asked-tags, hotkeys, budget-spent reason, scroll testimony
@@ -555,7 +558,7 @@ namespace FlowCheck
             Func<string, UnityEngine.UI.Button> btn =
                 n => FindDeep(desk, n).GetComponent<UnityEngine.UI.Button>();
             Func<string, bool> live = n => btn(n).interactable;
-            Func<string> monOut = () => FindDeep(desk, "out").GetComponent<UnityEngine.UI.Text>().text;
+            Func<string> monOut = () => FindDeep(desk, "out").GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
 
             // earlier proofs may have left an inspection mid-way: close it like a player
             // would, then make sure a fresh visitor (documents NOT taken) is at the window

@@ -52,27 +52,30 @@ namespace Hollowbrook.Checkpoint
 
             _scanBtn = GridButton(_desk, "scan", "SCAN", DoScan, L.UtilityScan, 11);
             Reg("scan", _scanBtn, L.UtilityScan);
-            _recordsBtn = GridButton(_desk, "records", "LOG",
+            _recordsBtn = GridButton(_desk, "records", "TL",
                 () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, L.UtilityRecords, 11);
             Reg("records", _recordsBtn, L.UtilityRecords);
-            _mapBtn = GridButton(_desk, "map", "MAP", () => _gameRoot.OpenMap(), L.UtilityMap, 11);
+            _mapBtn = GridButton(_desk, "map", "MAP", () => _gameRoot.OpenMap(), L.UtilityMap, 16);
             Reg("map", _mapBtn, L.UtilityMap);
-            _notesBtn = GridButton(_desk, "notes", "RULES",
+            _notesBtn = GridButton(_desk, "notes", "RN",
                 () => ToggleOverlay(_notesRoot), L.UtilityNotes, 11);
             Reg("notes", _notesBtn, L.UtilityNotes);
 
             // verdicts are physical: drag a stamp onto the subject's ID to commit.
             // No confirm buttons anywhere — the stamp act IS the confirmation.
-            BuildStamp("stamp_allow", "ACCEPT", new Color(0.42f, 0.58f, 0.42f), L.StampAllow, Verdict.Allow, 0);
-            BuildStamp("stamp_deny", "DENY", new Color(0.58f, 0.28f, 0.28f), L.StampDeny, Verdict.Reject, 1);
+            BuildStamp("stamp_allow", "A — ACCEPT", new Color(0.42f, 0.58f, 0.42f), L.StampAllow, Verdict.Allow, 0, 18);
+            BuildStamp("stamp_deny", "D — DENY", new Color(0.58f, 0.28f, 0.28f), L.StampDeny, Verdict.Reject, 1, 18);
 
-            // one scan-result strip under the tools row; dropping the ID on it scans
-            var strip = UIFactory.Panel(_desk, "scanstrip", new Color(0.055f, 0.062f, 0.055f));
-            Reg("scanstrip", strip.rectTransform, L.ScanStrip);
-            _monitorOutput = UIFactory.Label(strip.rectTransform, "out", "SCANNER READY", 11,
-                new Color(0.55f, 0.75f, 0.55f), TextAnchor.MiddleLeft);
-            UIFactory.AnchorsFull(_monitorOutput.rectTransform);
-            _monitorOutput.rectTransform.offsetMin = new Vector2(6, 0);
+            // the CAMERA is the scan device: drop the ID on it to scan; readout inside
+            var mon = UIFactory.BorderedPanel(_desk, "monitor", new Color(0.055f, 0.062f, 0.055f),
+                UIFactory.Border, 2);
+            Reg("monitor", mon, L.Monitor);
+            var camCap = UIFactory.Label(mon, "camcap", "CAMERA — DROP THE ID TO SCAN", 11,
+                UIFactory.InkDim, TextAnchor.MiddleCenter);
+            L.Place(camCap.rectTransform, L.Inner.MonitorCaption);
+            _monitorOutput = UIFactory.MaskedLabel(mon, "out",
+                L.Inner.MonitorOut.X, L.Inner.MonitorOut.Y, L.Inner.MonitorOut.W, L.Inner.MonitorOut.H,
+                13, new Color(0.55f, 0.75f, 0.55f));
         }
 
         // The interview at a glance: budget pips, asked-tags on the four buttons, and the
@@ -94,11 +97,11 @@ namespace Hollowbrook.Checkpoint
             }
         }
 
-        private void BuildStamp(string goName, string label, Color tint, L.Region region, Verdict verdict, int idx)
+        private void BuildStamp(string goName, string label, Color tint, L.Region region, Verdict verdict, int idx, int fontSize = 13)
         {
             var panel = UIFactory.Panel(_desk, goName, tint);
             Reg(goName, panel.rectTransform, region);
-            var t = UIFactory.Label(panel.rectTransform, "label", label, 13,
+            var t = UIFactory.Label(panel.rectTransform, "label", label, fontSize,
                 UIFactory.Ink, TextAnchor.MiddleCenter);
             UIFactory.AnchorsFull(t.rectTransform);
             var drag = panel.gameObject.AddComponent<DragPaper>();
