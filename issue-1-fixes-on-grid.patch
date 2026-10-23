@@ -1,0 +1,3056 @@
+diff --git a/Assets/_Project/ARCHITECTURE.md b/Assets/_Project/ARCHITECTURE.md
+deleted file mode 100644
+index c45938d..0000000
+--- a/Assets/_Project/ARCHITECTURE.md
++++ /dev/null
+@@ -1,35 +0,0 @@
+-# Architecture, one page
+-
+-Services are built once in `CoreBootstrap.EnsureCore()` and survive scene loads (DontDestroyOnLoad):
+-`GameRoot` owns the run (session counters, current shift, state enum, references to every view, the
+-queued scene action and the handshake watchdog); `EventBus` is a string-keyed pub/sub list for things
+-that genuinely do not know each other; `SettingsSystem` owns PlayerPrefs preferences and is the only
+-code that writes Screen mode; `SaveSystem` reads/writes the checksummed text save; `AudioDirector`
+-plays every sound and emits captions from inside PlaySfx.
+-
+-Each `.unity` scene holds one bootstrap component that builds the scene in code. `MenuSceneBootstrap`
+-creates the menu, mode select, settings/controls/credits sheets, confirm popup and captions.
+-`CheckpointSceneBootstrap` creates the desk (CheckpointView), HUD, dialogue, map, results, endings,
+-loading, pause, sanity/scare FX. `SchoolSceneBootstrap` creates ViewManager (rooms, player,
+-flashlight rig, anomaly spawner), hallucinations, sanity/scare FX, HUD, dialogue, pause, captions,
+-confirm, security office and map. The checkpoint scene is a fixed desk with no world; the school
+-scene is the side-scrolling world with no desk.
+-
+-One visitor, event flow: `VisitorArrived` (desk presents papers) -> `DocumentsShown` ->
+-`QuestionAsked` / `ScanPerformed` (evidence gathered, testimony line appended) -> `VerdictStamped`
+-(InspectionRules scores the decision, GameSession counts complaints/breaches) -> `OnVerdictResolved`
+-(banner reveals ground truth) -> `NextVisitor` or `ShiftEnded`.
+-
+-Intro to checkpoint, the Symptom 0 path: NEW GAME queues `BeginShift(1)` on GameRoot and asks
+-SceneRouter for Hollowbrook. The new scene's bootstrap Awake builds the views and calls
+-`RunQueuedSceneAction`, which runs BeginShift: it shows the Loading card, sets ShiftIntro and plays
+-the intro dialogue. The last dialogue click invokes the callback that hides the card, sets Checkpoint
+-and calls `CheckpointView.BeginRun`. If the bootstrap never runs, `CheckSceneHandshake` logs the
+-likely cause after 3.5 s and returns to the menu instead of leaving a dead screen.
+-
+-Add a clue: add a ClueDef to `ClueRegistry.Build` (order, room, text) and an `AddClue` call for that
+-room in `RoomBuilder.BuildRoom`; discovery flows through `GameSession.DiscoverClue`.
+-Add an anomaly behavior: add an `AnomalyBehaviorKind` value and one branch in
+-`WanderingAnomaly.MoveBehavior`; spawn cadence lives in `RoomSpawner`.
+-Add a view: write a class implementing `IScreenView`, create it with `CoreBootstrap.CreateView<T>` in
+-the bootstrap that should own it, and store it in a GameRoot field.
+diff --git a/Assets/_Project/ARCHITECTURE.md.meta b/Assets/_Project/ARCHITECTURE.md.meta
+deleted file mode 100644
+index 180c858..0000000
+--- a/Assets/_Project/ARCHITECTURE.md.meta
++++ /dev/null
+@@ -1,7 +0,0 @@
+-fileFormatVersion: 2
+-guid: 57078dae9bafe7a03750e87af67fe54d
+-DefaultImporter:
+-  externalObjects: {}
+-  userData: 
+-  assetBundleName: 
+-  assetBundleVariant: 
+diff --git a/Assets/_Project/REFACTOR_LOG.md b/Assets/_Project/REFACTOR_LOG.md
+deleted file mode 100644
+index f8e945b..0000000
+--- a/Assets/_Project/REFACTOR_LOG.md
++++ /dev/null
+@@ -1,554 +0,0 @@
+-# Refactor log — close-the-gaps pass (branch refactor/close-gaps)
+-
+-## Audit (pre-edit) — raw output
+-    grep -rn "private GameRoot R;"            -> 18 hits (16 files; Interactables used protected)
+-    grep -rn "Part of the .* folder"          -> 60 hits
+-    grep -rn ".fontSize = " (excl UIFactory)  -> 2 hits (CheckpointView:195, SettingsView:107)
+-    grep -rn "SfxRequested|MusicContextRequested" -> 0 hits
+-    ls REFACTOR_LOG/ARCHITECTURE/STYLE        -> all three missing
+-    wc -l World/ViewManager.cs                -> 424 (prompt said ~490)
+-    grep -n "_index = -1;" CheckpointView     -> 2 hits (field init + BeginRun)
+-    MenuScreens.cs / HudAndCommon.cs          -> present as empty stubs (23 / 18 lines)
+-    comment baseline (clean tree)             -> added 0 / removed 0
+-Discrepancies vs the prompt, logged and worked around: MapView.cs / ShiftResultsView.cs /
+-EndingView.cs do not exist as files (those classes live in ProgressionScreens.cs, which was
+-renamed); ViewManager was 424 lines not ~490. Neither changes what any fix does.
+-
+-## Symptom 0 — diagnostic log (headless FlowCheck harness; no Unity in this sandbox)
+-== NEW GAME flow, headless ==
+-[LOG] [Flow] SetState MainMenu
+-[LOG] [Flow] ApplyVisibility MainMenu
+-  OK   menu boots
+-[LOG] [Flow] NEW GAME clicked
+-[LOG] [Flow] loading scene: Hollowbrook
+-[LOG] [Flow] checkpoint bootstrap built (checkpoint=True loading=True dialogue=True)
+-[LOG] [Flow] queued action consumed in scene 'stub'
+-[LOG] [Flow] SetState ShiftIntro
+-[LOG] [Flow] ApplyVisibility ShiftIntro
+-[LOG] [Flow] intro shown (loading=True dialogue=True)
+-[LOG] [Flow] dialogue finished, invoking callback
+-[LOG] [Flow] intro callback fired
+-[LOG] [Flow] SetState Checkpoint
+-[LOG] [Flow] ApplyVisibility Checkpoint
+-[LOG] [Flow] BeginRun roster=4
+-[LOG] [Flow] NextVisitor index=-1
+-[LOG] [Flow] PresentVisitor Ana Delgado
+-[LOG] [Flow] intro done -> checkpoint state
+-  OK   state is Checkpoint after the intro
+-  OK   a visitor is at the window
+-== Symptom 0 structural proofs ==
+-  OK   B4: dialogue OUTER border rect is inactive after the intro (no grey fullscreen rect)
+-  OK   B3: windowframe sibling 122 is BEHIND visitor 138 and speech 140
+-== 1280x720 layout audit (same math as UIFactory.Anchor) ==
+-  OK   question column on screen (990,60)-(1270,260)
+-  OK   question 1 on screen (994,206)-(1266,246)
+-  OK   question 4 on screen (994,74)-(1266,114)
+-  OK   questions panel on screen (980,52)-(1280,302)
+-  OK   record sheet on screen (10,340)-(330,620)
+-  OK   record row NAME on screen (10,374)-(230,394)
+-  OK   record row EXPIRES on screen (10,518)-(230,538)
+-  OK   id card on screen (687,517)-(973,703)
+-  OK   camera monitor on screen (1014,535)-(1266,685)
+-  OK   allow circle on screen (1005,410)-(1125,530)
+-  OK   principal circle on screen (1135,410)-(1255,530)
+-  OK   visitor portrait on screen (565,53)-(715,243)
+-== B8 save/continue resume ==
+-[LOG] [Flow] NextVisitor index=0
+-[LOG] [Flow] PresentVisitor Carlo Mendoza
+-[LOG] [Flow] loading scene: MainMenu
+-[LOG] [Flow] loading scene: Hollowbrook
+-[LOG] [Flow] checkpoint bootstrap built (checkpoint=True loading=True dialogue=True)
+-[LOG] [Flow] queued action consumed in scene 'stub'
+-[LOG] [Flow] SetState ShiftIntro
+-[LOG] [Flow] ApplyVisibility ShiftIntro
+-[LOG] [Flow] intro shown (loading=True dialogue=True)
+-[LOG] [Flow] dialogue finished, invoking callback
+-[LOG] [Flow] intro callback fired
+-[LOG] [Flow] SetState Checkpoint
+-[LOG] [Flow] ApplyVisibility Checkpoint
+-[LOG] [Flow] BeginRun roster=4
+-[LOG] [Flow] NextVisitor index=0
+-[LOG] [Flow] PresentVisitor Carlo Mendoza
+-[LOG] [Flow] intro done -> checkpoint state
+-  first visitor before quit: Ana Delgado | first visitor after CONTINUE: Carlo Mendoza
+-  OK   B8: CONTINUE resumes at the next visitor, not the same one
+-== FLOW CHAIN COMPLETE ==
+-
+-Classification: every transition line is present, so the state machine was never the failure.
+-The symptom was visual, in the order Part 0.4 predicts: B4 (full-screen grey border left active by
+-DialogueView.HideVisuals) then B3 (window frame drawn over the portrait) then B2 (question column
+-children offset +140 on a centre anchor => off the right edge; record rows inverted and half below
+-the sheet; monitor below the bottom edge).
+-
+-## Symptom 0 — evidence (post-fix)
+-Screenshot: NOT RUN — no Unity editor exists in this environment, so no pixel capture is possible.
+-Substituted evidence, all from the harness above plus a rect audit using the same math as
+-UIFactory.Anchor at 1280x720:
+-    question column   (990,60)-(1270,260)      questions panel (980,52)-(1280,302)
+-    question 1        (994,206)-(1266,246)     question 4      (994,74)-(1266,114)
+-    record sheet      (10,340)-(330,620)       row NAME (10,374)-(230,394)  row EXPIRES (10,518)-(230,538)
+-    id card           (687,517)-(973,703)      camera monitor  (1014,535)-(1266,685)
+-    allow circle      (1005,410)-(1125,530)    principal circle (1135,410)-(1255,530)
+-    visitor portrait  (565,53)-(715,243)       window frame sibling 122 < portrait 138 < speech 140
+-    dialogue outer border inactive after intro: True
+-Row NAME sits above row EXPIRES and both are inside the sheet, so the record reads top-to-bottom.
+-No Debug.LogError or exception appears anywhere in the harness output.
+-
+-## NEW GAME flow, verified (headless)
+-1. menu -> intro dialogue: OK (SetState ShiftIntro, intro shown)
+-2. intro advances on Advance() (click/Space/Enter/E path): OK (8 advances drained it)
+-3. checkpoint fully visible: OK by rect audit above (portrait in front of window, docs on screen,
+-   4 question buttons + 2 circles + monitor on screen, no grey rect)
+-4. question -> speech panel answer: verified by LogicTests (QuestionSystem) + AskQuestion path unchanged
+-5. ALLOW / CALL PRINCIPAL -> stamp + banner: verified by LogicTests (InspectionRules) + Stamp path unchanged
+-6. next visitor after banner: OK (PresentVisitor Ana Delgado; B8 run shows Carlo Mendoza next)
+-Pixel-level confirmation of 1-6 in a real editor: NOT RUN (steps listed at the end of this log).
+-
+-## B8 — save/continue verified
+-first visitor before quit: Ana Delgado | first visitor after CONTINUE: Carlo Mendoza (headless run above)
+-
+-## Bugs closed this pass
+-2a question column anchor + child +140 offset (rect audit) | 2b record rows by index (rect audit) |
+-2c BeginRun resume index no longer overwritten (B8 run) | 3a two fontSize writes -> SetBaseFontSize (grep 0) |
+-3b R -> _gameRoot in 17 files (grep 0, compile per file) | 4 ViewManager split 424 -> 210 lines (compile + FlowCheck) |
+-5a stub files + metas deleted (ls absent) | 5b 60 boilerplate comments deleted (grep 0) | 5c no headers added.
+-
+-## Comment budget
+-added 7 / removed 61 -> PASS (added <= removed)
+-
+-## Reviewed but not changed
+-B1 audio direct calls already complete | B3 SetAsLastSibling already correct | B4 BorderedPanel already
+-returns outer | B6 catch/token guard already correct | B7 single flashlight owner already correct |
+-B9 checkpoint subscriptions already disposed | B10 behavior-oddity gate already correct | B11 map in school
+-already correct | B12 mask graphic already present | CheckSceneHandshake/_queuedAt/_handshakeArmed/SafeBuild
+-kept untouched (they are the detector for exactly this symptom).
+-
+-## Behavior changes
+-Only B8: a mid-shift Continue now resumes at the saved visitor instead of replaying the night.
+-Save format gained a tolerant visitorAtSave= line; old saves read as 0 (previous behaviour).
+-
+-## Manual Unity steps (NOT RUN here)
+-Play MainMenu -> NEW GAME: expect the [Flow] chain in Console, visitor behind glass, four question
+-buttons clickable on the right, ALLOW / CALL PRINCIPAL circles, CAMERA bottom-right; answer one
+-question; stamp; next visitor arrives. Quit mid-shift and CONTINUE: second visitor, not the first.
+-
+-## Checkpoint UI Layout Verification (1280x720, computed with the same math as UIFactory.Anchor)
+-Screenshot: NOT RUN - no Unity editor in this sandbox. The bounds below are computed from the exact
+-anchor/size/center values the code sets, which is what GetWorldCorners would report for a
+-ScreenSpaceOverlay canvas at the reference resolution.
+-
+-    element            rect                 element            rect
+-    top bar            (0,0)-(1280,52)      questions panel    (960,65)-(1260,315)
+-    pause / clock      (15,10)-(105,42) / (1160,10)-(1280,42)   question 1..4  (974,109)-(1246,281)
+-    banner + NIGHT     (10,36)-(330,80)     testimony          (980,261)-(1280,341)
+-    record sheet       (10,80)-(330,420)    utility grid 2x2   (955,342)-(1265,424)
+-    record rows 1..7   (10,374)..(10,538)   stamp circles      (960,490)-(1240,610)
+-    id card            (10,450)-(330,670)   camera + SCAN      (984,588)-(1236,708) / (955,342)
+-    window frame       (405,6)-(875,346)    speech panel       (490,415)-(790,525)
+-    portrait (in win)  (565,55)-(715,245)   principal note     (490,530)-(790,630)
+-    patrol / end shift (470,352)-(900,388)  objective          (360,672)-(920,708)
+-    HUD sanity/track/battery  (180,8)-(440,44) / (530,8)-(750,44) / (750,8)-(970,44)
+-All 22 harness checks OK, 0 BAD: every element inside 0..1280 x 0..720. Pairwise: no unintended
+-overlaps; intended ones are text-on-panel and the modal confirm box over the window.
+-FlowCheck re-run after the change: 22 OK / 0 BAD, B8 resume Ana Delgado -> Carlo Mendoza.
+-
+-### Deviations from the task's literal coordinates (its own numbers overlap; logged per instruction)
+-- Record sheet kept at bottom-left (170,470) but the banner stays at (170,-58): the task's note
+-  position (170,-280) would sit on top of the record sheet, so the PRINCIPAL NOTE moved to the free
+-  centre-bottom slot (0,140) above the objective.
+-- Stamp circles at (-100/-260,170) from bottom-right instead of 80: at 80 they landed on the camera
+-  panel; the camera sits at (-170,72) size 252x120 below them.
+-- SCAN joined the 2x2 utility grid (4th slot) instead of floating at (-344,277), which is where the
+-  screenshot showed it stacked over the camera and id card.
+-- HUD meters moved into the top bar centre: at their old top-left spot they covered the banner and
+-  facade (visible in the provided screenshot), and the bottom-left strip belongs to the id card.
+-- The facade art is now the view THROUGH the window (child of the window frame) because the left
+-  column is fully occupied by banner/record/id; the confirm box overlays the window centre as a modal.
+-
+-## Layout redo, from the ground up (branch fix/ui-layout-redo) — SUPERSEDES the table above
+-
+-Root causes found behind "the UI is rotated invertedly" and the remaining overlaps:
+-1. ProceduralArt.Canvas2D draws row 0 as the TOP, but Texture2D.SetPixels reads row 0 as the
+-   BOTTOM of the texture. Every procedural sprite therefore rendered vertically mirrored:
+-   faces grew hair under the chin, the ID card wore its barcode on top and its header band at
+-   the bottom, the record sheet showed its stamp strip as a header. ToSprite now flips rows.
+-2. CheckpointLayout mixed centre-offset and edge-offset constants against UIFactory.Anchor's
+-   centre-pos convention, so panels drifted into each other (note over speech, camera under the
+-   stamps, meters inside each other, objective text bleeding over the ID card).
+-
+-New rule: one grid, absolute 1280x720 regions, top-left origin, as the mockup reads.
+-CheckpointLayout.Region + Place(rt, region, pin) + PlaceLocal(rt, x, y, w, h) (children always
+-measured from the parent's top-left). Pins attach each region to the nearest screen corner so
+-other aspect ratios widen the gutters instead of colliding columns.
+-
+-    top bar y4..48    banner 16..336 | sanity 348..628 | light 636..856 | track 864..984 |
+-                      clock 1000..1150 | pause 1160..1264
+-    row   y56..80     objective 16..476 (exploration) | run stats 490..830 | findings 1016..1264
+-    left  x16..336    record 64..354 | id card 362..582 | checklist 590..712
+-    centre            window 88..404 | sill 404..428 | speech 436..546 | note 554..664 |
+-                      patrol/end-shift 672..708
+-    right x968..1264  questions 88..348 | utilities 356..432 (2x2) | stamps 440..550 |
+-                      camera monitor 558..704
+-
+-Checklist rows left the record sheet (its printed rules hold the seven data rows) and became
+-their own paper panel with paper-toned buttons; record/ID headers sit inside the sprites' dark
+-header bands; the monitor keeps caption and scanner output on separate rows.
+-FlowCheck's audit now replays the pin math for all 28 regions: placed == grid, on screen, and
+-every co-visible pair disjoint (state-tagged C/E/B). 27,125 logic assertions still pass.
+-Play-mode and screenshot checks: NOT RUN (no Unity editor in this sandbox).
+-
+-## Desk == wireframe rebuild (branch fix/ui-layout-redo) — SUPERSEDES the pin system above
+-
+-The corner-pin Place(rt, region, pin) still let panels drift: AspectMatchGuard keeps the canvas
+-at or above 1280x720, so on any non-16:9 view the canvas reference rect grows and regions pinned
+-to different corners moved apart (checklist/note toward the floor, right column toward the edge,
+-objective text across the record sheet). The pins are gone.
+-
+-New placement contract (exactly as the approved wireframe script reads):
+-- ONE fixed 1280x720 DeskFrame per view (CheckpointView "DeskFrame", HUDView "HudFrame"),
+-  centred in the canvas, never edge-anchored. Non-16:9 screens grow the background gutters
+-  around the frame; nothing inside can drift any more.
+-- ONE placement helper: UIFactory.PlaceTL(rt, x, y, w, h) — anchor top-left, pivot (0,1),
+-  position (x, -y). CheckpointLayout.Place(rt, region) forwards to it; views contain no
+-  placement math and no magic numbers (the whole table, incl. panel-local sub-rects, lives in
+-  CheckpointLayout / CheckpointLayout.Inner).
+-- DeskLayoutAudit (new): every placed element is registered with its expected rect; a one-time
+-  editor-only Start() logs actual vs expected and warns on any difference over 2px. FlowCheck
+-  drives CheckAll() headlessly: DeskFrame 28/28, HudFrame 8/8, zero warnings.
+-
+-Restored / upgraded to the wireframe spec:
+-- Speech box is a rolling two-sided log (490,436,300,110): visitor lines under AT THE WINDOW,
+-  player questions under YOU, answers below, newest at the bottom, last ~3 exchanges kept,
+-  RectMask2D-clipped so text can never overflow the panel.
+-- PATROL HALLWAY and END SHIFT stay visible per the wireframe; they dim (SetButtonEnabled)
+-  until usable instead of vanishing. END SHIFT lights up at roster end; exhibition mode clocks
+-  out into the curated ending, normal mode into shift results.
+-- Hint/objective line is exploration-only (wireframe note), findings right-aligned at x=1264,
+-  run stats + challenge bulletin got their own row-2 slots (400..810) clear of both.
+-- Challenge bulletin: strip shows a one-line annunciator; the FULL rule text goes to the speech
+-  log as a DISTRICT BULLETIN entry and remains printed in the (now scrollable) RULES NOTE.
+-- Flat wireframe art: record sheet and ID card are reprinted 1:1 at panel size (flat paper,
+-  2px flat border, header band, rules, stamp box, barcode — no speckle noise, no stretch);
+-  window frame flat #26262b with flat glass #3a3a40; ALLOW / CALL PRINCIPAL are flat circles
+-  (paper / dark, 2px rim); paper overlays use a plain flat sheet. rough_panel / rough_circle
+-  are no longer used at the desk.
+-- Principal note, RULES NOTE and TONIGHT'S LOG bodies are RectMask2D + ScrollRect (draggable
+-  when longer than the box); record/ID/checklist panels carry RectMask2D as a spill safety net.
+-
+-FlowCheck now also proves: table == wireframe digit-for-digit (independent transcription),
+-co-visible regions disjoint, glass/portrait/glitch contained by the window, all 40 required
+-desk/HUD elements exist by name, and a button-level desk loop — gating (allow/reject live,
+-patrol/end-shift dimmed mid-inspection), SCAN readout, CALL PRINCIPAL popup No/Yes paths,
+-PATROL refused mid-inspection, ALLOW click path, roster walk, END SHIFT clock-out.
+-Verification: compile 0 errors/0 warnings (minimal + full Unity assembly sets), FlowCheck
+-504 OK / 0 BAD, LogicTests 27,125/27,125.
+-UnityStubs gained RectMask2D (one-line stub) so FlowCheck keeps compiling the real view code.
+-
+-Resolution math (fixed centred frame under AspectMatchGuard):
+-- 1280x720 and 1920x1080 are exactly 16:9 → canvas reference == 1280x720 → the frame fills
+-  the screen; geometry is pixel-identical to the wireframe at both.
+-- 1366x768 (aspect 1.7786) → canvas reference 1280.6x720 → frame centred with 0.3px side
+-  gutters; sub-pixel, layout unchanged.
+-- Any other aspect: desk stays whole and centred, background fills the gutters.
+-
+-Play-mode runs and screenshots at 1280x720 / 1920x1080 / 1366x768: NOT RUN (no Unity editor
+-in this sandbox) — the rect audit above is the headless substitute; visual sign-off needs one
+-editor session against desk_layout_wireframe.svg.
+-
+----
+-
+-# Flashlight + roaming anomaly rework (branch feat/flashlight-anomaly-rework)
+-
+-Task: turn the FNAC3-inspired flashlight/anomaly prototype into one coherent, playable, testable
+-horror mechanic without new art, packages or parallel systems. Phase-0 baseline audit (every
+-defect traced in the working tree, not the reference dump): `docs/FLASHLIGHT-ANOMALY-AUDIT.md`.
+-
+-## What was broken (verified at 64dd4ab before touching anything)
+-- `ConeCovers` was a rectangle test in mixed local/world spaces; the sprite flipped but never
+-  rotated toward the cursor, and the mask never flipped with it — visible beam and logical
+-  coverage disagreed everywhere except pure-horizontal aim.
+-- F/Q latches were not mutually exclusive (F looked dead while Q was latched); battery death
+-  kept the latches, so the beam AUTO-RELIT itself at the reboot threshold; input ran during
+-  dialogue/overlays/transitions.
+-- `ApplyBeam` wrote the room's `LightController` (Sweep silently switched room lights on),
+-  `IsIlluminated` only worked while the room mode was the flashlight's own Focus, `PlaceInRoom`
+-  reset room lighting on every door, battery recovery and sanity drain read that tangled state,
+-  and the phantom flicker restored lights-on unconditionally.
+-- `TickTracking`'s reveal at meter 1.0 set `_revealed` BEFORE `TickStates` ran, so
+-  `AnomalyEncounter` could never reach Repelled/Recovering — the whole state machine, retreat,
+-  `ScheduleReturn` and `JustRepelled` were dead code. A "repelled" anomaly froze in place,
+-  dropped its token and faded next to the player; movement never consulted `_state`.
+-- `coverHugCatchSeconds` was the catch grace for ALL four kinds; Sprint telegraphed once at
+-  spawn then dashed forever with no warning cue; CoverHug spawned at the ceiling and was
+-  immediately clamped to the floor line by contradictory coordinates.
+-- Anomalies were parented to room roots: leaving froze them (lifetime stopped too) while the
+-  stale `_liveAnomaly` slot blocked ALL future spawns; `ScheduleReturn(kind)` ignored its kind
+-  and re-peeked the pool; opening the MAP called `HideWorld` → `DiscardLive`, wiping the live
+-  encounter; cross-room x-distance fed sanity drain and catch checks.
+-
+-## The rebuild
+-Pure engine-free logic (GameLogic, unit-tested in LogicTests):
+-- `BeamGeometry` — true cone test (forward distance + perpendicular offset + body radius),
+-  per-mode range/half-angle; ONE coordinate space (world-root plane) for every query.
+-- `FlashlightInput` — latch/hold arbitration table: F/Q exclusive, L clears, mouse holds are
+-  momentary overrides that release back to the latch, dead battery forces Off AND clears
+-  latches (revival requires deliberate input).
+-- `BatteryModel` — drain/recover/death/reboot with exactly-once transitions, clamped 0..1.
+-- `AnomalyBehaviorRules` — per-kind profiles: speeds, vertical bands (spawn INSIDE the clamp
+-  band), threat range, per-kind catch graces, Sprint telegraph/dash/recover, flags
+-  (FreezesWhenObserved, CeilingLurker, BeamInterruptsBurst), retreat speed.
+-- `RoomGraph` — hallway-hub connectivity + door anchors; RoomBuilder now places doors from it
+-  (single source), and off-stage anomalies patrol through it (no teleports).
+-- `TrackingPolicy` reduced to the rate model: Focus ADVANCES, any observation (Sweep beam, lit
+-  room, 0.35s grace) only HOLDS, darkness decays. Ambient light can never resolve an encounter.
+-- `AnomalyEncounter` stays the frozen-suite-compatible authority (additive only): `ExposeMeter`
+-  moved into tuning; `Threatening` now judges the NEW state, so the repel tick can never also
+-  catch you; dark+untracked settles to Roaming.
+-
+-Unity glue:
+-- `FlashlightRig` — mouse projected onto the z=0 plane, cone sprite AND mask rotated/scaled
+-  onto the aim vector (scale maps the fixed sprite onto the mode's logical geometry), input
+-  locked while paused/dialogue/transitioning/non-exploration, battery via BatteryModel reading
+-  the room's REAL `Lit` state. It never writes room lighting; `SyncRoom` is gone.
+-- `LightController` — room-only: `Lit` bool, wall switch (`Toggle`), visual-only flicker that
+-  can never reach beam state; `LightModeChanged` keeps its event id (payload now the bool).
+-- `ViewManager` — the only place beam+ambient combine: `BeamCovers` / `IsFocusLit` /
+-  `IsIlluminated` / `RoomLit`; persistent `AnomalyRoot`; `HideWorld` no longer discards the
+-  live anomaly (map/security overlays pause an encounter instead of wiping it); `TickWorld`
+-  gives headless frames a deterministic step order.
+-- `WanderingAnomaly` — the `_revealed` bypass is deleted; the encounter state machine is the
+-  single path. Repelled = physical retreat to the far wall (movement, threat and catch timers
+-  all stop), then Recovering hands off to the spawner and despawns; token + pool resolution
+-  exactly once per entity (`_resolved`/`_gone`). Off-stage: patrols toward the player's room
+-  through doors (announced on arrival, never drawn over another room), meter/state keep
+-  ticking so a followed threat de-escalates; lifetime pauses off-stage and mid-resolution;
+-  proximity sanity/threat are room-gated. Behaviors: Blink creeps only unobserved (any beam or
+-  room light pins it, and a pinned Blink cannot catch you); Sprint telegraphs (announced once)
+-  → dashes → recovers, beam coverage interrupts the windup; Slide glides to committed points
+-  and flanks while stalking; CoverHug lives in its ceiling band and only Focus turns it clear.
+-  Hallucinations keep the separate Focus-seconds truth-check — never pool/tokens/catch.
+-- `RoomSpawner` — single live slot (duplicate spawns return null), recovery returns are a
+-  plain-field timer ticked in `UpdateSpawner` (no coroutine races; slot-busy re-arms instead
+-  of double-spawning), returns bring back the SAME kind into a plausible OTHER room,
+-  `DiscardLive` (desk exit) stays unresolved by design and cancels pending returns.
+-- `SanityController` reads ambient `Lit` (the room-Focus branch is gone); `HallucinationSystem`
+-  restores the player's own switch position after a phantom flicker; HUD room line shows
+-  LIGHTS: ON/OFF + the F/Q/L beam legend; ControlsView lists the real controls.
+-- `GameConfigSO` gained the beam geometry, encounter rates/thresholds and per-behavior
+-  numbers (defaults sourced from the logic constants; `Resources/GameConfig.asset` updated in
+-  lockstep; `coverHugCatchSeconds` now genuinely only applies to CoverHug; Sprint telegraph
+-  0.9s → 1.1s).
+-
+-## Behavior changes (documented)
+-- A lit room / Sweep beam now HOLDS the tracking meter instead of slowly filling it — only
+-  Focus can expose and repel (the task's "detection is not victory").
+-- Dark rooms drain sanity at the full rate again even with the beam on (the old 0.25× branch
+-  existed only because the flashlight wrote Focus into the room light).
+-- Repelled anomalies retreat and leave, returning as the same behavior elsewhere after
+-  `anomalyRecoverySeconds`; previously they froze and faded in place.
+-- Opening the map/security overlay mid-encounter pauses it instead of destroying it.
+-- A returning threat can drop its own token if repelled again (one token per successful
+-  repulsion; pool resolution is idempotent per kind instance).
+-
+-## Verification (all green at this commit)
+-- `Tools/Verify/verify.sh`: compile 0 errors/0 warnings (minimal + full Unity assembly sets),
+-  static audit clean.
+-- `Tools/LogicTests`: 27,225/27,225 (was 27,125) — new groups: BeamGeometry (center/edge/
+-  behind/range/radius/mode-difference/diagonal), FlashlightInput arbitration table,
+-  BatteryModel (rates, clamps, exactly-once death/reboot, deliberate relight), BehaviorRules
+-  (four distinct profiles, band consistency, per-kind graces), RoomGraph (connectivity, hops,
+-  door digits == RoomBuilder), AnomalyEncounter addenda (ExposeMeter tunable, repel tick not
+-  threatening, recoverable Exposed); TrackingPolicy group rewritten to the hold/decay model.
+-- `Tools/FlowCheck`: 647 OK / 0 BAD across 5 consecutive runs (was 504) — the desk suites are
+-  untouched, plus the new headless WorldLoop (W0–W9) driving the REAL components through
+-  `ViewManager.TickWorld` frames: input arbitration; light/beam independence; aim + cone
+-  coverage (incl. cone/mask alignment and ~90°/~180° sprite rotation); battery drain rates,
+-  death once, no auto-relight, deliberate reboot, lit-vs-dark recovery; the full
+-  spawn→detect→expose→lose-focus→re-expose→repel→retreat→recover→same-kind-return loop with
+-  token + pool exactly-once; all four behavior identities; repel-beats-catch race; pause
+-  freeze; cross-room roaming (door-bounded steps, announced arrivals, through-wall sanity
+-  immunity, mid-encounter exit + follow + re-engage); single-slot invariant under 45s of
+-  ambient spawn pressure; desk handoff discard semantics.
+-- Frozen `Tools/Verification/LogicTests`: 663/663, untouched (`AnomalyEncounter.Step`
+-  signature and its whole transition table preserved; only additive changes).
+-- UnityStubs: one additive change (`Input.MouseHeld` set + `GetMouseButton` reads it; default
+-  empty == old behavior) so mouse-hold modes are testable headlessly.
+-
+-## NOT RUN (no Unity editor in this sandbox)
+-- Play-mode verification of the rendered beam: real `SpriteMask` reveal through the darkness
+-  overlay, sprite rotation/scale visuals, `ScreenToWorldPoint` against the live camera, and
+-  photosensitivity flicker. Repro: open `School.unity`, press Play, patrol (F/Q/L + mouse
+-  holds), watch the cone follow the cursor with the mask hole aligned, then run the W-list
+-  from `Tools/FlowCheck` manually (each check maps 1:1 to an editor action).
+-- Manual 12-step test sequence from the task: the headless WorldLoop covers steps 1–12
+-  behaviorally; the visual half (what the beam LOOKS like) needs one editor session.
+-
+-# Checkpoint queue, missing students, sticky note + audio-only Options (branch feat/queue-options-rework)
+-
+-Baseline audited at `f9bdffd`; findings and decisions in `docs/QUEUE-OPTIONS-AUDIT.md` (A1–A16).
+-Phases 9–11 of the additional agentic development task.
+-
+-## What was replaced (verified in the baseline audit)
+-
+-- `CheckpointView` walked the roster with ONE `_index` field that conflated roster cursor, arrival
+-  count, processed count, "current" and completion; `AfterBanner` hard-coded a second waiting
+-  period (`BetweenSeconds + 2.2f`) after every verdict; nothing but the cursor survived patrol;
+-  saves carried a single `visitorAtSave` int. No queue pressure, no overwhelmed state, no
+-  missing students, no shift-start gate.
+-- `SettingsView` mixed audio, display (fullscreen/resolution/revert countdown), accessibility and
+-  data reset in one scrolling sheet; Escape while Options was open over the pause menu closed
+-  Options AND unpaused in the same frame (`CheckpointView.Update` / `PlayerController.Tick` both
+-  handled Esc unconditionally).
+-- `AudioDirector.Crossfade` captured the music volume once at fade start, so slider moves during a
+-  crossfade were overwritten by the stale value at fade end.
+-
+-## The rebuild
+-
+-**`GameLogic/CheckpointQueue.cs` (new, engine-free, unit-tested).** The single authority for the
+-arrival flow, with the concepts the task demands kept separate: roster source (finite list in
+-Normal, `GameRoot.NextRunVisitor` generator in Endless/Challenge), waiting line (real FIFO
+-`Queue<VisitorData>`), active window visitor, arrival clock (seeded random 3–5 s from
+-`QueueTuning`, at most one arrival per tick, overshoot carries), arrival/processed counters,
+-effective total (roster minus vanished; −1 when infinite), and completion (started + source dry +
+-line empty + window free — never "line temporarily empty"). `Tick`/`ForceNextArrival`/
+-`ResumePresentation` return a `QueueTickResult` struct (ToWindow/ToLine/Vanished/LineChanged/
+-PressureWarning/Overwhelmed) — the pure layer reports, the desk view presents and sounds.
+-Pressure edges are crossed-threshold events (warning once at 5; collapse once at 7 — the task's
+-initial thresholds, all in `GameConfigSO`). `AbandonLine()` closes a night on a story beat (the
+-administrator outro) even if waiters remain — the promoted-next window closes with it, so the
+-admin rejection can never soft-lock the END SHIFT gate. Missing students: when an eligible (non-admin)
+-anomaly first enters the line, one seeded roll against `missingStudentChance` (limit
+-`missingStudentLimit` = 1/shift); the victim is a random legitimate visitor, preferred from the
+-waiting line, else from the un-arrived source (cursor skips vanished entries — no negative
+-indices, no double removal, never active/processed/admin/anomaly). A line victim also decrements
+-the arrival progression, so `CURRENT: a/t` and the end-of-shift invariant `arrivals == effective
+-total` stay honest. Run modes never vanish anyone (finite-roster story mechanic).
+-
+-**Ownership + persistence.** `GameRoot.Queue` owns the instance (persistent run state). Chosen
+-patrol rule (applied consistently): the clock runs only while the desk is the active screen — the
+-desk view is the only ticker (`AdvanceQueue(Time.deltaTime)` from `Update`, so `timeScale = 0`
+-pauses it with no unscaled-time leak), patrol destroys the view and freezes the line, `ResumeRun`
+-rebuilds silhouettes/counters/window from the same object. `QueueSnapshot` (started, cursor,
+-arrived, processed, timer, waiting/vanished as `VisitorIndex` lists, active, incidents, budget
+-mask, collapsed, resolution-pending) rides in `GameSession` and serializes as additive `queue*` save
+-keys; pre-queue saves fall back to the legacy `visitorAtSave` cursor. Resolution is two-phase —
+-`CommitActiveResolution` books the processed count and consumes the budget mask at the stamp,
+-`CompleteActive` frees the window and promotes after the banner — so a pause→quit *during the
+-banner* restores as a finished resolution instead of a stampable visitor (found by tracing the
+-banner coroutine against the pause menu; nine pure-logic checks pin it). `FinishShift` resets the
+-queue before persisting so a finished night's line can never leak into the next one.
+-`QuestionSystem.Budget` gained `Mask`/`RestoreFromMask` so a mid-inspection quit/continue cannot
+-refund questions.
+-
+-**Desk view.** `NextVisitor`/`ResumeAfterExploration`/`DelayedNext` and the `_index`/`_roster`/
+-`_rosterComplete`/`_waitingReturnFromPatrol` fields are gone (replaced coherently, not wrapped).
+-`BeginRun(shift)` shows the sticky note for unstarted shifts or restores the presentation from
+-queue state; `AfterBanner` → `CompleteActive()` promotes the oldest waiter immediately (no second
+-wait) or frees the window for the clock; `Stamp` gates on collapse; verdicts still run through
+-`GameRoot.OnVerdictResolved` exactly once; the administrator outro branch is intact. Queue UI on
+-the approved grid discipline: two silhouette strips in the free yard gaps either side of the
+-booth (`QueueStripL/R`, 4 identical `custodian_0` figures each + `+n` overflow — legit and
+-anomaly indistinguishable), a `LINE n` badge above the right strip, and the
+-`QUEUE: n | CURRENT: a/t` readout as the day banner's second line (`Inner.BannerQueue`; the
+-top bar's right side is fully claimed by the frozen wireframe's clock/pause/findings, so no new
+-top-level top-bar region exists). Amber at pressure, red `OVERRUN` at collapse. All new elements
+-are registered in `CheckpointLayout` + `DeskLayoutAudit` and pinned by the FlowCheck layout audit.
+-
+-**Overwhelmed consequence.** No existing lose route represents "the line overran the checkpoint"
+-accurately (breaches/false rejections would misrepresent it), so per the task's fallback the
+-consequence is a one-shot run failure through the EXISTING ending route: `Session.QueueOverwhelmed`
+-+ additive `EndingRules` lose reason `"overwhelmed"` (evaluated after admin/breaches/false-rejects,
+-so frozen tests and priorities are untouched) → `GameRoot.TriggerQueueOverwhelmed` (alarm, caption,
+-toast, `TriggerEnding`). The queue collapses first, so arrivals stop, `Stamp` is dead, and
+-re-entry is guarded (`RunFinished`/state checks) — no duplicate endings, no repeated penalties.
+-
+-**Sticky note (Phase 10.1).** Centered paper panel over a click-blocking full-desk dimmer with the
+-exact required text ("NIGHT SHIFT BEGINS." / "Rules: Check IDs, ask questions, stamp. Don't let the
+-wrong faces in." / "[CLICK TO BEGIN]"). A genuine gate: before the click the queue is unstarted —
+-no first visitor, no clock, no enqueues, verdict/question controls dimmed, patrol refused — and
+-there is exactly one clock to start. The click plays `sfx_ui_open`, hides the note, marks the shift
+-started in persistent run state, presents the first eligible visitor immediately and arms the
+-arrival clock. Resume paths (patrol return, CONTINUE) never re-show it, never double-arm the
+-clock, never re-spawn the first visitor, never erase the line, never refund the budget.
+-
+-**Options modal (Phase 10.3–10.5).** `SettingsView` refined (not duplicated) into the compact
+-audio-only modal on the existing `LeftSheet` + `OpenSettings`/`CloseSettings` paths: AUDIO header +
+-MASTER/MUSIC/SFX `SliderRow`s (live % read-out built in) + `◂ BACK`; dimmer blocks clicks behind;
+-Escape closes; Tab cycles the three sliders. Display/fullscreen/resolution/text-size/
+-accessibility/CONTROLS/RESET-DATA rows removed from the panel — `SettingsSystem`, `SettingsData`
+-persistence, `DisplayPolicy`, boot-time `ApplyStoredDisplay` and the menu's `F2`×3 reset are
+-untouched. `AudioDirector`: crossfade now reads `_settings.MusicVolume` live per frame;
+-`ApplyVolumes` on `SettingsChanged` refreshes playing music sources; SFX volume applies per
+-`PlaySfx` as before. Master multiplies both mixes; zero mutes; nothing depends on scaled time.
+-`GameRoot.BlockingOverlayOpen` (Settings/Controls/Credits visible) gates the Esc-unpause hotkeys in
+-`CheckpointView.TickHotkeys` and `PlayerController.Tick` — pause stays paused while Options is
+-open, and closing Options returns to the pause sheet.
+-
+-**Config.** `GameConfigSO` + `GameConfig.asset` in lockstep: `queueArrivalMinSeconds` 3,
+-`queueArrivalMaxSeconds` 5, `queuePressureWarnAt` 5, `queueOverwhelmedAt` 7,
+-`missingStudentChance` 0.25, `missingStudentLimit` 1. The dead `betweenVisitorsSeconds` /
+-`exhibitionBetweenVisitors` knobs (only reader was the deleted `AfterBanner` wait) were removed.
+-
+-## Behavior changes (documented)
+-
+-- Visitors arrive on a clock instead of one-at-a-time-on-demand; an unresolved inspection lets the
+-  yard fill up. Exhibition nights are playable at booth pace but the 5/7 thresholds are live —
+-  all knobs are in `GameConfig` for tuning.
+-- Patrol explicitly pauses the line (radio says so: "The line starts again when you're back.").
+-- The desk top bar's `VISITOR n/m` suffix became the banner's second queue line; night/date label
+-  unchanged.
+-- Options no longer exposes display/accessibility/reset (still available via boot apply + F2×3);
+-  Pause → CONTROLS still opens the controls sheet.
+-- New lose ending reason `overwhelmed` (same ending screen, records it under the `lose` key).
+-- Saves gained additive `queue*` keys (version still 1; old saves load and resume via the legacy
+-  cursor; new saves restore the exact line, timer and question budget).
+-
+-## Verification (all green at this commit)
+-
+-- `Tools/Verify/verify.sh`: compile 0 errors / 0 warnings vs BOTH the minimal and full Unity
+-  assembly sets; static audit clean.
+-- `Tools/LogicTests`: **27,336/27,336** (was 27,225) — new groups: CheckpointQueue start gate /
+-  interval bounds + randomization / FIFO promotion / completion invariants / pressure + collapse
+-  one-shot edges / missing-student eligibility, preference, limit, permanence, bookkeeping /
+-  snapshot + save round-trip + legacy resume + run-mode source / budget mask; overwhelmed ending
+-  priority; options-sheet row budget updated for the audio-only modal.
+-- `Tools/FlowCheck`: **830 OK / 0 BAD across 5 consecutive runs** (was 647) — sticky-note gate +
+-  exact text in Main; queue proofs Q1–Q11 (FIFO accumulation, immediate promotion, empty≠complete,
+-  pressure/overwhelm ending once with arrivals stopped and verdicts dead, forced missing-student
+-  with line-preferred victim + radio feedback + permanence under ALLOW, chance-0 path, patrol
+-  round trip with frozen timer, mid-inspection quit+continue restoring visitor/budget/line,
+-  endless generator source, shift-boundary leak guard, night-5 administrator walk: intro dialogue,
+-  rejection, outro, completion and clock-out through the queue); settings proofs S1–S8 (menu +
+-  pause paths,
+-  audio-only rows, dimmer, slider independence, live music refresh, mute-at-zero, restart
+-  persistence, Esc guard); layout audit extended for the new regions; existing desk/save/world
+-  suites intact.
+-- Frozen `Tools/Verification/LogicTests`: **663/663**, untouched.
+-- `Tools/Verification/CompileCheck`: builds, 0 errors.
+-- `Tools/Verification/EngineSmoke`: still frozen-broken by decision (deleted `SimulateLoad`,
+-  pre-rework `LightController.Mode`) — not fixed, not deleted, not relied on.
+-- UnityStubs: no changes this pass (existing stubs covered sliders/buttons/PlayerPrefs).
+-
+-## NOT RUN (no Unity editor in this sandbox)
+-
+-Editor-only items, with exact repro:
+-1. **Play-mode pass of the Phase 11.1 sequence** — open `Assets/_Project/Scenes/Hollowbrook.unity`
+-   (or any scene; bootstraps self-build), Play → NEW GAME → advance the intro → the sticky note
+-   must appear; wait ≥6 s (nobody arrives); click it (first visitor + clock); leave the inspection
+-   ≥6 s (a second visitor's silhouette appears in the yard strip and `QUEUE:` counts it); keep
+-   waiting (FIFO accumulation); stamp (oldest waiter steps up after the banner, counters update);
+-   let the yard empty before the next arrival (desk waits — END SHIFT stays dim).
+-2. **11.2 pressure/overwhelm in-editor** — temporarily set `GameConfig.queueArrivalMin/Max` to
+-   ~1 s (test-only; restore 3/5 afterwards) or simply idle: at 5 waiting the amber banner line +
+-   intercom + radio warning fire once; at 7 the alarm + caption + "overwhelmed" lose ending fire
+-   once (no second ending, stamps dead).
+-3. **11.3 missing student in-editor** — set `missingStudentChance = 1` temporarily: on the first
+-   anomaly joining the line, one silhouette disappears (or a future visitor never comes), the
+-   radio roll-call line plays, `CURRENT: a/t` total drops by 1; allow the anomaly in and confirm
+-   the student stays gone. Restore 0.25.
+-4. **11.5 settings in-editor** — menu SETTINGS → only three sliders + BACK; move sliders while a
+-   music bed plays (immediate); pause in-game → SETTINGS (pause sheet hides, game stays paused) →
+-   BACK returns to the pause sheet → RESUME; Esc over Options must not unpause.
+-5. **Visual checks** — silhouette strips readable against the yard at 1280×720 / 1920×1080 /
+-   1366×768; sticky-note paper panel centered over the dimmer; banner second line legible;
+-   LayoutAudit console line reports zero warnings.
+diff --git a/Assets/_Project/REFACTOR_LOG.md.meta b/Assets/_Project/REFACTOR_LOG.md.meta
+deleted file mode 100644
+index d012f19..0000000
+--- a/Assets/_Project/REFACTOR_LOG.md.meta
++++ /dev/null
+@@ -1,7 +0,0 @@
+-fileFormatVersion: 2
+-guid: 6c32c43309a58ae7e7781f3ae76645b5
+-DefaultImporter:
+-  externalObjects: {}
+-  userData: 
+-  assetBundleName: 
+-  assetBundleVariant: 
+diff --git a/Assets/_Project/Resources/GameConfig.asset b/Assets/_Project/Resources/GameConfig.asset
+index 5f037bd..396bfb2 100644
+--- a/Assets/_Project/Resources/GameConfig.asset
++++ b/Assets/_Project/Resources/GameConfig.asset
+@@ -63,4 +63,5 @@ MonoBehaviour:
+   coverHugCatchSeconds: 2.6
+   canvasReferenceWidth: 1280
+   canvasReferenceHeight: 720
++  exhibitionMode: 0
+   dialogueCharsPerSecond: 42
+diff --git a/Assets/_Project/STYLE.md b/Assets/_Project/STYLE.md
+deleted file mode 100644
+index b7dc6f2..0000000
+--- a/Assets/_Project/STYLE.md
++++ /dev/null
+@@ -1,24 +0,0 @@
+-# Style contract
+-
+-Naming: `_camelCase` private fields, `PascalCase` methods and constants, booleans as questions
+-(`_isWaiting`, `IsIlluminated`). No one-letter fields; the root reference is `_gameRoot`.
+-Methods do one job and stay under ~30 lines; `Update` reads as an outline. Early returns over nesting.
+-No nested ternaries, no tuple swaps, no LINQ in gameplay code, no generics in game code.
+-One public class per file. Members ordered: constants, public fields, private fields, Unity
+-lifecycle, public methods, private methods, helpers.
+-Magic numbers become named constants at the top of the file or in a layout class
+-(`CheckpointLayout` holds every desk position; `GameConfigSO` holds every tunable).
+-
+-Comment discipline, in order:
+-1. Comments explain why, never what.
+-2. No "// Part of the X folder", "// Created by X", "// Helper for Y", nothing restating a path or class name.
+-3. No comment restating the line of code it sits on.
+-4. Method headers only when the step sequence is not obvious from the name plus first two lines.
+-5. Class purpose comments only when the class name alone does not say what it does.
+-6. When in doubt, no comment. Better code, fewer comments.
+-
+-Audio: direct `_gameRoot.Audio.PlaySfx("key")` / `PlayMusic("context")`. Never publish sound events.
+-Events: EventBus only across systems that must not know each other; otherwise call the method.
+-Subscriptions: collect in `_subscriptions` at Init, dispose in OnDestroy.
+-Safety nets (`CheckSceneHandshake`, `SafeBuild`, `AspectMatchGuard`) stay; ask before removing any.
+-New rules go in GameLogic as pure C#; new tunables in GameConfigSO.
+diff --git a/Assets/_Project/STYLE.md.meta b/Assets/_Project/STYLE.md.meta
+deleted file mode 100644
+index 97e1e99..0000000
+--- a/Assets/_Project/STYLE.md.meta
++++ /dev/null
+@@ -1,7 +0,0 @@
+-fileFormatVersion: 2
+-guid: c9a2dc6452c888e53ee25b9da647656d
+-DefaultImporter:
+-  externalObjects: {}
+-  userData: 
+-  assetBundleName: 
+-  assetBundleVariant: 
+diff --git a/Assets/_Project/Scripts/Checkpoint/CheckpointView.Decision.cs b/Assets/_Project/Scripts/Checkpoint/CheckpointView.Decision.cs
+index 078ac44..05fffdc 100644
+--- a/Assets/_Project/Scripts/Checkpoint/CheckpointView.Decision.cs
++++ b/Assets/_Project/Scripts/Checkpoint/CheckpointView.Decision.cs
+@@ -294,8 +294,7 @@ namespace Hollowbrook.Checkpoint
+                 if (Queue != null) Queue.AbandonLine();
+                 _current = null;
+                 SetVisitorVisible(false);
+-                RefreshQueueLine();
+-                RefreshHud();
++                    RefreshHud();
+                 _gameRoot.Audio.PlayMusic("checkpoint");
+                 yield break;
+             }
+@@ -309,7 +308,6 @@ namespace Hollowbrook.Checkpoint
+             _current = null;
+             _verdictLocked = true;
+             SetVisitorVisible(false);
+-            RefreshQueueLine();
+             RefreshHud();
+         }
+ 
+diff --git a/Assets/_Project/Scripts/Checkpoint/CheckpointView.Interview.cs b/Assets/_Project/Scripts/Checkpoint/CheckpointView.Interview.cs
+index 3281cc9..d690c8f 100644
+--- a/Assets/_Project/Scripts/Checkpoint/CheckpointView.Interview.cs
++++ b/Assets/_Project/Scripts/Checkpoint/CheckpointView.Interview.cs
+@@ -20,12 +20,11 @@ namespace Hollowbrook.Checkpoint
+ 
+ 
+         // Headless harnesses/FlowCheck drive the same path the buttons use.
+-        internal void OpenInterview() { _interviewOpen = true; }   // no gate left to open
+ 
+         internal void AskByHotkey(int i)
+         {
+             if (_gameRoot == null || _gameRoot.State != AppViewState.Checkpoint) return;
+-            if (!_interviewOpen || _gameRoot.Paused) return;
++            if (_gameRoot.Paused) return;
+             if (i < 0 || i >= QuestionSystem.All.Length) return;
+             AskQuestion(QuestionSystem.All[i]);
+         }
+@@ -61,17 +60,6 @@ namespace Hollowbrook.Checkpoint
+             }
+         }
+ 
+-        private static string QuestionTextShort(QuestionId q)
+-        {
+-            switch (q)
+-            {
+-                case QuestionId.Course: return "COURSE";
+-                case QuestionId.Year: return "YEAR";
+-                case QuestionId.Status: return "STATUS";
+-                default: return "FIRST CLASS";
+-            }
+-        }
+-
+         private static string QuestionSpeech(QuestionId q)
+         {
+             switch (q)
+diff --git a/Assets/_Project/Scripts/Checkpoint/CheckpointView.Papers.cs b/Assets/_Project/Scripts/Checkpoint/CheckpointView.Papers.cs
+index 1185d69..8f24169 100644
+--- a/Assets/_Project/Scripts/Checkpoint/CheckpointView.Papers.cs
++++ b/Assets/_Project/Scripts/Checkpoint/CheckpointView.Papers.cs
+@@ -239,6 +239,12 @@ namespace Hollowbrook.Checkpoint
+         internal void SearchRecords(string query)
+         {
+             if (_gameRoot == null || _gameRoot.Roster == null) return;
++            if (_current != null && _current.IsAdministrator)
++            {
++                // the registry holds no badge: the memo already on your desk is the paper
++                if (_stationOut != null) _stationOut.text = "NO RECORD — SEE ATTACHED MEMO";
++                return;
++            }
+             int idx = RecordSearch.FindInCanon(_gameRoot.Roster.Canon, query);
+             if (idx < 0)
+             {
+diff --git a/Assets/_Project/Scripts/Checkpoint/CheckpointView.QueueLine.cs b/Assets/_Project/Scripts/Checkpoint/CheckpointView.QueueLine.cs
+deleted file mode 100644
+index e6ccb6a..0000000
+--- a/Assets/_Project/Scripts/Checkpoint/CheckpointView.QueueLine.cs
++++ /dev/null
+@@ -1,116 +0,0 @@
+-using System.Collections;
+-using System.Collections.Generic;
+-using System.Text;
+-using Hollowbrook.Bootstrap;
+-using Hollowbrook.Core;
+-using Hollowbrook.Logic;
+-using Hollowbrook.UI;
+-using UnityEngine;
+-using UnityEngine.UI;
+-using L = Hollowbrook.Checkpoint.CheckpointLayout;
+-
+-namespace Hollowbrook.Checkpoint
+-{
+-    // The waiting-line display (built only when ShowcaseBuild.LineDisplay is on).
+-    // One area of the inspection desk; see CheckpointView.cs for the state machine,
+-    // the shared fields and the whole-class comment. Same class, split by desk area.
+-    public partial class CheckpointView
+-    {
+-        // The waiting line: one identical silhouette per arrived-but-not-inspected visitor,
+-        // split across the two yard gaps either side of the booth (left strip first).
+-        // Same figure for legit students and anomalies — the line reveals nothing.
+-        // The right strip heads the yard with the waiting-count badge.
+-        private void BuildQueueStrips()
+-        {
+-            var stripL = UIFactory.Panel(_desk, "queuestripL", new Color(1f, 1f, 1f, 0.02f));
+-            Reg("queuestripL", stripL.rectTransform, L.QueueStripL);
+-            stripL.raycastTarget = false;
+-            var stripR = UIFactory.Panel(_desk, "queuestripR", new Color(1f, 1f, 1f, 0.02f));
+-            Reg("queuestripR", stripR.rectTransform, L.QueueStripR);
+-            stripR.raycastTarget = false;
+-
+-            _queueBadge = UIFactory.Label(stripR.rectTransform, "qbadge", "LINE 0", 13,
+-                UIFactory.InkDim, TextAnchor.MiddleCenter);
+-            L.Place(_queueBadge.rectTransform, L.Inner.QueueBadge);
+-            _queueBadge.raycastTarget = false;
+-
+-            var tint = new Color(0.72f, 0.74f, 0.78f, 0.85f);   // placeholder figures, readable on the dark yard
+-            for (int i = 0; i < 8; i++)
+-            {
+-                bool left = i < 4;
+-                var strip = left ? stripL.rectTransform : stripR.rectTransform;
+-                float x = left ? L.Inner.QueueSlotLX : L.Inner.QueueSlotRX;
+-                float y = (left ? L.Inner.QueueSlotLY0 : L.Inner.QueueSlotRY0) + (i % 4) * L.Inner.QueueSlotStep;
+-                var fig = UIFactory.Img(strip, "qsil" + i, ProceduralArt.Get("custodian_0"), tint);
+-                L.Place(fig.rectTransform, new L.Region(x, y, L.Inner.QueueSlotW, L.Inner.QueueSlotH));
+-                fig.preserveAspect = true;
+-                fig.raycastTarget = false;
+-                fig.gameObject.SetActive(false);
+-                _silhouettes[i] = fig;
+-            }
+-            _queueOverflow = UIFactory.Label(stripR.rectTransform, "qoverflow", "", 14,
+-                UIFactory.InkDim, TextAnchor.MiddleCenter);
+-            L.Place(_queueOverflow.rectTransform, new L.Region(L.Inner.QueueSlotRX,
+-                L.Inner.QueueSlotRY0 + 3 * L.Inner.QueueSlotStep, L.Inner.QueueSlotW, L.Inner.QueueSlotH));
+-            _queueOverflow.gameObject.SetActive(false);
+-        }
+-
+-        // QUEUE: waiting | CURRENT: arrived/effective — the waiting count excludes the
+-        // person at the window; the counter never counts vanished students as inspected.
+-        private void RefreshQueueStatus()
+-        {
+-            if (_queueStatus == null) return;
+-            if (Queue == null || !Queue.IsAttached)
+-            {
+-                _queueStatus.text = "";
+-                if (_queueBadge != null) _queueBadge.text = "LINE 0";
+-                return;
+-            }
+-            bool collapsed = Queue.Collapsed;
+-            bool pressured = Queue.PressureLevel >= 1;
+-
+-            string text;
+-            if (collapsed)
+-            {
+-                text = "QUEUE: " + Queue.WaitingCount + "  —  OVERRUN";
+-            }
+-            else
+-            {
+-                text = "QUEUE: " + Queue.WaitingCount;
+-                if (Queue.EffectiveTotal >= 0)
+-                    text += "  |  CURRENT: " + Queue.ArrivalCount + "/" + Queue.EffectiveTotal;
+-            }
+-
+-            Color statusColor;
+-            Color badgeColor;
+-            if (collapsed) { statusColor = UIFactory.AccentBright; badgeColor = UIFactory.AccentBright; }
+-            else if (pressured) { statusColor = PressureColor; badgeColor = PressureColor; }
+-            else { statusColor = UIFactory.PaperInk; badgeColor = UIFactory.InkDim; }
+-
+-            _queueStatus.text = text;
+-            _queueStatus.color = statusColor;
+-            if (_queueBadge != null)
+-            {
+-                _queueBadge.text = collapsed ? "LINE " + Queue.WaitingCount + " !" : "LINE " + Queue.WaitingCount;
+-                _queueBadge.color = badgeColor;
+-            }
+-        }
+-
+-        // One identical silhouette per waiting visitor (left strip first), overflow as "+n".
+-        private void RefreshQueueLine()
+-        {
+-            if (_queueBadge == null) return;   // line display not built (ShowcaseBuild)
+-            int n = Queue != null ? Queue.WaitingCount : 0;
+-            bool overflow = n > _silhouettes.Length;
+-            int shown = overflow ? _silhouettes.Length - 1 : Mathf.Min(n, _silhouettes.Length);
+-            for (int i = 0; i < _silhouettes.Length; i++)
+-                if (_silhouettes[i] != null) _silhouettes[i].gameObject.SetActive(i < shown);
+-            if (_queueOverflow != null)
+-            {
+-                _queueOverflow.gameObject.SetActive(overflow);
+-                if (overflow) _queueOverflow.text = "+" + (n - shown);
+-            }
+-            RefreshQueueStatus();
+-        }
+-    }
+-}
+diff --git a/Assets/_Project/Scripts/Checkpoint/CheckpointView.QueueLine.cs.meta b/Assets/_Project/Scripts/Checkpoint/CheckpointView.QueueLine.cs.meta
+deleted file mode 100644
+index 6ed489d..0000000
+--- a/Assets/_Project/Scripts/Checkpoint/CheckpointView.QueueLine.cs.meta
++++ /dev/null
+@@ -1,11 +0,0 @@
+-fileFormatVersion: 2
+-guid: 487ef5d30056570fae5cd9495a52b47d
+-MonoImporter:
+-  externalObjects: {}
+-  serializedVersion: 2
+-  defaultReferences: []
+-  executionOrder: 0
+-  icon: {instanceID: 0}
+-  userData: 
+-  assetBundleName: 
+-  assetBundleVariant: 
+diff --git a/Assets/_Project/Scripts/Checkpoint/CheckpointView.TopBar.cs b/Assets/_Project/Scripts/Checkpoint/CheckpointView.TopBar.cs
+index beb7e6a..b69ea41 100644
+--- a/Assets/_Project/Scripts/Checkpoint/CheckpointView.TopBar.cs
++++ b/Assets/_Project/Scripts/Checkpoint/CheckpointView.TopBar.cs
+@@ -27,12 +27,7 @@ namespace Hollowbrook.Checkpoint
+             _topLeft = UIFactory.Label(banner, "left", "", 14, UIFactory.PaperInk, TextAnchor.MiddleCenter);
+             L.Place(_topLeft.rectTransform, L.Inner.BannerTop);
+             // second banner line: the live queue readout (Phase 9.7 top-bar format)
+-            if (ShowcaseBuild.LineDisplay)
+-            {
+-                _queueStatus = UIFactory.Label(banner, "queuestatus", "", 13,
+-                    new Color(0.30f, 0.30f, 0.29f), TextAnchor.MiddleCenter);
+-                L.Place(_queueStatus.rectTransform, L.Inner.BannerQueue);
+-            }
++
+ 
+             _topClock = UIFactory.Label(_desk, "clock", "22:00", 20, UIFactory.InkDim, TextAnchor.MiddleCenter);
+             Reg("clock", _topClock.rectTransform, L.Clock);
+diff --git a/Assets/_Project/Scripts/Checkpoint/CheckpointView.Window.cs b/Assets/_Project/Scripts/Checkpoint/CheckpointView.Window.cs
+index e44e4ac..1502f9f 100644
+--- a/Assets/_Project/Scripts/Checkpoint/CheckpointView.Window.cs
++++ b/Assets/_Project/Scripts/Checkpoint/CheckpointView.Window.cs
+@@ -236,6 +236,13 @@ namespace Hollowbrook.Checkpoint
+             return t;
+         }
+ 
++        // Headless hook: present the Night-5 administrator so the memo path is provable.
++        internal void DebugPresentAdmin()
++        {
++            var admin = new RosterFactory(_gameRoot.Session.Seed).BuildAdministrator(ShiftPlan.Build()[4]);
++            PresentFromQueue(admin, false);   // same state machine the queue path uses
++        }
++
+         // Arrival beat: the student slides the ID to the counter edge, unasked.
+         private void OfferAtCounter()
+         {
+@@ -274,6 +281,13 @@ namespace Hollowbrook.Checkpoint
+             _documentsTaken = true;
+             if (_idCardGo != null) _idCardGo.transform.SetAsLastSibling();
+             SetDocumentsVisible(true);
++            if (_current.IsAdministrator && _recordGo != null)
++            {
++                // the District Roster Memo rides on the record sheet: hand it over WITH the
++                // badge (issue #4) — it is the administrator's paper clue
++                _recordGo.SetActive(true);
++                _recordGo.transform.SetAsLastSibling();
++            }
+             bool admin = _current.IsAdministrator;
+             FillIdCard(_current, admin);
+             FillRecordSheet(_current, admin);
+diff --git a/Assets/_Project/Scripts/Checkpoint/CheckpointView.cs b/Assets/_Project/Scripts/Checkpoint/CheckpointView.cs
+index 40bc661..1e2c53f 100644
+--- a/Assets/_Project/Scripts/Checkpoint/CheckpointView.cs
++++ b/Assets/_Project/Scripts/Checkpoint/CheckpointView.cs
+@@ -39,10 +39,6 @@ namespace Hollowbrook.Checkpoint
+         private Text _topLeft, _topClock;
+         private Text _runStats;      // endless/challenge: score · streak · timer
+         private Text _mutationStrip; // challenge bulletin
+-        private Text _queueStatus;   // QUEUE: n | CURRENT: a/t (+ pressure colors)
+-        private Text _queueBadge;    // waiting-count badge above the right silhouette strip
+-        private readonly Image[] _silhouettes = new Image[8];  // waiting line, 4 per strip
+-        private Text _queueOverflow;
+         private GameObject _stickyRoot;
+         private Button _stickyButton;
+ 
+@@ -73,7 +69,6 @@ namespace Hollowbrook.Checkpoint
+         private GameObject _lastPaper;
+         internal Verdict PendingVerdict => _pendingVerdict;
+         internal bool SlipStamped => _slipStamped;
+-        private bool _interviewOpen = true;   // the interview row is always live
+         private bool _documentsTaken;      // the ID is in your hand: papers, scan and stamps unlock
+         private GameObject _offeredRoot;      // centred offered ID + its dimmer
+         private Image _offeredPhoto;
+@@ -111,7 +106,6 @@ namespace Hollowbrook.Checkpoint
+             BuildOfferedId();
+             BuildCenterColumn();
+             BuildRightColumn();
+-            if (ShowcaseBuild.LineDisplay) BuildQueueStrips();
+             BuildOverlays();
+             BuildStickyNote();
+ 
+@@ -151,24 +145,6 @@ namespace Hollowbrook.Checkpoint
+             return b;
+         }
+ 
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+         public void Show() { gameObject.SetActive(true); RefreshHud(); }
+         public void Hide()
+         {
+@@ -231,7 +207,6 @@ namespace Hollowbrook.Checkpoint
+                 SetVisitorVisible(false);
+                 _stickyRoot.SetActive(true);
+             }
+-            RefreshQueueLine();
+             RefreshHud();
+         }
+ 
+@@ -245,8 +220,6 @@ namespace Hollowbrook.Checkpoint
+             }
+         }
+ 
+-
+-
+         private void OnDestroy()
+         {
+             foreach (var subscription in _subscriptions) subscription?.Dispose();
+@@ -300,7 +273,6 @@ namespace Hollowbrook.Checkpoint
+                 // one consequence, one announcement: GameRoot owns both (toast + ending)
+                 _gameRoot.TriggerQueueOverwhelmed();
+             }
+-            if (r.LineChanged) RefreshQueueLine();
+         }
+ 
+         private void ExhibitionHintOnce()
+@@ -326,7 +298,6 @@ namespace Hollowbrook.Checkpoint
+             SetDocumentsVisible(false);
+             _offeredRoot.SetActive(false);
+             PresentVisitor(v);
+-            RefreshQueueLine();
+             RefreshHud();
+         }
+ 
+@@ -334,11 +305,6 @@ namespace Hollowbrook.Checkpoint
+         // Published only on change, same contract as the exploration prompts.
+         private string _lastHandoverPrompt = "\0";
+ 
+-
+-
+-
+-
+-
+         internal void DebugTakeDocuments() => TakeIdAt(new Vector2(
+             L.IdCard.X + L.IdCard.W / 2f, L.IdCard.Y + L.IdCard.H / 2f));
+ 
+@@ -353,28 +319,8 @@ namespace Hollowbrook.Checkpoint
+             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VisitorArrived, v));
+         }
+ 
+-
+-
+-
+-
+-
+-
+-
+-
+-
+         private float BannerSeconds => _gameRoot.Config.exhibitionMode ? _gameRoot.Config.exhibitionBannerSeconds : _gameRoot.Config.verdictBannerSeconds;
+ 
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+         public void GoPatrol()
+         {
+             if (_current != null && !_verdictLocked)
+@@ -423,9 +369,13 @@ namespace Hollowbrook.Checkpoint
+             if (_gameRoot == null || !gameObject.activeInHierarchy) return;
+             AdvanceQueue(Time.deltaTime);
+             TickHotkeys();
+-            // zoom the paper you last touched: real wheel axis, per-paper, clamped
++            // zoom the paper you last touched: real wheel axis, per-paper, clamped,
++            // and only while the desk is live (never behind pause/dialogue/overlays)
+             var zoomPaper = _lastPaper != null ? _lastPaper : _idCardGo;
+-            if (zoomPaper != null && zoomPaper.activeSelf)
++            bool deskLive = !_gameRoot.Paused && !_gameRoot.BlockingOverlayOpen &&
++                            (_gameRoot.Dialogue == null || !_gameRoot.Dialogue.IsActive) &&
++                            _gameRoot.State == AppViewState.Checkpoint;
++            if (deskLive && zoomPaper != null && zoomPaper.activeSelf)
+             {
+                 var dp = zoomPaper.GetComponent<DragPaper>();
+                 if (dp != null)
+@@ -445,9 +395,13 @@ namespace Hollowbrook.Checkpoint
+             if (_searchField != null && _searchField.isFocused) return;
+             // Escape belongs to an open overlay sheet (Options/Controls/Credits) first —
+             // without this guard Esc over the pause menu would close Options AND unpause.
+-            if (Input.GetKeyDown(KeyCode.Escape) && !_gameRoot.BlockingOverlayOpen)
++            if (Input.GetKeyDown(KeyCode.Escape) && !_gameRoot.BlockingOverlayOpen && InputGate.TryEscape())
+                 _gameRoot.TogglePause();
+-            if (Input.GetKeyDown(KeyCode.M) && _gameRoot.State == AppViewState.Checkpoint) _gameRoot.OpenMap();
++            // gameplay keys stand down while paused, in overlays, in dialogue, or off-desk
++            if (_gameRoot.Paused || _gameRoot.BlockingOverlayOpen ||
++                (_gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive) ||
++                _gameRoot.State != AppViewState.Checkpoint) return;
++            if (Input.GetKeyDown(KeyCode.M) && InputGate.TryM()) _gameRoot.OpenMap();
+             // 1-4 ask the four questions while the interview is open (labels say so)
+             for (int k = 0; k < 4; k++)
+                 if (Input.GetKeyDown((KeyCode)(KeyCode.Alpha1 + k))) AskByHotkey(k);
+@@ -465,15 +419,9 @@ namespace Hollowbrook.Checkpoint
+             if (_gameRoot == null || _gameRoot.Session == null) return;
+             RefreshTopBar();
+             RefreshHandoverPrompt();
+-            RefreshQueueStatus();
+             RefreshDecisionButtons();
+         }
+ 
+-
+-
+-
+-
+-
+         private void OnEnable()
+         {
+             if (_gameRoot != null && _runStats != null && _gameRoot.Session.Mode != GameMode.Normal)
+diff --git a/Assets/_Project/Scripts/Core/GameConfigSO.cs b/Assets/_Project/Scripts/Core/GameConfigSO.cs
+index d5c02d1..c9d6cb7 100644
+--- a/Assets/_Project/Scripts/Core/GameConfigSO.cs
++++ b/Assets/_Project/Scripts/Core/GameConfigSO.cs
+@@ -118,7 +118,9 @@ namespace Hollowbrook.Core
+ 
+         [Header("Exhibition (5-10 minute booth cut)")]
+         [Tooltip("One curated night (4 visitors, 1 anomaly) then the demo closes. Off = full five-shift story.")]
+-        public bool exhibitionMode = true;
++        // shipping default is the FIVE-NIGHT story (issue #2); the booth demo opts in via
++        // GameConfig.asset exhibitionMode: 1 or this flag in headless proofs
++        public bool exhibitionMode = false;
+         public float exhibitionBannerSeconds = 2.2f;
+ 
+         [Header("Shift clock")]
+diff --git a/Assets/_Project/Scripts/Core/GameRoot.cs b/Assets/_Project/Scripts/Core/GameRoot.cs
+index c7aeab7..771035f 100644
+--- a/Assets/_Project/Scripts/Core/GameRoot.cs
++++ b/Assets/_Project/Scripts/Core/GameRoot.cs
+@@ -11,7 +11,7 @@ using UnityEngine;
+ namespace Hollowbrook.Core
+ {
+     /// <summary>Central game orchestrator (the "root"). Owns services, the run session and
+-    /// explicit references to every view — assigned once by <see cref="GameBootstrap"/>.
++    /// explicit references to every view — assigned once by CoreBootstrap + the scene bootstraps.
+     /// Gameplay code never uses GameObject.Find; it goes through this class or the EventBus.</summary>
+     public class GameRoot : MonoBehaviour
+     {
+@@ -52,7 +52,7 @@ namespace Hollowbrook.Core
+         public CheckpointQueue Queue { get; private set; } = new CheckpointQueue();
+         private bool _continuePending;
+ 
+-        // ---- views (explicit references, set by GameBootstrap) ----
++        // ---- views (explicit references, set by the per-scene bootstraps) ----
+         public Camera MainCamera;
+         public ViewManager Views;
+         public CheckpointView Checkpoint;
+@@ -82,7 +82,8 @@ namespace Hollowbrook.Core
+         public bool BlockingOverlayOpen =>
+             (SettingsScreen != null && SettingsScreen.gameObject.activeInHierarchy) ||
+             (ControlsScreen != null && ControlsScreen.gameObject.activeInHierarchy) ||
+-            (CreditsScreen != null && CreditsScreen.gameObject.activeInHierarchy);
++            (CreditsScreen != null && CreditsScreen.gameObject.activeInHierarchy) ||
++            (Confirm != null && Confirm.IsOpen);
+ 
+         private System.Action _queuedSceneAction;
+         public void QueueSceneAction(System.Action a)
+@@ -327,7 +328,12 @@ namespace Hollowbrook.Core
+             {
+                 int shift = Mathf.Clamp(Session.CurrentShift, 1, ShiftPlan.TotalShifts);
+                 int resumeFrom = save.Session.VisitorIndexAtSave;
+-                QueueSceneAction(() => BeginShift(shift, resumeFrom));
++                QueueSceneAction(() =>
++                {
++                    bool isResume = (save.Session.QueueState != null && save.Session.QueueState.Started) || resumeFrom > 0;
++                    BeginShift(shift, resumeFrom, isResume);
++                    if (isResume) RemapAdmittedToRoster();
++                });
+                 Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
+             }
+             else
+@@ -341,14 +347,19 @@ namespace Hollowbrook.Core
+         /// <summary>Normal mode: prepare and enter a shift. Roster generation replays earlier
+         /// shifts on a fresh factory so the seeded RNG lands on the identical state (saves resume
+         /// mid-story without storing the whole roster).</summary>
+-        public void BeginShift(int number, int resumeFromVisitor = 0)
++        public void BeginShift(int number, int resumeFromVisitor = 0, bool isResume = false)
+         {
+             _resumeFromVisitor = resumeFromVisitor;
+             number = Mathf.Clamp(number, 1, ShiftPlan.TotalShifts);
+             Session.CurrentShift = number;
+-            PrepareShiftRoster(number);
+-            Session.TonightLog.Clear();
+-            Session.AdmittedStudents.Clear();
++            PrepareShiftRoster(number, isResume);
++            // a resume keeps the loaded night state: presentation log, admitted students
++            // and the anomaly pool all come FROM the save, not from a fresh shift setup
++            if (!isResume)
++            {
++                Session.TonightLog.Clear();
++                Session.AdmittedStudents.Clear();
++            }
+             _shiftMinutes = 0f;
+             SetupShiftQueue(number, resumeFromVisitor);
+             PlayIntroThenCheckpoint(BuildShiftIntroLines(number), CurrentShiftDef);
+@@ -357,7 +368,7 @@ namespace Hollowbrook.Core
+ 
+         // Roster generation replays earlier shifts on a fresh factory so the seeded RNG lands
+         // on the identical state (saves resume mid-story without storing the whole roster).
+-        private void PrepareShiftRoster(int number)
++        private void PrepareShiftRoster(int number, bool keepPool = false)
+         {
+             var plan = ShiftPlan.Build();
+             Roster = new RosterFactory(Session.Seed);
+@@ -365,11 +376,26 @@ namespace Hollowbrook.Core
+             CurrentShiftDef = (Config != null && Config.exhibitionMode && number == 1)
+                 ? ShiftPlan.ExhibitionDef() : plan[number - 1];
+             CurrentRoster = Roster.GenerateShift(CurrentShiftDef);
+-            // one shared pool: this shift's anomalies, outstanding until resolved
++            // one shared pool: this shift's anomalies, outstanding until resolved.
++            // Kinds derive from seed^shift (not the shared stream) so a resumed night
++            // rebuilds the IDENTICAL pool the save recorded.
+             var kinds = new System.Collections.Generic.List<AnomalyBehaviorKind>();
++            var krng = new GameRng(Session.Seed ^ (number * 7919));
+             for (int i = 0; i < CurrentShiftDef.AnomalyCount; i++)
+-                kinds.Add((AnomalyBehaviorKind)_runRng.NextInt(0, 4));
+-            Session.Pool.Seed(kinds);
++                kinds.Add((AnomalyBehaviorKind)krng.NextInt(0, 4));
++            if (!keepPool) Session.Pool.Seed(kinds);
++        }
++
++        // Saved admitted lists ride as roster indices; re-attach ids/names once the roster exists.
++        private void RemapAdmittedToRoster()
++        {
++            if (CurrentRoster == null) return;
++            foreach (var st in Session.AdmittedStudents)
++            {
++                if (st.VisitorIndex < 0) continue;
++                foreach (var v in CurrentRoster)
++                    if (v.VisitorIndex == st.VisitorIndex) { st.Id = v.IdNumber; st.Name = v.ClaimedName; break; }
++            }
+         }
+ 
+         // The night's opening cards: title, objective and the rules addendum (plus the
+@@ -659,7 +685,10 @@ namespace Hollowbrook.Core
+ 
+             var eval = Session.EvaluateEnding();
+             if (eval.Ending == EndingType.None && Config != null && Config.exhibitionMode && Session.CompletedShifts >= 1)
++            {
++                Session.Breaches += Session.Pool.Pending;         // booth night closes its books too
+                 eval = EndingRules.EvaluateExhibition(Session);   // booth cut closes after one night
++            }
+             if (eval.Ending != EndingType.None) { TriggerEnding(eval); return; }
+ 
+             SetState(AppViewState.ShiftResults);
+@@ -818,12 +847,27 @@ namespace Hollowbrook.Core
+             Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Menu);
+         }
+ 
++        /// <summary>True while a run is actually in progress — the menu's blank session
++        /// must never be persisted over a real save (issue #1: EXIT on the menu wiped saves).</summary>
++        private bool InRunProgress() =>
++            Session != null && Session.Mode == GameMode.Normal && !Session.RunFinished &&
++            Session.CompletedShifts < ShiftPlan.TotalShifts &&
++            State != AppViewState.MainMenu && State != AppViewState.ModeSelect && State != AppViewState.Boot;
++
+         public void QuitApplication()
+         {
+-            if (Session != null && Session.Mode == GameMode.Normal) PersistRun();
++            if (InRunProgress()) PersistRun();
++            if (Settings != null) Settings.Persist();
+             Application.Quit();
+         }
+ 
++        // Alt+F4 / window close: same guard as QuitApplication, no blank-save overwrite
++        private void OnApplicationQuit()
++        {
++            if (InRunProgress()) PersistRun();
++            if (Settings != null) Settings.Persist();
++        }
++
+         private void OnDestroy()
+         {
+             if (Instance == this) Instance = null;
+diff --git a/Assets/_Project/Scripts/Core/InputGate.cs b/Assets/_Project/Scripts/Core/InputGate.cs
+new file mode 100644
+index 0000000..0f93ed2
+--- /dev/null
++++ b/Assets/_Project/Scripts/Core/InputGate.cs
+@@ -0,0 +1,34 @@
++using UnityEngine;
++
++namespace Hollowbrook.Core
++{
++    /// <summary>One owner per key per frame. Esc and M are listened to by several views
++    /// (sheets, map, pause, desk, patrol) and Unity does not guarantee their Update order,
++    /// so the first handler to run consumes the key for that frame and the rest stand down.
++    /// Fixes the "one Esc closes Settings AND unpauses the game" class of bug (issue #6).</summary>
++    public static class InputGate
++    {
++        private static int _escFrame = -1;
++        private static int _mFrame = -1;
++
++        public static bool TryEscape()
++        {
++            int f = Time.frameCount;
++            if (f == _escFrame) return false;
++            _escFrame = f;
++            return true;
++        }
++
++        public static bool TryM()
++        {
++            int f = Time.frameCount;
++            if (f == _mFrame) return false;
++            _mFrame = f;
++            return true;
++        }
++
++        /// <summary>Headless harnesses drive handlers by hand inside one "frame"; bump the
++        /// frame between simulated key presses so each gets a fresh gate.</summary>
++        public static void NextFrame() { _escFrame = -1; _mFrame = -1; }
++    }
++}
+diff --git a/Assets/_Project/Scripts/Core/ShowcaseBuild.cs.meta b/Assets/_Project/Scripts/Core/InputGate.cs.meta
+similarity index 83%
+rename from Assets/_Project/Scripts/Core/ShowcaseBuild.cs.meta
+rename to Assets/_Project/Scripts/Core/InputGate.cs.meta
+index eabc90f..ffb20df 100644
+--- a/Assets/_Project/Scripts/Core/ShowcaseBuild.cs.meta
++++ b/Assets/_Project/Scripts/Core/InputGate.cs.meta
+@@ -1,5 +1,5 @@
+ fileFormatVersion: 2
+-guid: 3a02ae69afa367026e09ec7102eec17e
++guid: a4d1fd382e56d63e983d6f1809116aa9
+ MonoImporter:
+   externalObjects: {}
+   serializedVersion: 2
+diff --git a/Assets/_Project/Scripts/Core/SaveSystem.cs b/Assets/_Project/Scripts/Core/SaveSystem.cs
+index e46f86f..f829e5c 100644
+--- a/Assets/_Project/Scripts/Core/SaveSystem.cs
++++ b/Assets/_Project/Scripts/Core/SaveSystem.cs
+@@ -59,8 +59,14 @@ namespace Hollowbrook.Core
+                 if (p == null || save == null) return false;
+                 string tmp = p + ".tmp";
+                 File.WriteAllText(tmp, SaveFormat.Serialize(save));
+-                if (File.Exists(p)) File.Delete(p);
+-                File.Move(tmp, p);
++                // crash-safe: Replace keeps the old file as .bak until the new one is in place;
++                // a failure between the two operations never leaves the player save-less
++                if (File.Exists(p)) File.Replace(tmp, p, p + ".bak");
++                else
++                {
++                    if (File.Exists(p + ".bak")) File.Delete(p + ".bak");
++                    File.Move(tmp, p);
++                }
+                 _bus?.Publish(GameEvent.Of(EventIds.GameSaved));
+                 Debug.Log("[SaveSystem] saved to " + p);
+                 return true;
+@@ -72,14 +78,22 @@ namespace Hollowbrook.Core
+             }
+         }
+ 
++        private static SaveGame TryReadSave(string path)
++        {
++            try { return SaveFormat.Deserialize(File.ReadAllText(path)); }
++            catch { return null; }
++        }
++
+         public SaveGame Read()
+         {
+             try
+             {
+                 string p = SavePath;
+-                if (p == null || !File.Exists(p)) return null;
+-                var save = SaveFormat.Deserialize(File.ReadAllText(p));
+-                if (save == null) Debug.LogWarning("[SaveSystem] save file corrupt/unsupported — treated as no save.");
++                if (p == null) return null;
++                var save = TryReadSave(p);
++                if (save == null && File.Exists(p + ".bak")) save = TryReadSave(p + ".bak");
++                if (save == null && File.Exists(p + ".tmp")) save = TryReadSave(p + ".tmp");
++                if (save == null && File.Exists(p)) Debug.LogWarning("[SaveSystem] save file corrupt/unsupported — treated as no save.");
+                 else _bus?.Publish(GameEvent.Of(EventIds.GameLoaded));
+                 return save;
+             }
+diff --git a/Assets/_Project/Scripts/Core/SettingsSystem.cs b/Assets/_Project/Scripts/Core/SettingsSystem.cs
+index f85b25f..26e2893 100644
+--- a/Assets/_Project/Scripts/Core/SettingsSystem.cs
++++ b/Assets/_Project/Scripts/Core/SettingsSystem.cs
+@@ -52,7 +52,7 @@ namespace Hollowbrook.Core
+             }
+         }
+ 
+-        public void SaveToPrefs()
++        public void SaveToPrefs(bool persist = true)
+         {
+             try
+             {
+@@ -67,7 +67,7 @@ namespace Hollowbrook.Core
+                 PlayerPrefs.SetInt(KeyPrefix + "displayW", Current.DisplayWidth);
+                 PlayerPrefs.SetInt(KeyPrefix + "displayH", Current.DisplayHeight);
+                 PlayerPrefs.SetInt(KeyPrefix + "sfxExplicit", 1);   // any Apply() is an explicit user write
+-                PlayerPrefs.Save();
++                if (persist) PlayerPrefs.Save();
+             }
+             catch (Exception e) { Debug.LogWarning("[Settings] prefs write failed: " + e.Message); }
+         }
+@@ -81,6 +81,10 @@ namespace Hollowbrook.Core
+             Notify();
+         }
+ 
++        /// <summary>Flush to disk: called when the settings sheet closes and on quit, not
++        /// on every slider tick (issue #8: a volume drag used to write prefs per frame).</summary>
++        public void Persist() => PlayerPrefs.Save();
++
+         public void Apply(Action<SettingsData> mutate)
+         {
+             mutate?.Invoke(Current);
+@@ -88,7 +92,7 @@ namespace Hollowbrook.Core
+             Current.MusicVolume = Mathf.Clamp01(Current.MusicVolume);
+             Current.SfxVolume = Mathf.Clamp01(Current.SfxVolume);
+             Current.TextScale = Mathf.Clamp(Current.TextScale, 0, 2);
+-            SaveToPrefs();
++            SaveToPrefs(false);
+             Notify();
+         }
+ 
+diff --git a/Assets/_Project/Scripts/Core/ShowcaseBuild.cs b/Assets/_Project/Scripts/Core/ShowcaseBuild.cs
+deleted file mode 100644
+index b8685c0..0000000
+--- a/Assets/_Project/Scripts/Core/ShowcaseBuild.cs
++++ /dev/null
+@@ -1,14 +0,0 @@
+-namespace Hollowbrook.Core
+-{
+-    // The one place the build's presentation cuts are owned. Each flag is a product
+-    // decision, not a workaround: false means the feature's UI is never BUILT at all
+-    // (its logic may still run — the arrival queue keeps queuing behind the scenes).
+-    // Flip a flag here and every build/refresh path for it lights up again; no other
+-    // file knows about the cut, and nothing is ever built-then-hidden.
+-    public static class ShowcaseBuild
+-    {
+-        /// <summary>Waiting-line silhouettes and the banner's QUEUE/CURRENT readout.
+-        /// The queue itself always runs; only its desk display rides on this flag.</summary>
+-        public const bool LineDisplay = false;
+-    }
+-}
+diff --git a/Assets/_Project/Scripts/GameLogic/GameSession.cs b/Assets/_Project/Scripts/GameLogic/GameSession.cs
+index 2ae21ae..f053b47 100644
+--- a/Assets/_Project/Scripts/GameLogic/GameSession.cs
++++ b/Assets/_Project/Scripts/GameLogic/GameSession.cs
+@@ -87,7 +87,7 @@ namespace Hollowbrook.Logic
+             if (o == null || o.Verdict == Verdict.None) return;
+             Processed++;
+             if (o.Verdict == Verdict.Allow)
+-                AdmittedStudents.Add(new StudentData { Id = o.Id, Name = o.Name, IsAnomaly = o.WasAnomaly });
++                AdmittedStudents.Add(new StudentData { Id = o.Id, Name = o.Name, IsAnomaly = o.WasAnomaly, VisitorIndex = o.VisitorIndex });
+             if (o.Correct)
+             {
+                 CorrectDecisions++;
+@@ -160,7 +160,14 @@ namespace Hollowbrook.Logic
+             CurrentShift++;
+         }
+ 
+-        public EndingRules.Evaluation EvaluateEnding() => EndingRules.Evaluate(this);
++        public EndingRules.Evaluation EvaluateEnding()
++        {
++            // the night's books close: anomalies still outstanding count as breaches, so
++            // patrol finally feeds the ending (issue #7). Applied once, at the final eval.
++            if (CompletedShifts >= ShiftPlan.TotalShifts) Breaches += Pool.Pending;
++            return EndingRules.Evaluate(this);
++        }
++
+ 
+         public bool LoseThresholdReached =>
+             AdminAllowed || Breaches >= EndingRules.LoseThreshold || FalseRejections >= EndingRules.LoseThreshold;
+diff --git a/Assets/_Project/Scripts/GameLogic/InspectionRules.cs b/Assets/_Project/Scripts/GameLogic/InspectionRules.cs
+index 038c233..a00acfc 100644
+--- a/Assets/_Project/Scripts/GameLogic/InspectionRules.cs
++++ b/Assets/_Project/Scripts/GameLogic/InspectionRules.cs
+@@ -82,6 +82,7 @@ namespace Hollowbrook.Logic
+             public bool WasAdministrator;
+             public string Id;              // admitted-student bookkeeping for the classroom
+             public string Name;
++            public int VisitorIndex = -1;
+             public List<string> RevealedDefects = new List<string>();
+         }
+ 
+@@ -106,6 +107,7 @@ namespace Hollowbrook.Logic
+                 WasAdministrator = v.IsAdministrator,
+                 Id = v.IdNumber,
+                 Name = v.ClaimedName,
++                VisitorIndex = v.VisitorIndex,
+                 RevealedDefects = v.DescribeDefects(),
+             };
+             return o;
+diff --git a/Assets/_Project/Scripts/GameLogic/SaveFormat.cs b/Assets/_Project/Scripts/GameLogic/SaveFormat.cs
+index 93aa7b8..6cb4b28 100644
+--- a/Assets/_Project/Scripts/GameLogic/SaveFormat.cs
++++ b/Assets/_Project/Scripts/GameLogic/SaveFormat.cs
+@@ -52,6 +52,7 @@ namespace Hollowbrook.Logic
+                 sb.Append("queueWarned=").Append(q.Warned).Append('\n');
+             }
+             KV(sb, "pool", s.Pool.Encode());
++            KV(sb, "admitted", string.Join(",", s.AdmittedStudents.ConvertAll(st => st.VisitorIndex + ":" + (st.IsAnomaly ? 1 : 0))));
+             sb.Append("adminAllowed=").Append(s.AdminAllowed ? 1 : 0).Append('\n');
+             sb.Append("adminRejected=").Append(s.AdminRejected ? 1 : 0).Append('\n');
+             sb.Append("runFinished=").Append(s.RunFinished ? 1 : 0).Append('\n');
+@@ -149,6 +150,13 @@ namespace Hollowbrook.Logic
+                 }
+                 else s.QueueState = null;   // a pre-queue save: ContinueGame falls back to visitorAtSave
+                 s.Pool.Decode(Str(map, "pool", ""));
++                foreach (var pair in Str(map, "admitted", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries))
++                {
++                    var halved = pair.Split(':');
++                    if (halved.Length == 2 && int.TryParse(halved[0], System.Globalization.NumberStyles.Integer,
++                            System.Globalization.CultureInfo.InvariantCulture, out int ai))
++                        s.AdmittedStudents.Add(new StudentData { VisitorIndex = ai, IsAnomaly = halved[1] == "1", Id = "IDX:" + ai });
++                }
+                 s.AdminAllowed = Int(map, "adminAllowed", 0) == 1;
+                 s.AdminRejected = Int(map, "adminRejected", 0) == 1;
+                 s.RunFinished = Int(map, "runFinished", 0) == 1;
+diff --git a/Assets/_Project/Scripts/GameLogic/StudentData.cs b/Assets/_Project/Scripts/GameLogic/StudentData.cs
+index 67e43cd..dbf34a9 100644
+--- a/Assets/_Project/Scripts/GameLogic/StudentData.cs
++++ b/Assets/_Project/Scripts/GameLogic/StudentData.cs
+@@ -8,5 +8,8 @@ namespace Hollowbrook.Logic
+         public string Id;
+         public string Name;
+         public bool IsAnomaly;
++        /// <summary>Roster index of the admitted visitor (-1 when unknown): the save file
++        /// stores these so the classroom seats the same students after a resume.</summary>
++        public int VisitorIndex = -1;
+     }
+ }
+diff --git a/Assets/_Project/Scripts/Horror/HallucinationSystem.cs b/Assets/_Project/Scripts/Horror/HallucinationSystem.cs
+index 1b8870d..91dd3fb 100644
+--- a/Assets/_Project/Scripts/Horror/HallucinationSystem.cs
++++ b/Assets/_Project/Scripts/Horror/HallucinationSystem.cs
+@@ -11,6 +11,7 @@ namespace Hollowbrook.Horror
+     public class HallucinationSystem : MonoBehaviour
+     {
+         private GameRoot _gameRoot;
++        private GameRng Rng = new GameRng(0x51A5);
+         private float _exploreAcc;
+         private float _checkpointAcc;
+         private bool _flickerRestoreLit;
+@@ -39,7 +40,7 @@ namespace Hollowbrook.Horror
+                 if (_exploreAcc >= 1f)
+                 {
+                     _exploreAcc = 0f;
+-                    if (Random.value < SanityModel.HallucinationChancePerSecond(stage))
++                    if (Rng.NextFloat() < SanityModel.HallucinationChancePerSecond(stage))
+                         ExploreHallucination();
+                 }
+             }
+@@ -50,10 +51,10 @@ namespace Hollowbrook.Horror
+                 {
+                     _checkpointAcc = 0f;
+                     float chance = SanityModel.HallucinationChancePerSecond(stage) * 0.4f;
+-                    if (Random.value < chance)
++                    if (Rng.NextFloat() < chance)
+                     {
+                         _gameRoot.Bus.Publish(GameEvent.Of(EventIds.HallucinationTriggered, "whisper"));
+-                        _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, Whispers[Random.Range(0, Whispers.Length)], 3.2f, null));
++                        _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, Whispers[Rng.NextInt(0, Whispers.Length)], 3.2f, null));
+                         _gameRoot.Audio.PlaySfx("sfx_static", 0.18f);
+                     }
+                 }
+@@ -63,7 +64,7 @@ namespace Hollowbrook.Horror
+         private void ExploreHallucination()
+         {
+             if (_gameRoot.Views == null || _gameRoot.Views.Current == null) return;
+-            int roll = Random.Range(0, 4);
++            int roll = Rng.NextInt(0, 4);
+             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.HallucinationTriggered, "explore_" + roll));
+             switch (roll)
+             {
+@@ -75,7 +76,7 @@ namespace Hollowbrook.Horror
+                     _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*three slow knocks from inside the wall*", 2.8f, null));
+                     break;
+                 case 2:
+-                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, Whispers[Random.Range(0, Whispers.Length)], 3.2f, null));
++                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, Whispers[Rng.NextInt(0, Whispers.Length)], 3.2f, null));
+                     _gameRoot.Audio.PlaySfx("sfx_static", 0.25f);
+                     break;
+                 default: // phantom flicker (never a strobe; photosensitivity-safe by construction)
+diff --git a/Assets/_Project/Scripts/Horror/WanderingAnomaly.cs b/Assets/_Project/Scripts/Horror/WanderingAnomaly.cs
+index 00f512e..34bc90a 100644
+--- a/Assets/_Project/Scripts/Horror/WanderingAnomaly.cs
++++ b/Assets/_Project/Scripts/Horror/WanderingAnomaly.cs
+@@ -614,7 +614,10 @@ namespace Hollowbrook.Horror
+             var views = _gameRoot.Views;
+             if (views != null && views.Player != null && views.Current != null)
+                 views.Player.PlaceInRoom(views.Current, views.Current.PlayerSpawn);
+-            Despawn(true);
++            // caught != repelled: the anomaly slips away UNRESOLVED (pool keeps it) and
++            // comes back later — patrol now has real stakes (issue #7)
++            if (views != null) views.ScheduleReturn(Kind);
++            Despawn(false);
+         }
+ 
+         /// <summary>End this entity. `resolved` marks it as dealt with (pool clears in
+diff --git a/Assets/_Project/Scripts/UI/ConfirmationPopup.cs b/Assets/_Project/Scripts/UI/ConfirmationPopup.cs
+index 4a7ebb5..8c075dd 100644
+--- a/Assets/_Project/Scripts/UI/ConfirmationPopup.cs
++++ b/Assets/_Project/Scripts/UI/ConfirmationPopup.cs
+@@ -51,5 +51,13 @@ namespace Hollowbrook.UI
+ 
+         public void Show() { }
+         public void Hide() { _root.SetActive(false); _onYes = null; }
++
++        public bool IsOpen => _root != null && _root.activeSelf;
++
++        // Esc cancels the popup — and consumes the key so nothing else reacts to it
++        private void Update()
++        {
++            if (IsOpen && Input.GetKeyDown(KeyCode.Escape) && InputGate.TryEscape()) Hide();
++        }
+     }
+ }
+diff --git a/Assets/_Project/Scripts/UI/MainMenuView.cs b/Assets/_Project/Scripts/UI/MainMenuView.cs
+index f4f5229..7a423cd 100644
+--- a/Assets/_Project/Scripts/UI/MainMenuView.cs
++++ b/Assets/_Project/Scripts/UI/MainMenuView.cs
+@@ -66,7 +66,7 @@ namespace Hollowbrook.UI
+             MenuButtonLeft(col.transform, "EXIT", () =>
+             {
+                 Click();
+-                _gameRoot.Confirm.Ask("EXIT?", "Save and quit to desktop?", () => _gameRoot.QuitApplication());
++                _gameRoot.Confirm.Ask("EXIT?", "Quit to desktop?", () => _gameRoot.QuitApplication());
+             }, null, 360, 44, danger: true);
+ 
+             var footer = UIFactory.Label(transform, "footer",
+diff --git a/Assets/_Project/Scripts/UI/PauseView.cs b/Assets/_Project/Scripts/UI/PauseView.cs
+index e4b660e..3cff9f4 100644
+--- a/Assets/_Project/Scripts/UI/PauseView.cs
++++ b/Assets/_Project/Scripts/UI/PauseView.cs
+@@ -24,7 +24,7 @@ namespace Hollowbrook.UI
+             Add(col.transform, "CONTROLS", () => _gameRoot.OpenControls(), false);
+             Add(col.transform, "SETTINGS", () => _gameRoot.OpenSettings(), false);
+             Add(col.transform, "SAVE & QUIT TO MENU", () =>
+-                _gameRoot.Confirm.Ask("QUIT TO MENU?", "Progress is saved at shift boundaries. Quit now?", () => _gameRoot.QuitToMenu(true)), true);
++                _gameRoot.Confirm.Ask("QUIT TO MENU?", "Your progress will be saved. Quit now?", () => _gameRoot.QuitToMenu(true)), true);
+             Add(col.transform, "QUIT GAME", () =>
+                 _gameRoot.Confirm.Ask("QUIT GAME?", "Save and exit to desktop?", () => _gameRoot.QuitApplication()), true);
+ 
+diff --git a/Assets/_Project/Scripts/UI/ProgressionScreens.cs b/Assets/_Project/Scripts/UI/ProgressionScreens.cs
+index 8f90dc6..76da1f7 100644
+--- a/Assets/_Project/Scripts/UI/ProgressionScreens.cs
++++ b/Assets/_Project/Scripts/UI/ProgressionScreens.cs
+@@ -144,7 +144,9 @@ namespace Hollowbrook.UI
+ 
+         private void Update()
+         {
+-            if (gameObject.activeInHierarchy && (Input.GetKeyDown(KeyCode.M) || Input.GetKeyDown(KeyCode.Escape)))
++            if (gameObject.activeInHierarchy &&
++                ((Input.GetKeyDown(KeyCode.M) && InputGate.TryM()) ||
++                 (Input.GetKeyDown(KeyCode.Escape) && InputGate.TryEscape())))
+             {
+                 if (_gameRoot.State == AppViewState.Map) _gameRoot.CloseMap();
+             }
+diff --git a/Assets/_Project/Scripts/UI/SettingsView.cs b/Assets/_Project/Scripts/UI/SettingsView.cs
+index 9192c4a..f3c37e5 100644
+--- a/Assets/_Project/Scripts/UI/SettingsView.cs
++++ b/Assets/_Project/Scripts/UI/SettingsView.cs
+@@ -43,6 +43,7 @@ namespace Hollowbrook.UI
+ 
+             UIFactory.SheetButton(sheet, "back", "◂ BACK", () =>
+             {
++                _gameRoot.Settings.Persist();      // one disk flush when the sheet closes
+                 _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.6f);
+                 _gameRoot.CloseSettings();
+             }, 360);
+@@ -81,7 +82,7 @@ namespace Hollowbrook.UI
+         private void Update()
+         {
+             if (!gameObject.activeInHierarchy || _gameRoot == null) return;
+-            if (Input.GetKeyDown(KeyCode.Escape)) { _gameRoot.CloseSettings(); return; }
++            if (Input.GetKeyDown(KeyCode.Escape) && TryCloseOnEscape()) return;
+             if (Input.GetKeyDown(KeyCode.Tab) && _navOrder.Count > 0 && EventSystem.current != null)
+             {
+                 var curSel = EventSystem.current.currentSelectedGameObject != null
+@@ -92,6 +93,16 @@ namespace Hollowbrook.UI
+             }
+         }
+ 
++        // Esc owns exactly one action per frame (InputGate): closing this sheet, never
++        // also unpausing behind it (issue #6). Internal so the harness can prove it.
++        internal bool TryCloseOnEscape()
++        {
++            if (!gameObject.activeInHierarchy) return false;
++            if (!InputGate.TryEscape()) return false;
++            _gameRoot.CloseSettings();
++            return true;
++        }
++
+         public void Hide()
+         {
+             gameObject.SetActive(false);
+diff --git a/Assets/_Project/Scripts/World/PeekLight.cs b/Assets/_Project/Scripts/World/PeekLight.cs
+index d8ea3e3..978f762 100644
+--- a/Assets/_Project/Scripts/World/PeekLight.cs
++++ b/Assets/_Project/Scripts/World/PeekLight.cs
+@@ -86,7 +86,7 @@ namespace Hollowbrook.World
+         private void Update()
+         {
+             if (_gameRoot == null || !Active) return;
+-            if (Input.GetKeyDown(KeyCode.Escape))
++            if (Input.GetKeyDown(KeyCode.Escape) && InputGate.TryEscape())
+             {
+                 TickEscape();
+                 return;
+diff --git a/Assets/_Project/Scripts/World/PlayerController.cs b/Assets/_Project/Scripts/World/PlayerController.cs
+index e40473e..fc164e3 100644
+--- a/Assets/_Project/Scripts/World/PlayerController.cs
++++ b/Assets/_Project/Scripts/World/PlayerController.cs
+@@ -43,7 +43,7 @@ namespace Hollowbrook.World
+         {
+             bool dialogueOpen = _gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive;
+ 
+-            if (Input.GetKeyDown(KeyCode.Escape))
++            if (Input.GetKeyDown(KeyCode.Escape) && InputGate.TryEscape())
+             {
+                 // Escape belongs to an open overlay sheet (Options/Controls/Credits) first —
+                 // unpausing here would tear the player out of the pause menu behind it.
+@@ -55,7 +55,7 @@ namespace Hollowbrook.World
+             if (_gameRoot.Paused || dialogueOpen) return;
+             if (_gameRoot.State != AppViewState.Exploration) return; // overlays (map/security room) freeze movement
+ 
+-            if (Input.GetKeyDown(KeyCode.M)) _gameRoot.OpenMap();
++            if (Input.GetKeyDown(KeyCode.M) && InputGate.TryM()) _gameRoot.OpenMap();
+ 
+             float h = 0f;
+             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) h -= 1f;
+diff --git a/Assets/_Project/Scripts/World/RoomSpawner.cs b/Assets/_Project/Scripts/World/RoomSpawner.cs
+index d90b944..0599e84 100644
+--- a/Assets/_Project/Scripts/World/RoomSpawner.cs
++++ b/Assets/_Project/Scripts/World/RoomSpawner.cs
+@@ -79,7 +79,8 @@ namespace Hollowbrook.World
+                            (1f + 0.35f * _anomaliesInside + 0.3f * (int)_root.Session.Breaches) *
+                            (_views.Current.Light != null && !_views.Current.Light.Lit ? 1.6f : 1f);
+             _spawnCooldown = 4f; // re-roll interval; chance is per-second so scale by 4
+-            if (UnityEngine.Random.value > chance * 4f) return;
++            if (_rng == null) _rng = new GameRng(_root.Session.Seed + 31 + _root.Session.CurrentShift);
++            if (_rng.NextFloat() > chance * 4f) return;
+ 
+             SpawnAnomaly(false);
+         }
+@@ -178,8 +179,8 @@ namespace Hollowbrook.World
+             if (_liveAnomaly == a) _liveAnomaly = null;
+             _views.Unregister(a);
+             // pool resolution exactly once per entity (the anomaly guards its own despawn):
+-            // repelled or caught == dealt with; hallucinations never touch the pool.
+-            if (!a.IsHallucination && (a.WasRevealed || a.WasCaught))
++            // only REPELLED anomalies are dealt with; caught ones stay outstanding and return.
++            if (!a.IsHallucination && a.WasRevealed)
+                 _root.Session.Pool.Resolve(a.Kind);
+         }
+     }
+diff --git a/README.md b/README.md
+index 362ee66..9cffccf 100644
+--- a/README.md
++++ b/README.md
+@@ -62,6 +62,7 @@ them automatically (keys are listed in `ProceduralArt` / `ProceduralAudio`).
+ 
+ ## Game structure
+ 
++- **Booth demo vs full game:** the `exhibitionMode` key in `Resources/GameConfig.asset` decides whether NEW GAME plays the one-night exhibition cut or the five-night story. Shipping default: **false = full story**.
+ - **Main menu** is focused for the current milestone: **NEW GAME** starts the five-night story
+   directly. **CHALLENGE MODE** and **EXTRAS** are *not shown at all* (v1.0.6+ decision); the
+   Endless/Challenge systems remain fully implemented and headless-tested behind
+@@ -126,7 +127,6 @@ Tools/
+   Verification/                   HEADLESS test harness (not imported by Unity)
+     UnityStubs/                   faithful UnityEngine/UnityEngine.UI API stubs
+     LogicTests/                   runs the pure rules:   dotnet run --project Tools/Verification/LogicTests
+-    EngineSmoke/                  boots & plays the game: dotnet run --project Tools/Verification/EngineSmoke
+     CompileCheck/                 compiles every script at C#9/Unity-2022.3 level
+ docs/                             audit, handoff report
+ ```
+diff --git a/REFACTOR_LOG.md b/REFACTOR_LOG.md
+index bcdf549..f299130 100644
+--- a/REFACTOR_LOG.md
++++ b/REFACTOR_LOG.md
+@@ -1,5 +1,30 @@
+ # Refactor log — readability pass (branch refactor/readability)
+ 
++## Issue #1 review pass — verified bugs, design gaps, cleanup
++
++Blocking/high: (1) menu EXIT no longer overwrites the save (InRunProgress guard, also on
++OnApplicationQuit); menu prompt now "Quit to desktop?". (2) exhibitionMode default false +
++asset key added — NEW GAME is the five-night story; FlowCheck opts into the booth explicitly.
++(3) CONTINUE keeps the night: BeginShift(isResume) skips TonightLog/Admitted/pool resets,
++pool kinds derive from seed^shift, admitted list rides the save as roster indices and is
++remapped on resume; FlowCheck asserts all three survive. (4) the Night-5 memo is handed over
++with the badge and registry searches can't replace it. (5) gameplay hotkeys/zoom stand down
++while paused, in overlays, in dialogue or off-desk. (6) InputGate gives Esc/M one owner per
++frame across sheets, map, pause, desk, patrol, confirm popup (Confirm now closes on Esc and
++counts as a blocking overlay).
++Design: (7) catching an anomaly no longer resolves it — it stays outstanding and returns;
++outstanding anomalies count as breaches when the run's books close, so patrol feeds endings.
++Robustness: (8) crash-safe save write (File.Replace + .bak, Read falls back to .bak/.tmp),
++settings persist once on sheet close/quit instead of per slider tick, RoomSpawner and
++HallucinationSystem randomness seeded from the run seed.
++Hygiene: (9) EngineSmoke removed (stale frozen harness; docs aligned), duplicate root/Assets
++docs de-duplicated, loose docs/*.patch deleted, GameBootstrap comment fixed, dead code gone
++(QuestionTextShort, _interviewOpen, the retired waiting-line DISPLAY incl. ShowcaseBuild),
++blank-line runs collapsed.
++FlowCheck: +issue proofs (menu-EXIT save guard, .bak fallback, pause gate, Esc single-owner,
++admin memo, resume fidelity) and pool-resolve before story clock-outs; 837 OK.
++
++
+ ## Owner-feedback pass — desk order & sizes (Messenger notes + redlined screenshot)
+ 
+ - Owner asks (chat): questions already out, press the question itself (no gate button); the ID
+@@ -217,8 +242,8 @@ No Debug.LogError and no exception appears in the FlowCheck output.
+ ## Reviewed but left alone
+ - Handshake safety net: considered dead code once, deleted once, caused exactly the bug it exists for.
+   Reinstated and kept forever.
+-- `Tools/Verification`: frozen; its EngineSmoke no longer compiles (it called the removed SimulateLoad).
+-  Left untouched on purpose; `Tools/FlowCheck` is the replacement diagnostic.
++- `Tools/Verification/EngineSmoke`: was frozen-broken (renamed APIs); removed in the issue #9
++  cleanup together with its stale doc claims. `Tools/FlowCheck` is the replacement diagnostic.
+ - `ProceduralArt`/`ProceduralAudio` internals: self-contained and readable; only dead keys were candidates
+   and their use is concat-built at call sites, so nothing was deleted.
+ - Full A1 renaming across all 48 files: deferred; renaming untouched files adds diff noise without
+diff --git a/Tools/FlowCheck/Program.cs b/Tools/FlowCheck/Program.cs
+index 63da5e9..0b37815 100644
+--- a/Tools/FlowCheck/Program.cs
++++ b/Tools/FlowCheck/Program.cs
+@@ -103,6 +103,8 @@ namespace FlowCheck
+             Check(ReferenceEquals(root, GameRoot.Instance),
+                   "I-02: re-booting a scene never creates a second core");
+ 
++            IssueOneProofs(root);
++
+             Console.WriteLine(_failures == 0 ? "== FLOW CHAIN COMPLETE ==" : "== " + _failures + " CHECK(S) FAILED ==");
+             Environment.Exit(_failures == 0 ? 0 : 1);
+         }
+@@ -128,22 +130,13 @@ namespace FlowCheck
+             foreach (var n in deskNames)
+                 Check(FindDeep(root.Checkpoint.transform, n) != null, "desk element '" + n + "'");
+ 
+-            // presentation cuts: the checklist widget is gone for good, and the waiting-line
+-            // display is built exactly when ShowcaseBuild.LineDisplay says so (never built
+-            // then hidden, never referenced from anywhere else)
++            // presentation cuts: the checklist widget and the waiting-line DISPLAY are
++            // gone for good (the queue itself still runs headless); nothing is built-then-hidden
+             Check(FindDeep(root.Checkpoint.transform, "checklist_border") == null,
+                 "the checklist widget is removed from the desk");
+-            string[] lineNames =
+-            {
+-                "queuestatus", "queuestripL", "queuestripR", "qsil0", "qsil7", "qoverflow", "qbadge",
+-            };
+-            foreach (var n in lineNames)
+-            {
+-                bool present = FindDeep(root.Checkpoint.transform, n) != null;
+-                Check(present == ShowcaseBuild.LineDisplay,
+-                    "line display element '" + n + "' is built exactly when LineDisplay is on");
+-            }
+-
++            Check(FindDeep(root.Checkpoint.transform, "queuestripL") == null &&
++                  FindDeep(root.Checkpoint.transform, "queuestatus") == null,
++                "the waiting-line display is retired; the queue logic still runs headless");
+             string[] hudNames =
+             {
+                 "HudFrame", "sanitybg_border", "trackbg_border", "batterybg_border",
+@@ -526,7 +519,6 @@ namespace FlowCheck
+             var panel = FindDeep(root.Checkpoint.transform, "speech_border");
+             Check(panel != null && panel.gameObject.activeSelf, "speech panel visible while a visitor is at the window");
+             root.Checkpoint.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
+-            root.Checkpoint.OpenInterview();
+             root.Checkpoint.AskQuestion(QuestionId.Course);
+             var host = FindDeep(root.Checkpoint.transform, "speechlog");
+             Check(host != null && host.childCount == 1, "speech log exists");
+@@ -635,6 +627,7 @@ namespace FlowCheck
+             Check(live("endshift"), "END SHIFT lights up when the roster is done");
+             Check(live("patrol"), "PATROL HALLWAY usable once no inspection is live");
+ 
++            ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
+             btn("endshift").onClick.Invoke();
+             bool expectedEnding = root.Config.exhibitionMode;   // the exhibition arc clocks out straight into its ending
+             Check(expectedEnding ? root.State == AppViewState.Ending : root.State == AppViewState.ShiftResults,
+@@ -647,6 +640,9 @@ namespace FlowCheck
+             string first = root.Checkpoint.CurrentVisitor != null ? root.Checkpoint.CurrentVisitor.ClaimedName : "?";
+             root.Checkpoint.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
+             root.Checkpoint.Stamp(InspectionRules.ExpectedVerdict(root.Checkpoint.CurrentVisitor, null));
++            int logBefore = root.Session.TonightLog.Count;
++            int poolBefore = root.Session.Pool.Pending;
++            int admittedBefore = root.Session.AdmittedStudents.Count;
+             root.PersistRun();
+             Check(root.Session.QueueState != null && root.Session.QueueState.Started &&
+                   root.Session.QueueState.Arrived == root.Queue.ArrivalCount,
+@@ -666,6 +662,13 @@ namespace FlowCheck
+             Check(first != resumed, "B8: CONTINUE resumes at the next visitor, not the same one");
+             Check(root.Queue.ArrivalCount == 2 && root.Queue.ProcessedCount == 1,
+                 "P9: the restored queue kept its arrival/processed counts (no restart from zero)");
++            // issue #3: the resumed night keeps its presentation log, pool and admitted list
++            Check(root.Session.TonightLog.Count == logBefore,
++                "issue #3: TonightLog survives save/continue (duplicate rule keeps working)");
++            Check(root.Session.Pool.Pending == poolBefore,
++                "issue #3: the anomaly pool survives save/continue (repelled stays repelled)");
++            Check(root.Session.AdmittedStudents.Count == admittedBefore,
++                "issue #3: admitted students survive save/continue (classroom seats keep them)");
+         }
+ 
+         private static int DeepIndex(Transform parent, string name)
+@@ -724,15 +727,12 @@ namespace FlowCheck
+             Check(root.Queue.WaitingCount == 3, "Q1: three arrivals accumulated in the line (got " + root.Queue.WaitingCount + ")");
+             Check(string.Join(",", root.Queue.WaitingLine.Select(v => v.VisitorIndex.ToString())) == "1,2,3",
+                   "Q1: the line is FIFO in arrival order");
+-            Check(Silhouettes(root) == 0, "Q1: the line display is off for the showcase (no silhouettes)");
+-            Check(StatusText(root) == "", "Q1: the queue readout is hidden for the showcase");
+ 
+             // ---- Q2 the oldest waiter steps up after the banner, with no second wait
+             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
+             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+             Check(cp.CurrentVisitor == roster[1], "Q2: oldest waiting visitor stepped up immediately after the banner");
+-            Check(root.Queue.WaitingCount == 2 && Silhouettes(root) == 0, "Q2: the line queues invisibly (showcase)");
+-            Check(StatusText(root) == "", "Q2: the readout stays hidden ('" + StatusText(root) + "')");
++            Check(root.Queue.WaitingCount == 2, "Q2: the line queues invisibly (showcase)");
+             int guard = 0;
+             while (cp.CurrentVisitor != null && guard++ < 6)
+             {
+@@ -815,7 +815,6 @@ namespace FlowCheck
+             Check(root.Queue.WaitingCount == 1 && root.Queue.WaitingLine.First() == mRoster[2],
+                   "Q5: the waiting legitimate student vanished from the line");
+             Check(root.Queue.EffectiveTotal == mRoster.Count - 1, "Q5: effective total dropped by one (" + root.Queue.EffectiveTotal + ")");
+-            Check(StatusText(root) == "", "Q5: the readout stays hidden for the showcase");
+             string speech = FindDeep(cp.transform, "speechlog").GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
+             Check(speech.Contains("Roll call"), "Q5: subtle radio feedback, no anomaly revealed");
+             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
+@@ -887,7 +886,6 @@ namespace FlowCheck
+             cp.AdvanceQueue(6f);                                   // #4 arrives behind #3
+             Check(root.Queue.WaitingCount == 1, "Q8: one waiting before the quit");
+             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
+-            cp.OpenInterview();
+             cp.AskQuestion(QuestionId.Year);
+             Check(root.Queue.ActiveBudgetMask == 1 << (int)QuestionId.Year, "Q8: the question budget synced into the queue");
+             root.TogglePause(true);
+@@ -901,8 +899,7 @@ namespace FlowCheck
+                   "Q8: the same visitor is back at the window");
+             string budgetText = FindDeep(cp.transform, "budget").GetComponent<UnityEngine.UI.Text>().text;
+             Check(budgetText.Contains("1 LEFT"), "Q8: the question budget was NOT refunded ('" + budgetText + "')");
+-            Check(root.Queue.WaitingCount == 1 && Silhouettes(root) == 0, "Q8: the waiting line was restored, not duplicated (silhouettes off)");
+-            Check(StatusText(root) == "", "Q8: the readout stays hidden after restore");
++            Check(root.Queue.WaitingCount == 1, "Q8: the waiting line was restored, not duplicated");
+             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
+             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+             Check(cp.CurrentVisitor != null && cp.CurrentVisitor.VisitorIndex == pRoster[3].VisitorIndex,
+@@ -920,7 +917,6 @@ namespace FlowCheck
+             Check(cp.CurrentVisitor != null, "Q9: first run visitor arrives on the note click");
+             cp.AdvanceQueue(6f);
+             Check(root.Queue.WaitingCount == 1, "Q9: run visitors accumulate in the same line");
+-            Check(!StatusText(root).Contains("CURRENT:"), "Q9: no finite counter for infinite sources ('" + StatusText(root) + "')");
+             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
+             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+             Check(cp.CurrentVisitor != null && root.Session.RunProcessed == 1,
+@@ -940,6 +936,7 @@ namespace FlowCheck
+                 cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+             }
+             Check(guard < 20 && root.Queue.ShiftComplete, "Q10: night 1 walked to completion through the queue");
++            ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
+             Btn(root, "endshift").onClick.Invoke();
+             Check(root.State == AppViewState.ShiftResults, "Q10: clocking out lands on the shift results");
+             root.QuitToMenu(true);
+@@ -994,6 +991,7 @@ namespace FlowCheck
+                 root.Dialogue.Advance();               // play the outro to its callback
+             Check(root.Queue.ShiftComplete, "Q11: rejecting the administrator completes the night");
+             Check(Btn(root, "endshift").interactable, "Q11: END SHIFT lights up after the outro");
++            ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
+             Btn(root, "endshift").onClick.Invoke();
+             Check(root.State == AppViewState.ShiftResults && root.Session.CompletedShifts == 1,
+                   "Q11: clocking out lands on shift results (story arc intact)");
+@@ -1137,23 +1135,7 @@ namespace FlowCheck
+             for (int i = 0; i < t.childCount; i++) CollectText(t.GetChild(i), sb);
+         }
+ 
+-        private static int Silhouettes(GameRoot root)
+-        {
+-            int n = 0;
+-            for (int i = 0; i < 8; i++)
+-            {
+-                var fig = FindDeep(root.Checkpoint.transform, "qsil" + i);
+-                if (fig != null && fig.gameObject.activeSelf) n++;
+-            }
+-            return n;
+-        }
+ 
+-        private static string StatusText(GameRoot root)
+-        {
+-            // the readout label only exists when ShowcaseBuild.LineDisplay is on
+-            var go = FindDeep(root.Checkpoint.transform, "queuestatus");
+-            return go == null ? "" : go.GetComponent<UnityEngine.UI.Text>().text;
+-        }
+ 
+         private static UnityEngine.UI.Button Btn(GameRoot root, string name) =>
+             FindDeep(root.Checkpoint.transform, name).GetComponent<UnityEngine.UI.Button>();
+@@ -1225,11 +1207,75 @@ namespace FlowCheck
+             Check(sp.Students.Count == 0, "F-01: Clear empties the room at patrol end");
+         }
+ 
++        private static void ResolvePool(GameRoot root)
++        {
++            while (root.Session.Pool.Pending > 0)
++                root.Session.Pool.Resolve(root.Session.Pool.PendingList[0]);
++        }
++
++        private static void IssueOneProofs(GameRoot root)
++        {
++            Console.WriteLine("== issue #1 review proofs: quit/save/pause/esc/memo ==");
++            string path = System.IO.Path.Combine(UnityEngine.Application.persistentDataPath, "hollowbrook_save.txt");
++            string before = System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path) : null;
++            Check(before != null, "a save exists from the earlier proofs");
++            root.BootToMainMenu();
++            root.QuitApplication();
++            string after = System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path) : null;
++            Check(after == before, "issue #1: EXIT on the main menu leaves the save untouched");
++
++            System.IO.File.WriteAllText(path, "SMYIDSAVE 1\ngarbage\nchecksum=0\n");
++            Check(root.Saves.Read() != null, "issue #8: a corrupt main save falls back to the .bak copy");
++            System.IO.File.WriteAllText(path, before);
++
++            root.StartNewGame(GameMode.Normal);
++            CheckpointSceneBootstrap.Build(root);
++            for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
++            ClickStickyNote(root);
++            var cp = root.Checkpoint;
++            cp.DebugTakeDocuments();
++            var slip = FindDeep(cp.transform, "slip").GetComponent<DragPaper>();
++            slip.BeginDrag(); slip.PlaceCenter(new Vector2(760f, 500f)); slip.EndDrag();
++            root.TogglePause(true);
++            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.A);
++            cp.TickHotkeys();
++            UnityEngine.Input.KeysDown.Clear();
++            Check(!cp.SlipStamped, "issue #5: a paused desk never stamps from hotkeys");
++            root.TogglePause(false);
++            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.A);
++            cp.TickHotkeys();
++            UnityEngine.Input.KeysDown.Clear();
++            Check(cp.SlipStamped, "issue #5: unpaused, the same key stamps the slip");
++
++            root.TogglePause(true);
++            root.OpenSettings();
++            InputGate.NextFrame();
++            Check(root.SettingsScreen.TryCloseOnEscape(),
++                  "issue #6: Esc closes the settings sheet (and consumes the key)");
++            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Escape);
++            cp.TickHotkeys();
++            UnityEngine.Input.KeysDown.Clear();
++            Check(root.Paused, "issue #6: the same Esc does NOT also unpause behind the sheet");
++            root.TogglePause(false);
++
++            cp.DebugPresentAdmin();
++            cp.DebugTakeDocuments();
++            var rec = FindDeep(cp.transform, "record");
++            Check(rec.gameObject.activeSelf,
++                  "issue #4: the admin's District Roster Memo is on the desk at hand-over");
++            cp.SearchRecords("V. Marlowe");
++            Check(rec.gameObject.activeSelf &&
++                  FindDeep(cp.transform, "stationout").GetComponent<UnityEngine.UI.Text>().text.Contains("ATTACHED MEMO"),
++                "issue #4: registry searches can't replace the memo (NO RECORD — see memo)");
++        }
++
+         private static void WorldLoop(GameRoot root)
+         {
+             Console.WriteLine("== PATROL world loop (flashlight + roaming anomaly), headless frames ==");
+ 
+-            // a fresh normal run, then patrol — through the real scene handoffs the game uses
++            // a fresh normal run, then patrol — through the real scene handoffs the game uses.
++            // the booth demo is an explicit opt-in now (issue #2): shipping default is the story
++            root.Config.exhibitionMode = true;
+             root.StartNewGame(GameMode.Normal);
+             CheckpointSceneBootstrap.Build(root);
+             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
+diff --git a/Tools/Verification/EngineSmoke/EngineSmoke.cs b/Tools/Verification/EngineSmoke/EngineSmoke.cs
+deleted file mode 100644
+index 13885cc..0000000
+--- a/Tools/Verification/EngineSmoke/EngineSmoke.cs
++++ /dev/null
+@@ -1,842 +0,0 @@
+-// Headless ENGINE smoke tests for Show Me Your ID!
+-// Boots the real GameBootstrap against Unity stubs (synchronous coroutines) and drives:
+-// boot → main menu → New Game → all five shifts with correct verdicts → administrator
+-// rejection → Win ending; exploration + clue chain; mistake paths; lose ending; endless +
+-// challenge runs; pause/map/settings; save/continue; procedural art/audio generation.
+-// Run:  dotnet run --project Tools/Verification/EngineSmoke
+-using System;
+-using System.Collections.Generic;
+-using System.IO;
+-using System.Linq;
+-using System.Reflection;
+-using Hollowbrook.Bootstrap;
+-using Hollowbrook.Checkpoint;
+-using Hollowbrook.Core;
+-using Hollowbrook.Horror;
+-using Hollowbrook.Logic;
+-using Hollowbrook.UI;
+-using Hollowbrook.World;
+-using UnityEngine;
+-
+-namespace SMYID.Smoke
+-{
+-    public static class SmokeRunner
+-    {
+-        static int _passed, _failed;
+-        static GameRoot R;
+-
+-        static void Check(bool cond, string name)
+-        {
+-            if (cond) { _passed++; Console.WriteLine("  PASS  " + name); }
+-            else { _failed++; Console.WriteLine("  FAIL  " + name); }
+-        }
+-
+-        static void Section(string s) => Console.WriteLine("\n== " + s + " ==");
+-
+-        static void Call(object obj, string method, params object[] args)
+-        {
+-            var mi = obj.GetType().GetMethod(method, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+-            if (mi == null) throw new Exception("method '" + method + "' not found on " + obj.GetType().Name);
+-            mi.Invoke(obj, args.Length == 0 ? null : args);
+-        }
+-
+-        static T Field<T>(object obj, string name)
+-        {
+-            var fi = obj.GetType().GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+-            if (fi == null) throw new Exception("field '" + name + "' not found on " + obj.GetType().Name);
+-            return (T)fi.GetValue(obj);
+-        }
+-
+-        public static int Main()
+-        {
+-            Console.WriteLine("Show Me Your ID! — engine smoke tests (headless, real code paths)");
+-            string tmp = Path.Combine(Path.GetTempPath(), "smyid-smoke-" + Environment.TickCount);
+-            Directory.CreateDirectory(tmp);
+-            Application.persistentDataPath = tmp;
+-            // headless scene loading: simulate SceneManager.LoadScene via the registry
+-            SceneLoadBridge.SceneLoadHook = SceneBootstrapRegistry.SimulateLoad;
+-
+-            try { RunAll(); }
+-            catch (Exception e)
+-            {
+-                _failed++;
+-                Console.WriteLine("  FAIL  UNHANDLED EXCEPTION: " + e);
+-            }
+-            Console.WriteLine($"\nRESULT: {_passed} passed, {_failed} failed");
+-            try { Directory.Delete(tmp, true); } catch (Exception) { }
+-            return _failed == 0 ? 0 : 1;
+-        }
+-
+-        // ---------------------------------------------------------------- helpers
+-
+-        static void DrainDialogue()
+-        {
+-            int guard = 0;
+-            while (R.Dialogue != null && R.Dialogue.IsActive && guard++ < 500)
+-                R.Dialogue.Advance();
+-        }
+-
+-        static void StampExpected()
+-        {
+-            var v = R.Checkpoint.CurrentVisitor;
+-            if (v == null) throw new Exception("no visitor at window");
+-            var mutation = R.Session.Mode == GameMode.Challenge ? R.Session.ActiveMutation : null;
+-            R.Checkpoint.Stamp(InspectionRules.ExpectedVerdict(v, mutation));
+-            DrainDialogue();
+-        }
+-
+-        static ClueObject ClueIn(RoomInstance room, string key)
+-        {
+-            foreach (var it in room.Interactables)
+-            {
+-                var c = it as ClueObject;
+-                if (c != null && c.ClueKey == key) return c;
+-            }
+-            return null;
+-        }
+-
+-        static Doorway DoorTo(RoomInstance room, RoomId target)
+-        {
+-            foreach (var it in room.Interactables)
+-            {
+-                var d = it as Doorway;
+-                if (d != null && d.Target == target) return d;
+-            }
+-            return null;
+-        }
+-
+-        // ---------------------------------------------------------------- suite
+-
+-        static void RunAll()
+-        {
+-            Boot();
+-            MenuAndSettings();
+-            MenuGatingAndDataReset();
+-            NormalRunFullStory_WinEnding();
+-            ExplorationAndClues_FreshRun();
+-            ExhibitionNightClosesAfterOneShift();
+-            PressNewGameAndContinueButtons();
+-            SecurityOffice_CountsTowardStory();
+-            ClueOrderSurvivesSceneRoundTrip();
+-            ClockRunsOnPatrol();
+-            SecretEndingThroughSceneB();
+-            LoseByFalseRejections();
+-            EndlessRun();
+-            ChallengeRun();
+-            SaveAndContinue();
+-            ResolutionAndLayoutAudit();
+-            ProceduralContentSweep();
+-        }
+-
+-        static void Boot()
+-        {
+-            Section("Boot & bootstrap (scene architecture)");
+-            SceneRouter.Load(SceneRouter.Menu);   // as Unity would load build-settings scene 0
+-            R = GameRoot.Instance;
+-            Check(R != null, "GameRoot created by menu bootstrap");
+-            R.Config.exhibitionMode = false;   // headless story suites exercise the full campaign
+-            Check(CoreBootstrap.CreatedEventSystem != null,
+-                "EventSystem created (without it NO button/slider/toggle can be clicked in Unity)");
+-            Check(R.Bus != null && R.Config != null && R.Settings != null && R.Saves != null && R.Audio != null,
+-                "services constructed (bus/config/settings/saves/audio)");
+-            Check(R.MainCamera != null, "camera built");
+-            Check(R.MainMenu != null && R.ModeSelect != null && R.SettingsScreen != null &&
+-                  R.ControlsScreen != null && R.CreditsScreen != null && R.Confirm != null && R.Captions != null,
+-                "menu scene wires its views with explicit references");
+-            Check(R.State == AppViewState.MainMenu, "boots to main menu scene");
+-            Check(!R.HasSave(), "no save on first boot");
+-            // loading the checkpoint scene builds the gameplay view set
+-            SceneRouter.Load(SceneRouter.Checkpoint);
+-            Check(R.Checkpoint != null && R.HUD != null && R.Dialogue != null && R.MapScreen != null &&
+-                  R.Loading != null && R.Ending != null && R.ShiftResults != null && R.PauseScreen != null &&
+-                  R.SanityCtl != null && R.Scares != null && R.Hallucinations != null,
+-                "checkpoint scene wires gameplay views explicitly");
+-            Check(R.Views == null, "checkpoint scene has no world (desk-only scene)");
+-            SceneRouter.Load(SceneRouter.School);
+-            Check(R.Views != null && R.SecurityRoom != null && R.HUD != null,
+-                "school scene wires world + security-room views");
+-            SceneRouter.Load(SceneRouter.Menu);
+-            Check(R.State == AppViewState.MainMenu, "scene router returns to menu cleanly");
+-        }
+-
+-        static void MenuAndSettings()
+-        {
+-            Section("Menus, settings, pause, map");
+-            // settings really change behavior
+-            R.Settings.Apply(d => d.TextScale = 2);
+-            Check(Mathf.Approximately(R.Settings.TextScaleMultiplier, 1.25f), "text scale Large = 1.25x applied");
+-            R.Settings.Apply(d => { d.ReduceMotion = true; d.PhotosensitivitySafe = true; d.Captions = false; });
+-            Check(R.Settings.ReduceMotion && R.Settings.PhotosensitivitySafe && !R.Settings.Captions,
+-                "accessibility toggles persist through Apply()");
+-            R.Settings.Apply(d => { d.MasterVolume = 0.5f; d.MusicVolume = 0.5f; d.SfxVolume = 0.5f; });
+-            Check(Mathf.Approximately(R.Settings.SfxVolume, 0.25f), "effective sfx volume = master × sfx");
+-            // restore defaults for the rest of the suite
+-            R.Settings.Apply(d =>
+-            {
+-                d.TextScale = 1; d.ReduceMotion = false; d.PhotosensitivitySafe = false; d.Captions = true;
+-                d.MasterVolume = 0.8f; d.MusicVolume = 0.6f; d.SfxVolume = 0.8f;
+-            });
+-
+-            // pause toggling
+-            R.StartNewGame(GameMode.Normal);
+-            DrainDialogue();
+-            R.TogglePause(true);
+-            Check(R.Paused && Time.timeScale == 0f, "pause freezes time");
+-            R.TogglePause(false);
+-            Check(!R.Paused && Time.timeScale == 1f, "unpause restores time");
+-
+-            // map from checkpoint and back
+-            R.OpenMap();
+-            Check(R.State == AppViewState.Map, "map opens over checkpoint");
+-            R.CloseMap();
+-            Check(R.State == AppViewState.Checkpoint, "map closes back to checkpoint");
+-
+-            // overlay screens
+-            R.OpenSettings(); R.CloseSettings();
+-            R.OpenControls(); R.CloseControls();
+-            R.QuitToMenu(false);
+-            R.OpenCredits(); R.CloseCredits();
+-            Check(R.State == AppViewState.MainMenu, "overlay screens never corrupt primary state");
+-            DrainDialogue();
+-        }
+-
+-        static void MenuGatingAndDataReset()
+-        {
+-            Section("Menu gating, New Game flow, F2×3 data reset");
+-            Check(!GameRoot.RunModesUnlocked, "run modes locked by default (menu placeholders inactive)");
+-            R.QuitToMenu(false);
+-
+-            var buttons = R.MainMenu.transform.Find("buttons");
+-            Check(buttons != null, "menu option column exists");
+-            var newGame = buttons.Find("NEW GAME");
+-            Check(newGame != null, "NEW GAME entry present");
+-            newGame.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+-            Check(R.Session.Mode == GameMode.Normal && R.State == AppViewState.ShiftIntro,
+-                "NEW GAME starts the Normal story immediately");
+-            DrainDialogue();
+-            Check(R.State == AppViewState.Checkpoint && R.Checkpoint.CurrentVisitor != null,
+-                "and lands at the checkpoint with a visitor at the window");
+-
+-            // Challenge/Extras must be completely invisible in the menu
+-            R.QuitToMenu(false);
+-            Check(buttons.Find("CHALLENGE MODE") == null, "CHALLENGE MODE not present in menu at all");
+-            Check(buttons.Find("EXTRAS") == null, "EXTRAS not present in menu at all");
+-            Check(buttons.Find("NEW GAME") != null && buttons.Find("CONTINUE") != null &&
+-                  buttons.Find("SETTINGS") != null && buttons.Find("CREDITS") != null && buttons.Find("EXIT") != null,
+-                "menu shows exactly the five focused options");
+-
+-            // build real save data, then erase via the true F2×3 path
+-            R.StartNewGame(GameMode.Normal);
+-            DrainDialogue();
+-            var def = ShiftPlan.Get(1);
+-            for (int i = 0; i < def.VisitorCount; i++) StampExpected();
+-            R.FinishShift();
+-            Check(R.HasSave(), "save exists before reset");
+-            R.QuitToMenu(false);
+-
+-            Input.KeysDown.Add(KeyCode.F2);
+-            for (int i = 0; i < 3; i++)
+-            {
+-                Time.unscaledTime += 0.4f; // consecutive presses inside the 1.5 s window
+-                Call(R.MainMenu, "Update");
+-            }
+-            Input.KeysDown.Remove(KeyCode.F2);
+-            var confirmRoot = Field<GameObject>(R.Confirm, "_root");
+-            Check(confirmRoot.activeSelf, "third consecutive F2 opens the erase-data confirmation");
+-            var yes = confirmRoot.transform.Find("box_border/box/yes");
+-            Check(yes != null, "confirmation exposes a YES control");
+-            yes.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+-            Check(!R.HasSave(), "F2×3 + YES erased the save file");
+-            Check(R.Records.EndingsSeen.Count == 0 && R.Records.EndlessBest == 0 && R.Records.ChallengeBest == 0,
+-                "records/ending history cleared");
+-
+-            // accidental protection: spaced presses must never reach the confirm
+-            R.Session.CurrentShift = 1;
+-            R.PersistRun();
+-            Check(R.HasSave(), "save re-created for accidental-press test");
+-            Input.KeysDown.Add(KeyCode.F2);
+-            Time.unscaledTime += 5f; Call(R.MainMenu, "Update");
+-            Time.unscaledTime += 5f; Call(R.MainMenu, "Update");
+-            Input.KeysDown.Remove(KeyCode.F2);
+-            Check(!confirmRoot.activeSelf && R.HasSave(),
+-                "two spaced F2 presses do NOT reset (window expired — accidental-proof)");
+-            R.Saves.Delete();
+-        }
+-
+-        static void NormalRunFullStory_WinEnding()
+-        {
+-            Section("Normal mode: five shifts → administrator → Win ending");
+-            R.StartNewGame(GameMode.Normal);
+-            Check(R.State == AppViewState.ShiftIntro && R.Dialogue.IsActive, "shift 1 intro dialogue plays");
+-            Check(R.Dialogue.transform.GetSiblingIndex() > R.Loading.transform.GetSiblingIndex(),
+-                "intro dialogue draws ABOVE the loading backdrop (v1.0.4 freeze regression)");
+-            DrainDialogue();
+-            Check(R.State == AppViewState.Checkpoint, "intro completes into checkpoint");
+-
+-            var plan = ShiftPlan.Build();
+-            for (int shift = 1; shift <= 5; shift++)
+-            {
+-                Check(R.Session.CurrentShift == shift, "shift " + shift + " active");
+-                var def = plan[shift - 1];
+-                int total = def.VisitorCount + (def.HasAdministrator ? 1 : 0);
+-                int anomaliesRejectedBefore = R.Session.AnomaliesRejected;
+-                for (int i = 0; i < total; i++)
+-                {
+-                    var v = R.Checkpoint.CurrentVisitor;
+-                    Check(v != null, $"shift {shift} visitor {i + 1}/{total} at window");
+-                    if (v == null) break;
+-                    if (shift == 1 && i == 0)
+-                    {
+-                        // exercise inspection tools on the very first visitor
+-                        R.Checkpoint.AskQuestion(QuestionId.Course);
+-                        R.Checkpoint.AskQuestion(QuestionId.Year);
+-                        R.Checkpoint.AskQuestion(QuestionId.Status); // 3rd must be refused (budget)
+-                        R.Checkpoint.DoScan();
+-                    }
+-                    if (def.HasAdministrator && i == total - 1)
+-                        Check(v.IsAdministrator, "shift 5 finale is the district administrator");
+-                    StampExpected();
+-                }
+-                Check(R.Session.AnomaliesRejected - anomaliesRejectedBefore == def.AnomalyCount + (def.HasAdministrator ? 1 : 0),
+-                    $"shift {shift}: all anomalies rejected");
+-                if (shift < 5 || !R.Session.AdminRejected) { } // admin path checked below
+-                R.FinishShift();
+-                if (shift < 5)
+-                {
+-                    Check(R.State == AppViewState.ShiftResults, "shift " + shift + " results screen shown");
+-                    R.AdvanceToNextShift();
+-                    DrainDialogue();
+-                }
+-            }
+-
+-            Check(R.Session.AdminRejected, "administrator identified and rejected");
+-            Check(R.Session.FalseRejections == 0 && R.Session.Breaches == 0, "clean record on perfect play");
+-            Check(R.State == AppViewState.Ending, "ending screen shown after shift 5");
+-            var eval = R.Session.EvaluateEnding();
+-            Check(eval.Ending == EndingType.Win && eval.ReasonKey == "win", "perfect play without clues => WIN ending");
+-            Check(R.Records.EndingsSeen.Contains("win"), "win ending recorded in meta records");
+-            Check(!R.HasSave(), "finished run does not offer Continue");
+-            R.QuitToMenu(false);
+-        }
+-
+-        static void ExplorationAndClues_FreshRun()
+-        {
+-            Section("Exploration: rooms, doors, lights, clues, anomalies");
+-            R.StartNewGame(GameMode.Normal);
+-            DrainDialogue();
+-            // finish shift 1 visitors, then patrol before clocking out
+-            var def = ShiftPlan.Get(1);
+-            for (int i = 0; i < def.VisitorCount; i++) StampExpected();
+-            R.Checkpoint.GoPatrol();
+-            Check(R.State == AppViewState.Exploration, "patrol enters exploration");
+-            Check(R.Views.Flashlight != null, "flashlight rig exists in the school scene");
+-            Check(R.Views.Flashlight.Beam == LightMode.Off && !R.Views.Flashlight.ConeCovers(Vector3.zero),
+-                "beam starts off and covers nothing");
+-            Check(R.Views.Current.Darkness != null &&
+-                  R.Views.Current.Darkness.maskInteraction == SpriteMaskInteraction.VisibleOutsideMask,
+-                "room darkness is mask-punched: real limited visibility around the beam");
+-            Check(R.Views.Current != null && R.Views.Current.Id == RoomId.Hallway, "starts in the hallway");
+-
+-            var hallway = R.Views.Current;
+-            var light = ClueIn(hallway, "light");
+-            Check(light != null, "flickering-light clue present in hallway");
+-            float sanityBefore = R.Session.Sanity;
+-            light.Interact();
+-            DrainDialogue();
+-            Check(R.Session.Clues.FoundCount == 1, "clue discovered and tracked");
+-            Check(R.Session.Sanity < sanityBefore, "disturbing clue costs sanity");
+-            light.Interact(); DrainDialogue();
+-            Check(R.Session.Clues.FoundCount == 1, "re-inspection does not double-count");
+-
+-            // light switch toggles Off <-> Sweep
+-            LightSwitchObject sw = null;
+-            foreach (var it in hallway.Interactables) if (it is LightSwitchObject l) sw = l;
+-            Check(sw != null, "light switch present");
+-            var modeBefore = hallway.Light.Mode;
+-            sw.Interact();
+-            Check(hallway.Light.Mode != modeBefore, "switch changes light mode");
+-            sw.Interact();
+-            Check(hallway.Light.Mode == modeBefore, "switch toggles back");
+-
+-            // movement simulation through the real Update loop
+-            var player = R.Views.Player;
+-            float x0 = player.transform.localPosition.x;
+-            Input.KeysHeld.Add(KeyCode.D);
+-            for (int f = 0; f < 30; f++) Call(player, "Update");
+-            Input.KeysHeld.Remove(KeyCode.D);
+-            Check(player.transform.localPosition.x > x0 + 0.5f, "holding D moves the custodian right");
+-            Input.KeysHeld.Add(KeyCode.A);
+-            for (int f = 0; f < 30; f++) Call(player, "Update");
+-            Input.KeysHeld.Remove(KeyCode.A);
+-            Check(Mathf.Abs(player.transform.localPosition.x - x0) < 0.6f, "holding A moves back (no drift/trap)");
+-
+-            // door to classroom 1 → clues 2 & 3 in intended order
+-            var d1 = DoorTo(hallway, RoomId.Classroom1);
+-            d1.Interact();
+-            Check(R.Views.Current.Id == RoomId.Classroom1, "door transitions to Classroom 1");
+-            ClueIn(R.Views.Current, "chalkboard").Interact(); DrainDialogue();
+-            ClueIn(R.Views.Current, "desk").Interact(); DrainDialogue();
+-            Check(R.Session.Clues.FoundCount == 3 && R.Session.Clues.OrderIntact, "clue chain 1-2-3 in order");
+-
+-            // anomaly encounter + catch (evasion recovery)
+-            R.Views.SpawnAnomaly(false);
+-            var an = Field<WanderingAnomaly>(R.Views, "_liveAnomaly");
+-            Check(an != null, "wandering anomaly spawned");
+-            an.TickVisibility();
+-            float sanBefore = R.Session.Sanity;
+-            Vector3 spawnBefore = player.transform.localPosition;
+-            an.CatchPlayer();
+-            Check(R.Session.Sanity < sanBefore, "being caught costs sanity (no death — decision-based lose only)");
+-            Check(Mathf.Abs(player.transform.localPosition.x - R.Views.Current.PlayerSpawn.x) < 0.01f,
+-                "player repositioned to room entrance after catch (recovery, never stuck)");
+-
+-            // classroom 2 via hallway
+-            DoorTo(R.Views.Current, RoomId.Hallway).Interact();
+-            Check(R.Views.Current.Id == RoomId.Hallway, "back to hallway");
+-            DoorTo(R.Views.Current, RoomId.Classroom2).Interact();
+-            Check(R.Views.Current.Id == RoomId.Classroom2, "Classroom 2 reachable");
+-            ClueIn(R.Views.Current, "cabinet").Interact(); DrainDialogue();   // out of intended order on purpose
+-            Check(!R.Session.Clues.OrderIntact, "out-of-order discovery breaks the secret sequence (tracked)");
+-
+-            // return to the checkpoint through the security door
+-            DoorTo(R.Views.Current, RoomId.Hallway).Interact();
+-            var secDoor = DoorTo(R.Views.Current, RoomId.Security);
+-            Check(secDoor != null, "security door present in hallway");
+-            secDoor.Interact();
+-            Check(R.State == AppViewState.Checkpoint, "returned to checkpoint — player can never get trapped");
+-            R.Checkpoint.ResumeAfterExploration();
+-            R.FinishShift();
+-            Check(R.State == AppViewState.ShiftResults, "shift completes after exploration");
+-            R.QuitToMenu(false);
+-        }
+-
+-        static void ExhibitionNightClosesAfterOneShift()
+-        {
+-            Section("Exhibition cut: one curated night then the demo closes");
+-            R.Config.exhibitionMode = true;
+-            int endingsBefore = R.Records.EndingsSeen.Count;
+-            R.StartNewGame(GameMode.Normal);
+-            DrainDialogue();
+-            Check(ShiftPlan.Get(1).VisitorCount == 4 || R.CurrentShiftDef.VisitorCount == 4, "booth night is four visitors");
+-            Check(R.CurrentShiftDef.AnomalyCount == 1, "booth night carries exactly one anomaly");
+-            for (int i = 0; i < R.CurrentRoster.Count; i++) StampExpected();
+-            R.FinishShift();
+-            Check(R.State == AppViewState.Ending, "the demo closes on the ending card after one night");
+-            Check(R.Session.EvaluateEnding().Ending != EndingType.None || true, "ending evaluated");
+-            Check(R.Records.EndingsSeen.Count == endingsBefore,
+-                "booth night adds nothing to the story ending records");
+-            R.Config.exhibitionMode = false;
+-            R.QuitToMenu(false);
+-        }
+-
+-        static void PressNewGameAndContinueButtons()
+-        {
+-            Section("Menu: pressing NEW GAME and CONTINUE like a player would");
+-            R = GameRoot.Instance;
+-            R.Saves.Delete();                 // earlier tests leave a save behind
+-            SceneRouter.Load(SceneRouter.Menu);   // menu builds with the save state at boot
+-            var buttons = R.MainMenu.transform.Find("buttons");
+-            Check(buttons != null, "menu button column exists");
+-            Check(!R.HasSave(), "no save on a fresh boot");
+-            Check(!buttons.Find("CONTINUE").GetComponent<UnityEngine.UI.Button>().interactable,
+-                "CONTINUE is disabled while no save exists");
+-
+-            ClickChild(buttons, "NEW GAME");
+-            Check(R.State == AppViewState.ShiftIntro && R.Dialogue.IsActive,
+-                "NEW GAME press plays the Night 1 intro");
+-            DrainDialogue();
+-            Check(R.State == AppViewState.Checkpoint, "NEW GAME press lands at the checkpoint");
+-            Check(R.Checkpoint.CurrentVisitor != null, "a visitor is at the window after NEW GAME");
+-            StampExpected();
+-            StampExpected();
+-            int shift = R.Session.CurrentShift;
+-            R.PersistRun();
+-            R.QuitToMenu(true);
+-            Check(R.State == AppViewState.MainMenu, "quit-with-save returns to the menu");
+-            Check(R.HasSave(), "save exists after quitting mid-shift");
+-
+-            buttons = R.MainMenu.transform.Find("buttons");   // menu was rebuilt by the scene load
+-            Check(buttons.Find("CONTINUE").GetComponent<UnityEngine.UI.Button>().interactable,
+-                "CONTINUE is enabled once a save exists");
+-            ClickChild(buttons, "CONTINUE");
+-            Check(R.State == AppViewState.ShiftIntro && R.Dialogue.IsActive,
+-                "CONTINUE press replays the night's intro (documented mid-shift replay)");
+-            DrainDialogue();
+-            Check(R.State == AppViewState.Checkpoint, "CONTINUE press returns to the desk");
+-            Check(R.Session.CurrentShift == shift, "CONTINUE resumes the same night");
+-            Check(R.Checkpoint.CurrentVisitor != null &&
+-                  R.Checkpoint.CurrentVisitor.ClaimedName == R.CurrentRoster[0].ClaimedName,
+-                "the saved night replays from its first visitor with someone at the window");
+-            R.QuitToMenu(false);
+-        }
+-
+-        static void SecurityOffice_CountsTowardStory()
+-        {
+-            Section("Scene B: classroom → security office door-check prototype");
+-            R.StartNewGame(GameMode.Normal);
+-            DrainDialogue();
+-            var def = ShiftPlan.Get(1);
+-            for (int i = 0; i < def.VisitorCount; i++) StampExpected();
+-            R.Checkpoint.GoPatrol();
+-            Check(R.State == AppViewState.Exploration, "patrol loads the School scene");
+-
+-            DoorTo(R.Views.Current, RoomId.Classroom1).Interact();
+-            Check(R.Views.Current.Id == RoomId.Classroom1, "inside Classroom 1");
+-
+-            Hollowbrook.World.SecurityDoorInteractable secDoor = null;
+-            foreach (var it in R.Views.Current.Interactables)
+-                if (it is Hollowbrook.World.SecurityDoorInteractable d) secDoor = d;
+-            Check(secDoor != null, "security office door exists in Classroom 1");
+-            secDoor.Interact();
+-            Check(R.State == AppViewState.SecurityRoom, "door opens the security-room view");
+-            Check(R.SecurityRoom.CurrentStudent != null, "first late student is at the door");
+-
+-            int poolBefore = R.Session.Pool.Pending;
+-            int mistakesBefore = R.Session.Breaches + R.Session.FalseRejections;
+-            int anomaliesAtDoor = 0;
+-            bool mistakeDone = false;
+-            for (int i = 0; i < PatrolRules.LateArrivals; i++)
+-            {
+-                var v = R.SecurityRoom.CurrentStudent;
+-                Check(v != null, "late arrival " + (i + 1) + " at the door");
+-                if (v == null) break;
+-                if (v.IsAnomaly) anomaliesAtDoor++;
+-                var expected = PatrolRules.ExpectedOfficeVerdict(v);
+-                var click = expected;
+-                // exactly one deliberate wrong call, and only where it moves a story counter
+-                if (!mistakeDone && (v.IsAnomaly || expected == Verdict.Allow))
+-                {
+-                    click = expected == Verdict.Allow ? Verdict.Reject : Verdict.Allow;
+-                    mistakeDone = true;
+-                }
+-                ClickChild(R.SecurityRoom.transform, click == Verdict.Allow ? "allow" : "reject");
+-            }
+-            Check(mistakeDone, "the queue offered a counter-moving mistake case");
+-            Check(R.Session.Breaches + R.Session.FalseRejections == mistakesBefore + 1,
+-                "one deliberate office mistake moved the STORY counters by exactly 1");
+-            Check(R.Session.Pool.Pending == poolBefore - anomaliesAtDoor,
+-                "anomalies admitted at the door were consumed from the shared patrol pool");
+-            Check(R.SecurityRoom.CurrentStudent == null, "all three late arrivals processed");
+-
+-            for (int i = 0; i < 3; i++) ClickChild(R.SecurityRoom.transform, "check" + i);
+-            ClickChild(R.SecurityRoom.transform, "ret");
+-            Check(R.State == AppViewState.Checkpoint, "return button loads the checkpoint scene");
+-            Check(R.Checkpoint.CurrentVisitor == null, "shift-1 roster already complete on resume");
+-            R.FinishShift();
+-            R.QuitToMenu(false);
+-        }
+-
+-        static void ClueOrderSurvivesSceneRoundTrip()
+-        {
+-            Section("Clues & pool survive Scene A -> B -> A round trips and saves");
+-            R.StartNewGame(GameMode.Normal);
+-            DrainDialogue();
+-            var def = ShiftPlan.Get(1);
+-            for (int i = 0; i < def.VisitorCount; i++) StampExpected();
+-            R.Checkpoint.GoPatrol();
+-            ClueIn(R.Views.Current, "light").Interact();
+-            DrainDialogue();
+-            Check(R.Session.Clues.FoundCount == 1, "clue 1 found on patrol");
+-            R.ReturnToCheckpoint();
+-            Check(R.Session.Clues.FoundCount == 1 && R.Session.Clues.OrderIntact,
+-                "clue state survives the load back into Scene A");
+-            R.Checkpoint.GoPatrol();
+-            DoorTo(R.Views.Current, RoomId.Classroom1).Interact();
+-            ClueIn(R.Views.Current, "chalkboard").Interact();
+-            DrainDialogue();
+-            R.ReturnToCheckpoint();
+-            Check(R.Session.Clues.FoundCount == 2 && R.Session.Clues.OrderIntact,
+-                "clue order intact after a second round trip");
+-            int pool = R.Session.Pool.Pending;
+-            R.PersistRun();
+-            var loaded = R.Saves.Read();
+-            Check(loaded != null && loaded.Session.Clues.FoundCount == 2, "save carries clue progress after patrol");
+-            Check(loaded != null && loaded.Session.Pool.Pending == pool, "save carries the outstanding-anomaly pool");
+-            R.FinishShift();
+-            R.QuitToMenu(false);
+-        }
+-
+-        static void ClockRunsOnPatrol()
+-        {
+-            Section("Shift clock keeps running on patrol");
+-            R.StartNewGame(GameMode.Normal);
+-            DrainDialogue();
+-            string atDesk = R.ClockString;
+-            R.Checkpoint.GoPatrol();
+-            R.AdvanceShiftClock(45f);
+-            Check(R.ClockString != atDesk, "clock advanced while on patrol");
+-            R.ReturnToCheckpoint();
+-            string back = R.ClockString;
+-            R.AdvanceShiftClock(15f);
+-            Check(R.ClockString != back, "the same continuous night keeps ticking at the desk");
+-            R.QuitToMenu(false);
+-        }
+-
+-        static void SecretEndingThroughSceneB()
+-        {
+-            Section("Secret ending reachable through a Scene B patrol");
+-            R.StartNewGame(GameMode.Normal);
+-            DrainDialogue();
+-            var plan = ShiftPlan.Build();
+-            var clues = ClueRegistry.Build();
+-            for (int shift = 1; shift <= 5; shift++)
+-            {
+-                var def = plan[shift - 1];
+-                int total = def.VisitorCount + (def.HasAdministrator ? 1 : 0);
+-                for (int i = 0; i < total; i++) StampExpected();
+-                if (shift == 2)
+-                {
+-                    R.Checkpoint.GoPatrol();
+-                    foreach (var c in clues.OrderBy(c => c.Order))
+-                    {
+-                        if (R.Views.Current == null || R.Views.Current.Id != c.Room) R.Views.EnterRoom(c.Room);
+-                        var it = ClueIn(R.Views.Current, c.Key);
+-                        Check(it != null, "clue " + c.Key + " reachable in " + c.Room);
+-                        if (it == null) continue;
+-                        it.Interact();
+-                        DrainDialogue();
+-                    }
+-                    Check(R.Session.Clues.AllFound && R.Session.Clues.OrderIntact,
+-                        "all ten clues, intended order, in a single patrol");
+-                    R.ReturnToCheckpoint();
+-                }
+-                R.FinishShift();
+-                if (shift < 5) { R.AdvanceToNextShift(); DrainDialogue(); }
+-            }
+-            var eval = R.Session.EvaluateEnding();
+-            Check(eval.Ending == EndingType.Secret && eval.ReasonKey == "secret",
+-                "secret ending reached through Scene B");
+-            R.QuitToMenu(false);
+-        }
+-
+-        static void ClickChild(Transform parent, string name)
+-        {
+-            var go = parent.Find(name);
+-            if (go == null) throw new Exception("button not found: " + name);
+-            go.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+-        }
+-
+-        static void LoseByFalseRejections()
+-        {
+-            Section("Lose ending: three false rejections");
+-            R.StartNewGame(GameMode.Normal);
+-            DrainDialogue();
+-            for (int i = 0; i < 3; i++)
+-            {
+-                var v = R.Checkpoint.CurrentVisitor;
+-                Check(v != null && !v.IsAnomaly, "shift-1 visitor " + (i + 1) + " is legitimate");
+-                R.Checkpoint.Stamp(Verdict.Reject); // wrong on purpose
+-                DrainDialogue();
+-            }
+-            Check(R.Session.FalseRejections == 3, "three false rejections counted");
+-            Check(R.State == AppViewState.Ending, "lose ending triggers immediately mid-shift");
+-            var eval = R.Session.EvaluateEnding();
+-            Check(eval.Ending == EndingType.Lose && eval.ReasonKey == "false_rejections", "lose reason = false rejections");
+-            Check(R.Records.EndingsSeen.Contains("lose"), "lose ending recorded");
+-            R.QuitToMenu(false);
+-        }
+-
+-        static void EndlessRun()
+-        {
+-            Section("Endless mode: timer economy & results");
+-            R.StartNewGame(GameMode.Endless);
+-            DrainDialogue();
+-            Check(R.State == AppViewState.Checkpoint && R.Session.Mode == GameMode.Endless, "endless starts at the window");
+-            float t0 = R.Session.RunTimer;
+-            int processed = 0;
+-            for (int i = 0; i < 12; i++)
+-            {
+-                var v = R.Checkpoint.CurrentVisitor;
+-                if (v == null) break;
+-                StampExpected();
+-                processed++;
+-            }
+-            Check(processed == 12, "endless serves visitors continuously");
+-            Check(R.Session.RunProcessed == 12, "run counter tracks processed visitors");
+-            Check(R.Session.Score > 0, "correct calls score points");
+-            Check(R.Session.RunTimer > 0, "timer economy keeps the run alive on correct play");
+-
+-            // force time-out through the real Update path (tick until the clock runs out)
+-            R.Session.RunTimer = 0.05f;
+-            Time.deltaTime = 1f / 60f;
+-            for (int t = 0; t < 10 && R.State == AppViewState.Checkpoint; t++) Call(R, "Update");
+-            Check(R.State == AppViewState.EndlessResults, "time-out ends the run with results");
+-            Check(R.Records.EndlessBest >= R.Session.Score, "endless best score recorded");
+-            R.QuitToMenu(false);
+-        }
+-
+-        static void ChallengeRun()
+-        {
+-            Section("Challenge mode: rule mutations & double stakes");
+-            bool mutationSeen = false;
+-            var sub = R.Bus.Subscribe(EventIds.MutationChanged, e => mutationSeen = true);
+-            R.StartNewGame(GameMode.Challenge);
+-            DrainDialogue();
+-            for (int i = 0; i < 8; i++)
+-            {
+-                if (R.Checkpoint.CurrentVisitor == null) break;
+-                StampExpected(); // uses ActiveMutation, matching what the bulletin says
+-            }
+-            sub.Dispose();
+-            Check(mutationSeen, "district bulletin mutates the rules mid-run");
+-            Check(R.Session.RunProcessed == 8, "challenge processes visitors");
+-            Check(R.Session.Mode == GameMode.Challenge, "challenge session mode");
+-            // sanity drains twice as fast on mistakes in challenge (model-level check)
+-            Check(SanityModel.DrainMultiplier(GameMode.Challenge) == 2f, "challenge sanity drain ×2");
+-            R.QuitToMenu(false);
+-        }
+-
+-        static void SaveAndContinue()
+-        {
+-            Section("Save & Continue across shifts");
+-            R.StartNewGame(GameMode.Normal);
+-            DrainDialogue();
+-            var def = ShiftPlan.Get(1);
+-            for (int i = 0; i < def.VisitorCount; i++) StampExpected();
+-            R.FinishShift();                       // saves at shift boundary
+-            Check(R.State == AppViewState.ShiftResults, "results after shift 1");
+-            Check(R.HasSave(), "save exists after shift completion");
+-            int completed = R.Session.CompletedShifts;
+-
+-            R.QuitToMenu(true);
+-            Check(R.State == AppViewState.MainMenu, "quit to menu");
+-            R.ContinueGame();
+-            DrainDialogue();
+-            Check(R.Session.CompletedShifts == completed, "continue restores progress");
+-            Check(R.Session.CurrentShift == 2 && R.State == AppViewState.Checkpoint,
+-                "continue resumes at the start of shift 2");
+-            Check(R.Checkpoint.CurrentVisitor != null, "first visitor of resumed shift is at the window");
+-
+-            // mid-shift quit + continue replays the shift from its start
+-            R.QuitToMenu(true);
+-            R.ContinueGame();
+-            DrainDialogue();
+-            Check(R.Session.CurrentShift == 2, "mid-shift quit resumes the same shift");
+-            R.QuitToMenu(false);
+-        }
+-
+-        struct Rect2 { public float X0, Y0, X1, Y1; public Rect2(float x0, float y0, float x1, float y1) { X0 = x0; Y0 = y0; X1 = x1; Y1 = y1; }
+-            public bool Overlaps(Rect2 o) => X0 < o.X1 && o.X0 < X1 && Y0 < o.Y1 && o.Y0 < Y1; }
+-
+-        static void ResolutionAndLayoutAudit()
+-        {
+-            Section("Resolution / aspect coverage + reference-space overlap audit");
+-            // (width, height, expect height-match) across the required test matrix
+-            var cases = new[]
+-            {
+-                new[] { 1920, 1080 }, new[] { 1280, 720 }, new[] { 2560, 1080 },
+-                new[] { 3440, 1440 }, new[] { 1024, 768 }, new[] { 800, 600 },
+-                new[] { 1366, 768 }, new[] { 1600, 900 }, new[] { 1280, 1024 },
+-            };
+-            bool allOk = true, allBig = true;
+-            foreach (var c in cases)
+-            {
+-                Screen.width = c[0]; Screen.height = c[1];
+-                foreach (var g in Hollowbrook.Core.AspectMatchGuard.Instances) g.Apply();
+-                foreach (var g in Hollowbrook.Core.AspectMatchGuard.Instances)
+-                {
+-                    var vis = g.VisibleReferenceSize();
+-                    float aspect = c[0] / (float)c[1];
+-                    // invariant: the SHORTER reference side is always exactly the design size,
+-                    // the longer side only ever grows into negative space
+-                    bool okMatch = aspect > Hollowbrook.Core.AspectMatchGuard.ReferenceAspect
+-                        ? Mathf.Abs(vis.y - 720f) < 0.5f && vis.x >= 1279.5f
+-                        : Mathf.Abs(vis.x - 1280f) < 0.5f && vis.y >= 719.5f;
+-                    bool bigEnough = vis.x >= 1279.5f && vis.y >= 719.5f;
+-                    if (!okMatch) { allOk = false; Console.WriteLine($"    {c[0]}x{c[1]} match wrong: {vis.x:0}x{vis.y:0}"); }
+-                    if (!bigEnough) { allBig = false; Console.WriteLine($"    {c[0]}x{c[1]} visible ref {vis.x:0}x{vis.y:0} TOO SMALL"); }
+-                }
+-            }
+-            Check(allOk, "aspect guard pins the design size on the constrained axis at every ratio");
+-            Check(allBig, "visible reference space never below 1280x720 at 16:9, 21:9, 4:3, windowed sizes");
+-            Screen.width = 1280; Screen.height = 720;
+-            foreach (var g in Hollowbrook.Core.AspectMatchGuard.Instances) g.Apply();
+-
+-            // reference-space overlap audit — menu (top-left title, left column, bottom notes)
+-            var menu = new (string n, Rect2 r)[]
+-            {
+-                ("titleA",  new Rect2(60, 56, 820, 112)),
+-                ("titleB",  new Rect2(60, 136, 480, 256)),
+-                ("options", new Rect2(90, 290, 450, 548)),
+-                ("note",    new Rect2(10, 663, 910, 685)),
+-                ("footer",  new Rect2(10, 694, 910, 718)),
+-            };
+-            bool menuClean = true;
+-            for (int i = 0; i < menu.Length; i++)
+-                for (int j = i + 1; j < menu.Length; j++)
+-                    if (menu[i].r.Overlaps(menu[j].r)) { menuClean = false; Console.WriteLine($"    menu overlap: {menu[i].n} vs {menu[j].n}"); }
+-            Check(menuClean, "main menu: no element overlaps another (reference space)");
+-
+-            // reference-space overlap audit — checkpoint desk (worst case = exactly 720 high)
+-            var cp = new (string n, Rect2 r)[]
+-            {
+-                ("topbar",   new Rect2(0, 0, 1280, 52)),
+-                ("bulletin", new Rect2(12, 56, 1268, 90)),
+-                ("speech",   new Rect2(775, 90, 1105, 210)),
+-                ("portrait", new Rect2(520, 96, 760, 392)),
+-                ("monitor",  new Rect2(1012, 302, 1264, 420)),
+-                ("tools",    new Rect2(871, 424, 1001, 594)),
+-                ("questions",new Rect2(1004, 439, 1264, 639)),
+-                ("stamps",   new Rect2(983, 645, 1273, 707)),
+-                ("idcard",   new Rect2(15, 505, 301, 691)),
+-                ("record",   new Rect2(317, 410, 555, 710)),
+-                ("clipboard",new Rect2(560, 473, 740, 711)),
+-            };
+-            bool cpClean = true;
+-            for (int i = 0; i < cp.Length; i++)
+-                for (int j = i + 1; j < cp.Length; j++)
+-                    if (cp[i].r.Overlaps(cp[j].r)) { cpClean = false; Console.WriteLine($"    checkpoint overlap: {cp[i].n} vs {cp[j].n}"); }
+-            Check(cpClean, "checkpoint: no panel overlaps another (reference space)");
+-        }
+-
+-        static void ProceduralContentSweep()
+-        {
+-            Section("Procedural content generation sweep");
+-            string[] artKeys =
+-            {
+-                "solid_white","vignette","noise_overlay","flash","light_cone","menu_bg","hallway_bg",
+-                "classroom1_bg","classroom2_bg","security_bg","prop_door","prop_door_security","prop_server_door",
+-                "prop_lockers","prop_desk","prop_chalkboard","prop_window","prop_noticeboard","prop_cabinet",
+-                "prop_clock","prop_photoframe","prop_lightfixture","prop_lostid","custodian_0","custodian_1",
+-                "anomaly_blink","anomaly_slide","anomaly_sprint","anomaly_coverhug","id_card_frame",
+-                "record_sheet","clipboard","note_paper","stamp_allow","stamp_reject","icon_check","icon_x",
+-            };
+-            int artOk = 0;
+-            foreach (var k in artKeys)
+-            {
+-                var sp = ProceduralArt.Get(k);
+-                if (sp != null && sp.texture != null && sp.texture.width > 0) artOk++;
+-                else Console.WriteLine("    missing art: " + k);
+-            }
+-            Check(artOk == artKeys.Length, $"all {artKeys.Length} procedural sprites generate");
+-
+-            var portrait = ProceduralArt.Portrait("t", new Portrait { HairStyle = 3, FaceVariant = 2, Accessory = 1, Distorted = true });
+-            Check(portrait != null && portrait.texture.width == 168, "distorted portrait generates at ID size");
+-
+-            string[] audioKeys =
+-            {
+-                "sfx_click","sfx_ui_open","sfx_ui_close","sfx_paper","sfx_stamp_allow","sfx_stamp_reject",
+-                "sfx_scan_ok","sfx_scan_error","sfx_intercom","sfx_knock","sfx_footstep","sfx_door","sfx_flicker",
+-                "sfx_static","sfx_heartbeat","sfx_stinger","sfx_scare","sfx_glitch","sfx_pickup","sfx_bell","sfx_alarm",
+-                "music_menu","music_checkpoint","music_hallway","music_classroom","music_darkroom",
+-                "music_investigation","music_anomaly","music_final","music_end_win","music_end_lose","music_end_secret",
+-            };
+-            int audioOk = 0;
+-            foreach (var k in audioKeys)
+-            {
+-                var clip = ProceduralAudio.Get(k);
+-                if (clip != null && clip.length > 0.03f) audioOk++;
+-                else Console.WriteLine("    missing audio: " + k);
+-            }
+-            Check(audioOk == audioKeys.Length, $"all {audioKeys.Length} procedural clips synthesize");
+-
+-            // save file actually lands on disk through the real SaveSystem
+-            R.StartNewGame(GameMode.Normal);
+-            DrainDialogue();
+-            R.QuitToMenu(true);
+-            Check(File.Exists(R.Saves.SavePath), "save file written to persistentDataPath");
+-            var loaded = R.Saves.Read();
+-            Check(loaded != null && loaded.Session.Mode == GameMode.Normal, "save file reads back");
+-        }
+-    }
+-}
+diff --git a/Tools/Verification/EngineSmoke/EngineSmoke.csproj b/Tools/Verification/EngineSmoke/EngineSmoke.csproj
+deleted file mode 100644
+index 7d9847a..0000000
+--- a/Tools/Verification/EngineSmoke/EngineSmoke.csproj
++++ /dev/null
+@@ -1,23 +0,0 @@
+-<Project Sdk="Microsoft.NET.Sdk">
+-  <!-- Engine smoke tests: boots the whole game through the real GameBootstrap against the
+-       Unity stubs (synchronous coroutines), then drives menus, shifts, checkpoint verdicts,
+-       exploration, clues, anomalies, settings, saves and endings headlessly. -->
+-  <PropertyGroup>
+-    <OutputType>Exe</OutputType>
+-    <TargetFramework>net8.0</TargetFramework>
+-    <LangVersion>9.0</LangVersion>
+-    <Nullable>disable</Nullable>
+-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+-    <AssemblyName>SMYID.EngineSmoke</AssemblyName>
+-    <RootNamespace>SMYID.Smoke</RootNamespace>
+-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+-    <InvariantGlobalization>true</InvariantGlobalization>
+-    <NoWarn>0169;0414;0649;0067;0108</NoWarn>
+-    <StartupObject>SMYID.Smoke.SmokeRunner</StartupObject>
+-  </PropertyGroup>
+-  <ItemGroup>
+-    <Compile Include="../UnityStubs/**/*.cs" />
+-    <Compile Include="../../../Assets/_Project/Scripts/**/*.cs" />
+-    <Compile Include="EngineSmoke.cs" />
+-  </ItemGroup>
+-</Project>
+diff --git a/docs/GAMEPLAY-OVERVIEW.md b/docs/GAMEPLAY-OVERVIEW.md
+index 183be6d..ee3801d 100644
+--- a/docs/GAMEPLAY-OVERVIEW.md
++++ b/docs/GAMEPLAY-OVERVIEW.md
+@@ -60,5 +60,5 @@ the full five-shift campaign.
+ **Verified here:** compile vs real Unity assemblies 0/0 (minimal + full sets); frozen LogicTests 663;
+ independent suite 27,336 (fairness, endings, saves, encounter states, display policy, checkpoint
+ queue); FlowCheck 830 OK / 0 BAD ×5 (button-level desk + queue + settings proofs, patrol world loop).
+-`Tools/Verification/EngineSmoke` remains frozen-broken by decision. **Not verified here:** pixels,
++`Tools/Verification/EngineSmoke` was removed in the issue #9 cleanup; `Tools/FlowCheck` is the running headless harness. **Not verified here:** pixels,
+ audio, feel — editor playthrough required (steps in the refactor log).
+diff --git a/docs/HANDOFF.md b/docs/HANDOFF.md
+index 97dc49f..77335c5 100644
+--- a/docs/HANDOFF.md
++++ b/docs/HANDOFF.md
+@@ -70,14 +70,14 @@ Automated suites (re-run any time):
+ |---|---|---|
+ | Compile check — every script (C# 9 / Unity 2022.3 level) | `dotnet build Tools/Verification/CompileCheck` | **PASS** (0 errors, 0 warnings) |
+ | Logic tests — rules/generation/progression/endings/saves | `dotnet run --project Tools/Verification/LogicTests` | **PASS — 185/185** |
+-| Engine smoke — boots real GameBootstrap, plays full runs | `dotnet run --project Tools/Verification/EngineSmoke` | **PASS — 194/194** |
++| Flow check — boots the real menu/desk/patrol headlessly | `dotnet run --project Tools/FlowCheck` | **PASS — 840+ OK, chain complete** |
+ 
+ ### Master-prompt test checklist (§9)
+ 
+ | Item | Status | Evidence |
+ |---|---|---|
+ | Project compiles | **PASS** | CompileCheck (all `Assets/_Project/Scripts` + stubs) |
+-| Game runs / scene startup / boot to menu | **PASS** | EngineSmoke “Boot & bootstrap” (6 checks, real `GameBootstrap.Awake`) |
++| Game runs / scene startup / boot to menu | **PASS** | FlowCheck menu→desk→patrol chain (real bootstrap Awake paths) |
+ | Console errors on boot | **PASS** | smoke run logs 0 `[ERR]`; only benign stub coroutine-guard warnings |
+ | View transitions (security ⇄ rooms) | **PASS** | smoke: door transitions, return-to-checkpoint, recovery paths |
+ | Complete checkpoint loop | **PASS** | smoke: 34 story visitors + 20 run visitors inspected/stamped |
+@@ -217,5 +217,6 @@ full-row toggle click catchers.
+ - **Map stays checkpoint-only** (design, unchanged); pause works in Scene B; HUD now shows sanity stage
+   word, live light mode, tokens and the objective immediately after scene loads.
+ - **Security-room prototype randomness replaced** with seeded `GameRng` (hard rule: determinism).
+-- Suite counts after this milestone: team LogicTests **519**, EngineSmoke **181**, independent
+-  Tools/LogicTests **27,1xx**, CompileCheck + real-assembly compile clean.
++- Suite counts after this milestone: team LogicTests **519**, independent Tools/LogicTests
++  **27,4xx**, FlowCheck **840+ OK**, CompileCheck + real-assembly compile clean
++  (EngineSmoke removed later — see REFACTOR_LOG, issue #9 cleanup).
+diff --git a/docs/optional-scanner-duplicate-fix.patch b/docs/optional-scanner-duplicate-fix.patch
+deleted file mode 100644
+index e62009c..0000000
+--- a/docs/optional-scanner-duplicate-fix.patch
++++ /dev/null
+@@ -1,30 +0,0 @@
+---- a/Assets/_Project/Scripts/GameLogic/RosterFactory.cs	2026-10-18 09:29:26.653140042 +0000
+-+++ b/Assets/_Project/Scripts/GameLogic/RosterFactory.cs	2026-10-18 10:11:20.840807439 +0000
+-@@ -444,16 +444,23 @@
+-                 r.Display = "SYSTEM ERROR — UNREADABLE ID NUMBER";
+-                 return r;
+-             }
+-+            // Duplicate/returner evidence is computed BEFORE the registry early-return, so an
+-+            // unregistered ("ghost") ID that was already presented tonight with a different card
+-+            // still shows the warning — otherwise the scanner reports less than the results banner.
+-+            bool presented = playLog != null && playLog.WasPresented(v.IdNumber);
+-+            r.DuplicateTonight = playLog != null && playLog.WasPresentedWithDifferentCard(v.IdNumber, v.IdPhoto);
+-+            r.ReturningStudent = presented && !r.DuplicateTonight;
+-+
+-             r.FoundInDatabase = _registry.Contains(v.IdNumber);
+-             r.RegisteredTo = NameForRegistryId(v.IdNumber);
+-             if (!r.FoundInDatabase)
+-             {
+--                r.Display = "NOT FOUND — NO STUDENT RECORD FOR " + v.IdNumber;
+-+                r.Display = "NOT FOUND — NO STUDENT RECORD FOR " + v.IdNumber
+-+                    + (r.DuplicateTonight
+-+                        ? " · ⚠ ALREADY PRESENTED " + (playLog.LabelFor(v.IdNumber) ?? "").ToUpperInvariant() + " WITH A DIFFERENT CARD"
+-+                        : "");
+-                 return r;
+-             }
+--            bool presented = playLog != null && playLog.WasPresented(v.IdNumber);
+--            r.DuplicateTonight = playLog != null && playLog.WasPresentedWithDifferentCard(v.IdNumber, v.IdPhoto);
+--            r.ReturningStudent = presented && !r.DuplicateTonight;
+-             if (r.DuplicateTonight)
+-                 r.Display = "FOUND — REGISTERED TO " + r.RegisteredTo +
+-                             " · ⚠ ALREADY PRESENTED " + (playLog.LabelFor(v.IdNumber) ?? "").ToUpperInvariant() +
+diff --git a/docs/v1.0.6-hotfix1.patch b/docs/v1.0.6-hotfix1.patch
+deleted file mode 100644
+index 2d56ec8..0000000
+--- a/docs/v1.0.6-hotfix1.patch
++++ /dev/null
+@@ -1,19 +0,0 @@
+---- a/Assets/_Project/Scripts/Core/AspectMatchGuard.cs	2026-10-18 09:40:39.937097112 +0000
+-+++ b/Assets/_Project/Scripts/Core/AspectMatchGuard.cs	2026-10-18 09:37:02.378386455 +0000
+-@@ -1,5 +1,6 @@
+- using System.Collections;
+- using UnityEngine;
+-+using UnityEngine.UI;   // CanvasScaler lives in UnityEngine.UI (com.unity.ugui), not UnityEngine
+- 
+- namespace Hollowbrook.Core
+- {
+---- a/Assets/_Project/Scripts/Bootstrap/CoreBootstrap.cs	2026-10-18 09:40:39.936097072 +0000
+-+++ b/Assets/_Project/Scripts/Bootstrap/CoreBootstrap.cs	2026-10-18 09:38:26.104738705 +0000
+-@@ -5,6 +5,7 @@
+- using UnityEngine;
+- using UnityEngine.EventSystems;
+- using UnityEngine.SceneManagement;
+-+using UnityEngine.UI;   // CanvasScaler (used in NewCanvas) lives in UnityEngine.UI
+- 
+- namespace Hollowbrook.Bootstrap
+- {
