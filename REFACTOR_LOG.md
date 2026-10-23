@@ -252,3 +252,28 @@ No Debug.LogError and no exception appears in the FlowCheck output.
 ## Extra bugs found (not in Part B)
 - `SettingsView` scroll viewport had a Mask with no Graphic (B12).
 - `UIFactory.Label` base-size bookkeeping ignored manual fontSize writes (B5).
+
+## Desk UI Fixes Pass — scanner stacking, ID stripe & flip, FIND alignment, record X (October 2026)
+Four targeted desk fixes (task list from the owner's web-style report, mapped to Unity):
+1. **ID over scanner (stacking):** root cause was build order — the right column (camera/tools) was
+   built after `PapersLayer`, so the scan device drew OVER dragged papers. `Init` now builds in
+   explicit stacking order: window → questions → tools/camera → **papers layer** → stamp tray →
+   overlays; `BuildRightColumn` split into `BuildQuestionsPanel` / `BuildToolsAndCamera` /
+   `BuildStampTray`. The slip is built inside the papers layer (`BuildSlip`). FlowCheck asserts
+   `camera < PapersLayer < stamp tray` sibling order.
+2. **Black spine + reliable flip:** the held ID card carries a 14-unit black stripe — left edge on
+   the front, mirrored right on the back. The whole card is now a `Button` (transition None, no
+   tint): pointer click flips, and because it's a Selectable the EventSystem fires it on
+   Enter/Space when focused. Tap reliability root cause: `DragPaper._moved` accumulated raw screen
+   pixels against a 6-unit threshold — at canvas scale >1 every small drag exceeded it and clicks
+   never counted as taps; movement now accumulates in canvas units with a 10-unit threshold.
+3. **FIND alignment:** the station's box and button now share a `searchrow` container — the input
+   stretches to fill and FIND is right-pinned (anchor 1, full height): flush at any scale, no
+   pixel nudges (root cause was independent `PlaceTL` coordinates that could drift).
+4. **Record exit button:** `closefile` is anchored top-right (anchor/pivot 1,1 at −4,−4) instead of
+   an absolute placement, and `Inner.RecordHeader` narrowed to 284 so the X never collides with the
+   header text.
+Also: `PresentVisitor` ends with `RefreshHud()` and stamps are built dim (alpha .35) so tray state
+can never lag presentation; a duplicate `BuildStamp` pair left by the column split was removed
+(caught by FlowCheck reading the stale first instance).
+FlowCheck: 842 checks green. LogicTests invariant + ICU/de-DE green. Frozen suite 663/663. verify.sh clean.

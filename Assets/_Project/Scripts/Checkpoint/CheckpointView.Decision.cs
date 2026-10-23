@@ -16,14 +16,15 @@ namespace Hollowbrook.Checkpoint
     // the shared fields and the whole-class comment. Same class, split by desk area.
     public partial class CheckpointView
     {
-        private void BuildRightColumn()
+        // Stacking order is build order: questions and the tools/camera row sit BELOW
+        // the papers layer; the stamp tray sits ABOVE it; overlays top everything.
+        private void BuildQuestionsPanel()
         {
             var qPanel = UIFactory.BorderedPanel(_desk, "qpanel", UIFactory.Paper, UIFactory.Border, 2);
             Reg("questions", qPanel, L.Questions);
             qPanel.gameObject.AddComponent<RectMask2D>();
             var qHead = UIFactory.Label(qPanel, "head", "QUESTIONS", 13, UIFactory.PaperInk, TextAnchor.UpperLeft);
             L.Place(qHead.rectTransform, L.Inner.QHead);
-            // interview gate: the four questions stay hidden until YOU open them
             _budgetLabel = UIFactory.Label(qPanel, "budget", "QUESTIONS: 3 LEFT", 11,
                 new Color(0.35f, 0.35f, 0.34f), TextAnchor.MiddleRight);
             L.Place(_budgetLabel.rectTransform, L.Inner.QBudget);
@@ -50,7 +51,10 @@ namespace Hollowbrook.Checkpoint
             }
             // answers live in the speech log now; no testimony box, no hint line
 
-            _scanBtn = GridButton(_desk, "scan", "SCAN", DoScan, L.UtilityScan, 11);
+        }
+
+        private void BuildToolsAndCamera()
+        {            _scanBtn = GridButton(_desk, "scan", "SCAN", DoScan, L.UtilityScan, 11);
             Reg("scan", _scanBtn, L.UtilityScan);
             _recordsBtn = GridButton(_desk, "records", "TL",
                 () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, L.UtilityRecords, 11);
@@ -63,8 +67,6 @@ namespace Hollowbrook.Checkpoint
 
             // verdicts are physical: drag a stamp onto the subject's ID to commit.
             // No confirm buttons anywhere — the stamp act IS the confirmation.
-            BuildStamp("stamp_allow", "A — ACCEPT", new Color(0.42f, 0.58f, 0.42f), L.StampAllow, Verdict.Allow, 0, 18);
-            BuildStamp("stamp_deny", "D — DENY", new Color(0.58f, 0.28f, 0.28f), L.StampDeny, Verdict.Reject, 1, 18);
 
             // the CAMERA is the scan device: drop the ID on it to scan; readout inside
             var mon = UIFactory.BorderedPanel(_desk, "monitor", new Color(0.055f, 0.062f, 0.055f),
@@ -97,9 +99,16 @@ namespace Hollowbrook.Checkpoint
             }
         }
 
+        private void BuildStampTray()
+        {
+            BuildStamp("stamp_allow", "A — ACCEPT", new Color(0.42f, 0.58f, 0.42f), L.StampAllow, Verdict.Allow, 0, 18);
+            BuildStamp("stamp_deny", "D — DENY", new Color(0.58f, 0.28f, 0.28f), L.StampDeny, Verdict.Reject, 1, 18);
+        }
+
         private void BuildStamp(string goName, string label, Color tint, L.Region region, Verdict verdict, int idx, int fontSize = 13)
         {
-            var panel = UIFactory.Panel(_desk, goName, tint);
+            var dim = new Color(tint.r, tint.g, tint.b, 0.35f);   // born dim; RefreshStamps wakes them
+            var panel = UIFactory.Panel(_desk, goName, dim);
             Reg(goName, panel.rectTransform, region);
             var t = UIFactory.Label(panel.rectTransform, "label", label, fontSize,
                 UIFactory.Ink, TextAnchor.MiddleCenter);

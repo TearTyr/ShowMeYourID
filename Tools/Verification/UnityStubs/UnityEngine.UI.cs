@@ -173,6 +173,8 @@ namespace UnityEngine.UI
 
     public class Selectable : Behaviour
     {
+        public enum Transition { None, ColorTint, SpriteSwap, Animation }
+        public Transition transition = Transition.ColorTint;
         public bool interactable = true;
         public Graphic targetGraphic;
         public Navigation navigation = default;

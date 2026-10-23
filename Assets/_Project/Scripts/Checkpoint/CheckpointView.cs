@@ -102,10 +102,12 @@ namespace Hollowbrook.Checkpoint
             BuildTopBar();
             BuildLeftColumn();
             BuildWindowArea();
-            BuildPapersLayer();      // papers live above the window, below stamps/overlays
             BuildOfferedId();
             BuildCenterColumn();
-            BuildRightColumn();
+            BuildQuestionsPanel();
+            BuildToolsAndCamera();
+            BuildPapersLayer();      // papers live above window/tools/camera...
+            BuildStampTray();        // ...and below the stamp tray; overlays top everything
             BuildOverlays();
             BuildStickyNote();
 
@@ -316,6 +318,7 @@ namespace Hollowbrook.Checkpoint
             ShowVisitorPortrait(v);
             PlayArrivalVoices(v, admin);
             ResetHandover(v);          // slip + ID slide to the counter edge, unasked
+            RefreshHud();              // tray/prompt state always matches the new visitor
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VisitorArrived, v));
         }
 

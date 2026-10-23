@@ -501,11 +501,32 @@ namespace FlowCheck
 
             // flip + zoom on the held ID (desk is live here): tap retargets to the ID
             var idGo = FindDeep(cp.transform, "idcard");
-            var idDrag2 = idGo.GetComponent<DragPaper>();
-            idDrag2.BeginDrag(); idDrag2.EndDrag();      // a tap: flips the ID itself
-            Check(idGo.Find("idback").gameObject.activeSelf, "tapping the held ID flips it to the back face");
+            idGo.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();   // click = flip (mouse or Enter/Space)
+            Check(idGo.Find("idback").gameObject.activeSelf, "clicking the held ID flips it to the back face");
+            idGo.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(!idGo.Find("idback").gameObject.activeSelf, "clicking again flips back (reliable both ways)");
             cp.FlipId();
-            Check(!idGo.Find("idback").gameObject.activeSelf, "F flips back to the face");
+            Check(idGo.Find("idback").gameObject.activeSelf, "F still flips to the back face");
+            cp.FlipId();
+            // task 1: stacking — camera below papers, stamps above papers
+            int monI = FindDeep(cp.transform, "monitor_border").GetSiblingIndex();
+            int layI = FindDeep(cp.transform, "PapersLayer").GetSiblingIndex();
+            int stpI = FindDeep(cp.transform, "stamp_allow").GetSiblingIndex();
+            Check(monI < layI && layI < stpI, "stacking: camera < papers layer < stamp tray");
+            // task 2: stripe on both faces
+            Check(FindDeep(cp.transform, "idstripe") != null && FindDeep(cp.transform, "idstripeback") != null,
+                  "the ID carries its black stripe on front and (mirrored) back");
+            // task 3: FIND anchored flush to the search row
+            var findRt = FindDeep(cp.transform, "find").GetComponent<RectTransform>();
+            var boxRt = FindDeep(cp.transform, "searchbox").GetComponent<RectTransform>();
+            Check(findRt.anchorMin.x == 1f && findRt.anchorMax.x == 1f &&
+                  findRt.anchorMin.y == 0f && findRt.anchorMax.y == 1f &&
+                  boxRt.anchorMin == Vector2.zero && boxRt.anchorMax == Vector2.one,
+                  "FIND is right-pinned in a stretched search row (no pixel nudges)");
+            // task 4: the record's X anchors top-right
+            var xRt = FindDeep(cp.transform, "closefile").GetComponent<RectTransform>();
+            Check(xRt.anchorMin == Vector2.one && xRt.anchorMax == Vector2.one,
+                  "the record's exit button is anchored top-right");
             cp.DebugZoom(9f);
             Check(Mathf.Abs(idGo.localScale.x - 1.8f) < 0.01f, "zoom clamps at 1.8");
             cp.DebugZoom(0.1f);

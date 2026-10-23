@@ -27,8 +27,13 @@ namespace Hollowbrook.Checkpoint
             L.Place(cap.rectTransform, new L.Region(0, 4, 320, 18));
             // one visible search box: own background, placeholder, click focuses (the box is
             // the InputField's targetGraphic), Enter or FIND searches, one result line below
-            var box = UIFactory.Panel(station.rectTransform, "searchbox", new Color(0.05f, 0.06f, 0.05f));
-            L.Place(box.rectTransform, new L.Region(8, 26, 240, 28));
+            var row = UIFactory.NewUI(station.rectTransform, "searchrow");
+            L.Place(row, new L.Region(8, 26, 304, 28));
+            var box = UIFactory.Panel(row, "searchbox", new Color(0.05f, 0.06f, 0.05f));
+            box.rectTransform.anchorMin = Vector2.zero;      // stretch: fills the row...
+            box.rectTransform.anchorMax = Vector2.one;
+            box.rectTransform.offsetMin = new Vector2(0, 0);
+            box.rectTransform.offsetMax = new Vector2(-62, 0);   // ...leaving FIND's 58+4 slot
             var query = UIFactory.Label(box.rectTransform, "query", "", 12,
                 new Color(0.75f, 0.90f, 0.75f), TextAnchor.MiddleLeft);
             UIFactory.AnchorsFull(query.rectTransform);
@@ -43,8 +48,14 @@ namespace Hollowbrook.Checkpoint
             field.placeholder = ph;
             field.onEndEdit.AddListener(SearchRecords);
             _searchField = field;
-            GridButton(station.rectTransform, "find", "FIND", () => SearchRecords(_searchField.text),
-                new L.Region(254, 26, 58, 28), 11);
+            var findBtn = UIFactory.StandardButton(row, "find", "FIND",
+                () => SearchRecords(_searchField.text), 58, 28);
+            var frt = findBtn.GetComponent<RectTransform>();   // pinned right, full row height:
+            frt.anchorMin = new Vector2(1, 0);                 // alignment holds at any scale
+            frt.anchorMax = new Vector2(1, 1);
+            frt.pivot = new Vector2(1, 0.5f);
+            frt.offsetMin = new Vector2(-58, 0);
+            frt.offsetMax = Vector2.zero;
             _stationOut = UIFactory.Label(station.rectTransform, "stationout", "", 11,
                 new Color(0.55f, 0.75f, 0.55f), TextAnchor.UpperLeft);
             L.Place(_stationOut.rectTransform, new L.Region(8, 60, 304, 30));
@@ -64,8 +75,14 @@ namespace Hollowbrook.Checkpoint
             _recStatus = Row(rec.rectTransform, "rstatus", 4);
             _recClassroom = Row(rec.rectTransform, "rroom", 5);
             _recEnrolled = Row(rec.rectTransform, "renrolled", 6);
-            GridButton(rec.rectTransform, "closefile", "X", () => rec.gameObject.SetActive(false),
-                new L.Region(288, 2, 28, 20), 10);
+            var closeBtn = GridButton(rec.rectTransform, "closefile", "X",
+                () => rec.gameObject.SetActive(false), new L.Region(288, 2, 28, 20), 10);
+            var xrt = closeBtn.GetComponent<RectTransform>();  // top-right corner, any size
+            xrt.anchorMin = new Vector2(1, 1);
+            xrt.anchorMax = new Vector2(1, 1);
+            xrt.pivot = new Vector2(1, 1);
+            xrt.anchoredPosition = new Vector2(-4, -4);
+            xrt.sizeDelta = new Vector2(28, 20);
             // draggable inside the left/centre zone only: the file can never cover the stamps
             var fileBounds = UIFactory.NewUI(_desk, "filebounds");
             UIFactory.PlaceTL(fileBounds, 0, 0, 960, 720);
@@ -100,6 +117,19 @@ namespace Hollowbrook.Checkpoint
             var uv = UIFactory.Panel(back.rectTransform, "uvstrip", new Color(0.55f, 0.55f, 0.75f, 0.35f));
             L.Place(uv.rectTransform, new L.Region(20, 190, 280, 14));
             back.gameObject.SetActive(false);
+            // the card's black spine: left edge on the front, mirrored to the right on the back
+            var stripe = UIFactory.Panel(idCard.rectTransform, "idstripe", new Color(0.06f, 0.06f, 0.07f));
+            stripe.rectTransform.anchorMin = new Vector2(0, 0);
+            stripe.rectTransform.anchorMax = new Vector2(0, 1);
+            stripe.rectTransform.offsetMin = new Vector2(0, 0);
+            stripe.rectTransform.offsetMax = new Vector2(14, 0);
+            stripe.raycastTarget = false;
+            var bstripe = UIFactory.Panel(back.rectTransform, "idstripeback", new Color(0.06f, 0.06f, 0.07f));
+            bstripe.rectTransform.anchorMin = new Vector2(1, 0);
+            bstripe.rectTransform.anchorMax = new Vector2(1, 1);
+            bstripe.rectTransform.offsetMin = new Vector2(-14, 0);
+            bstripe.rectTransform.offsetMax = new Vector2(0, 0);
+            bstripe.raycastTarget = false;
             _idHeader = UIFactory.Label(idCard.rectTransform, "header", "HOLLOWBROOK COLLEGE — STUDENT ID", 12,
                 new Color(0.9f, 0.9f, 0.88f), TextAnchor.MiddleCenter);
             L.Place(_idHeader.rectTransform, L.Inner.IdHeader);
@@ -126,7 +156,11 @@ namespace Hollowbrook.Checkpoint
             recordDrag.Init(_desk, -0.6f);
             var idDrag = _idCardGo.AddComponent<DragPaper>();
             idDrag.Init(_desk, 0.8f);
-            idDrag.OnTapped = c => FlipId();          // tap the held card to flip it
+            // the whole card is the flip target: pointer click, or Enter/Space when focused
+            var idBtn = idCard.gameObject.AddComponent<Button>();
+            idBtn.targetGraphic = idCard;
+            idBtn.transition = Selectable.Transition.None;
+            idBtn.onClick.AddListener(() => FlipId());
             idDrag.OnLift = () => _lastPaper = _idCardGo;
             idDrag.OnDropped = center =>
             {
@@ -219,6 +253,7 @@ namespace Hollowbrook.Checkpoint
             _papersLayer = layer.gameObject;
             if (_recordGo != null) _recordGo.transform.SetParent(layer, false);
             if (_idCardGo != null) _idCardGo.transform.SetParent(layer, false);
+            BuildSlip();      // the slip is paper too: it lives in the same layer
         }
 
         // The registry file, filled from a canon row (the ground-truth student record).

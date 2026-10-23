@@ -104,7 +104,7 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region TrackTrack = new Region(6, 20, 108, 12);
 
             // record sheet (sprite is printed 1:1 at 320x290)
-            public static readonly Region RecordHeader = new Region(0, 2, 320, 24);
+            public static readonly Region RecordHeader = new Region(0, 2, 284, 24);  // clear of the X
             public const float RecordRowX = 14f, RecordRowW = 292f, RecordRowH = 14f;
             public static readonly float[] RecordRules = { 42f, 63f, 84f, 105f, 126f, 147f, 168f };
             public static readonly Region StampLocal = new Region(195, 165, 110, 110);

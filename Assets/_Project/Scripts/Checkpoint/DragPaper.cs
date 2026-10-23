@@ -21,7 +21,7 @@ namespace Hollowbrook.Checkpoint
         private Vector3 _baseScale = Vector3.one;
         private float _moved;
         private const float LiftScale = 1.04f;
-        private const float TapThreshold = 6f;
+        private const float TapThreshold = 10f;   // canvas units, not screen px
 
         public bool Dragging { get; private set; }
         /// <summary>Per-paper zoom (1..1.8). Lift/drop preserve it; arrival resets it.</summary>
@@ -82,7 +82,7 @@ namespace Hollowbrook.Checkpoint
         {
             if (!Dragging) return;
             _rt.anchoredPosition += delta / ScaleFactor;  // 1:1 with the cursor at any resolution
-            _moved += Mathf.Abs(delta.x) + Mathf.Abs(delta.y);
+            _moved += (Mathf.Abs(delta.x) + Mathf.Abs(delta.y)) / ScaleFactor;
         }
 
         public void EndDrag()

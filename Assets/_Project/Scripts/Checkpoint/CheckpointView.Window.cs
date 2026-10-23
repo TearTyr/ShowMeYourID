@@ -85,6 +85,12 @@ namespace Hollowbrook.Checkpoint
                 L.IdCard.X + L.IdCard.W / 2f, L.IdCard.Y + L.IdCard.H / 2f));
             _offeredRoot.SetActive(false);
 
+
+        }
+
+        // Built from BuildPapersLayer so the slip stacks with the other papers.
+        private void BuildSlip()
+        {
             // The paper slip (ticket): arrives with the ID, carries name/ID/reason, takes
             // the stamp, and goes back to the student with the ID to close the inspection.
             var slipRt = UIFactory.NewUI(_desk, "slip");
