@@ -118,7 +118,9 @@ namespace Hollowbrook.Core
 
         [Header("Exhibition (5-10 minute booth cut)")]
         [Tooltip("One curated night (4 visitors, 1 anomaly) then the demo closes. Off = full five-shift story.")]
-        public bool exhibitionMode = true;
+        // shipping default is the FIVE-NIGHT story (issue #2); the booth demo opts in via
+        // GameConfig.asset exhibitionMode: 1 or this flag in headless proofs
+        public bool exhibitionMode = false;
         public float exhibitionBannerSeconds = 2.2f;
 
         [Header("Shift clock")]

@@ -1,5 +1,30 @@
 # Refactor log — readability pass (branch refactor/readability)
 
+## Issue #1 review pass — verified bugs, design gaps, cleanup
+
+Blocking/high: (1) menu EXIT no longer overwrites the save (InRunProgress guard, also on
+OnApplicationQuit); menu prompt now "Quit to desktop?". (2) exhibitionMode default false +
+asset key added — NEW GAME is the five-night story; FlowCheck opts into the booth explicitly.
+(3) CONTINUE keeps the night: BeginShift(isResume) skips TonightLog/Admitted/pool resets,
+pool kinds derive from seed^shift, admitted list rides the save as roster indices and is
+remapped on resume; FlowCheck asserts all three survive. (4) the Night-5 memo is handed over
+with the badge and registry searches can't replace it. (5) gameplay hotkeys/zoom stand down
+while paused, in overlays, in dialogue or off-desk. (6) InputGate gives Esc/M one owner per
+frame across sheets, map, pause, desk, patrol, confirm popup (Confirm now closes on Esc and
+counts as a blocking overlay).
+Design: (7) catching an anomaly no longer resolves it — it stays outstanding and returns;
+outstanding anomalies count as breaches when the run's books close, so patrol feeds endings.
+Robustness: (8) crash-safe save write (File.Replace + .bak, Read falls back to .bak/.tmp),
+settings persist once on sheet close/quit instead of per slider tick, RoomSpawner and
+HallucinationSystem randomness seeded from the run seed.
+Hygiene: (9) EngineSmoke removed (stale frozen harness; docs aligned), duplicate root/Assets
+docs de-duplicated, loose docs/*.patch deleted, GameBootstrap comment fixed, dead code gone
+(QuestionTextShort, _interviewOpen, the retired waiting-line DISPLAY incl. ShowcaseBuild),
+blank-line runs collapsed.
+FlowCheck: +issue proofs (menu-EXIT save guard, .bak fallback, pause gate, Esc single-owner,
+admin memo, resume fidelity) and pool-resolve before story clock-outs; 837 OK.
+
+
 ## Owner-feedback pass — desk order & sizes (Messenger notes + redlined screenshot)
 
 - Owner asks (chat): questions already out, press the question itself (no gate button); the ID
@@ -217,8 +242,8 @@ No Debug.LogError and no exception appears in the FlowCheck output.
 ## Reviewed but left alone
 - Handshake safety net: considered dead code once, deleted once, caused exactly the bug it exists for.
   Reinstated and kept forever.
-- `Tools/Verification`: frozen; its EngineSmoke no longer compiles (it called the removed SimulateLoad).
-  Left untouched on purpose; `Tools/FlowCheck` is the replacement diagnostic.
+- `Tools/Verification/EngineSmoke`: was frozen-broken (renamed APIs); removed in the issue #9
+  cleanup together with its stale doc claims. `Tools/FlowCheck` is the replacement diagnostic.
 - `ProceduralArt`/`ProceduralAudio` internals: self-contained and readable; only dead keys were candidates
   and their use is concat-built at call sites, so nothing was deleted.
 - Full A1 renaming across all 48 files: deferred; renaming untouched files adds diff noise without

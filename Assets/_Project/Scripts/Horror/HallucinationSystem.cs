@@ -11,6 +11,7 @@ namespace Hollowbrook.Horror
     public class HallucinationSystem : MonoBehaviour
     {
         private GameRoot _gameRoot;
+        private GameRng Rng = new GameRng(0x51A5);
         private float _exploreAcc;
         private float _checkpointAcc;
         private bool _flickerRestoreLit;
@@ -39,7 +40,7 @@ namespace Hollowbrook.Horror
                 if (_exploreAcc >= 1f)
                 {
                     _exploreAcc = 0f;
-                    if (Random.value < SanityModel.HallucinationChancePerSecond(stage))
+                    if (Rng.NextFloat() < SanityModel.HallucinationChancePerSecond(stage))
                         ExploreHallucination();
                 }
             }
@@ -50,10 +51,10 @@ namespace Hollowbrook.Horror
                 {
                     _checkpointAcc = 0f;
                     float chance = SanityModel.HallucinationChancePerSecond(stage) * 0.4f;
-                    if (Random.value < chance)
+                    if (Rng.NextFloat() < chance)
                     {
                         _gameRoot.Bus.Publish(GameEvent.Of(EventIds.HallucinationTriggered, "whisper"));
-                        _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, Whispers[Random.Range(0, Whispers.Length)], 3.2f, null));
+                        _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, Whispers[Rng.NextInt(0, Whispers.Length)], 3.2f, null));
                         _gameRoot.Audio.PlaySfx("sfx_static", 0.18f);
                     }
                 }
@@ -63,7 +64,7 @@ namespace Hollowbrook.Horror
         private void ExploreHallucination()
         {
             if (_gameRoot.Views == null || _gameRoot.Views.Current == null) return;
-            int roll = Random.Range(0, 4);
+            int roll = Rng.NextInt(0, 4);
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.HallucinationTriggered, "explore_" + roll));
             switch (roll)
             {
@@ -75,7 +76,7 @@ namespace Hollowbrook.Horror
                     _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*three slow knocks from inside the wall*", 2.8f, null));
                     break;
                 case 2:
-                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, Whispers[Random.Range(0, Whispers.Length)], 3.2f, null));
+                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, Whispers[Rng.NextInt(0, Whispers.Length)], 3.2f, null));
                     _gameRoot.Audio.PlaySfx("sfx_static", 0.25f);
                     break;
                 default: // phantom flicker (never a strobe; photosensitivity-safe by construction)

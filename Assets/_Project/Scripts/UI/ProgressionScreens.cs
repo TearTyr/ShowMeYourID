@@ -144,7 +144,9 @@ namespace Hollowbrook.UI
 
         private void Update()
         {
-            if (gameObject.activeInHierarchy && (Input.GetKeyDown(KeyCode.M) || Input.GetKeyDown(KeyCode.Escape)))
+            if (gameObject.activeInHierarchy &&
+                ((Input.GetKeyDown(KeyCode.M) && InputGate.TryM()) ||
+                 (Input.GetKeyDown(KeyCode.Escape) && InputGate.TryEscape())))
             {
                 if (_gameRoot.State == AppViewState.Map) _gameRoot.CloseMap();
             }

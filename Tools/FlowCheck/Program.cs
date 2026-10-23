@@ -103,6 +103,8 @@ namespace FlowCheck
             Check(ReferenceEquals(root, GameRoot.Instance),
                   "I-02: re-booting a scene never creates a second core");
 
+            IssueOneProofs(root);
+
             Console.WriteLine(_failures == 0 ? "== FLOW CHAIN COMPLETE ==" : "== " + _failures + " CHECK(S) FAILED ==");
             Environment.Exit(_failures == 0 ? 0 : 1);
         }
@@ -128,22 +130,13 @@ namespace FlowCheck
             foreach (var n in deskNames)
                 Check(FindDeep(root.Checkpoint.transform, n) != null, "desk element '" + n + "'");
 
-            // presentation cuts: the checklist widget is gone for good, and the waiting-line
-            // display is built exactly when ShowcaseBuild.LineDisplay says so (never built
-            // then hidden, never referenced from anywhere else)
+            // presentation cuts: the checklist widget and the waiting-line DISPLAY are
+            // gone for good (the queue itself still runs headless); nothing is built-then-hidden
             Check(FindDeep(root.Checkpoint.transform, "checklist_border") == null,
                 "the checklist widget is removed from the desk");
-            string[] lineNames =
-            {
-                "queuestatus", "queuestripL", "queuestripR", "qsil0", "qsil7", "qoverflow", "qbadge",
-            };
-            foreach (var n in lineNames)
-            {
-                bool present = FindDeep(root.Checkpoint.transform, n) != null;
-                Check(present == ShowcaseBuild.LineDisplay,
-                    "line display element '" + n + "' is built exactly when LineDisplay is on");
-            }
-
+            Check(FindDeep(root.Checkpoint.transform, "queuestripL") == null &&
+                  FindDeep(root.Checkpoint.transform, "queuestatus") == null,
+                "the waiting-line display is retired; the queue logic still runs headless");
             string[] hudNames =
             {
                 "HudFrame", "sanitybg_border", "trackbg_border", "batterybg_border",
@@ -526,7 +519,6 @@ namespace FlowCheck
             var panel = FindDeep(root.Checkpoint.transform, "speech_border");
             Check(panel != null && panel.gameObject.activeSelf, "speech panel visible while a visitor is at the window");
             root.Checkpoint.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-            root.Checkpoint.OpenInterview();
             root.Checkpoint.AskQuestion(QuestionId.Course);
             var host = FindDeep(root.Checkpoint.transform, "speechlog");
             Check(host != null && host.childCount == 1, "speech log exists");
@@ -635,6 +627,7 @@ namespace FlowCheck
             Check(live("endshift"), "END SHIFT lights up when the roster is done");
             Check(live("patrol"), "PATROL HALLWAY usable once no inspection is live");
 
+            ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
             btn("endshift").onClick.Invoke();
             bool expectedEnding = root.Config.exhibitionMode;   // the exhibition arc clocks out straight into its ending
             Check(expectedEnding ? root.State == AppViewState.Ending : root.State == AppViewState.ShiftResults,
@@ -647,6 +640,9 @@ namespace FlowCheck
             string first = root.Checkpoint.CurrentVisitor != null ? root.Checkpoint.CurrentVisitor.ClaimedName : "?";
             root.Checkpoint.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             root.Checkpoint.Stamp(InspectionRules.ExpectedVerdict(root.Checkpoint.CurrentVisitor, null));
+            int logBefore = root.Session.TonightLog.Count;
+            int poolBefore = root.Session.Pool.Pending;
+            int admittedBefore = root.Session.AdmittedStudents.Count;
             root.PersistRun();
             Check(root.Session.QueueState != null && root.Session.QueueState.Started &&
                   root.Session.QueueState.Arrived == root.Queue.ArrivalCount,
@@ -666,6 +662,13 @@ namespace FlowCheck
             Check(first != resumed, "B8: CONTINUE resumes at the next visitor, not the same one");
             Check(root.Queue.ArrivalCount == 2 && root.Queue.ProcessedCount == 1,
                 "P9: the restored queue kept its arrival/processed counts (no restart from zero)");
+            // issue #3: the resumed night keeps its presentation log, pool and admitted list
+            Check(root.Session.TonightLog.Count == logBefore,
+                "issue #3: TonightLog survives save/continue (duplicate rule keeps working)");
+            Check(root.Session.Pool.Pending == poolBefore,
+                "issue #3: the anomaly pool survives save/continue (repelled stays repelled)");
+            Check(root.Session.AdmittedStudents.Count == admittedBefore,
+                "issue #3: admitted students survive save/continue (classroom seats keep them)");
         }
 
         private static int DeepIndex(Transform parent, string name)
@@ -724,15 +727,12 @@ namespace FlowCheck
             Check(root.Queue.WaitingCount == 3, "Q1: three arrivals accumulated in the line (got " + root.Queue.WaitingCount + ")");
             Check(string.Join(",", root.Queue.WaitingLine.Select(v => v.VisitorIndex.ToString())) == "1,2,3",
                   "Q1: the line is FIFO in arrival order");
-            Check(Silhouettes(root) == 0, "Q1: the line display is off for the showcase (no silhouettes)");
-            Check(StatusText(root) == "", "Q1: the queue readout is hidden for the showcase");
 
             // ---- Q2 the oldest waiter steps up after the banner, with no second wait
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             Check(cp.CurrentVisitor == roster[1], "Q2: oldest waiting visitor stepped up immediately after the banner");
-            Check(root.Queue.WaitingCount == 2 && Silhouettes(root) == 0, "Q2: the line queues invisibly (showcase)");
-            Check(StatusText(root) == "", "Q2: the readout stays hidden ('" + StatusText(root) + "')");
+            Check(root.Queue.WaitingCount == 2, "Q2: the line queues invisibly (showcase)");
             int guard = 0;
             while (cp.CurrentVisitor != null && guard++ < 6)
             {
@@ -815,7 +815,6 @@ namespace FlowCheck
             Check(root.Queue.WaitingCount == 1 && root.Queue.WaitingLine.First() == mRoster[2],
                   "Q5: the waiting legitimate student vanished from the line");
             Check(root.Queue.EffectiveTotal == mRoster.Count - 1, "Q5: effective total dropped by one (" + root.Queue.EffectiveTotal + ")");
-            Check(StatusText(root) == "", "Q5: the readout stays hidden for the showcase");
             string speech = FindDeep(cp.transform, "speechlog").GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
             Check(speech.Contains("Roll call"), "Q5: subtle radio feedback, no anomaly revealed");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
@@ -887,7 +886,6 @@ namespace FlowCheck
             cp.AdvanceQueue(6f);                                   // #4 arrives behind #3
             Check(root.Queue.WaitingCount == 1, "Q8: one waiting before the quit");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-            cp.OpenInterview();
             cp.AskQuestion(QuestionId.Year);
             Check(root.Queue.ActiveBudgetMask == 1 << (int)QuestionId.Year, "Q8: the question budget synced into the queue");
             root.TogglePause(true);
@@ -901,8 +899,7 @@ namespace FlowCheck
                   "Q8: the same visitor is back at the window");
             string budgetText = FindDeep(cp.transform, "budget").GetComponent<UnityEngine.UI.Text>().text;
             Check(budgetText.Contains("1 LEFT"), "Q8: the question budget was NOT refunded ('" + budgetText + "')");
-            Check(root.Queue.WaitingCount == 1 && Silhouettes(root) == 0, "Q8: the waiting line was restored, not duplicated (silhouettes off)");
-            Check(StatusText(root) == "", "Q8: the readout stays hidden after restore");
+            Check(root.Queue.WaitingCount == 1, "Q8: the waiting line was restored, not duplicated");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             Check(cp.CurrentVisitor != null && cp.CurrentVisitor.VisitorIndex == pRoster[3].VisitorIndex,
@@ -920,7 +917,6 @@ namespace FlowCheck
             Check(cp.CurrentVisitor != null, "Q9: first run visitor arrives on the note click");
             cp.AdvanceQueue(6f);
             Check(root.Queue.WaitingCount == 1, "Q9: run visitors accumulate in the same line");
-            Check(!StatusText(root).Contains("CURRENT:"), "Q9: no finite counter for infinite sources ('" + StatusText(root) + "')");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             Check(cp.CurrentVisitor != null && root.Session.RunProcessed == 1,
@@ -940,6 +936,7 @@ namespace FlowCheck
                 cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             }
             Check(guard < 20 && root.Queue.ShiftComplete, "Q10: night 1 walked to completion through the queue");
+            ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
             Btn(root, "endshift").onClick.Invoke();
             Check(root.State == AppViewState.ShiftResults, "Q10: clocking out lands on the shift results");
             root.QuitToMenu(true);
@@ -994,6 +991,7 @@ namespace FlowCheck
                 root.Dialogue.Advance();               // play the outro to its callback
             Check(root.Queue.ShiftComplete, "Q11: rejecting the administrator completes the night");
             Check(Btn(root, "endshift").interactable, "Q11: END SHIFT lights up after the outro");
+            ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
             Btn(root, "endshift").onClick.Invoke();
             Check(root.State == AppViewState.ShiftResults && root.Session.CompletedShifts == 1,
                   "Q11: clocking out lands on shift results (story arc intact)");
@@ -1137,23 +1135,7 @@ namespace FlowCheck
             for (int i = 0; i < t.childCount; i++) CollectText(t.GetChild(i), sb);
         }
 
-        private static int Silhouettes(GameRoot root)
-        {
-            int n = 0;
-            for (int i = 0; i < 8; i++)
-            {
-                var fig = FindDeep(root.Checkpoint.transform, "qsil" + i);
-                if (fig != null && fig.gameObject.activeSelf) n++;
-            }
-            return n;
-        }
 
-        private static string StatusText(GameRoot root)
-        {
-            // the readout label only exists when ShowcaseBuild.LineDisplay is on
-            var go = FindDeep(root.Checkpoint.transform, "queuestatus");
-            return go == null ? "" : go.GetComponent<UnityEngine.UI.Text>().text;
-        }
 
         private static UnityEngine.UI.Button Btn(GameRoot root, string name) =>
             FindDeep(root.Checkpoint.transform, name).GetComponent<UnityEngine.UI.Button>();
@@ -1225,11 +1207,75 @@ namespace FlowCheck
             Check(sp.Students.Count == 0, "F-01: Clear empties the room at patrol end");
         }
 
+        private static void ResolvePool(GameRoot root)
+        {
+            while (root.Session.Pool.Pending > 0)
+                root.Session.Pool.Resolve(root.Session.Pool.PendingList[0]);
+        }
+
+        private static void IssueOneProofs(GameRoot root)
+        {
+            Console.WriteLine("== issue #1 review proofs: quit/save/pause/esc/memo ==");
+            string path = System.IO.Path.Combine(UnityEngine.Application.persistentDataPath, "hollowbrook_save.txt");
+            string before = System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path) : null;
+            Check(before != null, "a save exists from the earlier proofs");
+            root.BootToMainMenu();
+            root.QuitApplication();
+            string after = System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path) : null;
+            Check(after == before, "issue #1: EXIT on the main menu leaves the save untouched");
+
+            System.IO.File.WriteAllText(path, "SMYIDSAVE 1\ngarbage\nchecksum=0\n");
+            Check(root.Saves.Read() != null, "issue #8: a corrupt main save falls back to the .bak copy");
+            System.IO.File.WriteAllText(path, before);
+
+            root.StartNewGame(GameMode.Normal);
+            CheckpointSceneBootstrap.Build(root);
+            for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
+            ClickStickyNote(root);
+            var cp = root.Checkpoint;
+            cp.DebugTakeDocuments();
+            var slip = FindDeep(cp.transform, "slip").GetComponent<DragPaper>();
+            slip.BeginDrag(); slip.PlaceCenter(new Vector2(760f, 500f)); slip.EndDrag();
+            root.TogglePause(true);
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.A);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            Check(!cp.SlipStamped, "issue #5: a paused desk never stamps from hotkeys");
+            root.TogglePause(false);
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.A);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            Check(cp.SlipStamped, "issue #5: unpaused, the same key stamps the slip");
+
+            root.TogglePause(true);
+            root.OpenSettings();
+            InputGate.NextFrame();
+            Check(root.SettingsScreen.TryCloseOnEscape(),
+                  "issue #6: Esc closes the settings sheet (and consumes the key)");
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Escape);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            Check(root.Paused, "issue #6: the same Esc does NOT also unpause behind the sheet");
+            root.TogglePause(false);
+
+            cp.DebugPresentAdmin();
+            cp.DebugTakeDocuments();
+            var rec = FindDeep(cp.transform, "record");
+            Check(rec.gameObject.activeSelf,
+                  "issue #4: the admin's District Roster Memo is on the desk at hand-over");
+            cp.SearchRecords("V. Marlowe");
+            Check(rec.gameObject.activeSelf &&
+                  FindDeep(cp.transform, "stationout").GetComponent<UnityEngine.UI.Text>().text.Contains("ATTACHED MEMO"),
+                "issue #4: registry searches can't replace the memo (NO RECORD — see memo)");
+        }
+
         private static void WorldLoop(GameRoot root)
         {
             Console.WriteLine("== PATROL world loop (flashlight + roaming anomaly), headless frames ==");
 
-            // a fresh normal run, then patrol — through the real scene handoffs the game uses
+            // a fresh normal run, then patrol — through the real scene handoffs the game uses.
+            // the booth demo is an explicit opt-in now (issue #2): shipping default is the story
+            root.Config.exhibitionMode = true;
             root.StartNewGame(GameMode.Normal);
             CheckpointSceneBootstrap.Build(root);
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();

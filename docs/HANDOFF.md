@@ -70,14 +70,14 @@ Automated suites (re-run any time):
 |---|---|---|
 | Compile check — every script (C# 9 / Unity 2022.3 level) | `dotnet build Tools/Verification/CompileCheck` | **PASS** (0 errors, 0 warnings) |
 | Logic tests — rules/generation/progression/endings/saves | `dotnet run --project Tools/Verification/LogicTests` | **PASS — 185/185** |
-| Engine smoke — boots real GameBootstrap, plays full runs | `dotnet run --project Tools/Verification/EngineSmoke` | **PASS — 194/194** |
+| Flow check — boots the real menu/desk/patrol headlessly | `dotnet run --project Tools/FlowCheck` | **PASS — 840+ OK, chain complete** |
 
 ### Master-prompt test checklist (§9)
 
 | Item | Status | Evidence |
 |---|---|---|
 | Project compiles | **PASS** | CompileCheck (all `Assets/_Project/Scripts` + stubs) |
-| Game runs / scene startup / boot to menu | **PASS** | EngineSmoke “Boot & bootstrap” (6 checks, real `GameBootstrap.Awake`) |
+| Game runs / scene startup / boot to menu | **PASS** | FlowCheck menu→desk→patrol chain (real bootstrap Awake paths) |
 | Console errors on boot | **PASS** | smoke run logs 0 `[ERR]`; only benign stub coroutine-guard warnings |
 | View transitions (security ⇄ rooms) | **PASS** | smoke: door transitions, return-to-checkpoint, recovery paths |
 | Complete checkpoint loop | **PASS** | smoke: 34 story visitors + 20 run visitors inspected/stamped |
@@ -217,5 +217,6 @@ full-row toggle click catchers.
 - **Map stays checkpoint-only** (design, unchanged); pause works in Scene B; HUD now shows sanity stage
   word, live light mode, tokens and the objective immediately after scene loads.
 - **Security-room prototype randomness replaced** with seeded `GameRng` (hard rule: determinism).
-- Suite counts after this milestone: team LogicTests **519**, EngineSmoke **181**, independent
-  Tools/LogicTests **27,1xx**, CompileCheck + real-assembly compile clean.
+- Suite counts after this milestone: team LogicTests **519**, independent Tools/LogicTests
+  **27,4xx**, FlowCheck **840+ OK**, CompileCheck + real-assembly compile clean
+  (EngineSmoke removed later — see REFACTOR_LOG, issue #9 cleanup).

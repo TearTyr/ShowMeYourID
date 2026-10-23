@@ -51,5 +51,13 @@ namespace Hollowbrook.UI
 
         public void Show() { }
         public void Hide() { _root.SetActive(false); _onYes = null; }
+
+        public bool IsOpen => _root != null && _root.activeSelf;
+
+        // Esc cancels the popup — and consumes the key so nothing else reacts to it
+        private void Update()
+        {
+            if (IsOpen && Input.GetKeyDown(KeyCode.Escape) && InputGate.TryEscape()) Hide();
+        }
     }
 }

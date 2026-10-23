@@ -39,10 +39,6 @@ namespace Hollowbrook.Checkpoint
         private Text _topLeft, _topClock;
         private Text _runStats;      // endless/challenge: score · streak · timer
         private Text _mutationStrip; // challenge bulletin
-        private Text _queueStatus;   // QUEUE: n | CURRENT: a/t (+ pressure colors)
-        private Text _queueBadge;    // waiting-count badge above the right silhouette strip
-        private readonly Image[] _silhouettes = new Image[8];  // waiting line, 4 per strip
-        private Text _queueOverflow;
         private GameObject _stickyRoot;
         private Button _stickyButton;
 
@@ -73,7 +69,6 @@ namespace Hollowbrook.Checkpoint
         private GameObject _lastPaper;
         internal Verdict PendingVerdict => _pendingVerdict;
         internal bool SlipStamped => _slipStamped;
-        private bool _interviewOpen = true;   // the interview row is always live
         private bool _documentsTaken;      // the ID is in your hand: papers, scan and stamps unlock
         private GameObject _offeredRoot;      // centred offered ID + its dimmer
         private Image _offeredPhoto;
@@ -111,7 +106,6 @@ namespace Hollowbrook.Checkpoint
             BuildOfferedId();
             BuildCenterColumn();
             BuildRightColumn();
-            if (ShowcaseBuild.LineDisplay) BuildQueueStrips();
             BuildOverlays();
             BuildStickyNote();
 
@@ -150,24 +144,6 @@ namespace Hollowbrook.Checkpoint
             SizeLabel(b, fontSize);
             return b;
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         public void Show() { gameObject.SetActive(true); RefreshHud(); }
         public void Hide()
@@ -231,7 +207,6 @@ namespace Hollowbrook.Checkpoint
                 SetVisitorVisible(false);
                 _stickyRoot.SetActive(true);
             }
-            RefreshQueueLine();
             RefreshHud();
         }
 
@@ -244,8 +219,6 @@ namespace Hollowbrook.Checkpoint
                 yield return null;
             }
         }
-
-
 
         private void OnDestroy()
         {
@@ -300,7 +273,6 @@ namespace Hollowbrook.Checkpoint
                 // one consequence, one announcement: GameRoot owns both (toast + ending)
                 _gameRoot.TriggerQueueOverwhelmed();
             }
-            if (r.LineChanged) RefreshQueueLine();
         }
 
         private void ExhibitionHintOnce()
@@ -326,18 +298,12 @@ namespace Hollowbrook.Checkpoint
             SetDocumentsVisible(false);
             _offeredRoot.SetActive(false);
             PresentVisitor(v);
-            RefreshQueueLine();
             RefreshHud();
         }
 
         // The HUD prompt line teaches the hand-over: where the ID is, and how to get it.
         // Published only on change, same contract as the exploration prompts.
         private string _lastHandoverPrompt = "\0";
-
-
-
-
-
 
         internal void DebugTakeDocuments() => TakeIdAt(new Vector2(
             L.IdCard.X + L.IdCard.W / 2f, L.IdCard.Y + L.IdCard.H / 2f));
@@ -353,27 +319,7 @@ namespace Hollowbrook.Checkpoint
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VisitorArrived, v));
         }
 
-
-
-
-
-
-
-
-
-
         private float BannerSeconds => _gameRoot.Config.exhibitionMode ? _gameRoot.Config.exhibitionBannerSeconds : _gameRoot.Config.verdictBannerSeconds;
-
-
-
-
-
-
-
-
-
-
-
 
         public void GoPatrol()
         {
@@ -423,9 +369,13 @@ namespace Hollowbrook.Checkpoint
             if (_gameRoot == null || !gameObject.activeInHierarchy) return;
             AdvanceQueue(Time.deltaTime);
             TickHotkeys();
-            // zoom the paper you last touched: real wheel axis, per-paper, clamped
+            // zoom the paper you last touched: real wheel axis, per-paper, clamped,
+            // and only while the desk is live (never behind pause/dialogue/overlays)
             var zoomPaper = _lastPaper != null ? _lastPaper : _idCardGo;
-            if (zoomPaper != null && zoomPaper.activeSelf)
+            bool deskLive = !_gameRoot.Paused && !_gameRoot.BlockingOverlayOpen &&
+                            (_gameRoot.Dialogue == null || !_gameRoot.Dialogue.IsActive) &&
+                            _gameRoot.State == AppViewState.Checkpoint;
+            if (deskLive && zoomPaper != null && zoomPaper.activeSelf)
             {
                 var dp = zoomPaper.GetComponent<DragPaper>();
                 if (dp != null)
@@ -445,9 +395,13 @@ namespace Hollowbrook.Checkpoint
             if (_searchField != null && _searchField.isFocused) return;
             // Escape belongs to an open overlay sheet (Options/Controls/Credits) first —
             // without this guard Esc over the pause menu would close Options AND unpause.
-            if (Input.GetKeyDown(KeyCode.Escape) && !_gameRoot.BlockingOverlayOpen)
+            if (Input.GetKeyDown(KeyCode.Escape) && !_gameRoot.BlockingOverlayOpen && InputGate.TryEscape())
                 _gameRoot.TogglePause();
-            if (Input.GetKeyDown(KeyCode.M) && _gameRoot.State == AppViewState.Checkpoint) _gameRoot.OpenMap();
+            // gameplay keys stand down while paused, in overlays, in dialogue, or off-desk
+            if (_gameRoot.Paused || _gameRoot.BlockingOverlayOpen ||
+                (_gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive) ||
+                _gameRoot.State != AppViewState.Checkpoint) return;
+            if (Input.GetKeyDown(KeyCode.M) && InputGate.TryM()) _gameRoot.OpenMap();
             // 1-4 ask the four questions while the interview is open (labels say so)
             for (int k = 0; k < 4; k++)
                 if (Input.GetKeyDown((KeyCode)(KeyCode.Alpha1 + k))) AskByHotkey(k);
@@ -465,14 +419,8 @@ namespace Hollowbrook.Checkpoint
             if (_gameRoot == null || _gameRoot.Session == null) return;
             RefreshTopBar();
             RefreshHandoverPrompt();
-            RefreshQueueStatus();
             RefreshDecisionButtons();
         }
-
-
-
-
-
 
         private void OnEnable()
         {

@@ -52,7 +52,7 @@ namespace Hollowbrook.Core
             }
         }
 
-        public void SaveToPrefs()
+        public void SaveToPrefs(bool persist = true)
         {
             try
             {
@@ -67,7 +67,7 @@ namespace Hollowbrook.Core
                 PlayerPrefs.SetInt(KeyPrefix + "displayW", Current.DisplayWidth);
                 PlayerPrefs.SetInt(KeyPrefix + "displayH", Current.DisplayHeight);
                 PlayerPrefs.SetInt(KeyPrefix + "sfxExplicit", 1);   // any Apply() is an explicit user write
-                PlayerPrefs.Save();
+                if (persist) PlayerPrefs.Save();
             }
             catch (Exception e) { Debug.LogWarning("[Settings] prefs write failed: " + e.Message); }
         }
@@ -81,6 +81,10 @@ namespace Hollowbrook.Core
             Notify();
         }
 
+        /// <summary>Flush to disk: called when the settings sheet closes and on quit, not
+        /// on every slider tick (issue #8: a volume drag used to write prefs per frame).</summary>
+        public void Persist() => PlayerPrefs.Save();
+
         public void Apply(Action<SettingsData> mutate)
         {
             mutate?.Invoke(Current);
@@ -88,7 +92,7 @@ namespace Hollowbrook.Core
             Current.MusicVolume = Mathf.Clamp01(Current.MusicVolume);
             Current.SfxVolume = Mathf.Clamp01(Current.SfxVolume);
             Current.TextScale = Mathf.Clamp(Current.TextScale, 0, 2);
-            SaveToPrefs();
+            SaveToPrefs(false);
             Notify();
         }
 

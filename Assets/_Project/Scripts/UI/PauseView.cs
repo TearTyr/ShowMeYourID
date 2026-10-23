@@ -24,7 +24,7 @@ namespace Hollowbrook.UI
             Add(col.transform, "CONTROLS", () => _gameRoot.OpenControls(), false);
             Add(col.transform, "SETTINGS", () => _gameRoot.OpenSettings(), false);
             Add(col.transform, "SAVE & QUIT TO MENU", () =>
-                _gameRoot.Confirm.Ask("QUIT TO MENU?", "Progress is saved at shift boundaries. Quit now?", () => _gameRoot.QuitToMenu(true)), true);
+                _gameRoot.Confirm.Ask("QUIT TO MENU?", "Your progress will be saved. Quit now?", () => _gameRoot.QuitToMenu(true)), true);
             Add(col.transform, "QUIT GAME", () =>
                 _gameRoot.Confirm.Ask("QUIT GAME?", "Save and exit to desktop?", () => _gameRoot.QuitApplication()), true);
 

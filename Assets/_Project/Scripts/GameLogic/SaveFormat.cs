@@ -52,6 +52,7 @@ namespace Hollowbrook.Logic
                 sb.Append("queueWarned=").Append(q.Warned).Append('\n');
             }
             KV(sb, "pool", s.Pool.Encode());
+            KV(sb, "admitted", string.Join(",", s.AdmittedStudents.ConvertAll(st => st.VisitorIndex + ":" + (st.IsAnomaly ? 1 : 0))));
             sb.Append("adminAllowed=").Append(s.AdminAllowed ? 1 : 0).Append('\n');
             sb.Append("adminRejected=").Append(s.AdminRejected ? 1 : 0).Append('\n');
             sb.Append("runFinished=").Append(s.RunFinished ? 1 : 0).Append('\n');
@@ -149,6 +150,13 @@ namespace Hollowbrook.Logic
                 }
                 else s.QueueState = null;   // a pre-queue save: ContinueGame falls back to visitorAtSave
                 s.Pool.Decode(Str(map, "pool", ""));
+                foreach (var pair in Str(map, "admitted", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var halved = pair.Split(':');
+                    if (halved.Length == 2 && int.TryParse(halved[0], System.Globalization.NumberStyles.Integer,
+                            System.Globalization.CultureInfo.InvariantCulture, out int ai))
+                        s.AdmittedStudents.Add(new StudentData { VisitorIndex = ai, IsAnomaly = halved[1] == "1", Id = "IDX:" + ai });
+                }
                 s.AdminAllowed = Int(map, "adminAllowed", 0) == 1;
                 s.AdminRejected = Int(map, "adminRejected", 0) == 1;
                 s.RunFinished = Int(map, "runFinished", 0) == 1;

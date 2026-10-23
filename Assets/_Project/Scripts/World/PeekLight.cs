@@ -86,7 +86,7 @@ namespace Hollowbrook.World
         private void Update()
         {
             if (_gameRoot == null || !Active) return;
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (Input.GetKeyDown(KeyCode.Escape) && InputGate.TryEscape())
             {
                 TickEscape();
                 return;

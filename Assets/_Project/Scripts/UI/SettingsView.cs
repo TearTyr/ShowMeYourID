@@ -43,6 +43,7 @@ namespace Hollowbrook.UI
 
             UIFactory.SheetButton(sheet, "back", "◂ BACK", () =>
             {
+                _gameRoot.Settings.Persist();      // one disk flush when the sheet closes
                 _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.6f);
                 _gameRoot.CloseSettings();
             }, 360);
@@ -81,7 +82,7 @@ namespace Hollowbrook.UI
         private void Update()
         {
             if (!gameObject.activeInHierarchy || _gameRoot == null) return;
-            if (Input.GetKeyDown(KeyCode.Escape)) { _gameRoot.CloseSettings(); return; }
+            if (Input.GetKeyDown(KeyCode.Escape) && TryCloseOnEscape()) return;
             if (Input.GetKeyDown(KeyCode.Tab) && _navOrder.Count > 0 && EventSystem.current != null)
             {
                 var curSel = EventSystem.current.currentSelectedGameObject != null
@@ -90,6 +91,16 @@ namespace Hollowbrook.UI
                 i = (i + (Input.GetKey(KeyCode.LeftShift) ? _navOrder.Count - 1 : 1) + _navOrder.Count) % _navOrder.Count;
                 EventSystem.current.SetSelectedGameObject(_navOrder[i].gameObject);
             }
+        }
+
+        // Esc owns exactly one action per frame (InputGate): closing this sheet, never
+        // also unpausing behind it (issue #6). Internal so the harness can prove it.
+        internal bool TryCloseOnEscape()
+        {
+            if (!gameObject.activeInHierarchy) return false;
+            if (!InputGate.TryEscape()) return false;
+            _gameRoot.CloseSettings();
+            return true;
         }
 
         public void Hide()

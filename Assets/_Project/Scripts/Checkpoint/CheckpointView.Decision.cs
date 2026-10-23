@@ -294,8 +294,7 @@ namespace Hollowbrook.Checkpoint
                 if (Queue != null) Queue.AbandonLine();
                 _current = null;
                 SetVisitorVisible(false);
-                RefreshQueueLine();
-                RefreshHud();
+                    RefreshHud();
                 _gameRoot.Audio.PlayMusic("checkpoint");
                 yield break;
             }
@@ -309,7 +308,6 @@ namespace Hollowbrook.Checkpoint
             _current = null;
             _verdictLocked = true;
             SetVisitorVisible(false);
-            RefreshQueueLine();
             RefreshHud();
         }
 

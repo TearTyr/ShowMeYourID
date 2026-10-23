@@ -59,8 +59,14 @@ namespace Hollowbrook.Core
                 if (p == null || save == null) return false;
                 string tmp = p + ".tmp";
                 File.WriteAllText(tmp, SaveFormat.Serialize(save));
-                if (File.Exists(p)) File.Delete(p);
-                File.Move(tmp, p);
+                // crash-safe: Replace keeps the old file as .bak until the new one is in place;
+                // a failure between the two operations never leaves the player save-less
+                if (File.Exists(p)) File.Replace(tmp, p, p + ".bak");
+                else
+                {
+                    if (File.Exists(p + ".bak")) File.Delete(p + ".bak");
+                    File.Move(tmp, p);
+                }
                 _bus?.Publish(GameEvent.Of(EventIds.GameSaved));
                 Debug.Log("[SaveSystem] saved to " + p);
                 return true;
@@ -72,14 +78,22 @@ namespace Hollowbrook.Core
             }
         }
 
+        private static SaveGame TryReadSave(string path)
+        {
+            try { return SaveFormat.Deserialize(File.ReadAllText(path)); }
+            catch { return null; }
+        }
+
         public SaveGame Read()
         {
             try
             {
                 string p = SavePath;
-                if (p == null || !File.Exists(p)) return null;
-                var save = SaveFormat.Deserialize(File.ReadAllText(p));
-                if (save == null) Debug.LogWarning("[SaveSystem] save file corrupt/unsupported — treated as no save.");
+                if (p == null) return null;
+                var save = TryReadSave(p);
+                if (save == null && File.Exists(p + ".bak")) save = TryReadSave(p + ".bak");
+                if (save == null && File.Exists(p + ".tmp")) save = TryReadSave(p + ".tmp");
+                if (save == null && File.Exists(p)) Debug.LogWarning("[SaveSystem] save file corrupt/unsupported — treated as no save.");
                 else _bus?.Publish(GameEvent.Of(EventIds.GameLoaded));
                 return save;
             }

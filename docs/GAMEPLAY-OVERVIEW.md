@@ -60,5 +60,5 @@ the full five-shift campaign.
 **Verified here:** compile vs real Unity assemblies 0/0 (minimal + full sets); frozen LogicTests 663;
 independent suite 27,336 (fairness, endings, saves, encounter states, display policy, checkpoint
 queue); FlowCheck 830 OK / 0 BAD ×5 (button-level desk + queue + settings proofs, patrol world loop).
-`Tools/Verification/EngineSmoke` remains frozen-broken by decision. **Not verified here:** pixels,
+`Tools/Verification/EngineSmoke` was removed in the issue #9 cleanup; `Tools/FlowCheck` is the running headless harness. **Not verified here:** pixels,
 audio, feel — editor playthrough required (steps in the refactor log).

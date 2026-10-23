@@ -66,7 +66,7 @@ namespace Hollowbrook.UI
             MenuButtonLeft(col.transform, "EXIT", () =>
             {
                 Click();
-                _gameRoot.Confirm.Ask("EXIT?", "Save and quit to desktop?", () => _gameRoot.QuitApplication());
+                _gameRoot.Confirm.Ask("EXIT?", "Quit to desktop?", () => _gameRoot.QuitApplication());
             }, null, 360, 44, danger: true);
 
             var footer = UIFactory.Label(transform, "footer",

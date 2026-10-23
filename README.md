@@ -62,6 +62,7 @@ them automatically (keys are listed in `ProceduralArt` / `ProceduralAudio`).
 
 ## Game structure
 
+- **Booth demo vs full game:** the `exhibitionMode` key in `Resources/GameConfig.asset` decides whether NEW GAME plays the one-night exhibition cut or the five-night story. Shipping default: **false = full story**.
 - **Main menu** is focused for the current milestone: **NEW GAME** starts the five-night story
   directly. **CHALLENGE MODE** and **EXTRAS** are *not shown at all* (v1.0.6+ decision); the
   Endless/Challenge systems remain fully implemented and headless-tested behind
@@ -126,7 +127,6 @@ Tools/
   Verification/                   HEADLESS test harness (not imported by Unity)
     UnityStubs/                   faithful UnityEngine/UnityEngine.UI API stubs
     LogicTests/                   runs the pure rules:   dotnet run --project Tools/Verification/LogicTests
-    EngineSmoke/                  boots & plays the game: dotnet run --project Tools/Verification/EngineSmoke
     CompileCheck/                 compiles every script at C#9/Unity-2022.3 level
 docs/                             audit, handoff report
 ```

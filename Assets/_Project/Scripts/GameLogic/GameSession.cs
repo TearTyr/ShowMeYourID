@@ -87,7 +87,7 @@ namespace Hollowbrook.Logic
             if (o == null || o.Verdict == Verdict.None) return;
             Processed++;
             if (o.Verdict == Verdict.Allow)
-                AdmittedStudents.Add(new StudentData { Id = o.Id, Name = o.Name, IsAnomaly = o.WasAnomaly });
+                AdmittedStudents.Add(new StudentData { Id = o.Id, Name = o.Name, IsAnomaly = o.WasAnomaly, VisitorIndex = o.VisitorIndex });
             if (o.Correct)
             {
                 CorrectDecisions++;
@@ -160,7 +160,14 @@ namespace Hollowbrook.Logic
             CurrentShift++;
         }
 
-        public EndingRules.Evaluation EvaluateEnding() => EndingRules.Evaluate(this);
+        public EndingRules.Evaluation EvaluateEnding()
+        {
+            // the night's books close: anomalies still outstanding count as breaches, so
+            // patrol finally feeds the ending (issue #7). Applied once, at the final eval.
+            if (CompletedShifts >= ShiftPlan.TotalShifts) Breaches += Pool.Pending;
+            return EndingRules.Evaluate(this);
+        }
+
 
         public bool LoseThresholdReached =>
             AdminAllowed || Breaches >= EndingRules.LoseThreshold || FalseRejections >= EndingRules.LoseThreshold;

@@ -82,6 +82,7 @@ namespace Hollowbrook.Logic
             public bool WasAdministrator;
             public string Id;              // admitted-student bookkeeping for the classroom
             public string Name;
+            public int VisitorIndex = -1;
             public List<string> RevealedDefects = new List<string>();
         }
 
@@ -106,6 +107,7 @@ namespace Hollowbrook.Logic
                 WasAdministrator = v.IsAdministrator,
                 Id = v.IdNumber,
                 Name = v.ClaimedName,
+                VisitorIndex = v.VisitorIndex,
                 RevealedDefects = v.DescribeDefects(),
             };
             return o;

@@ -63,4 +63,5 @@ MonoBehaviour:
   coverHugCatchSeconds: 2.6
   canvasReferenceWidth: 1280
   canvasReferenceHeight: 720
+  exhibitionMode: 0
   dialogueCharsPerSecond: 42

@@ -27,12 +27,7 @@ namespace Hollowbrook.Checkpoint
             _topLeft = UIFactory.Label(banner, "left", "", 14, UIFactory.PaperInk, TextAnchor.MiddleCenter);
             L.Place(_topLeft.rectTransform, L.Inner.BannerTop);
             // second banner line: the live queue readout (Phase 9.7 top-bar format)
-            if (ShowcaseBuild.LineDisplay)
-            {
-                _queueStatus = UIFactory.Label(banner, "queuestatus", "", 13,
-                    new Color(0.30f, 0.30f, 0.29f), TextAnchor.MiddleCenter);
-                L.Place(_queueStatus.rectTransform, L.Inner.BannerQueue);
-            }
+
 
             _topClock = UIFactory.Label(_desk, "clock", "22:00", 20, UIFactory.InkDim, TextAnchor.MiddleCenter);
             Reg("clock", _topClock.rectTransform, L.Clock);

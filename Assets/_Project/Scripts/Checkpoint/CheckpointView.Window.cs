@@ -236,6 +236,13 @@ namespace Hollowbrook.Checkpoint
             return t;
         }
 
+        // Headless hook: present the Night-5 administrator so the memo path is provable.
+        internal void DebugPresentAdmin()
+        {
+            var admin = new RosterFactory(_gameRoot.Session.Seed).BuildAdministrator(ShiftPlan.Build()[4]);
+            PresentFromQueue(admin, false);   // same state machine the queue path uses
+        }
+
         // Arrival beat: the student slides the ID to the counter edge, unasked.
         private void OfferAtCounter()
         {
@@ -274,6 +281,13 @@ namespace Hollowbrook.Checkpoint
             _documentsTaken = true;
             if (_idCardGo != null) _idCardGo.transform.SetAsLastSibling();
             SetDocumentsVisible(true);
+            if (_current.IsAdministrator && _recordGo != null)
+            {
+                // the District Roster Memo rides on the record sheet: hand it over WITH the
+                // badge (issue #4) — it is the administrator's paper clue
+                _recordGo.SetActive(true);
+                _recordGo.transform.SetAsLastSibling();
+            }
             bool admin = _current.IsAdministrator;
             FillIdCard(_current, admin);
             FillRecordSheet(_current, admin);

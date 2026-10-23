@@ -20,12 +20,11 @@ namespace Hollowbrook.Checkpoint
 
 
         // Headless harnesses/FlowCheck drive the same path the buttons use.
-        internal void OpenInterview() { _interviewOpen = true; }   // no gate left to open
 
         internal void AskByHotkey(int i)
         {
             if (_gameRoot == null || _gameRoot.State != AppViewState.Checkpoint) return;
-            if (!_interviewOpen || _gameRoot.Paused) return;
+            if (_gameRoot.Paused) return;
             if (i < 0 || i >= QuestionSystem.All.Length) return;
             AskQuestion(QuestionSystem.All[i]);
         }
@@ -58,17 +57,6 @@ namespace Hollowbrook.Checkpoint
                 case ToneTag.Flat: return "flat, rehearsed";
                 case ToneTag.TooSmooth: return "too smooth";
                 default: return "echoing, as if reading";
-            }
-        }
-
-        private static string QuestionTextShort(QuestionId q)
-        {
-            switch (q)
-            {
-                case QuestionId.Course: return "COURSE";
-                case QuestionId.Year: return "YEAR";
-                case QuestionId.Status: return "STATUS";
-                default: return "FIRST CLASS";
             }
         }
 

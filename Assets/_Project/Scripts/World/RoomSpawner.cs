@@ -79,7 +79,8 @@ namespace Hollowbrook.World
                            (1f + 0.35f * _anomaliesInside + 0.3f * (int)_root.Session.Breaches) *
                            (_views.Current.Light != null && !_views.Current.Light.Lit ? 1.6f : 1f);
             _spawnCooldown = 4f; // re-roll interval; chance is per-second so scale by 4
-            if (UnityEngine.Random.value > chance * 4f) return;
+            if (_rng == null) _rng = new GameRng(_root.Session.Seed + 31 + _root.Session.CurrentShift);
+            if (_rng.NextFloat() > chance * 4f) return;
 
             SpawnAnomaly(false);
         }
@@ -178,8 +179,8 @@ namespace Hollowbrook.World
             if (_liveAnomaly == a) _liveAnomaly = null;
             _views.Unregister(a);
             // pool resolution exactly once per entity (the anomaly guards its own despawn):
-            // repelled or caught == dealt with; hallucinations never touch the pool.
-            if (!a.IsHallucination && (a.WasRevealed || a.WasCaught))
+            // only REPELLED anomalies are dealt with; caught ones stay outstanding and return.
+            if (!a.IsHallucination && a.WasRevealed)
                 _root.Session.Pool.Resolve(a.Kind);
         }
     }

@@ -8,5 +8,8 @@ namespace Hollowbrook.Logic
         public string Id;
         public string Name;
         public bool IsAnomaly;
+        /// <summary>Roster index of the admitted visitor (-1 when unknown): the save file
+        /// stores these so the classroom seats the same students after a resume.</summary>
+        public int VisitorIndex = -1;
     }
 }

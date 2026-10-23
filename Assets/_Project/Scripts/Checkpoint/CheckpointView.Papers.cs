@@ -239,6 +239,12 @@ namespace Hollowbrook.Checkpoint
         internal void SearchRecords(string query)
         {
             if (_gameRoot == null || _gameRoot.Roster == null) return;
+            if (_current != null && _current.IsAdministrator)
+            {
+                // the registry holds no badge: the memo already on your desk is the paper
+                if (_stationOut != null) _stationOut.text = "NO RECORD — SEE ATTACHED MEMO";
+                return;
+            }
             int idx = RecordSearch.FindInCanon(_gameRoot.Roster.Canon, query);
             if (idx < 0)
             {

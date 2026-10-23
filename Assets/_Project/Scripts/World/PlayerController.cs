@@ -43,7 +43,7 @@ namespace Hollowbrook.World
         {
             bool dialogueOpen = _gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive;
 
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (Input.GetKeyDown(KeyCode.Escape) && InputGate.TryEscape())
             {
                 // Escape belongs to an open overlay sheet (Options/Controls/Credits) first —
                 // unpausing here would tear the player out of the pause menu behind it.
@@ -55,7 +55,7 @@ namespace Hollowbrook.World
             if (_gameRoot.Paused || dialogueOpen) return;
             if (_gameRoot.State != AppViewState.Exploration) return; // overlays (map/security room) freeze movement
 
-            if (Input.GetKeyDown(KeyCode.M)) _gameRoot.OpenMap();
+            if (Input.GetKeyDown(KeyCode.M) && InputGate.TryM()) _gameRoot.OpenMap();
 
             float h = 0f;
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) h -= 1f;

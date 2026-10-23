@@ -11,7 +11,7 @@ using UnityEngine;
 namespace Hollowbrook.Core
 {
     /// <summary>Central game orchestrator (the "root"). Owns services, the run session and
-    /// explicit references to every view — assigned once by <see cref="GameBootstrap"/>.
+    /// explicit references to every view — assigned once by CoreBootstrap + the scene bootstraps.
     /// Gameplay code never uses GameObject.Find; it goes through this class or the EventBus.</summary>
     public class GameRoot : MonoBehaviour
     {
@@ -52,7 +52,7 @@ namespace Hollowbrook.Core
         public CheckpointQueue Queue { get; private set; } = new CheckpointQueue();
         private bool _continuePending;
 
-        // ---- views (explicit references, set by GameBootstrap) ----
+        // ---- views (explicit references, set by the per-scene bootstraps) ----
         public Camera MainCamera;
         public ViewManager Views;
         public CheckpointView Checkpoint;
@@ -82,7 +82,8 @@ namespace Hollowbrook.Core
         public bool BlockingOverlayOpen =>
             (SettingsScreen != null && SettingsScreen.gameObject.activeInHierarchy) ||
             (ControlsScreen != null && ControlsScreen.gameObject.activeInHierarchy) ||
-            (CreditsScreen != null && CreditsScreen.gameObject.activeInHierarchy);
+            (CreditsScreen != null && CreditsScreen.gameObject.activeInHierarchy) ||
+            (Confirm != null && Confirm.IsOpen);
 
         private System.Action _queuedSceneAction;
         public void QueueSceneAction(System.Action a)
@@ -327,7 +328,12 @@ namespace Hollowbrook.Core
             {
                 int shift = Mathf.Clamp(Session.CurrentShift, 1, ShiftPlan.TotalShifts);
                 int resumeFrom = save.Session.VisitorIndexAtSave;
-                QueueSceneAction(() => BeginShift(shift, resumeFrom));
+                QueueSceneAction(() =>
+                {
+                    bool isResume = (save.Session.QueueState != null && save.Session.QueueState.Started) || resumeFrom > 0;
+                    BeginShift(shift, resumeFrom, isResume);
+                    if (isResume) RemapAdmittedToRoster();
+                });
                 Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
             }
             else
@@ -341,14 +347,19 @@ namespace Hollowbrook.Core
         /// <summary>Normal mode: prepare and enter a shift. Roster generation replays earlier
         /// shifts on a fresh factory so the seeded RNG lands on the identical state (saves resume
         /// mid-story without storing the whole roster).</summary>
-        public void BeginShift(int number, int resumeFromVisitor = 0)
+        public void BeginShift(int number, int resumeFromVisitor = 0, bool isResume = false)
         {
             _resumeFromVisitor = resumeFromVisitor;
             number = Mathf.Clamp(number, 1, ShiftPlan.TotalShifts);
             Session.CurrentShift = number;
-            PrepareShiftRoster(number);
-            Session.TonightLog.Clear();
-            Session.AdmittedStudents.Clear();
+            PrepareShiftRoster(number, isResume);
+            // a resume keeps the loaded night state: presentation log, admitted students
+            // and the anomaly pool all come FROM the save, not from a fresh shift setup
+            if (!isResume)
+            {
+                Session.TonightLog.Clear();
+                Session.AdmittedStudents.Clear();
+            }
             _shiftMinutes = 0f;
             SetupShiftQueue(number, resumeFromVisitor);
             PlayIntroThenCheckpoint(BuildShiftIntroLines(number), CurrentShiftDef);
@@ -357,7 +368,7 @@ namespace Hollowbrook.Core
 
         // Roster generation replays earlier shifts on a fresh factory so the seeded RNG lands
         // on the identical state (saves resume mid-story without storing the whole roster).
-        private void PrepareShiftRoster(int number)
+        private void PrepareShiftRoster(int number, bool keepPool = false)
         {
             var plan = ShiftPlan.Build();
             Roster = new RosterFactory(Session.Seed);
@@ -365,11 +376,26 @@ namespace Hollowbrook.Core
             CurrentShiftDef = (Config != null && Config.exhibitionMode && number == 1)
                 ? ShiftPlan.ExhibitionDef() : plan[number - 1];
             CurrentRoster = Roster.GenerateShift(CurrentShiftDef);
-            // one shared pool: this shift's anomalies, outstanding until resolved
+            // one shared pool: this shift's anomalies, outstanding until resolved.
+            // Kinds derive from seed^shift (not the shared stream) so a resumed night
+            // rebuilds the IDENTICAL pool the save recorded.
             var kinds = new System.Collections.Generic.List<AnomalyBehaviorKind>();
+            var krng = new GameRng(Session.Seed ^ (number * 7919));
             for (int i = 0; i < CurrentShiftDef.AnomalyCount; i++)
-                kinds.Add((AnomalyBehaviorKind)_runRng.NextInt(0, 4));
-            Session.Pool.Seed(kinds);
+                kinds.Add((AnomalyBehaviorKind)krng.NextInt(0, 4));
+            if (!keepPool) Session.Pool.Seed(kinds);
+        }
+
+        // Saved admitted lists ride as roster indices; re-attach ids/names once the roster exists.
+        private void RemapAdmittedToRoster()
+        {
+            if (CurrentRoster == null) return;
+            foreach (var st in Session.AdmittedStudents)
+            {
+                if (st.VisitorIndex < 0) continue;
+                foreach (var v in CurrentRoster)
+                    if (v.VisitorIndex == st.VisitorIndex) { st.Id = v.IdNumber; st.Name = v.ClaimedName; break; }
+            }
         }
 
         // The night's opening cards: title, objective and the rules addendum (plus the
@@ -659,7 +685,10 @@ namespace Hollowbrook.Core
 
             var eval = Session.EvaluateEnding();
             if (eval.Ending == EndingType.None && Config != null && Config.exhibitionMode && Session.CompletedShifts >= 1)
+            {
+                Session.Breaches += Session.Pool.Pending;         // booth night closes its books too
                 eval = EndingRules.EvaluateExhibition(Session);   // booth cut closes after one night
+            }
             if (eval.Ending != EndingType.None) { TriggerEnding(eval); return; }
 
             SetState(AppViewState.ShiftResults);
@@ -818,10 +847,25 @@ namespace Hollowbrook.Core
             Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Menu);
         }
 
+        /// <summary>True while a run is actually in progress — the menu's blank session
+        /// must never be persisted over a real save (issue #1: EXIT on the menu wiped saves).</summary>
+        private bool InRunProgress() =>
+            Session != null && Session.Mode == GameMode.Normal && !Session.RunFinished &&
+            Session.CompletedShifts < ShiftPlan.TotalShifts &&
+            State != AppViewState.MainMenu && State != AppViewState.ModeSelect && State != AppViewState.Boot;
+
         public void QuitApplication()
         {
-            if (Session != null && Session.Mode == GameMode.Normal) PersistRun();
+            if (InRunProgress()) PersistRun();
+            if (Settings != null) Settings.Persist();
             Application.Quit();
+        }
+
+        // Alt+F4 / window close: same guard as QuitApplication, no blank-save overwrite
+        private void OnApplicationQuit()
+        {
+            if (InRunProgress()) PersistRun();
+            if (Settings != null) Settings.Persist();
         }
 
         private void OnDestroy()
