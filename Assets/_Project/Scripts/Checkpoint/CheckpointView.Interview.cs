@@ -34,12 +34,15 @@ namespace Hollowbrook.Checkpoint
             if (_current == null || _verdictLocked) return;
             if (!_budget.TryAsk(_current, q, out var answer))
             {
-                _monitorOutput.text = _budget.HasAsked(q) ? "ALREADY ASKED THAT." : "NO MORE QUESTIONS — DISTRICT POLICY.";
+                // the desk has no scanner readout any more — refusals surface as HUD toasts
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
+                    _budget.HasAsked(q) ? "ALREADY ASKED THAT." : "NO MORE QUESTIONS — DISTRICT POLICY."));
                 _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.35f);
                 return;
             }
             string tone = answer.Tone == ToneTag.Normal ? "" : "  [" + ToneLabel(answer.Tone) + "]";
-            SayLine("YOU", QuestionSpeech(q));
+            // the player's own question needs no echo — the button already shows it asked;
+            // the bubble carries the student's answer beside their face
             SayLine("AT THE WINDOW", "“" + answer.Text + "”" + tone);
             if (Queue != null) Queue.ActiveBudgetMask = _budget.Mask;   // survives quit/continue
             _gameRoot.Audio.PlaySfx("sfx_intercom", 0.5f);
@@ -57,17 +60,6 @@ namespace Hollowbrook.Checkpoint
                 case ToneTag.Flat: return "flat, rehearsed";
                 case ToneTag.TooSmooth: return "too smooth";
                 default: return "echoing, as if reading";
-            }
-        }
-
-        private static string QuestionSpeech(QuestionId q)
-        {
-            switch (q)
-            {
-                case QuestionId.Course: return "Your course?";
-                case QuestionId.Year: return "Your year?";
-                case QuestionId.Status: return "Regular or transferee?";
-                default: return "Which classroom is your first class in?";
             }
         }
     }

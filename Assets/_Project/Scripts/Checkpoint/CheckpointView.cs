@@ -16,7 +16,9 @@ namespace Hollowbrook.Checkpoint
     // CheckpointLayout grid — see desk_layout_wireframe.svg for the approved design.
     public partial class CheckpointView : MonoBehaviour, IScreenView
     {
-        private const int SpeechKeep = 3;   // last three lines, newest at the bottom
+        /// <summary>The ID card's resting display scale (~18% under the old default).
+        /// Zoom (1..1.8) rides on top of it — see DragPaper.BaseScale.</summary>
+        internal const float IdCardScale = 0.82f;
         private const string BulletinShort = "⚠ DISTRICT BULLETIN — NEW RULE IN EFFECT · SEE RULES NOTE";
 
         private GameRoot _gameRoot;
@@ -43,22 +45,27 @@ namespace Hollowbrook.Checkpoint
         private Button _stickyButton;
 
         private Image _visitorPortrait;
-        private RectTransform _speechPanel;
-        private Text _speechLog;
-        private readonly List<string[]> _speechEntries = new List<string[]>();
         private Image _glitchOverlay;
 
         private Text _idName, _idNumber, _idYear, _idCourse, _idExpires, _idStatus, _idHeader;
         private Image _idPhoto;
         private Text _recName, _recNumber, _recYear, _recCourse, _recStatus, _recClassroom, _recHeader, _recEnrolled;
-        private Text _monitorOutput;
         private StringBuilder _tonightsLog = new StringBuilder();
 
         private Button[] _questionButtons = new Button[4];
         private readonly string[] _qLabels = new string[4];
         private Text _budgetLabel;
         private Text _stationOut;
-        private UnityEngine.UI.InputField _searchField;
+        // floor-files cabinet: folder tabs, the drawer and what it currently shows
+        private readonly Button[] _folderTabs = new Button[2];
+        private readonly Image[] _folderTabInks = new Image[2];
+        private GameObject _drawerGo;
+        private Text _drawerHead;
+        private RectTransform _drawerRows;
+        private readonly List<Image> _fileRowInks = new List<Image>();
+        private readonly List<int> _fileRowCanon = new List<int>();
+        private int _openFloor = -1;          // -1 = drawer closed
+        private int _selectedCanon = -1;      // canon index of the pulled file
         private GameObject _slipGo;
         private GameObject _papersLayer;
         private Text _slipName, _slipId, _slipReason;
@@ -74,7 +81,7 @@ namespace Hollowbrook.Checkpoint
         private Image _offeredPhoto;
         private Text _offeredName, _offeredNumber, _offeredExpires;
         private GameObject _recordGo, _idCardGo;   // hidden until the ID is taken
-        private Button _scanBtn, _notesBtn, _recordsBtn, _mapBtn, _patrolBtn, _endShiftBtn;
+        private Button _notesBtn, _recordsBtn, _mapBtn, _patrolBtn, _endShiftBtn;
         private readonly Image[] _stampTints = new Image[3];
         private readonly Color[] _stampBase = new Color[3];
         private readonly List<EventSubscription> _subscriptions = new List<EventSubscription>();
@@ -105,8 +112,8 @@ namespace Hollowbrook.Checkpoint
             BuildOfferedId();
             BuildCenterColumn();
             BuildQuestionsPanel();
-            BuildToolsAndCamera();
-            BuildPapersLayer();      // papers live above window/tools/camera...
+            BuildToolsRow();
+            BuildPapersLayer();      // papers live above window/bubble/tools...
             BuildStampTray();        // ...and below the stamp tray; overlays top everything
             BuildOverlays();
             BuildStickyNote();
@@ -153,6 +160,7 @@ namespace Hollowbrook.Checkpoint
             gameObject.SetActive(false);
             _notesRoot.SetActive(false);
             _recordsRoot.SetActive(false);
+            HideBubbleNow();   // leaving the desk never carries a line (or a timer) along
         }
 
         public void BeginRun(ShiftDef shift)
@@ -180,7 +188,7 @@ namespace Hollowbrook.Checkpoint
         private void ResetShiftState()
         {
             _tonightsLog.Clear();
-            _speechEntries.Clear();
+            HideBubbleNow();
             _flowActive = true;
             _current = null;
             _verdictLocked = true;
@@ -258,16 +266,15 @@ namespace Hollowbrook.Checkpoint
             }
             if (r.MissingStudent)
             {
-                SayLine("RADIO", "Roll call just came up one short. Someone signed in for night class who never reached your line.");
+                // the radio speaks through the HUD toast — never through the student's bubble
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    "ROSTER DISCREPANCY — an expected student never reached the checkpoint."));
+                    "RADIO: ROSTER DISCREPANCY — an expected student never reached the checkpoint."));
                 _gameRoot.Audio.PlaySfx("sfx_static", 0.25f);
             }
             if (r.PressureWarning)
             {
-                SayLine("RADIO", "Custodian — your line is backing up. Pick up the pace.");
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    "QUEUE PRESSURE — " + Queue.WaitingCount + " waiting at the gate."));
+                    "RADIO: QUEUE PRESSURE — " + Queue.WaitingCount + " waiting at the gate."));
                 _gameRoot.Audio.PlaySfx("sfx_intercom", 0.6f);
             }
             if (r.Overwhelmed)
@@ -293,7 +300,6 @@ namespace Hollowbrook.Checkpoint
             _current = v;
             _budget = new QuestionSystem.Budget();
             if (restoreBudget && Queue != null) _budget.RestoreFromMask(Queue.ActiveBudgetMask);
-            _monitorOutput.text = "SCANNER READY";
             _verdictLocked = false;
             // fresh hand-over state: nothing on the desk until the ID is offered and taken
             _documentsTaken = false;
@@ -307,8 +313,16 @@ namespace Hollowbrook.Checkpoint
         // Published only on change, same contract as the exploration prompts.
         private string _lastHandoverPrompt = "\0";
 
-        internal void DebugTakeDocuments() => TakeIdAt(new Vector2(
-            L.IdCard.X + L.IdCard.W / 2f, L.IdCard.Y + L.IdCard.H / 2f));
+        internal void DebugTakeDocuments() { TakeId(); DockIdToSlot(); }
+
+        // The tap/debug docking: the card's top-left lands on its slot corner. (Centring
+        // the SLOT RECT would drift now that the card draws smaller than the rect —
+        // DragPaper.BaseScale 0.82.)
+        private void DockIdToSlot()
+        {
+            var drag = _idCardGo != null ? _idCardGo.GetComponent<DragPaper>() : null;
+            if (drag != null) drag.PlaceAt(new Vector2(L.IdCard.X, L.IdCard.Y));
+        }
 
         // One visitor reached the window: portrait and voices only — the papers arrive
         // through the hand-over step (OnWindowClicked -> TakeId), not automatically.
@@ -340,10 +354,31 @@ namespace Hollowbrook.Checkpoint
             _gameRoot.EnterExploration();   // the queue rides in GameRoot; the clock pauses off-desk
         }
 
-        // Flip the held ID (F or a tap) — the back face carries the subtle tier.
-        internal void FlipId()
+        // Flip the held ID — its black spine is the click handle; the F key flips whichever
+        // paper you touched last. The back face carries the subtle tier. The papers are
+        // DECOUPLED: flipping one never touches the other (the slip used to ride along
+        // because both flips rode one shared "last paper" state).
+        internal void FlipId() => FlipPaper(_idCardGo);
+        internal void FlipSlip() => FlipPaper(_slipGo);
+
+        // Keyboard flip: routes to the paper the player lifted last (the ID by default).
+        internal void FlipLastPaper() => FlipPaper(_lastPaper == _slipGo ? _slipGo : _idCardGo);
+
+        // Both faces of one paper back to their born state: back hidden, front shown. The
+        // stamp mark is left exactly as it is — it is a layer of the slip and is cleared
+        // (alpha + sprite) by the hand-over reset, never by a flip.
+        private static void FaceUp(GameObject paper)
         {
-            var paper = _lastPaper != null ? _lastPaper : _idCardGo;
+            if (paper == null) return;
+            foreach (Transform ch in paper.transform)
+            {
+                if (ch.name == "stampoverlay") continue;
+                ch.gameObject.SetActive(!ch.name.EndsWith("back"));
+            }
+        }
+
+        private void FlipPaper(GameObject paper)
+        {
             if (paper == null || !paper.activeSelf) return;
             Transform bt = null;
             foreach (Transform ch in paper.transform)
@@ -353,13 +388,16 @@ namespace Hollowbrook.Checkpoint
             bt.gameObject.SetActive(on);
             foreach (Transform ch in paper.transform)
             {
-                if (ch == bt || ch.name == "stampoverlay") continue;
+                if (ch == bt || ch.name == "stampoverlay") continue;   // the stamp mark stays on the slip
                 ch.gameObject.SetActive(!on);
             }
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.35f);
         }
 
-        // Zoom the held ID: wheel (or Vertical axis) nudges, Z toggles. Clamped 1..1.8.
+        // Deliberate zoom of the paper you touched last: Z toggles between 1x and 1.5x
+        // (DragPaper clamps 1..1.8). The scroll wheel is NOT a zoom input — the ID and
+        // the slip keep their intended, consistent size while the player scrolls
+        // (audit task 1: the wheel used to resize whichever paper was touched last).
         internal void DebugZoom(float z)
         {
             var paper = _lastPaper != null ? _lastPaper : _idCardGo;
@@ -367,35 +405,26 @@ namespace Hollowbrook.Checkpoint
             if (dp != null) dp.Zoom = z;
         }
 
+        internal void ToggleZoomLastPaper()
+        {
+            var paper = _lastPaper != null ? _lastPaper : _idCardGo;
+            if (paper == null || !paper.activeSelf) return;
+            var dp = paper.GetComponent<DragPaper>();
+            if (dp != null) dp.Zoom = dp.Zoom > 1.25f ? 1f : 1.5f;
+        }
+
         private void Update()
         {
             if (_gameRoot == null || !gameObject.activeInHierarchy) return;
             AdvanceQueue(Time.deltaTime);
+            TickBubble(Time.unscaledDeltaTime);   // the 2 s bubble cooldown (frozen while paused)
             TickHotkeys();
-            // zoom the paper you last touched: real wheel axis, per-paper, clamped,
-            // and only while the desk is live (never behind pause/dialogue/overlays)
-            var zoomPaper = _lastPaper != null ? _lastPaper : _idCardGo;
-            bool deskLive = !_gameRoot.Paused && !_gameRoot.BlockingOverlayOpen &&
-                            (_gameRoot.Dialogue == null || !_gameRoot.Dialogue.IsActive) &&
-                            _gameRoot.State == AppViewState.Checkpoint;
-            if (deskLive && zoomPaper != null && zoomPaper.activeSelf)
-            {
-                var dp = zoomPaper.GetComponent<DragPaper>();
-                if (dp != null)
-                {
-                    float wheel = Input.mouseScrollDelta.y;
-                    if (wheel != 0f) dp.Zoom = dp.Zoom + wheel * 0.15f;
-                    else if (Input.GetKeyDown(KeyCode.Z)) dp.Zoom = dp.Zoom > 1.25f ? 1f : 1.5f;
-                }
-            }
         }
 
         // Split out so the headless FlowCheck can drive the same input path deterministically
         // (stub MonoBehaviours never get Update calls).
         internal void TickHotkeys()
         {
-            // typing a query must never ask questions or stamp verdicts
-            if (_searchField != null && _searchField.isFocused) return;
             // Escape belongs to an open overlay sheet (Options/Controls/Credits) first —
             // without this guard Esc over the pause menu would close Options AND unpause.
             if (Input.GetKeyDown(KeyCode.Escape) && !_gameRoot.BlockingOverlayOpen && InputGate.TryEscape())
@@ -408,11 +437,14 @@ namespace Hollowbrook.Checkpoint
             // 1-4 ask the four questions while the interview is open (labels say so)
             for (int k = 0; k < 4; k++)
                 if (Input.GetKeyDown((KeyCode)(KeyCode.Alpha1 + k))) AskByHotkey(k);
-            // A / D stamp the slip (pending); H hands both papers back; F flips; Z zooms
+            // A / D stamp the slip (pending); H hands both papers back; F flips the paper
+            // you touched last (the ID flips by itself only through its spine or this key)
             if (Input.GetKeyDown(KeyCode.A)) StampSlipByKey(Verdict.Allow);
             if (Input.GetKeyDown(KeyCode.D)) StampSlipByKey(Verdict.Reject);
             if (Input.GetKeyDown(KeyCode.H)) HandBackByKey();
-            if (Input.GetKeyDown(KeyCode.F)) FlipId();
+            if (Input.GetKeyDown(KeyCode.F)) FlipLastPaper();
+            // Z is the ONLY paper zoom input: a deliberate toggle (never the scroll wheel)
+            if (Input.GetKeyDown(KeyCode.Z)) ToggleZoomLastPaper();
         }
 
         // Everything on the desk that mirrors run state, refreshed after any change:

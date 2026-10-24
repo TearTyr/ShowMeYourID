@@ -12,6 +12,12 @@ namespace Hollowbrook.World
     // visible lamp on top of that hole. Interaction is cursor-distance based (no raycasts):
     // an interactable is "under the light" when its anchor point sits within CursorHitRadius
     // of the cursor's world position.
+    //
+    // The lamp is MANUAL (audit task 1): entering a classroom always starts DARK — the lamp
+    // is OFF until the player presses F, and F presses it out again. Two states, one source
+    // of truth: Active = a peek session is on screen (tracking + prompts + E keep running so
+    // the player is never locked in the dark); Lit = the light itself (mask + glow + the
+    // illumination query all answer to it). Mouse movement never lights anything.
     public class PeekLight : MonoBehaviour
     {
         // Light circle size in world units (the mask and the glow share it).
@@ -19,7 +25,10 @@ namespace Hollowbrook.World
         // How close the cursor's world point must be to an interactable anchor to prompt it.
         public float CursorHitRadius = 1.3f;
 
+        /// <summary>A peek session is on screen (fade-in through fade-out).</summary>
         public bool Active { get; private set; }
+        /// <summary>The lamp state: OFF on every entry, toggled by F alone.</summary>
+        public bool Lit { get; private set; }
 
         private GameRoot _gameRoot;
         private Camera _cam;
@@ -29,7 +38,7 @@ namespace Hollowbrook.World
         private Vector3 _worldPoint;
         private string _lastPrompt = "\0";   // "\0" = nothing published yet this peek
 
-        /// <summary>Builds the mask + glow children once. Starts inactive.</summary>
+        /// <summary>Builds the mask + glow children once. Starts inactive and unlit.</summary>
         public void Init(GameRoot root, Camera cam)
         {
             _gameRoot = root;
@@ -51,35 +60,61 @@ namespace Hollowbrook.World
             _glow.color = new Color(1f, 0.96f, 0.85f, 0.30f);
             _glow.sortingOrder = 72;        // just above the darkness hole's edge
 
-            SetActive(false);
+            Active = false;
+            SetLit(false, true);
+            gameObject.SetActive(false);
         }
 
-        /// <summary>Begin revealing the given room. Snaps the circle to the room centre.</summary>
+        /// <summary>Begin a peek at the given room: the session goes live, the lamp stays
+        /// OFF — arriving in a classroom always means arriving dark, and only a deliberate
+        /// F lights it (one press; nothing was secretly pre-lit).</summary>
         public void Enter(RoomInstance room)
         {
             _room = room;
             _lastPrompt = "\0";
-            SetActive(true);
+            Active = true;
+            gameObject.SetActive(true);
+            SetLit(false, true);
             transform.position = Vector3.zero;
             _worldPoint = Vector3.zero;
+            if (_gameRoot != null)
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
+                    "LAMP OFF — press F to light the room."));
         }
 
         /// <summary>Stop revealing. The hallway presentation is restored by ViewManager.</summary>
         public void Exit()
         {
-            SetActive(false);
+            Active = false;
+            SetLit(false, true);
             _room = null;
             _lastPrompt = "\0";
+            gameObject.SetActive(false);
         }
 
-        /// <summary>True when the world point sits inside the light circle.</summary>
-        public bool Covers(Vector3 worldPoint) => Active && Vector2.Distance(worldPoint, _worldPoint) <= Radius;
+        /// <summary>True when the world point sits inside the LIT light circle — an OFF
+        /// lamp illuminates nothing, exactly like the handheld beam.</summary>
+        public bool Covers(Vector3 worldPoint) =>
+            Active && Lit && Vector2.Distance(worldPoint, _worldPoint) <= Radius;
 
-        private void SetActive(bool on)
+        // The lamp's visual + illumination state. Mask and glow live and die together with
+        // the Covers query, so the spotlight, the beam-like glow and the actual
+        // illumination can never disagree. quiet = no toast (entry/exit resets).
+        private void SetLit(bool on, bool quiet)
         {
-            Active = on;
-            gameObject.SetActive(on);
+            Lit = on;
+            if (_mask != null) _mask.gameObject.SetActive(on);
+            if (_glow != null) _glow.gameObject.SetActive(on);
+            if (_gameRoot == null) return;
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.LightModeChanged, on));   // HUD sync
+            if (!quiet)
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
+                    on ? "LAMP: ON" : "LAMP: OFF"));
         }
+
+        /// <summary>F is the ONLY lamp switch — the same deliberate toggle the handheld
+        /// beam uses. One press on, one press off; no latch can survive an entry reset.</summary>
+        internal void ToggleLamp() => SetLit(!Lit, false);
 
         // Esc follows the hallway rule (pause first; peek only exits through the bottom band
         // or the exit doorway), and pause/dialogue/overlays freeze the cursor entirely.
@@ -105,12 +140,21 @@ namespace Hollowbrook.World
             else if (_gameRoot.Dialogue == null || !_gameRoot.Dialogue.IsActive) _gameRoot.TogglePause(true);
         }
 
-        // One frame of peek light: follow the cursor on the z=0 plane, publish the prompt for
-        // whatever sits under the circle, and act on E. internal so the headless harness can
-        // step frames deterministically (stub MonoBehaviours never get Update calls).
+        // One frame of peek light: the F toggle, then follow the cursor on the z=0 plane,
+        // publish the prompt for whatever sits under the circle, and act on E. Tracking and
+        // prompts run while the lamp is OFF too — the exit stays reachable in the dark (the
+        // bottom band and the doorway) — but with mask + glow hidden nothing is visible and
+        // Covers() reports no illumination. internal so the headless harness can step
+        // frames deterministically (stub MonoBehaviours never get Update calls).
         internal void Tick(float dt)
         {
             if (_gameRoot == null || _cam == null || !Active) return;
+
+            // manual lamp: F toggles, gated exactly like the rest of the peek input
+            if (!_gameRoot.Paused && !_gameRoot.BlockingOverlayOpen &&
+                (_gameRoot.Dialogue == null || !_gameRoot.Dialogue.IsActive) &&
+                Input.GetKeyDown(KeyCode.F))
+                ToggleLamp();
 
             var mouse = Input.mousePosition;
             mouse.z = -_cam.transform.position.z;           // project onto the z=0 world plane

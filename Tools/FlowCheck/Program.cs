@@ -81,15 +81,16 @@ namespace FlowCheck
             var checkpointRoot = root.Checkpoint.transform;
             int window = DeepIndex(checkpointRoot, "windowframe");
             int visitor = DeepIndex(checkpointRoot, "visitor");
-            int speech = DeepIndex(checkpointRoot, "speech_border");
+            int speech = DeepIndex(checkpointRoot, "speechbubble");
             Check(window >= 0 && visitor > window && speech > window,
-                $"B3: windowframe sibling {window} is BEHIND visitor {visitor} and speech {speech}");
+                $"B3: windowframe sibling {window} is BEHIND visitor {visitor} and speech bubble {speech}");
 
             RequiredElements(root);
             LayoutAudit(root);
-            SpeechProof(root);
+            BubbleProof(root);
             PapersProof(root);
             SaveContinueResume();
+            StampPlaceProof(root);
             DeskLoop(root);
             QueueProof(root);
             SettingsProof(root);
@@ -118,12 +119,12 @@ namespace FlowCheck
             string[] deskNames =
             {
                 "DeskFrame", "topbar", "daybanner_border", "clock", "pause", "runstats", "mutationbg",
-                "record", "station", "find", "closefile", "idcard",
+                "record", "station", "folder1", "folder2", "filedrawer_border", "closefile", "idcard",
                 "windowframe", "glass", "facade", "visitor", "glitch", "sill",
-                "speech_border", "speechlog", "offeredid", "patrol", "endshift",
-                "qpanel_border", "q0", "q1", "q2", "q3", "searchbox", "placeholder",
-                "scan", "records", "map", "notes", "stamp_allow", "stamp_deny",
-                "monitor_border", "out",
+                "speechbubble", "bubble_border", "bubble", "bubbletext", "bubbletail",
+                "offeredid", "patrol", "endshift",
+                "qpanel_border", "q0", "q1", "q2", "q3",
+                "records", "map", "notes", "stamp_allow", "stamp_deny",
                 "OverlayRules", "OverlayLog",
                 "StickyNoteOverlay", "stickynote_border",
             };
@@ -134,9 +135,29 @@ namespace FlowCheck
             // gone for good (the queue itself still runs headless); nothing is built-then-hidden
             Check(FindDeep(root.Checkpoint.transform, "checklist_border") == null,
                 "the checklist widget is removed from the desk");
+            Check(FindDeep(root.Checkpoint.transform, "scan") == null &&
+                  FindDeep(root.Checkpoint.transform, "monitor_border") == null &&
+                  FindDeep(root.Checkpoint.transform, "out") == null &&
+                  FindDeep(root.Checkpoint.transform, "camcap") == null,
+                "the ID scanner is removed: no SCAN button, no camera monitor, no readout");
             Check(FindDeep(root.Checkpoint.transform, "queuestripL") == null &&
                   FindDeep(root.Checkpoint.transform, "queuestatus") == null,
                 "the waiting-line display is retired; the queue logic still runs headless");
+            Check(FindDeep(root.Checkpoint.transform, "appearance_border") == null &&
+                  FindDeep(root.Checkpoint.transform, "apphead") == null &&
+                  FindDeep(root.Checkpoint.transform, "appq") == null &&
+                  FindDeep(root.Checkpoint.transform, "appyes") == null &&
+                  FindDeep(root.Checkpoint.transform, "appno") == null &&
+                  FindDeep(root.Checkpoint.transform, "appwhy") == null &&
+                  FindDeep(root.Checkpoint.transform, "appreason") == null &&
+                  FindDeep(root.Checkpoint.transform, "reasonhint") == null &&
+                  FindDeep(root.Checkpoint.transform, "appstatus") == null,
+                "the face check is removed: no appearance panel, no YES/NO, no follow-up, no reason field");
+            Check(FindDeep(root.Checkpoint.transform, "speech_border") == null &&
+                  FindDeep(root.Checkpoint.transform, "speechlog") == null,
+                "the bottom dialogue strip is gone: student dialogue lives in the speech bubble");
+            Check(FindDeep(root.Checkpoint.transform, "stampbox") == null,
+                "the slip has no printed stamp box: the mark lands where the player drops the stamp");
             string[] hudNames =
             {
                 "HudFrame", "sanitybg_border", "trackbg_border", "batterybg_border",
@@ -182,22 +203,23 @@ namespace FlowCheck
             ExpectRegion("clock", L.Clock, 1000, 4, 150, 44);
             ExpectRegion("pause", L.Pause, 1160, 8, 104, 36);
             ExpectRegion("records station", L.Station, 16, 88, 320, 96);
+            ExpectRegion("file drawer", L.FileDrawer, 16, 188, 320, 270);
             ExpectRegion("id card", L.IdCard, 438, 478, 304, 209);
             ExpectRegion("window frame", L.Window, 405, 88, 470, 316);
             ExpectRegion("glass", L.Glass, 420, 98, 440, 296);
             ExpectRegion("portrait", L.Portrait, 565, 104, 150, 180);
             ExpectRegion("sill", L.Sill, 405, 404, 470, 24);
-            ExpectRegion("dialogue strip", L.Speech, 405, 432, 470, 44);
+            ExpectRegion("speech bubble", L.SpeechBubble, 718, 100, 248, 210);
             ExpectRegion("patrol button", L.PatrolBtn, 520, 690, 140, 24);
             ExpectRegion("end shift", L.EndShiftBtn, 672, 690, 150, 24);
             ExpectRegion("questions", L.Questions, 968, 88, 296, 190);
-            ExpectRegion("scan", L.UtilityScan, 968, 300, 76, 26);
             ExpectRegion("TL", L.UtilityRecords, 16, 466, 156, 36);
             ExpectRegion("MAP", L.UtilityMap, 16, 510, 320, 96);
             ExpectRegion("RN", L.UtilityNotes, 180, 466, 156, 36);
-            ExpectRegion("camera", L.Monitor, 968, 340, 312, 120);
-            ExpectRegion("D stamp", L.StampDeny, 1128, 470, 152, 150);
-            ExpectRegion("A stamp", L.StampAllow, 968, 470, 152, 150);
+            // the stamp tray moved UP into the retired appearance check's slot: the right
+            // column stays balanced (questions above, stamps below, open desk underneath)
+            ExpectRegion("D stamp", L.StampDeny, 1128, 296, 152, 150);
+            ExpectRegion("A stamp", L.StampAllow, 968, 296, 152, 150);
             // Phase 9/10 grid extensions (queue strips + sticky note; the queue readout
             // is the banner's second line, inside the existing registered Banner region)
             ExpectRegion("queue strip L", L.QueueStripL, 340, 436, 60, 240);
@@ -208,6 +230,29 @@ namespace FlowCheck
                   Math.Abs(L.Inner.QBtnStep - 32) < 0.01f && Math.Abs(L.Inner.QBtnW - 272) < 0.01f &&
                   Math.Abs(L.Inner.QBtnH - 30) < 0.01f,
                 "question buttons == compact grid (980,114 + i*32, 272x30)");
+            // folder tabs: station-local grid (x=8, y=20, step 26, 304x24) + file rows:
+            // drawer-local grid (x=10, y=28, step 32, 300x30) — 7 rows fit the region
+            Check(Math.Abs(L.Inner.FolderTabX - 8) < 0.01f && Math.Abs(L.Inner.FolderTabY0 - 20) < 0.01f &&
+                  Math.Abs(L.Inner.FolderTabStep - 26) < 0.01f && Math.Abs(L.Inner.FolderTabW - 304) < 0.01f &&
+                  Math.Abs(L.Inner.FolderTabH - 24) < 0.01f,
+                "folder tabs == compact station grid (8,20 + i*26, 304x24)");
+            Check(Math.Abs(L.Inner.FileRowX - 10) < 0.01f && Math.Abs(L.Inner.FileRowY0 - 28) < 0.01f &&
+                  Math.Abs(L.Inner.FileRowStep - 32) < 0.01f && Math.Abs(L.Inner.FileRowW - 300) < 0.01f &&
+                  L.Inner.FileRowY0 + 7 * L.Inner.FileRowStep <= L.FileDrawer.H + 0.01f,
+                "file rows == drawer grid (10,28 + i*32, 300x30) and 7 rows fit");
+            // the retired appearance check left its slot to the stamp tray: the right
+            // column reads questions-above / stamps-below, with the tray hugging the panel
+            Check(L.StampAllow.Y - L.Questions.Bottom >= 8f && L.StampAllow.Y - L.Questions.Bottom <= 40f &&
+                  Mathf.Abs(L.StampAllow.Y - L.StampDeny.Y) < 0.01f &&
+                  Mathf.Abs(L.StampAllow.Bottom - 446f) < 0.01f,
+                "the stamp tray sits right under the questions panel (296..446, aligned row)");
+            Check(L.SpeechBubble.X >= L.Portrait.Right && L.SpeechBubble.Right <= 968f &&
+                  L.SpeechBubble.Bottom <= L.Sill.Bottom,
+                "the speech bubble box stays beside the head, clear of the right column and the sill");
+            Check(SpeechBubbleLayout.Height(L.Inner.BubbleMaxLines, L.Inner.BubbleLineH,
+                      L.Inner.BubbleTagH, L.Inner.BubblePadTop, L.Inner.BubblePadBottom) <=
+                  L.SpeechBubble.H + 0.01f,
+                "the bubble's maximum text height fits inside its registered box");
             // hint/findings row: wireframe baseline y=72, findings right edge x=1264
             Check(Math.Abs(L.Findings.Right - 1264) < 0.01f, "findings right-aligned at x=1264");
             Check(Math.Abs(L.Hint.X - 348) < 0.01f, "hint lives in the free strip under the top bar (x=348)");
@@ -229,20 +274,19 @@ namespace FlowCheck
             Add("room info", L.RoomInfo, "E");
             Add("prompt", L.Prompt, "E");
             Add("records station", L.Station, "B");
+            Add("file drawer", L.FileDrawer, "C");
             Add("id card", L.IdCard, "C");
             Add("window", L.Window, "C");
             Add("sill", L.Sill, "C");
-            Add("speech", L.Speech, "C");
+            Add("speech bubble", L.SpeechBubble, "T");   // transient overlay beside the head
             Add("patrol button", L.PatrolBtn, "C");
             Add("end shift button", L.EndShiftBtn, "C");
             Add("questions panel", L.Questions, "C");
-            Add("scan button", L.UtilityScan, "C");
             Add("log button", L.UtilityRecords, "C");
             Add("map button", L.UtilityMap, "C");
             Add("rules button", L.UtilityNotes, "C");
             Add("deny stamp", L.StampDeny, "C");
             Add("allow stamp", L.StampAllow, "C");
-            Add("camera monitor", L.Monitor, "C");
             Add("queue strip left", L.QueueStripL, "C");
             Add("queue strip right", L.QueueStripR, "C");
             Add("toast", L.Toast, "T");
@@ -301,10 +345,6 @@ namespace FlowCheck
             return false;
         }
 
-        // ------------------------------------------------------------- speech proof
-        // The speech box must show BOTH sides: the visitor's line, the player's question
-        // under "YOU", and the visitor's answer — newest at the bottom.
-
         // ------------------------------------------------- papers pass (drag, pips, hints)
         private static string HintText(GameRoot root) =>
             FindDeep(root.HUD.transform, "objective").GetComponent<UnityEngine.UI.Text>().text;
@@ -357,23 +397,24 @@ namespace FlowCheck
 
         private static void PapersProof(GameRoot root)
         {
-            Console.WriteLine("== papers pass: chat column, draggable ID, question panel ==");
+            Console.WriteLine("== papers pass: bubble column, draggable ID, question panel ==");
             var cp = root.Checkpoint;
 
-            // chat lives bottom-left and speaks in three inks
-            var speech = FindDeep(cp.transform, "speech_border");
-            var srt = speech.GetComponent<RectTransform>();
-            Check(Mathf.Abs(srt.anchoredPosition.x - L.Speech.X) < 0.5f &&
-                  Mathf.Abs(-srt.anchoredPosition.y - L.Speech.Y) < 0.5f &&
-                  L.Speech.X == 405 && L.Speech.Y == 432,
-                  "the dialogue strip sits under the window, compact (405,432)");
-            var logText = FindDeep(cp.transform, "speechlog").GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
-            Check(logText.Contains("<color=#4a5a49>YOU</color>") && logText.Contains("<color=#6f6d68>AT THE WINDOW</color>"),
-                  "chat lines carry per-speaker colours");
+            // the student's voice lives in the bubble beside the head, in its own ink
+            var bubble = FindDeep(cp.transform, "speechbubble");
+            var brt = bubble.GetComponent<RectTransform>();
+            Check(Mathf.Abs(brt.anchoredPosition.x - L.SpeechBubble.X) < 0.5f &&
+                  Mathf.Abs(-brt.anchoredPosition.y - L.SpeechBubble.Y) < 0.5f &&
+                  L.SpeechBubble.X == 718 && L.SpeechBubble.Y == 100,
+                  "the speech bubble box hangs beside the portrait's head (718,100)");
+            var bubbleInk = FindDeep(cp.transform, "bubbletext").GetComponent<UnityEngine.UI.Text>().text;
+            Check(bubbleInk.Contains("<color=#6f6d68>AT THE WINDOW</color>"),
+                  "the bubble line carries the student's speaker colour");
 
             // both papers are physical
             var idDrag = FindDeep(cp.transform, "idcard").GetComponent<DragPaper>();
             var recDrag = FindDeep(cp.transform, "record").GetComponent<DragPaper>();
+            var slipT0 = FindDeep(cp.transform, "slip").GetComponent<RectTransform>();
             Check(idDrag != null && recDrag != null, "ID card and record sheet carry DragPaper");
             if (idDrag == null) return;
             var home = idDrag.CenterInBounds();
@@ -393,23 +434,32 @@ namespace FlowCheck
             idDrag.PlaceCenter(home);                      // tidy back for the next checks
             idDrag.EndDrag();
 
-            // dropping the ID on the scanner scans it — exactly one scan, same rules path
-            int scans = 0;
-            var sub = root.Bus.Subscribe(EventIds.ScanPerformed, e => scans++);
+            // task 5: the ID card's DEFAULT display is slightly smaller — the whole card
+            // (sprite, photo, rows) scales uniformly through DragPaper.BaseScale, so the
+            // design proportions survive and zoom still reads 1x..1.8x of the resting size
+            float cardRatio = CheckpointView.IdCardScale;
+            Check(cardRatio >= 0.80f && cardRatio <= 0.85f,
+                "the ID card's resting scale is 15-20% under the old default (got " + cardRatio + ")");
+            var idGo0 = FindDeep(cp.transform, "idcard");
+            Check(Mathf.Abs(idGo0.GetComponent<RectTransform>().localScale.x - cardRatio) < 0.01f &&
+                  Mathf.Abs(idDrag.Zoom - 1f) < 0.01f,
+                "the card rests at the smaller default while Zoom reads 1x");
+            Check(Mathf.Abs(idGo0.GetComponent<RectTransform>().rect.width - 304f) < 0.5f &&
+                  Mathf.Abs(idGo0.GetComponent<RectTransform>().rect.height - 209f) < 0.5f,
+                "the card rect keeps the designed 304x209 slot (aspect untouched, scale does the shrink)");
+
+            // the scanner is gone: dropping the ID anywhere on the open desk is just
+            // repositioning — no side effects
             idDrag.BeginDrag();
-            idDrag.PlaceAt(new Vector2(L.UtilityScan.X + L.UtilityScan.W / 2f - 160f,
-                                       L.UtilityScan.Y + L.UtilityScan.H / 2f - 110f));
+            idDrag.PlaceCenter(new Vector2(820f, 620f));
             idDrag.EndDrag();
-            Check(scans == 1, "drop-on-scanner triggers exactly one scan");
+            c = idDrag.CenterInBounds();
+            Check(c.x >= home.x + 50f && c.x <= 1280f &&
+                  FindDeep(cp.transform, "idcard").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
+                  "dropping the ID over the open desk only repositions it (no scan, no hand-back)");
             idDrag.BeginDrag();
-            idDrag.PlaceAt(new Vector2(600f - 160f, 500f - 110f));
+            idDrag.PlaceCenter(home);
             idDrag.EndDrag();
-            Check(scans == 1, "dropping elsewhere is just repositioning (no scan)");
-            idDrag.BeginDrag();
-            idDrag.PlaceCenter(new Vector2(L.Monitor.X + L.Monitor.W / 2f, L.Monitor.Y + L.Monitor.H / 2f));
-            idDrag.EndDrag();
-            Check(scans == 2, "dropping the ID on the CAMERA scans it (the scan device)");
-            sub.Dispose();
 
             // question panel: pips, asked-tags, hotkeys, budget-spent reason, scroll testimony
             var budget = FindDeep(cp.transform, "budget").GetComponent<UnityEngine.UI.Text>();
@@ -433,20 +483,66 @@ namespace FlowCheck
             Check(!FindDeep(cp.transform, "q2").GetComponentInChildren<UnityEngine.UI.Text>().text.Contains("ASKED"),
                   "hotkeys respect the spent budget (no third question)");
 
-            // records station: the file opens only when the player opens it
+            // floor-files cabinet: the file opens only when the player pulls it
             Check(!FindDeep(cp.transform, "record").gameObject.activeSelf,
-                  "the student file stays shut until the player searches for it");
-            cp.SearchRecords(cp.CurrentVisitor.IdNumber);
+                  "the student file stays shut until the player pulls it");
+            Check(FindDeep(cp.transform, "find") == null &&
+                  FindDeep(cp.transform, "searchbox") == null &&
+                  FindDeep(cp.transform, "placeholder") == null &&
+                  FindDeep(cp.transform, "query") == null &&
+                  FindDeep(cp.transform, "station").GetComponent<UnityEngine.UI.InputField>() == null,
+                  "the old registry terminal is gone: no FIND button, no text input");
+            var drawer = FindDeep(cp.transform, "filedrawer_border");
+            Check(!drawer.gameObject.activeSelf, "the folder drawer starts closed");
+            var tab1 = FindDeep(cp.transform, "folder1").GetComponent<UnityEngine.UI.Button>();
+            tab1.onClick.Invoke();
+            Check(drawer.gameObject.activeSelf, "clicking a floor folder opens its drawer");
+            Check(FindDeep(cp.transform, "filerow0") != null, "the open folder lists its student files");
+            var headText = FindDeep(cp.transform, "drawerhead").GetComponent<UnityEngine.UI.Text>().text;
+            Check(headText.Contains("1ST FLOOR") && headText.Contains("7 FILES"),
+                  "the drawer head names the floor and counts its files (got '" + headText + "')");
+            tab1.onClick.Invoke();
+            Check(!drawer.gameObject.activeSelf, "clicking the open folder again collapses it");
+
+            // pull a file: same record-window path the old FIND search triggered
+            tab1.onClick.Invoke();
+            var row0 = FindDeep(cp.transform, "filerow0");
+            string rowName = row0.Find("fname").GetComponent<UnityEngine.UI.Text>().text;
+            row0.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Check(FindDeep(cp.transform, "record").gameObject.activeSelf,
-                  "searching the claimed ID opens the matching file");
-            cp.SearchRecords("HB-1999-0000");
-            Check(!FindDeep(cp.transform, "record").gameObject.activeSelf,
-                  "a ghost ID answers NO RECORD and shuts the window (a clue in itself)");
+                  "clicking a student file pulls it into the record window");
+            Check(FindDeep(cp.transform, "rname").GetComponent<UnityEngine.UI.Text>().text
+                      .ToUpperInvariant().Contains(rowName),
+                  "the pulled record is the row that was clicked");
+            Check(FindDeep(cp.transform, "stationout").GetComponent<UnityEngine.UI.Text>().text.Contains("FOUND:"),
+                  "the station readout confirms the pulled file");
+            Check(row0.GetComponent<UnityEngine.UI.Image>().color !=
+                  FindDeep(cp.transform, "filerow1").GetComponent<UnityEngine.UI.Image>().color,
+                  "the selected file row stays highlighted");
             var closeBtn = FindDeep(cp.transform, "closefile").GetComponent<UnityEngine.UI.Button>();
             closeBtn.onClick.Invoke();
             Check(!FindDeep(cp.transform, "record").gameObject.activeSelf, "the file's X closes the window");
-            cp.SearchRecords(cp.CurrentVisitor.IdNumber);
-            Check(FindDeep(cp.transform, "record").gameObject.activeSelf, "searching again reopens the file");
+
+            // the second floor folder: different files, and pulling one repopulates the sheet
+            var tab2 = FindDeep(cp.transform, "folder2").GetComponent<UnityEngine.UI.Button>();
+            tab2.onClick.Invoke();
+            var row2 = FindDeep(cp.transform, "filerow0");
+            string row2Name = row2.Find("fname").GetComponent<UnityEngine.UI.Text>().text;
+            Check(row2Name != rowName, "the second floor folder lists a different set of files");
+            row2.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(FindDeep(cp.transform, "record").gameObject.activeSelf &&
+                  FindDeep(cp.transform, "rname").GetComponent<UnityEngine.UI.Text>().text
+                      .ToUpperInvariant().Contains(row2Name),
+                  "pulling from the second folder reopens the record sheet");
+
+            // empty folder edge: the drawer still opens, with an explicit NO FILES line
+            cp.PopulateDrawer(RecordSearch.FloorLabel(3), null, new int[0]);
+            Check(drawer.gameObject.activeSelf && FindDeep(cp.transform, "nofiles") != null &&
+                  FindDeep(cp.transform, "nofiles").GetComponent<UnityEngine.UI.Text>().text.Contains("NO FILES"),
+                  "an empty folder shows a NO FILES state");
+            tab1.onClick.Invoke();      // back to the real 1st-floor folder...
+            tab1.onClick.Invoke();      // ...then shut the drawer: clean desk for the next checks
+            Check(!drawer.gameObject.activeSelf, "the drawer closes again after browsing");
 
             // the slip: counter -> desk, stamp target, one stamp, pending until hand-back
             var slipGo = FindDeep(cp.transform, "slip");
@@ -462,15 +558,6 @@ namespace FlowCheck
             HandBack(root, true, false);
             Check(FindDeep(cp.transform, "idcard").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
                   "hand-back before stamping is refused: the ID stays on your desk");
-            var field = FindDeep(cp.transform, "station").GetComponent<UnityEngine.UI.InputField>();
-            field.isFocused = true;
-            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.A);
-            cp.TickHotkeys();
-            UnityEngine.Input.KeysDown.Clear();
-            field.isFocused = false;
-            Check(!cp.SlipStamped, "typing in the search box never stamps a verdict");
-            Check(FindDeep(cp.transform, "query").GetComponent<UnityEngine.UI.Text>() != null &&
-                  field.textComponent != null, "the search field shows what you type");
             DropStamp(root, Verdict.Reject);          // stamp dropped on the ID, not the slip
             Check(!cp.SlipStamped, "a stamp dropped off the slip returns to the rack (no mark)");
             StampSlip(root, Verdict.Reject);
@@ -492,72 +579,298 @@ namespace FlowCheck
                   FindDeep(cp.transform, "idcard").parent == layer &&
                   FindDeep(cp.transform, "record").parent == layer,
                   "papers sit above the window in sibling order (one PapersLayer)");
-            var field2 = FindDeep(cp.transform, "station").GetComponent<UnityEngine.UI.InputField>();
-            Check(field2.targetGraphic != null && field2.placeholder != null &&
+            Check(FindDeep(cp.transform, "station").GetComponent<UnityEngine.UI.InputField>() == null &&
                   FindDeep(cp.transform, "stationtap") == null,
-                  "the search box owns its focus target and placeholder; no tap-swallower left");
+                  "no text field or tap-swallower left on the station");
+            Check(FindDeep(cp.transform, "filedrawer_border").GetSiblingIndex() <
+                  FindDeep(cp.transform, "PapersLayer").GetSiblingIndex(),
+                  "the drawer sits under the papers layer: a pulled file lands on top of it");
             StampSlip(root, Verdict.Allow);
             Check(cp.PendingVerdict == Verdict.Reject, "one stamp per slip: the second returns to the rack");
 
-            // flip + zoom on the held ID (desk is live here): tap retargets to the ID
+            // flip + zoom on the held ID (desk is live here): the black spine is the handle
             var idGo = FindDeep(cp.transform, "idcard");
-            idGo.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();   // click = flip (mouse or Enter/Space)
-            Check(idGo.Find("idback").gameObject.activeSelf, "clicking the held ID flips it to the back face");
-            idGo.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            Check(!idGo.Find("idback").gameObject.activeSelf, "clicking again flips back (reliable both ways)");
-            cp.FlipId();
-            Check(idGo.Find("idback").gameObject.activeSelf, "F still flips to the back face");
-            cp.FlipId();
-            // task 1: stacking — camera below papers, stamps above papers
-            int monI = FindDeep(cp.transform, "monitor_border").GetSiblingIndex();
+            var spine = FindDeep(cp.transform, "idstripe");
+            var spineBack = idGo.Find("idback").Find("idstripeback").gameObject;
+            var slipT = FindDeep(cp.transform, "slip").transform;
+            Check(idGo.GetComponent<UnityEngine.UI.Button>() == null,
+                  "the card BODY is not a flip target any more (clicking it only drags)");
+            Check(spine.GetComponent<UnityEngine.UI.Button>() != null &&
+                  spine.GetComponent<UnityEngine.UI.Image>().raycastTarget &&
+                  spine.GetComponent<Hollowbrook.UI.HoverCursor>() != null &&
+                  spineBack.GetComponent<UnityEngine.UI.Button>() != null &&
+                  spineBack.GetComponent<UnityEngine.UI.Image>().raycastTarget,
+                  "the black spines (front + mirrored back) are the flip handles: Button, raycast, hand cursor");
+            spine.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(idGo.Find("idback").gameObject.activeSelf, "clicking the spine flips the ID to the back face");
+            spineBack.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(!idGo.Find("idback").gameObject.activeSelf, "the back face's own spine flips it home (reliable both ways)");
+
+            // decoupled papers: lift the SLIP last, then flip the ID — the slip must not ride along
+            var slipDragC = slipT.GetComponent<DragPaper>();
+            slipDragC.BeginDrag();
+            slipDragC.EndDrag();      // a tap on the taken slip is the SLIP's own flip
+            Check(slipT.Find("slipback").gameObject.activeSelf, "tapping the taken slip turns the slip over by itself");
+            Check(FindDeep(cp.transform, "stampoverlay").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
+                  "the stamp mark rides the slip's flip (it stays on the paper)");
+            cp.FlipSlip();            // face-up again
+            Check(!slipT.Find("slipback").gameObject.activeSelf && slipT.Find("bg").gameObject.activeSelf,
+                  "and flips the slip back");
+            spine.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();   // the slip was touched last...
+            Check(idGo.Find("idback").gameObject.activeSelf,
+                  "...yet clicking the ID's spine flips the ID — never the last-touched paper");
+            Check(!slipT.Find("slipback").gameObject.activeSelf && slipT.Find("bg").gameObject.activeSelf,
+                  "the slip stays exactly as it was: no mirroring, no hidden face");
+            cp.FlipLastPaper();       // the F key routes to the last-touched paper — here the slip
+            Check(slipT.Find("slipback").gameObject.activeSelf, "F flips whichever paper was lifted last (here: the slip)");
+            var idDragC = idGo.GetComponent<DragPaper>();
+            idDragC.BeginDrag(); idDragC.EndDrag();   // retarget zoom to the ID (no move, no tap handler)
+            // both papers deliberately STAY face-down here: the desk loop's fresh-visitor
+            // check proves the hand-over reset turns them face-up (flip never carries over)
+            // task 1: stacking — right-column panels below papers, stamps above papers
+            int qPI = FindDeep(cp.transform, "qpanel_border").GetSiblingIndex();
             int layI = FindDeep(cp.transform, "PapersLayer").GetSiblingIndex();
             int stpI = FindDeep(cp.transform, "stamp_allow").GetSiblingIndex();
-            Check(monI < layI && layI < stpI, "stacking: camera < papers layer < stamp tray");
+            Check(qPI < layI && layI < stpI, "stacking: questions panel < papers layer < stamp tray");
             // task 2: stripe on both faces
             Check(FindDeep(cp.transform, "idstripe") != null && FindDeep(cp.transform, "idstripeback") != null,
                   "the ID carries its black stripe on front and (mirrored) back");
-            // task 3: FIND anchored flush to the search row
-            var findRt = FindDeep(cp.transform, "find").GetComponent<RectTransform>();
-            var boxRt = FindDeep(cp.transform, "searchbox").GetComponent<RectTransform>();
-            Check(findRt.anchorMin.x == 1f && findRt.anchorMax.x == 1f &&
-                  findRt.anchorMin.y == 0f && findRt.anchorMax.y == 1f &&
-                  boxRt.anchorMin == Vector2.zero && boxRt.anchorMax == Vector2.one,
-                  "FIND is right-pinned in a stretched search row (no pixel nudges)");
+            // task 3 (reworked): folder tabs sit exactly on the station grid — PlaceTL, no pixel nudges
+            var tabRt = FindDeep(cp.transform, "folder1").GetComponent<RectTransform>();
+            var tl = new Vector2(0f, 1f);
+            Check(tabRt.anchorMin == tl && tabRt.anchorMax == tl && tabRt.pivot == tl &&
+                  Mathf.Abs(tabRt.anchoredPosition.x - L.Inner.FolderTabX) < 0.01f &&
+                  Mathf.Abs(-tabRt.anchoredPosition.y - L.Inner.FolderTabY0) < 0.01f,
+                  "folder tabs are placed through PlaceTL on the station grid (8,20, no pixel nudges)");
             // task 4: the record's X anchors top-right
             var xRt = FindDeep(cp.transform, "closefile").GetComponent<RectTransform>();
             Check(xRt.anchorMin == Vector2.one && xRt.anchorMax == Vector2.one,
                   "the record's exit button is anchored top-right");
             cp.DebugZoom(9f);
-            Check(Mathf.Abs(idGo.localScale.x - 1.8f) < 0.01f, "zoom clamps at 1.8");
+            Check(Mathf.Abs(idGo.localScale.x - 1.8f * cardRatio) < 0.01f &&
+                  Mathf.Abs(idGo.GetComponent<DragPaper>().Zoom - 1.8f) < 0.01f,
+                "zoom clamps at 1.8x of the card's resting scale");
             cp.DebugZoom(0.1f);
-            Check(Mathf.Abs(idGo.localScale.x - 1f) < 0.01f, "zoom clamps at 1.0");
+            Check(Mathf.Abs(idGo.localScale.x - cardRatio) < 0.01f &&
+                  Mathf.Abs(idGo.GetComponent<DragPaper>().Zoom - 1f) < 0.01f,
+                "zoom clamps at the resting 1x (the smaller default card)");
             cp.DebugZoom(1f);
+            // the ONLY remaining zoom input is the deliberate Z toggle (the scroll wheel
+            // no longer resizes papers — there is no scroll listener on the desk at all)
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Z);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            Check(Mathf.Abs(idGo.localScale.x - 1.5f * cardRatio) < 0.01f, "Z toggles the last-touched paper to 1.5x");
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Z);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            Check(Mathf.Abs(idGo.localScale.x - cardRatio) < 0.01f, "Z again returns it to the intended 1x size");
         }
 
-        private static void SpeechProof(GameRoot root)
+        // ---------------------------------------------------- speech bubble proof
+        // The student's voice lives in a comic bubble beside the portrait's head:
+        // visible while the line is up, removed exactly 2 s after the dialogue ends,
+        // re-shown (with a RESTARTED countdown) when a new line arrives mid-cooldown —
+        // one clock, generation-guarded, so no stale timer can hide a newer dialogue.
+        private static void BubbleProof(GameRoot root)
         {
-            Console.WriteLine("== speech box carries both sides ==");
-            var panel = FindDeep(root.Checkpoint.transform, "speech_border");
-            Check(panel != null && panel.gameObject.activeSelf, "speech panel visible while a visitor is at the window");
-            root.Checkpoint.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-            root.Checkpoint.AskQuestion(QuestionId.Course);
-            var host = FindDeep(root.Checkpoint.transform, "speechlog");
-            Check(host != null && host.childCount == 1, "speech log exists");
-            if (host == null || host.childCount != 1) return;
-            string text = host.GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
-            Console.WriteLine("  ..speech log now: " + text.Replace("\n", " | "));
-            Check(text.Contains("AT THE WINDOW"), "visitor side present (AT THE WINDOW)");
-            Check(text.Contains("YOU"), "player side present (YOU)");
-            Check(text.Contains("Your course?"), "the asked question is quoted in the log");
-            int youIdx = text.IndexOf("YOU", StringComparison.Ordinal);
-            int firstIdx = text.IndexOf("AT THE WINDOW", StringComparison.Ordinal);
-            int lastIdx = text.LastIndexOf("AT THE WINDOW", StringComparison.Ordinal);
-            Check(firstIdx < youIdx && youIdx < lastIdx, "order: visitor line, then YOU, then the answer (newest at bottom)");
+            Console.WriteLine("== speech bubble beside the student's head ==");
+            var cp = root.Checkpoint;
+            var bubbleRoot = FindDeep(cp.transform, "speechbubble");
+            var panel = FindDeep(cp.transform, "bubble_border").GetComponent<RectTransform>();
+            var text = FindDeep(cp.transform, "bubbletext").GetComponent<UnityEngine.UI.Text>();
+            var tail = FindDeep(cp.transform, "bubbletail").GetComponent<UnityEngine.UI.Image>();
+            Check(bubbleRoot != null && bubbleRoot.gameObject.activeSelf,
+                "SB: the bubble is up while the visitor's greeting is showing");
+            Check(text.text.Contains("AT THE WINDOW"), "SB: the bubble speaks with the student's tag");
+            Check(text.text.StartsWith("<b><color="),
+                "SB: the speaker tag renders bold, in the speaker's own ink");
+            Check(tail.sprite != null, "SB: the bubble carries its pointing tail");
+            bool anyRaycast = false;
+            foreach (var img in bubbleRoot.gameObject.GetComponentsInChildren<UnityEngine.UI.Image>(true))
+                if (img.raycastTarget) anyRaycast = true;
+            foreach (var t in bubbleRoot.gameObject.GetComponentsInChildren<UnityEngine.UI.Text>(true))
+                if (t.raycastTarget) anyRaycast = true;
+            Check(!anyRaycast, "SB: the bubble never eats desk clicks (no raycast targets)");
+            Check(bubbleRoot.GetSiblingIndex() < FindDeep(cp.transform, "PapersLayer").GetSiblingIndex(),
+                "SB: the bubble sits under the papers layer — a dragged paper rides over it");
+            Check(L.Inner.BubbleTail.X < 0f && L.Inner.BubbleTail.Right > 0f,
+                "SB: the tail straddles the panel's left edge (seamless comics seam)");
+            Check(Mathf.Abs(panel.anchoredPosition.x - L.Inner.BubblePanelX) < 0.01f &&
+                  Mathf.Abs(-panel.anchoredPosition.y) < 0.01f &&
+                  Mathf.Abs(panel.sizeDelta.x - L.Inner.BubblePanelW) < 0.01f,
+                "SB: the panel grows DOWN from the container top at full box width");
+            Check(L.SpeechBubble.X >= L.Portrait.Right &&
+                  L.SpeechBubble.Y < L.Portrait.Y + L.Portrait.H / 2f &&
+                  L.SpeechBubble.Bottom < L.Sill.Bottom,
+                "SB: the bubble hangs BESIDE the head — right of the face, at head height, above the sill");
+            float h0 = panel.sizeDelta.y;
+            Check(h0 >= 56f && h0 <= L.SpeechBubble.H + 0.01f,
+                "SB: the panel wraps to the line count inside its box (h=" + h0 + ")");
+
+            // the 2-second cooldown starts when the dialogue ENDS (the line is instant here)
+            cp.TickBubble(1.9f);
+            Check(bubbleRoot.gameObject.activeSelf && cp.BubbleClock.Visible,
+                "SB: still up 1.9 s after the line — no premature hide while it is showing");
+            cp.TickBubble(0.2f);
+            Check(!cp.BubbleClock.Visible && !bubbleRoot.gameObject.activeSelf,
+                "SB: removed exactly 2 s after the dialogue ended");
+            cp.TickBubble(5f);
+            Check(!bubbleRoot.gameObject.activeSelf, "SB: ticks after the hide change nothing");
+
+            // a new line during the cooldown cancels the pending hide and shows normally
+            cp.DebugSay("One more thing — the intercom crackles.");
+            Check(bubbleRoot.gameObject.activeSelf, "SB: a fresh line brings the bubble back");
+            int gen1 = cp.BubbleClock.Generation;
+            cp.TickBubble(1.5f);
+            cp.DebugSay("Second line, mid-cooldown.");
+            Check(bubbleRoot.gameObject.activeSelf && cp.BubbleClock.SecondsSinceLine < 0.01f,
+                "SB: a new line mid-cooldown RESTARTS the countdown (pending hide cancelled)");
+            Check(cp.BubbleClock.Generation == gen1 + 1,
+                "SB: every line advances the generation — a stale timer could never hide it");
+            Check(text.text.Contains("Second line"), "SB: the bubble shows the NEW line, not the old one");
+            cp.TickBubble(1.9f);
+            Check(bubbleRoot.gameObject.activeSelf, "SB: the newer dialogue survives past the OLD timer's 2 s");
+            cp.TickBubble(0.2f);
+            Check(!bubbleRoot.gameObject.activeSelf, "SB: ...and hides 2 s after the LAST line");
+
+            // a long line is wrapped and capped inside the bubble box, never spilling
+            cp.DebugSay("Tonight the hallway smells of chalk and old rain, and every face in " +
+                        "the queue wears the same borrowed smile, so watch the eyes, watch the " +
+                        "hands, watch the way a name is said a half-second before it is remembered, " +
+                        "because the school keeps its secrets in the pauses between words, and the " +
+                        "radiators tick like a clock counting down to something nobody wrote in " +
+                        "the log, and by the fourth bell even the shadows will have filed their " +
+                        "own little slips, stamped and signed, waiting for someone to read them " +
+                        "back in the morning light.");
+            Check(bubbleRoot.gameObject.activeSelf, "SB: a long line still shows in the bubble");
+            Check(panel.sizeDelta.y <= L.SpeechBubble.H + 0.01f,
+                "SB: the panel never outgrows its registered box (h=" + panel.sizeDelta.y + ")");
+            Check(text.text.EndsWith("…") || text.text.EndsWith("\u2026"),
+                "SB: overlong dialogue is truncated with an ellipsis, not clipped silently");
+
+            // the live interview path: the answer pops the bubble beside the head
+            cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
+            cp.AskQuestion(QuestionId.Course);
+            Check(bubbleRoot.gameObject.activeSelf && text.text.Contains("AT THE WINDOW"),
+                "SB: the asked question's answer arrives in the bubble");
+            Check(!text.text.Contains("Your course?"),
+                "SB: the bubble carries the STUDENT's answer (the button shows the question asked)");
+
+            // leaving the desk cleans the bubble (and its countdown) up
+            cp.HideBubbleNow();
+            Check(!bubbleRoot.gameObject.activeSelf && !cp.BubbleClock.Visible,
+                "SB: the room-change cleanup hides the bubble instantly — no timer survives");
+        }
+
+        // ------------------------------------- stamp placement (Papers, Please style)
+        // The verdict mark lands WHERE the player dropped the stamp: the desk point is
+        // converted into the slip's own space (position, zoom scale and resting tilt) and
+        // clamped so the whole tilted mark stays on the paper. Corner drops clamp inside
+        // instead of hanging off; the mark rides the slip when the paper is dragged; the
+        // hand-back scoring workflow is untouched. (The keyboard default spot is proven
+        // in IssueOneProofs, on its own fresh run.)
+        private static void StampPlaceProof(GameRoot root)
+        {
+            Console.WriteLine("== stamp placement: the mark lands where you drop it ==");
+            var cp = root.Checkpoint;
+            int guard = 0;
+            while (cp.CurrentVisitor == null && guard++ < 8) cp.AdvanceQueue(6f);
+            Check(cp.CurrentVisitor != null, "SP: a visitor is at the window for the stamp proof");
+            if (cp.CurrentVisitor == null) return;
+
+            var desk = FindDeep(cp.transform, "DeskFrame");
+            var slipT = FindDeep(cp.transform, "slip").GetComponent<RectTransform>();
+            var soRt = FindDeep(cp.transform, "stampoverlay").GetComponent<RectTransform>();
+            Check(FindDeep(cp.transform, "stampbox") == null,
+                "SP: no printed target box — the drop point decides where the mark lands");
+
+            // ---- case 1: a drop at the centre of a ZOOMED slip lands at the drop point ----
+            cp.DebugTakeDocuments();
+            TakeSlip(root);                       // slip centred at (760,500): top-left (660,440)
+            var slipDrag0 = slipT.GetComponent<DragPaper>();
+            slipDrag0.Zoom = 1.5f;                // the Z-zoom path: the drop must map through the scale
+            Check(Mathf.Abs(slipDrag0.Zoom - 1.5f) < 0.01f, "SP: the slip is zoomed to 1.5x for the drop");
+            var want = InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null);
+            StampAtPoint(root, want, new Vector2(810f, 530f));   // centre of the 1.5x slip
+            Check(cp.SlipStamped && cp.PendingVerdict == want,
+                "SP: the drop stamps the slip and records the pending verdict (workflow preserved)");
+            Check(soRt.parent == slipT, "SP: the mark is a layer OF THE SLIP (it rides the paper)");
+            var markImg = soRt.GetComponent<UnityEngine.UI.Image>();
+            Check(markImg.sprite != null &&
+                  markImg.sprite.name == (want == Verdict.Allow ? "stamp_allow" : "stamp_reject"),
+                "SP: the mark shows the EXISTING stamp art for the verdict (types preserved)");
+            var top = new Vector2(slipT.anchoredPosition.x, -slipT.anchoredPosition.y);
+            var local = StampPlacement.DeskToLocal(810f, 530f, top.x, top.y,
+                slipT.localScale.x, slipT.localEulerAngles.z);
+            local = StampPlacement.ClampToPrintable(local, slipT.rect.width, slipT.rect.height,
+                56f, 18f, 2f);
+            float mx = soRt.anchoredPosition.x, my = -soRt.anchoredPosition.y;
+            Check(Mathf.Abs(slipT.localScale.x - 1.5f) < 0.01f &&
+                  Mathf.Abs(mx - local.X) < 0.5f && Mathf.Abs(my - local.Y) < 0.5f,
+                $"SP: the centre drop on the ZOOMED slip maps through its scale (got {mx:F1},{my:F1} want {local.X:F1},{local.Y:F1})");
+            Check(Mathf.Abs(mx - 100f) < 12f && Mathf.Abs(my - 60f) < 12f,
+                $"SP: ...and lands in the slip's middle, not a fixed corner (got {mx:F1},{my:F1})");
+            Check(Mathf.Abs(slipT.localScale.x * soRt.localScale.x - 1.5f) < 0.01f,
+                "SP: the mark zooms WITH the slip (it inherits the paper's scale)");
+            float ang = Mathf.Abs(soRt.localEulerAngles.z);
+            ang = Mathf.Min(ang, 360f - ang);
+            float rad = ang * Mathf.Deg2Rad;
+            float bound = soRt.sizeDelta.x * (Mathf.Cos(rad) + Mathf.Sin(rad)) / 2f;
+            Check(mx - bound >= -0.01f && mx + bound <= slipT.rect.width + 0.01f &&
+                  my - bound >= -0.01f && my + bound <= slipT.rect.height + 0.01f,
+                $"SP: the tilted mark stays fully inside the slip (bounds ±{bound:F1} in {slipT.rect.width}x{slipT.rect.height})");
+
+            // the mark rides the paper: drag the stamped slip elsewhere
+            Vector2 markBefore = new Vector2(soRt.anchoredPosition.x, soRt.anchoredPosition.y);
+            float cA = Mathf.Cos(slipT.localEulerAngles.z * Mathf.Deg2Rad);
+            float sA = Mathf.Sin(slipT.localEulerAngles.z * Mathf.Deg2Rad);
+            float lx = markBefore.x, ly = -markBefore.y;
+            Vector2 deskBefore = new Vector2(top.x + (lx * cA + ly * sA) * slipT.localScale.x,
+                                             top.y + (-lx * sA + ly * cA) * slipT.localScale.x);
+            var slipDrag = slipT.GetComponent<DragPaper>();
+            slipDrag.BeginDrag();
+            slipDrag.PlaceCenter(new Vector2(620f, 540f));
+            slipDrag.EndDrag();
+            Check(Mathf.Abs(slipDrag.Zoom - 1.5f) < 0.01f,
+                "SP: lifting and dropping never loses the slip's zoom");
+            var top2 = new Vector2(slipT.anchoredPosition.x, -slipT.anchoredPosition.y);
+            Vector2 deskAfter = new Vector2(top2.x + (lx * cA + ly * sA) * slipT.localScale.x,
+                                            top2.y + (-lx * sA + ly * cA) * slipT.localScale.x);
+            Check(soRt.parent == slipT &&
+                  Mathf.Abs(soRt.anchoredPosition.x - markBefore.x) < 0.01f &&
+                  Mathf.Abs(soRt.anchoredPosition.y - markBefore.y) < 0.01f,
+                "SP: dragging the slip keeps the mark at the same spot ON THE PAPER");
+            Check(Vector2.Distance(deskBefore, deskAfter) > 50f,
+                $"SP: ...and on the desk the mark moved WITH the slip ({Vector2.Distance(deskBefore, deskAfter):F0}px)");
+            // commit the stamped slip (the corner-clamp and keyboard-default cases run on
+            // IssueOneProofs' own fresh shift — night 1's roster is only four deep), then
+            // read the verdict record: no face-check data anywhere
+            HandBack(root, true, true);
+            FindDeep(desk, "records").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            string logText = FindDeep(FindDeep(desk, "OverlayLog"), "text").GetComponent<UnityEngine.UI.Text>().text;
+            Check(logText.Contains("ALLOWED") || logText.Contains("REJECTED"),
+                "SP: tonight's log still books every verdict");
+            Check(!logText.Contains("appearance:"),
+                "SP: the removed face check leaves no data in the verdict record");
+            FindDeep(desk, "records").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            // the next visitor (night 1's last) is left untouched for the desk loop
+        }
+
+        // drag a stamp from its tray and release it with its centre on a desk point —
+        // exactly what the pointer does; OnDropped then carries that point to the slip
+        private static void StampAtPoint(GameRoot root, Verdict v, Vector2 deskPoint)
+        {
+            var name = v == Verdict.Allow ? "stamp_allow" : "stamp_deny";
+            var drag = FindDeep(root.Checkpoint.transform, name).GetComponent<DragPaper>();
+            drag.BeginDrag();
+            drag.PlaceCenter(deskPoint);
+            drag.EndDrag();
         }
 
         // ------------------------------------------------- desk interaction loop
         // Button-level proof of the full visitor loop on the rebuilt desk: gating,
-        // SCAN readout, CALL PRINCIPAL popup (No cancels / Yes stamps), PATROL guard,
+        // CALL PRINCIPAL popup (No cancels / Yes stamps), PATROL guard,
         // ALLOW click, roster walk and the END SHIFT clock-out. Stub coroutines run
         // synchronously, so banners/next-visitor transitions complete inside the call.
         private static void DeskLoop(GameRoot root)
@@ -571,7 +884,6 @@ namespace FlowCheck
             Func<string, UnityEngine.UI.Button> btn =
                 n => FindDeep(desk, n).GetComponent<UnityEngine.UI.Button>();
             Func<string, bool> live = n => btn(n).interactable;
-            Func<string> monOut = () => FindDeep(desk, "out").GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
 
             // earlier proofs may have left an inspection mid-way: close it like a player
             // would, then make sure a fresh visitor (documents NOT taken) is at the window
@@ -581,6 +893,9 @@ namespace FlowCheck
             while (cp.CurrentVisitor == null && freshGuard++ < 8) cp.AdvanceQueue(6f);
             Check(cp.CurrentVisitor != null && !FindDeep(desk, "idcard").gameObject.activeSelf,
                   "a fresh visitor waits with documents still untaken");
+            Check(!FindDeep(desk, "idcard").Find("idback").gameObject.activeSelf &&
+                  !FindDeep(desk, "slip").Find("slipback").gameObject.activeSelf,
+                  "the fresh visitor's papers are born FACE-UP (flip state never carries over)");
             Check(StampAlpha(root, "stamp_allow") < 0.5f, "the stamp tray rests dim before the ID is taken");
             int procBefore = root.Queue.ProcessedCount;
             DropStamp(root, Verdict.Reject);
@@ -602,9 +917,6 @@ namespace FlowCheck
             Check(!live("endshift"), "END SHIFT dimmed before the roster is done");
 
             Check(StampAlpha(root, "stamp_allow") > 0.9f, "stamps ink up once the ID is in hand");
-            cp.DoScan();
-            Check(monOut() != "SCANNER READY" && monOut().Length > 0,
-                "SCAN ID writes the scanner readout (" + monOut().Split('\n')[0] + ")");
 
             cp.GoPatrol();
             Check(root.State == AppViewState.Checkpoint, "PATROL refused mid-inspection (state stays Checkpoint)");
@@ -626,6 +938,8 @@ namespace FlowCheck
             HandBack(root, false, true);
             Check(root.Queue.ProcessedCount == procBeforeStamp + 1,
                   "hand-back of ID + stamped slip commits the verdict");
+            Check(!FindDeep(desk, "speechbubble").gameObject.activeSelf,
+                  "the speech bubble leaves with the student — no line lingers over an empty window");
             // the stub runs the commit coroutine synchronously: the walked-off visitor is proof
             Check(cp.CurrentVisitor == null || cp.CurrentVisitor.ClaimedName != beforeYes,
                 "verdict registered: " + beforeYes + " was processed and left the window");
@@ -836,8 +1150,8 @@ namespace FlowCheck
             Check(root.Queue.WaitingCount == 1 && root.Queue.WaitingLine.First() == mRoster[2],
                   "Q5: the waiting legitimate student vanished from the line");
             Check(root.Queue.EffectiveTotal == mRoster.Count - 1, "Q5: effective total dropped by one (" + root.Queue.EffectiveTotal + ")");
-            string speech = FindDeep(cp.transform, "speechlog").GetChild(0).GetComponent<UnityEngine.UI.Text>().text;
-            Check(speech.Contains("Roll call"), "Q5: subtle radio feedback, no anomaly revealed");
+            string toast = FindDeep(root.HUD.transform, "toast").GetComponent<UnityEngine.UI.Text>().text;
+            Check(toast.Contains("ROSTER DISCREPANCY"), "Q5: subtle radio feedback via the HUD toast, no anomaly revealed");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));   // resolve #0 -> anomaly steps up
             Check(cp.CurrentVisitor == mRoster[2], "Q5: the anomaly itself steps up to the window");
@@ -1254,6 +1568,28 @@ namespace FlowCheck
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
             ClickStickyNote(root);
             var cp = root.Checkpoint;
+
+            // corner drop (fresh run, visitor #1): a drop near the slip's top-left stamps
+            // NEAR THE TOP-LEFT — clamped so the whole tilted mark stays on the paper
+            cp.DebugTakeDocuments();
+            TakeSlip(root);
+            var cornerWant = InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null);
+            StampAtPoint(root, cornerWant, new Vector2(672f, 448f));   // just inside the corner
+            var soT = FindDeep(cp.transform, "stampoverlay").GetComponent<RectTransform>();
+            var slT = FindDeep(cp.transform, "slip").GetComponent<RectTransform>();
+            Check(cp.SlipStamped, "issue #5: a corner drop stamps the slip");
+            float tlx = soT.anchoredPosition.x, tly = -soT.anchoredPosition.y;
+            Check(tlx < 60f && tly < 60f && tlx > 30f && tly > 30f,
+                $"issue #5: top-left drop => top-left mark, clamped onto the paper ({tlx:F0},{tly:F0})");
+            float angT = Mathf.Abs(soT.localEulerAngles.z);
+            angT = Mathf.Min(angT, 360f - angT);
+            float bT = soT.sizeDelta.x * (Mathf.Cos(angT * Mathf.Deg2Rad) + Mathf.Sin(angT * Mathf.Deg2Rad)) / 2f;
+            Check(tlx - bT >= -0.01f && tlx + bT <= slT.rect.width + 0.01f &&
+                  tly - bT >= -0.01f && tly + bT <= slT.rect.height + 0.01f,
+                "issue #5: the tilted mark never hangs off the paper, even at the corner");
+            HandBack(root, true, true);            // commit the correct verdict, free the slip
+            cp.AdvanceQueue(6f);                   // the clock delivers the keyboard-proof visitor
+            Check(cp.CurrentVisitor != null, "issue #5: the next visitor arrives for the pause proofs");
             cp.DebugTakeDocuments();
             var slip = FindDeep(cp.transform, "slip").GetComponent<DragPaper>();
             slip.BeginDrag(); slip.PlaceCenter(new Vector2(760f, 500f)); slip.EndDrag();
@@ -1267,6 +1603,18 @@ namespace FlowCheck
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
             Check(cp.SlipStamped, "issue #5: unpaused, the same key stamps the slip");
+            var kbMark = FindDeep(cp.transform, "stampoverlay").GetComponent<RectTransform>();
+            var kbSlip = FindDeep(cp.transform, "slip").GetComponent<RectTransform>();
+            var kbLocal = StampPlacement.ClampToPrintable(new StampPlacement.Point(
+                kbSlip.rect.width * 0.8f, kbSlip.rect.height * 0.68f),
+                kbSlip.rect.width, kbSlip.rect.height, 56f, 18f, 2f);
+            Check(kbMark.parent == kbSlip &&
+                  Mathf.Abs(kbMark.anchoredPosition.x - kbLocal.X) < 0.5f &&
+                  Mathf.Abs(-kbMark.anchoredPosition.y - kbLocal.Y) < 0.5f,
+                "issue #5: the keyboard stamp lands on the corner default spot, fully on the paper");
+            Check(Mathf.Abs(kbMark.anchoredPosition.x - tlx) +
+                  Mathf.Abs(kbMark.anchoredPosition.y + tly) > 20f,
+                "issue #5: keyboard default and corner drop are DIFFERENT spots (no single fixed position)");
 
             root.TogglePause(true);
             root.OpenSettings();
@@ -1284,10 +1632,14 @@ namespace FlowCheck
             var rec = FindDeep(cp.transform, "record");
             Check(rec.gameObject.activeSelf,
                   "issue #4: the admin's District Roster Memo is on the desk at hand-over");
-            cp.SearchRecords("V. Marlowe");
+            var adminTab = FindDeep(cp.transform, "folder1").GetComponent<UnityEngine.UI.Button>();
+            adminTab.onClick.Invoke();
+            var adminRow = FindDeep(cp.transform, "filerow0");
+            if (adminRow != null) adminRow.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Check(rec.gameObject.activeSelf &&
                   FindDeep(cp.transform, "stationout").GetComponent<UnityEngine.UI.Text>().text.Contains("ATTACHED MEMO"),
-                "issue #4: registry searches can't replace the memo (NO RECORD — see memo)");
+                "issue #4: pulling student files can't replace the memo (NO RECORD — see memo)");
+            adminTab.onClick.Invoke();   // tidy: shut the drawer again
         }
 
         private static void WorldLoop(GameRoot root)
@@ -1364,46 +1716,89 @@ namespace FlowCheck
             root.Bus.Subscribe(EventIds.AnomalyRevealed, e => { if (e.Data is AnomalyBehaviorKind) revealedReal++; });
             root.Bus.Subscribe(EventIds.AnomalyCaught, e => caughtEvents++);
 
-            // ---- W1: input arbitration (F/Q/L toggles + mouse holds) through the real rig
+            // ---- W1: input arbitration — keyboard toggles ONLY, F is the on/off toggle
             Console.WriteLine("== W1 flashlight input arbitration ==");
+            var coneGoW1 = FindDeep(rig.transform, "beam").gameObject;
+            var maskGoW1 = FindDeep(rig.transform, "FlashlightMask").gameObject;
+            Check(rig.Beam == LightMode.Off && !coneGoW1.activeSelf && !maskGoW1.activeSelf,
+                "W1: the flashlight is OFF by default — cone sprite and light mask really hidden");
+            Input.MouseHeld.Add(0);
+            WorldFrames(root, 5);
+            Check(rig.Beam == LightMode.Off, "W1: a held LMB never lights the beam (mouse is not beam input)");
+            Input.MouseHeld.Remove(0);
+            Input.MouseHeld.Add(1);
+            WorldFrames(root, 5);
+            Check(rig.Beam == LightMode.Off, "W1: a held RMB never lights the beam either");
+            Input.MouseHeld.Remove(1);
             PressKey(root, KeyCode.F);
-            Check(rig.Beam == LightMode.Sweep, "W1: F latches Sweep");
+            Check(rig.Beam == LightMode.Sweep, "W1: F toggles the flashlight ON (sweep)");
+            Check(coneGoW1.activeSelf && maskGoW1.activeSelf,
+                "W1: ON really shows the cone + mask (the beam exists, not just a status)");
+            string beamInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
+            Check(beamInfo.Contains("BEAM: SWEEP"),
+                "W1: the HUD reads BEAM: SWEEP while the beam is on (got '" + beamInfo + "')");
+            PressKey(root, KeyCode.F);
+            Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep, "W1: F again toggles it OFF");
+            Check(!coneGoW1.activeSelf && !maskGoW1.activeSelf,
+                "W1: OFF hides the cone + mask completely — no visible beam, no illumination");
+            Check(!rig.ConeCovers(new Vector3(3f, 0f, 0f)), "W1: an OFF beam illuminates nothing (cone test covers no point)");
+            beamInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
+            Check(beamInfo.Contains("BEAM: OFF"),
+                "W1: the HUD reads BEAM: OFF in sync with the hidden beam (got '" + beamInfo + "')");
             PressKey(root, KeyCode.Q);
             Check(rig.Beam == LightMode.Focus && !rig.Latches.Sweep && rig.Latches.Focus,
-                "W1: Q takes over — the keyboard toggles are mutually exclusive");
+                "W1: Q takes over with Focus — the keyboard toggles are mutually exclusive");
             PressKey(root, KeyCode.F);
             Check(rig.Beam == LightMode.Sweep && rig.Latches.Sweep && !rig.Latches.Focus,
                 "W1: F while Focus-latched switches back to Sweep (no dead toggle)");
             PressKey(root, KeyCode.L);
             Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep && !rig.Latches.Focus,
                 "W1: L switches off and clears conflicting latches");
-            PressKey(root, KeyCode.F);
-            Input.MouseHeld.Add(1);
-            WorldFrame(root);
-            Check(rig.Beam == LightMode.Focus && rig.Latches.Sweep, "W1: held RMB temporarily overrides the latch without changing it");
-            Input.MouseHeld.Remove(1);
-            WorldFrame(root);
-            Check(rig.Beam == LightMode.Sweep, "W1: releasing the mouse returns to the latched mode");
-            Input.MouseHeld.Add(0);
-            WorldFrame(root);
-            Check(rig.Beam == LightMode.Sweep, "W1: held LMB is a temporary Sweep");
-            Input.MouseHeld.Remove(0);
-            PressKey(root, KeyCode.L);
-            Check(rig.Beam == LightMode.Off, "W1: back to Off");
 
             // ---- W2: room lighting and the beam are independent systems
             Console.WriteLine("== W2 room lights vs handheld beam ==");
             var sw = FindInteractable<LightSwitchObject>(hall);
             Check(sw != null, "W2: the hallway has a wall switch");
-            Check(hall.Light != null && hall.Light.Lit, "W2: hallway lights start on");
+            Check(hall.Light != null && !hall.Light.Lit, "W2: rooms are entered DARK (lights start OFF)");
+            var roomInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
+            Check(roomInfo.Contains("LIGHTS: OFF — wall switch [E]"),
+                  "W2: the HUD reads LIGHTS: OFF and points at the wall switch (got '" + roomInfo + "')");
             PressKey(root, KeyCode.Q);
-            Check(hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: switching the beam to Focus does NOT touch the room lights");
+            Check(!hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: the beam is the portable light: Focus does NOT touch the room lights");
             if (sw != null) sw.Interact();
-            Check(!hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: the wall switch darkens the room, beam stays Focus");
+            Check(hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: the wall switch lights the room, beam stays Focus");
             if (sw != null) sw.Interact();
-            Check(hall.Light.Lit, "W2: and lights it again");
+            Check(!hall.Light.Lit, "W2: and darkens it again");
+            // entry reset: whatever the switch did, ARRIVING in a room always means darkness
+            if (sw != null) sw.Interact();
+            Check(hall.Light.Lit, "W2: switch back on...");
+            hall.Light.ForceDarkOnEntry();   // what ViewManager calls on every room entry
+            Check(!hall.Light.Lit, "W2: ...but entering the room forces the lights back off (spawn in darkness)");
+            if (sw != null) sw.Interact();   // later sections (battery recovery) play lit
+            Check(hall.Light.Lit, "W2: the switch relights it — the player is never locked in the dark");
             PressKey(root, KeyCode.L);
             Check(rig.Beam == LightMode.Off && hall.Light.Lit, "W2: beam Off leaves no stale state on the room light");
+
+            // beam entry reset: arriving in ANY room means arriving dark — the handheld
+            // beam goes out with the room lights and only a deliberate F/Q relights it
+            PressKey(root, KeyCode.F);
+            Check(rig.Beam == LightMode.Sweep, "W2: beam lit before the transition");
+            views.EnterRoom(RoomId.Classroom1);
+            Check(views.Current.Id == RoomId.Classroom1 && !views.Transitioning, "W2: walked into the classroom");
+            Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep && !rig.Latches.Focus,
+                "W2: entering a room forces the beam OFF — a transition never carries a lit beam over");
+            Check(!FindDeep(rig.transform, "beam").gameObject.activeSelf,
+                "W2: the beam sprite is really hidden after the entry (LIGHTS: OFF now MEANS dark)");
+            string entryInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
+            Check(entryInfo.Contains("BEAM: OFF"),
+                "W2: the HUD beam status stays in sync through the entry (got '" + entryInfo + "')");
+            PressKey(root, KeyCode.F);
+            Check(rig.Beam == LightMode.Sweep, "W2: F relights it after the entry (deliberate input only)");
+            views.EnterRoom(RoomId.Hallway);
+            Check(views.Current.Id == RoomId.Hallway && rig.Beam == LightMode.Off,
+                "W2: ...and every further entry starts dark again");
+            if (sw != null && !hall.Light.Lit) sw.Interact();   // later sections (battery) play lit
+            Check(hall.Light.Lit, "W2: the hallway is relit for the battery proofs");
 
             // ---- W3: cursor aiming + true cone coverage in one world space
             Console.WriteLine("== W3 aiming and cone coverage ==");
@@ -1467,7 +1862,7 @@ namespace FlowCheck
             WorldFrames(root, 60);
             Check(deathCaptions == 1 && rig.Beam == LightMode.Off, "W4: a dead battery does not repeat callbacks or auto-relight");
             Input.MouseHeld.Add(1); WorldFrames(root, 30); Input.MouseHeld.Remove(1);
-            Check(rig.Beam == LightMode.Off, "W4: held mouse buttons cannot relight a dead battery");
+            Check(rig.Beam == LightMode.Off, "W4: mouse buttons are not beam input — a dead battery stays dark");
             float r0 = rig.Battery;
             WorldFrames(root, 60);
             float litGain = rig.Battery - r0;
@@ -1861,6 +2256,104 @@ namespace FlowCheck
                     $"W8: the SAME anomaly can be engaged again after following (frames={g}) — no arbitrary reset");
             }
             views.Spawner.DiscardLive();
+
+            // ---- W10: the classroom peek — the cursor lamp is manual (F), dark on entry
+            Console.WriteLine("== W10 classroom peek lamp (manual, dark entries) ==");
+            SetBeam(root, rig, LightMode.Off);
+            views.EnterRoom(RoomId.Hallway);
+            Check(views.Current.Id == RoomId.Hallway, "W10: back in the hallway for the peek proof");
+            root.EnterRoomPeek(RoomId.Classroom1);
+            Check(root.State == AppViewState.RoomPeek && views.PeekActive, "W10: peeking frames the classroom");
+            var lamp = views.PeekLight;
+            Check(lamp != null && lamp.Active, "W10: the peek session is live");
+            Check(!lamp.Lit, "W10: entering a classroom starts with the lamp OFF — no F was pressed");
+            Check(rig.Beam == LightMode.Off, "W10: the handheld beam stays OFF through the peek entry");
+            var lampMask = FindDeep(lamp.transform, "PeekMask").gameObject;
+            var lampGlow = FindDeep(lamp.transform, "Glow").gameObject;
+            Check(!lampMask.activeSelf && !lampGlow.activeSelf,
+                "W10: OFF really hides the cursor spotlight (mask + glow), not just a status");
+            Check(lamp.gameObject.activeSelf,
+                "W10: the peek session itself stays live while dark — only the LIGHT is off");
+            Check(FindDeep(root.HUD.transform, "peekexitband").gameObject.activeSelf,
+                "W10: the step-back band is up during the peek");
+            AimAt(0f, 0f);
+            WorldFrames(root, 30);
+            Check(!lamp.Lit && !lampMask.activeSelf && !lampGlow.activeSelf,
+                "W10: mouse movement never lights the lamp (cursor is not lamp input)");
+            Check(!views.IsPeekLit(new Vector3(0f, 0f, 0f)),
+                "W10: an OFF lamp illuminates nothing — the coverage query agrees with the visuals");
+            // the peek SESSION keeps running dark: the exit prompt is reachable without
+            // the lamp, so an OFF light can never lock the player in a classroom
+            Doorway exitDoor = null;
+            foreach (var it in views.Current.Interactables)
+            {
+                var d = it as Doorway;
+                if (d != null && d.Target == RoomId.Hallway) exitDoor = d;
+            }
+            Check(exitDoor != null, "W10: the peeked classroom has its exit doorway");
+            AimAt(exitDoor.AnchorX, RoomInstance.FloorY + 1.4f);
+            WorldFrames(root, 2);
+            string darkPrompt = FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>().text;
+            Check(!lamp.Lit && darkPrompt.Length > 0,
+                "W10: dark is not a trap — the exit prompt answers under the cursor without the lamp (got '" + darkPrompt + "')");
+            string peekInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
+            Check(peekInfo.Contains("LAMP: OFF"),
+                "W10: the HUD reads LAMP: OFF in the dark classroom (got '" + peekInfo + "')");
+            PressKey(root, KeyCode.F);
+            Check(lamp.Lit, "W10: ONE F press turns the lamp on (nothing was secretly pre-lit)");
+            Check(lampMask.activeSelf && lampGlow.activeSelf,
+                "W10: ON brings the cursor spotlight back (mask + glow together)");
+            AimAt(0f, 0f);
+            WorldFrames(root, 5);
+            Check(views.IsPeekLit(new Vector3(0f, 0f, 0f)),
+                "W10: the lit lamp illuminates the cursor point — the same state drives light and visual");
+            peekInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
+            Check(peekInfo.Contains("LAMP: ON"),
+                "W10: the HUD reads LAMP: ON while the lamp is lit (got '" + peekInfo + "')");
+            string peekObjective = FindDeep(root.HUD.transform, "objective").GetComponent<UnityEngine.UI.Text>().text;
+            Check(peekObjective.Contains("Press F"),
+                "W10: the hint line teaches the manual lamp (got '" + peekObjective + "')");
+            string lampToast = FindDeep(root.HUD.transform, "toast").GetComponent<UnityEngine.UI.Text>().text;
+            Check(lampToast.Contains("LAMP: ON"),
+                "W10: the toggle confirms itself with a toast (got '" + lampToast + "')");
+            AimAt(3f, 1f);
+            WorldFrames(root, 5);
+            Check(views.IsPeekLit(new Vector3(3f, 1f, 0f)) && !views.IsPeekLit(new Vector3(-6f, 0f, 0f)),
+                "W10: while ON, the light follows the cursor (covers the new point, not the whole room)");
+            PressKey(root, KeyCode.F);
+            Check(!lamp.Lit && !lampMask.activeSelf && !lampGlow.activeSelf,
+                "W10: F again turns it OFF completely — spotlight and illumination together");
+            Check(!views.IsPeekLit(new Vector3(3f, 1f, 0f)), "W10: OFF takes the illumination with it");
+            root.ExitRoomPeek();
+            Check(root.State == AppViewState.Exploration && !views.PeekActive && !lamp.Lit,
+                "W10: stepping back ends the session dark (no lamp state survives the exit)");
+            Check(rig.Beam == LightMode.Off, "W10: the hallway beam is still OFF after the peek (no carry-over)");
+            PressKey(root, KeyCode.F);
+            Check(rig.Beam == LightMode.Sweep, "W10: back on patrol, F is the beam toggle again");
+            root.EnterRoomPeek(RoomId.Classroom2);
+            Check(!views.PeekLight.Lit &&
+                  !FindDeep(views.PeekLight.transform, "Glow").gameObject.activeSelf,
+                "W10: the NEXT classroom entry also starts with the lamp OFF (every entry is dark)");
+            Check(rig.Beam == LightMode.Off, "W10: ...and the beam never rides into a peek lit");
+            PressKey(root, KeyCode.F);
+            Check(views.PeekLight.Lit, "W10: one F press lights the second classroom too");
+            PressKey(root, KeyCode.F);
+            Check(!views.PeekLight.Lit, "W10: ...and one F press puts it out again (a clean toggle)");
+            // the dark exit: E on the doorway works with the lamp OFF
+            Doorway exitDoor2 = null;
+            foreach (var it in views.Current.Interactables)
+            {
+                var d = it as Doorway;
+                if (d != null && d.Target == RoomId.Hallway) exitDoor2 = d;
+            }
+            AimAt(exitDoor2.AnchorX, RoomInstance.FloorY + 1.4f);
+            PressKey(root, KeyCode.E);
+            Check(!views.PeekActive && root.State == AppViewState.Exploration,
+                "W10: E on the exit doorway steps back to the hallway — even with the lamp OFF");
+            Check(!FindDeep(root.HUD.transform, "peekexitband").gameObject.activeSelf,
+                "W10: the step-back band is gone after leaving the doorway");
+            Check(!views.PeekLight.Lit && rig.Beam == LightMode.Off,
+                "W10: exiting leaves everything dark — restarting patrol never re-lights anything");
 
             // ---- W9: spawn ownership under ambient pressure + the desk handoff
             Console.WriteLine("== W9 spawn ownership + desk handoff ==");

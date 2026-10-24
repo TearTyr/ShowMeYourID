@@ -361,6 +361,21 @@ namespace UnityEngine
         public static void SetResolution(int w, int h, FullScreenMode mode) { width = w; height = h; fullScreenMode = mode; }
     }
 
+    // Cursor swap stub (HoverCursor). Headless there is no OS cursor: record the last
+    // texture/hotspot so proofs can assert the swap happened, and do nothing else.
+    public enum CursorMode { Auto = 0, ForceSoftware = 1 }
+
+    public static class Cursor
+    {
+        public static Texture2D LastTexture { get; private set; }
+        public static Vector2 LastHotspot { get; private set; }
+        public static void SetCursor(Texture2D texture, Vector2 hotspot, CursorMode cursorMode)
+        {
+            LastTexture = texture;
+            LastHotspot = hotspot;
+        }
+    }
+
     public static class PlayerPrefs
     {
         private static readonly Dictionary<string, string> Store = new Dictionary<string, string>();

@@ -207,8 +207,11 @@ namespace Hollowbrook.Bootstrap
                 case "note_paper": return MakeNotePaper(390, 300);
                 case "stamp_allow": return MakeStamp(false);
                 case "stamp_reject": return MakeStamp(true);
+                case "folder_tab": return MakeFolderTab(304, 26);
+                case "cursor_hand": return MakeCursorHand(24);
                 case "icon_check": return MakeIcon(true);
                 case "icon_x": return MakeIcon(false);
+                case "bubble_tail": return MakeBubbleTail();
                 default:
                     Debug.LogWarning("[ProceduralArt] unknown sprite key '" + key + "' — returning solid.");
                     return MakeSolid(G(1f, 0f));

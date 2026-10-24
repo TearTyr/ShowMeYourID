@@ -24,11 +24,23 @@ namespace Hollowbrook.Checkpoint
         private const float TapThreshold = 10f;   // canvas units, not screen px
 
         public bool Dragging { get; private set; }
-        /// <summary>Per-paper zoom (1..1.8). Lift/drop preserve it; arrival resets it.</summary>
+        /// <summary>The paper's resting display scale — Zoom rides ON TOP of it. The ID
+        /// card ships at 0.82 (a slightly smaller default card); everything else is 1.
+        /// localScale is always BaseScale * Zoom, so lift/drop/zoom maths is unchanged.</summary>
+        public float BaseScale = 1f;
+        /// <summary>Per-paper zoom (1..1.8), relative to BaseScale. Lift/drop preserve it;
+        /// arrival resets it.</summary>
         public float Zoom
         {
-            get => _rt != null ? _rt.localScale.x : 1f;
-            set { if (_rt != null) { var z = Mathf.Clamp(value, 1f, 1.8f); _rt.localScale = new Vector3(z, z, 1f); } }
+            get => _rt != null ? _rt.localScale.x / Mathf.Max(0.01f, BaseScale) : 1f;
+            set
+            {
+                if (_rt != null)
+                {
+                    var z = Mathf.Clamp(value, 1f, 1.8f) * Mathf.Max(0.01f, BaseScale);
+                    _rt.localScale = new Vector3(z, z, 1f);
+                }
+            }
         }
         /// <summary>Tools (stamps, the offered ID) return to their slot after every drop;
         /// papers stay where the player left them.</summary>

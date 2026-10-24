@@ -277,3 +277,184 @@ Also: `PresentVisitor` ends with `RefreshHud()` and stamps are built dim (alpha 
 can never lag presentation; a duplicate `BuildStamp` pair left by the column split was removed
 (caught by FlowCheck reading the stale first instance).
 FlowCheck: 842 checks green. LogicTests invariant + ICU/de-DE green. Frozen suite 663/663. verify.sh clean.
+
+## Floor Files pass — registry terminal replaced by a folder cabinet (October 2026)
+The typed **REGISTRY TERMINAL** (header, "ID or name" input, FIND button) is gone. The station is
+now the **FLOOR FILES** cabinet: two manila folder tabs (procedural `folder_tab` sprite, dark
+manila, hover brighten) for **1ST FLOOR · ROOM 101** and **2ND FLOOR · ROOM 202**.
+1. **Folders → drawer (accordion):** clicking a tab slides the drawer open at the new grid region
+   `FileDrawer (16,188 320x270)` — under the station, above TL/RN, under the papers layer — and
+   lists that floor's files (name + registry number per row, manila left edge); clicking the open
+   tab again collapses it. The open tab stays lit (`FolderOpen` tint).
+2. **Direct selection replaces search:** clicking a file row runs the same record-window path the
+   old FIND triggered (`OpenCanonFile` → `FillRecordSheet(StudentIdentity)` → record rises above
+   the drawer, `FOUND: <NAME>` readout, paper sfx); the pulled row keeps a highlighted tint. The
+   admin-night rule is unchanged: no file replaces the attached memo.
+3. **Grouping is pure logic:** `RecordSearch.BuildFloorFolders` files canon students by
+   `FloorOf(FirstClassroom)` (Room 101→1, Room 202→2), floors ascending, roster order inside a
+   folder, deterministic; empty/null canon files nothing. An empty floor still opens the drawer
+   with an explicit **NO FILES** row; a roster taller than the drawer shows what fits + a
+   "+N MORE FILES" line instead of overflowing. `FindInCanon` stays (LogicTests cover it) but the
+   desk no longer exposes a text box, so the `_searchField` focus guard in `TickHotkeys` is gone.
+4. **Fresh desk per visitor:** `ResetHandover` closes the drawer and clears the selection instead
+   of clearing the old query text.
+Docs: README loop + controls table, ControlsView line, GAMEPLAY-OVERVIEW desk paragraph updated.
+FlowCheck: 882 checks green (new: element presence, grid tables for tabs/rows/drawer, open /
+collapse / pull / second-folder / highlight / NO FILES / admin-memo / stacking-under-papers
+proofs; retired: FIND-alignment and typing-focus blocks). LogicTests 27,409 invariant + 27,411
+ICU/de-DE green (+13 floor-folder checks). Frozen suite 663/663. verify.sh clean.
+
+## Dark entry, spine-only flip, slip decoupling pass (October 2026)
+Three owner-facing fixes, one per system:
+1. **Rooms are entered dark (patrol):** `RoomBuilder` builds every room `startLit: false` (the
+   Classroom-2 exception is retired) and `ViewManager.EnterRoomImmediate` calls the new silent
+   `LightController.ForceDarkOnEntry()` on EVERY entry — peek returns included. No toast fires on
+   entry; the HUD reads `LIGHTS: OFF — wall switch [E]` until the switch is thrown. The wall
+   switch still toggles freely (the player is never locked in the dark) and the beam keys are
+   untouched: `F` sweeps, `Q` focuses, `L` off — the handheld beam stays the portable light.
+   Balance reads (battery recovery, dark sanity drain, dark 1.6x spawn odds, anomaly observation)
+   all consume the same `Lit` state as before — darkness is now simply the starting condition.
+2. **The ID flips by its black spine only (desk):** the whole-card `Button` is gone — the card
+   body only drags. Both spines (front-left `idstripe`, mirrored back-right `idstripeback`) carry
+   raycast + a subtle brighten Button (multiplied up; the spine is near-black) + the new
+   `HoverCursor` component (procedural `cursor_hand` sprite; hand cursor while hovering the
+   handle only, restored on exit/disable). Flip works both ways from the spines; `F` still flips.
+3. **The slip never flips with the ID:** the flip used to follow the shared "last touched paper"
+   state, so clicking the ID while the slip was last lifted flipped the SLIP. `FlipId`/`FlipSlip`
+   now each target their own paper through one `FlipPaper` helper; the `F` hotkey routes through
+   `FlipLastPaper` (keyboard parity keeps the slip's radio-note back reachable); tapping the
+   taken slip flips the slip alone; the stamp mark rides the slip's flip (never the ID's).
+   `ResetHandover` also turns both papers face-up, so flip state never carries across visitors.
+New: `UI/HoverCursor.cs` (+ .meta), `Cursor`/`CursorMode` stubs in UnityStubs, `cursor_hand` art.
+Docs: README loop + controls table, ControlsView desk/exploration lines, GAMEPLAY-OVERVIEW
+checkpoint + patrol paragraphs.
+FlowCheck: 894 checks green (new: W2 dark-entry arc, HUD readout, entry reset, relight guarantee;
+spine-handle presence, body-not-a-button, both-ways spine flips, slip tap-flip, stamp-rides-slip,
+decoupling proof, F routing, face-up carry-over). LogicTests 27,409 invariant + 27,411 ICU/de-DE
+green (counts unchanged — no pure-logic change). Frozen suite 663/663. verify.sh clean.
+
+## Verification & patrol audit pass: scroll-resize, scanner removal, flashlight, stamp box, appearance check (October 2026)
+Six-part owner audit, one commit-sized change per task:
+1. **Papers keep their size while scrolling (desk):** the wheel-zoom listener in
+   `CheckpointView.Update` is gone — scrolling no longer resizes the ID or the slip anywhere.
+   The deliberate `Z` toggle survives and moved into `TickHotkeys` (same desk-live gating,
+   now headless-testable). Drag-lift (1.04x while held) and the 1..1.8 `DragPaper.Zoom`
+   clamp are unchanged; overlay text scrolling (ScrollRect) untouched.
+2. **The ID scanner is removed:** SCAN button, the CAMERA monitor panel + readout,
+   `DoScan()`, the drop-ID-on-scanner/camera zones, `EventIds.ScanPerformed` and the
+   "SCANNER READY" init are all gone; the layout grid retires `UtilityScan`/`Monitor`
+   (their slot now carries the appearance check — no dead space). Question-budget refusals
+   ("ALREADY ASKED THAT." / "NO MORE QUESTIONS") surface as HUD toasts instead of the dead
+   readout. `RosterFactory.Scan`/`ScanResult`/`PresentationLog` stay in GameLogic — the
+   frozen verification suite and LogicTests still exercise the pure duplicate-ID rule, and
+   the verdict path still records presentations; only the desk UI stopped calling it.
+   ID display, photo and manual verification (documents, floor files, questions) preserved.
+3. **The patrol flashlight behaves (world):** rooms already entered dark — now the handheld
+   beam arrives OFF too. `ViewManager.EnterRoomImmediate` calls the new silent
+   `FlashlightRig.ForceBeamOffOnEntry()` on every entry (patrol start, doors, peek returns):
+   latches clear, cone sprite + light mask deactivate, so "LIGHTS: OFF" finally means dark.
+   `F` toggles the beam ON (sweep) / OFF; `Q`/`L` stay. Mouse buttons are no longer beam
+   input — a held LMB/RMB (doors, switches, dialogue) used to light the beam without any key
+   press, which is what read as "the flashlight turns itself on". The HUD room line now
+   carries the live beam state (`BEAM: OFF/SWEEP/FOCUS`, refreshed via the battery publish
+   every `ApplyBeam` already fires), so status text and real illumination can never disagree.
+4. **The stamp mark respects the slip (desk):** the verdict check/X used to land 90x90 at the
+   raw drop point — smothering the written lines or hanging off the paper edge. The slip now
+   prints a `stampbox` (130,52 60x60; REASON narrowed to 116 wide, clear of it) and
+   `PlaceStampMark` snaps a 56x56 mark into that box with the seeded tilt — provably inside
+   the paper and off the text at every zoom and viewport. Drop-to-stamp, A/D keys, the punch
+   animation, one-stamp-per-slip and pending-until-hand-back all unchanged.
+5. **Conditional appearance question (desk):** new `GameLogic/AppearanceCheck.cs` (pure) +
+   `CheckpointView.Appearance.cs` panel in the retired camera's slot: "Does the student's
+   current appearance differ from their ID photo?" — YES reveals "Why does the student look
+   different…?" with a one-line reason field (the field's GO carries the InputField alone —
+   never two Selectables on one object); NO hides it AND clears the previous explanation, so
+   stale text can never be submitted. YES without a reason refuses BOTH stamp paths with a
+   toast (the stamp is the submit). While the field has focus every desk hotkey stands down
+   (a typed "a" never stamps) and Esc returns focus. The answered check rides into TONIGHT'S
+   LOG with the verdict (unanswered = excluded), syncs to `CheckpointQueue.ActiveAppearance*`
+   and persists through the queue snapshot (`queueAppear`/`queueAppearWhy`; newline-flattened,
+   '=' safe; pre-feature saves load unanswered). No face recognition anywhere — the player's
+   Yes/No IS the data.
+Docs: README (loop, controls, fairness, save note), ControlsView sheet, GAMEPLAY-OVERVIEW
+(checkpoint + patrol paragraphs).
+FlowCheck: 906 checks green (new: scanner-removal proofs, appearance-form arc incl. stamp
+gate/focus guard/save keys/log line/per-visitor reset, stamp-box geometry, Z-toggle proofs,
+W1 keyboard-only arbitration + cone/mask visibility + HUD BEAM sync, W2 beam entry-reset arc;
+retired: scan-drop, camera readout and mouse-hold beam blocks). LogicTests 27,443 invariant +
+27,445 ICU/de-DE green (+34 appearance/queue/save checks). Frozen suite 663/663. verify.sh
+compile + audit clean.
+
+## Owner audit pass 2: manual peek lamp, drop-position stamping, face-check removal, speech bubble, smaller ID (October 2026)
+Seven-part owner prompt, one scoped change per task:
+1. **The flashlight stays off until F (world):** the beam side was already manual (previous
+   pass); the remaining auto-on light was the classroom PEEK itself: `PeekLight` — the
+   cursor-locked lamp — switched on the moment the room was entered, without any key press.
+   The peek SESSION and the LAMP are now separate states: `Active` (the room is framed;
+   cursor tracking, prompts and the E exit keep working, so the dark can never trap the
+   player) and `Lit` (the light itself — born OFF on EVERY entry, toggled by `F` alone;
+   mask + glow + the `Covers`/`IsPeekLit` illumination query all answer to the same flag).
+   Mouse movement never lights anything. Every toggle publishes `LightModeChanged` + a
+   toast, and the HUD room line reads `LAMP: ON/OFF` while peeking (`BEAM:` on patrol), so
+   the indicator cannot disagree with the real light. The handheld beam still forces off on
+   every room entry / peek / patrol restart (one press on, one press off — no double-F).
+2. **The stamp lands where you drop it (desk):** Papers, Please style. The printed
+   `stampbox` is gone (the REASON line is full width again) and the new pure
+   `GameLogic/StampPlacement.cs` maps the drop point from desk space into the slip's own
+   space — position, zoom scale and resting tilt included — then clamps so the whole tilted
+   56px mark stays inside the printable area (2px edge padding): a centre drop marks the
+   centre, a corner drop marks the corner (clamped in, never overhanging). The mark stays a
+   child layer of the slip, so it rides drags, flips and zooms. `A`/`D` keyboard verdicts
+   land on the familiar lower-right default. One-stamp-per-slip, pending-until-hand-back,
+   the punch animation, the per-inspection seeded tilt and both stamp arts are unchanged.
+3. **The face check is removed completely:** `CheckpointView.Appearance.cs` +
+   `GameLogic/AppearanceCheck.cs` (and their .meta files) deleted; the `L.Appearance` region
+   and every `Inner.App*` sub-rect retired; the YES/NO buttons, the follow-up question, the
+   reason InputField + typing-focus hotkey guard, the stamp gate, the per-visitor reset, the
+   queue sync (`ActiveAppearance*`) and the snapshot/save keys (`queueAppear`/
+   `queueAppearWhy`) are all gone — old saves still load (unknown keys are ignored). The
+   RULES NOTE text no longer teaches the form. The ID card, photo, student info and the four
+   existing questions are untouched; no replacement face/appearance system was added. The
+   verdict stamp tray moved UP into the vacated slot so the right column stays balanced
+   (questions above, stamps below, open desk underneath). Night 3's objective/rule note were
+   also cleaned — they still told the player to "Use SCAN" (scanner retired last pass).
+4. **Student dialogue is a speech bubble beside the head (desk):** the rectangular DIALOGUE
+   strip under the window is gone; `CheckpointView.Speech.cs` now builds a comic-style
+   bubble at `L.SpeechBubble (718,100,248,210)` — right of the portrait's head, never over
+   the face — in the desk's paper stock + border, with a new procedural `bubble_tail`
+   sprite pointing at the student (borderless base buried under the panel for a seamless
+   comics seam). The bubble grows DOWN with the wrapped line count (pure
+   `SpeechBubbleLayout`: greedy wrap estimate, word-boundary truncation with an ellipsis,
+   height formula), capped at its registered box. Timing lives in the pure
+   `SpeechBubbleClock`: the bubble is removed exactly `HideDelaySeconds = 2` after the LAST
+   line (the dialogue end), a new line cancels the pending hide and restarts the countdown,
+   and a generation counter makes stale delayed hides impossible (one model, no coroutine
+   pile-up). The countdown freezes while paused, behind blocking sheets and while the
+   scripted `DialogueView` sequence is still talking (the admin's typed lines end first,
+   then the 2 s start). Leaving the desk (patrol), a new shift, or the visitor walking off
+   hides the bubble instantly — no timer survives the room change. The bubble only speaks
+   with the student's voice: radio warnings and district bulletins go to HUD toasts. The
+   bubble is raycast-transparent and renders under the papers layer.
+5. **The ID card's default display is slightly smaller (desk):** `DragPaper.BaseScale`
+   (new, default 1) — `Zoom` now reads/writes RELATIVE to it (clamp still 1..1.8). The held
+   ID is born and rests at `IdCardScale = 0.82` (~18% smaller), the whole card scaling
+   uniformly: the 304x209 slot rect, the aspect, the photo, every row and the spine flip
+   handle stay exactly as designed and readable; drag/lift/clamp honour the smaller size.
+   The Z-zoom toggle, the no-scroll-resize guarantee and the take/dock paths are unchanged
+   (docking now lands the card's top-left precisely on its slot corner). The slip, the
+   record sheet and the counter-offered card (0.6) keep their sizes.
+6. **The scanner stays removed:** no scanner code, UI or logic reintroduced; FlowCheck's
+   negative proofs (no SCAN button / camera monitor / readout) still run, and the manual
+   verification workflow (documents, floor files, questions) is preserved.
+Docs: README (loop, controls, layout tree), ControlsView sheet, GAMEPLAY-OVERVIEW
+(checkpoint + patrol paragraphs — including the stale "two chalk circles" sentence),
+ShiftPlan night-3 text.
+FlowCheck: 910 checks green (new: W10 peek-lamp arc — dark entry, mouse-never-lights, one-F
+toggle both ways, mask/glow hidden, coverage query agreement, HUD LAMP sync + toast + hint
+line, dark prompt/E exit, second-classroom reset; BubbleProof timing/geometry/cleanup;
+StampPlaceProof drop-point mapping on a zoomed slip + mark-rides-slip + verdict art;
+corner clamp + keyboard default in IssueOneProofs; smaller-ID geometry, lift/drop base and
+corner-clamp proofs; bubble/stamp/layout negative proofs. Retired: the appearance-form arc,
+the stamp-box geometry and the speech-strip checks). LogicTests 27,519 invariant green
+(-35 appearance/queue/save checks; +111 SpeechBubbleClock / SpeechBubbleLayout /
+StampPlacement checks). Frozen suite 663/663. verify.sh compile + audit clean.

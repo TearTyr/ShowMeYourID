@@ -10,7 +10,7 @@ namespace Hollowbrook.World
     // real ambient state (Lit) from this class. Created by RoomBuilder.
     public class LightController : MonoBehaviour
     {
-        public bool Lit { get; private set; } = true;
+        public bool Lit { get; private set; } = false;   // rooms are entered dark (see ForceDarkOnEntry)
 
         private const float LitAlpha = 0.12f;
         private const float DarkAlpha = 0.62f;
@@ -57,6 +57,19 @@ namespace Hollowbrook.World
         }
 
         public void Toggle() => SetLit(!Lit);
+
+        /// <summary>Room-entry reset: EVERY room is entered in darkness — the wall switch (E)
+        /// and the handheld beam are the only lights. Called by ViewManager on each entry
+        /// (peeks included). Silent by design: no toast, no "Lights off" line; the HUD
+        /// refreshes on RoomEntered. A peek override still owns the visual while it is on.</summary>
+        public void ForceDarkOnEntry()
+        {
+            bool wasLit = Lit;
+            Lit = false;
+            if (!_peekOverride) ApplyVisual();
+            if (wasLit && _gameRoot != null)
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.LightModeChanged, false));
+        }
 
         private void ApplyVisual()
         {

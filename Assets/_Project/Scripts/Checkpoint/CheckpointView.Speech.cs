@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
 using Hollowbrook.Bootstrap;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
@@ -11,20 +10,50 @@ using L = Hollowbrook.Checkpoint.CheckpointLayout;
 
 namespace Hollowbrook.Checkpoint
 {
-    // Centre column: speech log, hand-over prompt, patrol / end-shift buttons.
+    // Centre column: the speech bubble, hand-over prompt, patrol / end-shift buttons.
     // One area of the inspection desk; see CheckpointView.cs for the state machine,
     // the shared fields and the whole-class comment. Same class, split by desk area.
+    //
+    // Student dialogue is a comic-style SPEECH BUBBLE beside the visitor's head (the old
+    // rectangular strip under the window is gone): paper stock, dark border, a small tail
+    // pointing at the face. The bubble shows the latest window line, grows with the text
+    // (SpeechBubbleLayout wraps/limits it inside the registered box) and is removed
+    // exactly 2 s after the dialogue ends — the countdown lives in the pure
+    // SpeechBubbleClock, so a newer line always cancels the pending hide and no stale
+    // timer can swallow it (generation-guarded, one clock, no coroutine pile-up).
     public partial class CheckpointView
     {
+        private RectTransform _bubbleRoot;    // registered container (L.SpeechBubble)
+        private RectTransform _bubblePanel;   // the paper bubble; height grows per line count
+        private Text _bubbleText;             // speaker tag + line (rich text)
+        private readonly SpeechBubbleClock _bubble = new SpeechBubbleClock();
+        private int _bubbleShownGen = -1;     // generation currently rendered (-1 = none)
+        private bool _visitorShown;           // SetVisitorVisible: bubble only speaks at the window
+
+        internal SpeechBubbleClock BubbleClock => _bubble;   // headless proofs read the model
+
         private void BuildCenterColumn()
         {
-            _speechPanel = UIFactory.BorderedPanel(_desk, "speech",
+            // the bubble container sits ABOVE the window area (built after it) and BELOW
+            // the papers layer (built later), so a dragged paper still rides over it
+            _bubbleRoot = UIFactory.NewUI(_desk, "speechbubble");
+            Reg("speechbubble", _bubbleRoot, L.SpeechBubble);
+
+            _bubblePanel = UIFactory.BorderedPanel(_bubbleRoot, "bubble",
                 new Color(0.859f, 0.851f, 0.824f), UIFactory.Border, 2);
-            Reg("speech", _speechPanel, L.Speech);
-            _speechLog = UIFactory.MaskedLabel(_speechPanel, "speechlog",
-                L.Inner.SpeechText.X, L.Inner.SpeechText.Y, L.Inner.SpeechText.W, L.Inner.SpeechText.H,
-                12, UIFactory.PaperInk, TextAnchor.LowerLeft);
-            _speechPanel.gameObject.SetActive(false);
+            L.Place(_bubblePanel, new L.Region(L.Inner.BubblePanelX, 0f, L.Inner.BubblePanelW, 60f));
+            SetNoRaycast(_bubblePanel);
+            _bubbleText = UIFactory.Label(_bubblePanel, "bubbletext", "", 12,
+                UIFactory.PaperInk, TextAnchor.UpperLeft);
+            _bubblePanel.gameObject.AddComponent<RectMask2D>();   // text can never spill the paper
+
+            // the tail rides ON TOP of the panel's left border (later sibling) so its
+            // borderless base melts into the bubble — tip points at the visitor's face
+            var tail = UIFactory.Img(_bubbleRoot, "bubbletail", ProceduralArt.Get("bubble_tail"));
+            L.Place(tail.rectTransform, L.Inner.BubbleTail);
+            tail.raycastTarget = false;
+
+            _bubbleRoot.gameObject.SetActive(false);
 
             // the principal note left the desk surface: its addendum lives in the RULES NOTE
             // overlay (RefreshNotes), which keeps the centre column calm
@@ -38,31 +67,84 @@ namespace Hollowbrook.Checkpoint
             UIFactory.SetButtonEnabled(_endShiftBtn, false);
         }
 
-        private void Say(string text) => SayLine("AT THE WINDOW", text);
-
-        // Rolling two-sided conversation: speaker tag + line per entry, newest at the bottom,
-        // oldest clipped away by the panel's RectMask2D once the box is full.
-        private void SayLine(string who, string text)
+        private static void SetNoRaycast(RectTransform panel)
         {
-            _speechEntries.Add(new[] { who, text });
-            while (_speechEntries.Count > SpeechKeep) _speechEntries.RemoveAt(0);
-            var sb = new StringBuilder();
-            foreach (var entry in _speechEntries)
-            {
-                if (sb.Length > 0) sb.Append('\n');
-                sb.Append("<b><color=").Append(SpeakerColor(entry[0])).Append('>')
-                  .Append(entry[0]).Append("</color></b>\n").Append(entry[1]);
-            }
-            _speechLog.text = sb.ToString();
-            _speechPanel.gameObject.SetActive(true);
+            foreach (var img in panel.gameObject.GetComponentsInChildren<Image>(true))
+                img.raycastTarget = false;   // the bubble never eats desk clicks
         }
 
-        // chat colours: you, the window, the intercom — three voices, three inks
+        private void Say(string text) => SayLine("AT THE WINDOW", text);
+
+        // Headless hook: inject one window line — the same path the student's own
+        // dialogue takes (FlowCheck drives the bubble timing deterministically).
+        internal void DebugSay(string text) => Say(text);
+
+        // The bubble only ever speaks with the student's voice at the window. Other
+        // voices (radio, bulletins) are HUD toasts — a bubble anchored to the student's
+        // head must not ventriloquise the intercom.
+        private void SayLine(string who, string text)
+        {
+            if (who != "AT THE WINDOW")
+            {
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, who + " — " + text));
+                return;
+            }
+            _bubble.Say(who, text);   // a new line cancels any pending hide (one clock)
+            SyncBubble();
+        }
+
+        // chat colours: the window voice in its own ink (kept for the tag line)
         private static string SpeakerColor(string who)
         {
             if (who == "YOU") return "#4a5a49";
             if (who == "RADIO") return "#7a4a4a";
             return "#6f6d68";
+        }
+
+        // One frame of the bubble countdown. Frozen while paused, behind blocking sheets,
+        // and while a scripted dialogue is still talking — the 2 s cooldown begins only
+        // AFTER the dialogue has ended. internal so the headless FlowCheck can step it
+        // deterministically (stub MonoBehaviours never get Update calls).
+        internal void TickBubble(float dt)
+        {
+            if (_gameRoot == null || _bubbleRoot == null) return;
+            if (_gameRoot.Paused || _gameRoot.BlockingOverlayOpen) return;
+            if (_gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive) return;
+            if (_gameRoot.State != AppViewState.Checkpoint && _gameRoot.State != AppViewState.AdminEncounter) return;
+            _bubble.Tick(dt);
+            SyncBubble();
+        }
+
+        // Cleanup path: leaving the desk (patrol), a new shift, or the visitor walking
+        // off hides the bubble instantly — no timer survives the room change.
+        internal void HideBubbleNow()
+        {
+            _bubble.HideNow();
+            SyncBubble();
+        }
+
+        // Model -> widgets: show/hide, then (only when a NEW line arrived) re-fit the
+        // text and grow the panel to the wrapped line count.
+        private void SyncBubble()
+        {
+            if (_bubbleRoot == null) return;
+            bool on = _bubble.Visible && _visitorShown;
+            _bubbleRoot.gameObject.SetActive(on);
+            if (!on) { _bubbleShownGen = -1; return; }
+            if (_bubbleShownGen == _bubble.Generation) return;   // same line already rendered
+            _bubbleShownGen = _bubble.Generation;
+
+            string display = SpeechBubbleLayout.Fit(_bubble.Text,
+                L.Inner.BubbleCharsPerLine, L.Inner.BubbleMaxLines, out int lines);
+            _bubbleText.text = "<b><color=" + SpeakerColor(_bubble.Who) + ">" +
+                               _bubble.Who + "</color></b>\n" + display;
+            float h = Mathf.Clamp(
+                SpeechBubbleLayout.Height(lines, L.Inner.BubbleLineH, L.Inner.BubbleTagH,
+                    L.Inner.BubblePadTop, L.Inner.BubblePadBottom),
+                56f, L.SpeechBubble.H);
+            L.Place(_bubblePanel, new L.Region(L.Inner.BubblePanelX, 0f, L.Inner.BubblePanelW, h));
+            L.Place(_bubbleText.rectTransform, new L.Region(10f, L.Inner.BubblePadTop,
+                L.Inner.BubblePanelW - 20f, h - L.Inner.BubblePadTop - L.Inner.BubblePadBottom));
         }
 
         private void RefreshHandoverPrompt()

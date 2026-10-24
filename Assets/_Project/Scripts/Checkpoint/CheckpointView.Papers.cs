@@ -16,51 +16,53 @@ namespace Hollowbrook.Checkpoint
     // the shared fields and the whole-class comment. Same class, split by desk area.
     public partial class CheckpointView
     {
+        // Floor-folder tints: idle manila under the lamp, the open folder lit, file rows
+        // dark until pulled. All multiply over the drawn sprites/panels (uGUI tint).
+        private static readonly Color FolderIdle = new Color(0.88f, 0.88f, 0.90f);
+        private static readonly Color FolderOpen = new Color(1.18f, 1.15f, 1.05f);
+        private static readonly Color FileRowIdle = new Color(0.20f, 0.19f, 0.16f);
+        private static readonly Color FileRowSel = new Color(0.42f, 0.38f, 0.26f);
+
         private void BuildLeftColumn()
         {
-            // Records station: tap to toggle the file window, type a query and FIND (or Enter)
-            // to search the registry. The file never opens by itself.
+            // Records station: the FLOOR FILES cabinet. Click a floor's folder tab to slide
+            // the drawer open with that floor's student files; click a file to pull it into
+            // the record window. The file never opens by itself and nothing is ever typed —
+            // browsing IS the search.
             var station = UIFactory.Panel(_desk, "station", new Color(0.10f, 0.11f, 0.12f));
             Reg("station", station.rectTransform, L.Station);
-            var cap = UIFactory.Label(station.rectTransform, "cap", "REGISTRY TERMINAL", 12,
+            var cap = UIFactory.Label(station.rectTransform, "cap", "FLOOR FILES — STUDENT REGISTRY", 11,
                 new Color(0.55f, 0.75f, 0.55f), TextAnchor.MiddleCenter);
-            L.Place(cap.rectTransform, new L.Region(0, 4, 320, 18));
-            // one visible search box: own background, placeholder, click focuses (the box is
-            // the InputField's targetGraphic), Enter or FIND searches, one result line below
-            var row = UIFactory.NewUI(station.rectTransform, "searchrow");
-            L.Place(row, new L.Region(8, 26, 304, 28));
-            var box = UIFactory.Panel(row, "searchbox", new Color(0.05f, 0.06f, 0.05f));
-            box.rectTransform.anchorMin = Vector2.zero;      // stretch: fills the row...
-            box.rectTransform.anchorMax = Vector2.one;
-            box.rectTransform.offsetMin = new Vector2(0, 0);
-            box.rectTransform.offsetMax = new Vector2(-62, 0);   // ...leaving FIND's 58+4 slot
-            var query = UIFactory.Label(box.rectTransform, "query", "", 12,
-                new Color(0.75f, 0.90f, 0.75f), TextAnchor.MiddleLeft);
-            UIFactory.AnchorsFull(query.rectTransform);
-            query.rectTransform.offsetMin = new Vector2(6, 0);
-            var ph = UIFactory.Label(box.rectTransform, "placeholder", "ID or name", 12,
-                new Color(0.35f, 0.45f, 0.35f), TextAnchor.MiddleLeft);
-            UIFactory.AnchorsFull(ph.rectTransform);
-            ph.rectTransform.offsetMin = new Vector2(6, 0);
-            var field = station.gameObject.AddComponent<UnityEngine.UI.InputField>();
-            field.targetGraphic = box;
-            field.textComponent = query;
-            field.placeholder = ph;
-            field.onEndEdit.AddListener(SearchRecords);
-            _searchField = field;
-            var findBtn = UIFactory.StandardButton(row, "find", "FIND",
-                () => SearchRecords(_searchField.text), 58, 28);
-            var frt = findBtn.GetComponent<RectTransform>();   // pinned right, full row height:
-            frt.anchorMin = new Vector2(1, 0);                 // alignment holds at any scale
-            frt.anchorMax = new Vector2(1, 1);
-            frt.pivot = new Vector2(1, 0.5f);
-            frt.offsetMin = new Vector2(-58, 0);
-            frt.offsetMax = Vector2.zero;
-            _stationOut = UIFactory.Label(station.rectTransform, "stationout", "", 11,
+            L.Place(cap.rectTransform, L.Inner.StationCap);
+            for (int floor = 1; floor <= _folderTabs.Length; floor++)
+            {
+                int f = floor;   // capture per tab
+                var tab = FolderTab(station.rectTransform, "folder" + f, RecordSearch.FloorLabel(f),
+                    () => ToggleFolder(f));
+                L.Place(tab.GetComponent<RectTransform>(), new L.Region(L.Inner.FolderTabX,
+                    L.Inner.FolderTabY0 + (f - 1) * L.Inner.FolderTabStep,
+                    L.Inner.FolderTabW, L.Inner.FolderTabH));
+                _folderTabs[f - 1] = tab;
+                _folderTabInks[f - 1] = tab.targetGraphic as Image;
+            }
+            _stationOut = UIFactory.Label(station.rectTransform, "stationout", "", 10,
                 new Color(0.55f, 0.75f, 0.55f), TextAnchor.UpperLeft);
-            L.Place(_stationOut.rectTransform, new L.Region(8, 60, 304, 30));
+            L.Place(_stationOut.rectTransform, L.Inner.StationOut);
 
-            // The student file: a draggable window, opened only by a registry search.
+            // The drawer: a fixed grid rect under the station, hidden until a tab opens it.
+            // Rows are rebuilt per folder (PopulateDrawer); the pulled record sheet lands
+            // on top of it (papers layer is a later sibling).
+            var drawer = UIFactory.BorderedPanel(_desk, "filedrawer", new Color(0.075f, 0.075f, 0.07f),
+                UIFactory.Border, 2);
+            Reg("filedrawer", drawer, L.FileDrawer);
+            _drawerHead = UIFactory.Label(drawer, "drawerhead", "", 11,
+                new Color(0.72f, 0.65f, 0.45f), TextAnchor.MiddleLeft);
+            L.Place(_drawerHead.rectTransform, L.Inner.DrawerHead);
+            _drawerGo = drawer.gameObject;
+            _drawerGo.SetActive(false);
+
+            // The student file: a draggable window, opened only by pulling it from the
+            // floor-files drawer.
             var rec = UIFactory.Img(_desk, "record", ProceduralArt.Get("record_sheet"));
             rec.raycastTarget = true;   // the file window must grab the pointer to drag
             L.Place(rec.rectTransform, new L.Region(16, 168, 320, 290));
@@ -88,17 +90,22 @@ namespace Hollowbrook.Checkpoint
             UIFactory.PlaceTL(fileBounds, 0, 0, 960, 720);
             var fileDrag = rec.gameObject.AddComponent<DragPaper>();
             fileDrag.Init(fileBounds, -0.6f);
-            fileDrag.SetHome(new Vector2(16f, 168f));   // left column under the terminal
-            rec.gameObject.SetActive(false);   // opens only via the station search
+            fileDrag.SetHome(new Vector2(16f, 168f));   // left column under the cabinet
+            rec.gameObject.SetActive(false);   // opens only by pulling a file at the station
 
             var idCard = UIFactory.Img(_desk, "idcard", ProceduralArt.Get("id_card_frame"));
             idCard.raycastTarget = true;   // draggable paper: the frame takes pointer events
-            idCard.rectTransform.localScale = new Vector3(0.95f, 0.95f, 1f);
+            // slightly smaller default card (owner feedback): the whole card — sprite,
+            // photo, rows — scales down uniformly through DragPaper.BaseScale, so the
+            // proportions and the inner grid stay exactly as designed and the Z zoom
+            // still reads 1x..1.8x relative to THIS resting size
+            idCard.rectTransform.localScale = new Vector3(IdCardScale, IdCardScale, 1f);
             Reg("idcard", idCard.rectTransform, L.IdCard);
             idCard.gameObject.AddComponent<RectMask2D>();
 
-            // the verdict mark lands ON the subject's ID: respects Reduced Motion
-            // (no punch, instant) and never blocks clicks
+            // the verdict mark: born riding the ID (invisible), re-parented onto the slip
+            // when the stamp lands — it snaps into the slip's printed stamp box and
+            // respects Reduced Motion (no punch, instant); it never blocks clicks
             _stampOverlay = UIFactory.Img(idCard.rectTransform, "stampoverlay", null, new Color(1, 1, 1, 0f));
             UIFactory.AnchorsFull(_stampOverlay.rectTransform);
             _stampOverlay.rectTransform.localEulerAngles = new Vector3(0, 0, -12f);
@@ -117,19 +124,22 @@ namespace Hollowbrook.Checkpoint
             var uv = UIFactory.Panel(back.rectTransform, "uvstrip", new Color(0.55f, 0.55f, 0.75f, 0.35f));
             L.Place(uv.rectTransform, new L.Region(20, 190, 280, 14));
             back.gameObject.SetActive(false);
-            // the card's black spine: left edge on the front, mirrored to the right on the back
+            // the card's black spine: left edge on the front, mirrored to the right on the
+            // back — and the ONLY click target that flips the card (owner feedback: the
+            // whole-card flip fired from anywhere on the papers). Both spines carry the
+            // hand-cursor hover so the handle reads as clickable.
             var stripe = UIFactory.Panel(idCard.rectTransform, "idstripe", new Color(0.06f, 0.06f, 0.07f));
             stripe.rectTransform.anchorMin = new Vector2(0, 0);
             stripe.rectTransform.anchorMax = new Vector2(0, 1);
             stripe.rectTransform.offsetMin = new Vector2(0, 0);
             stripe.rectTransform.offsetMax = new Vector2(14, 0);
-            stripe.raycastTarget = false;
+            SpineHandle(stripe, FlipId);
             var bstripe = UIFactory.Panel(back.rectTransform, "idstripeback", new Color(0.06f, 0.06f, 0.07f));
             bstripe.rectTransform.anchorMin = new Vector2(1, 0);
             bstripe.rectTransform.anchorMax = new Vector2(1, 1);
             bstripe.rectTransform.offsetMin = new Vector2(-14, 0);
             bstripe.rectTransform.offsetMax = new Vector2(0, 0);
-            bstripe.raycastTarget = false;
+            SpineHandle(bstripe, FlipId);
             _idHeader = UIFactory.Label(idCard.rectTransform, "header", "HOLLOWBROOK COLLEGE — STUDENT ID", 12,
                 new Color(0.9f, 0.9f, 0.88f), TextAnchor.MiddleCenter);
             L.Place(_idHeader.rectTransform, L.Inner.IdHeader);
@@ -150,27 +160,20 @@ namespace Hollowbrook.Checkpoint
             _idCardGo.SetActive(false);
 
             // papers are physical: draggable over the desk, lifted while held, settling
-            // back with their tilt on drop. Dropping the ID on the scanner scans it —
-            // same rules path as the SCAN button, zero new rules.
+            // back with their tilt on drop. Dropping the ID at the window hands it back —
+            // the scanner is retired, verification is manual (documents, floor files,
+            // questions).
             var recordDrag = _recordGo.AddComponent<DragPaper>();
             recordDrag.Init(_desk, -0.6f);
             var idDrag = _idCardGo.AddComponent<DragPaper>();
+            idDrag.BaseScale = IdCardScale;   // set before Init: the lift/drop maths captures it
             idDrag.Init(_desk, 0.8f);
-            // the whole card is the flip target: pointer click, or Enter/Space when focused
-            var idBtn = idCard.gameObject.AddComponent<Button>();
-            idBtn.targetGraphic = idCard;
-            idBtn.transition = Selectable.Transition.None;
-            idBtn.onClick.AddListener(() => FlipId());
+            // the card body is deliberately NOT a button: it drags, it does not flip.
+            // The flip belongs to the black spine alone (see SpineHandle above).
             idDrag.OnLift = () => _lastPaper = _idCardGo;
             idDrag.OnDropped = center =>
             {
-                if (center.x >= L.UtilityScan.X - 20 && center.x <= L.UtilityScan.Right + 20 &&
-                    center.y >= L.UtilityScan.Y - 20 && center.y <= L.UtilityScan.Bottom + 20)
-                    DoScan();
-                else if (center.x >= L.Monitor.X - 12 && center.x <= L.Monitor.Right + 12 &&
-                         center.y >= L.Monitor.Y - 12 && center.y <= L.Monitor.Bottom + 12)
-                    DoScan();   // the camera is the scan device
-                else if (InWindowZone(center)) HandBackId();   // hand the ID back to the student
+                if (InWindowZone(center)) HandBackId();   // hand the ID back to the student
             };
         }
 
@@ -188,6 +191,26 @@ namespace Hollowbrook.Checkpoint
             L.Place(t.rectTransform, new L.Region(L.Inner.IdRowX,
                 L.Inner.IdRules[rowIndex] - L.Inner.IdRowH, L.Inner.IdRowW, L.Inner.IdRowH));
             return t;
+        }
+
+        // The ID's black spine as a flip handle: raycast on (the only sliver of the card
+        // that takes clicks), a subtle brighten on hover/press — multiplied UP because the
+        // spine is near-black — and the hand cursor while the pointer is over it.
+        private static Button SpineHandle(Image spine, System.Action onFlip)
+        {
+            spine.raycastTarget = true;
+            var b = spine.gameObject.AddComponent<Button>();
+            b.targetGraphic = spine;
+            b.transition = Selectable.Transition.ColorTint;
+            var cb = b.colors;
+            cb.normalColor = Color.white;
+            cb.highlightedColor = new Color(2.2f, 2.2f, 2.35f);
+            cb.pressedColor = new Color(3.2f, 3.2f, 3.4f);
+            cb.fadeDuration = 0.10f;
+            b.colors = cb;
+            if (onFlip != null) b.onClick.AddListener(() => onFlip());
+            spine.gameObject.AddComponent<HoverCursor>();
+            return b;
         }
 
         // The card the visitor holds up. The Night-5 administrator carries a district
@@ -269,34 +292,180 @@ namespace Hollowbrook.Checkpoint
             _recEnrolled.text = "REGISTRY: ON FILE";
         }
 
-        // The registry answer: a matching canon student opens as the file window; a wrong or
-        // missing match says NO RECORD — which is itself a clue (ghost IDs are not on file).
-        internal void SearchRecords(string query)
+        // One manila folder tab: drawn sprite front, dark ink label on the body, a subtle
+        // brighten on hover/press like every other desk control.
+        private static Button FolderTab(Transform parent, string name, string label, System.Action onClick)
+        {
+            var rt = UIFactory.NewUI(parent, name);
+            var img = rt.gameObject.AddComponent<Image>();
+            img.sprite = ProceduralArt.Get("folder_tab");
+            img.color = FolderIdle;
+            img.raycastTarget = true;
+            var btn = rt.gameObject.AddComponent<Button>();
+            btn.targetGraphic = img;
+            btn.transition = Selectable.Transition.ColorTint;
+            var cb = btn.colors;
+            cb.normalColor = Color.white;
+            cb.highlightedColor = new Color(1.30f, 1.28f, 1.20f);   // subtle brighten on hover
+            cb.pressedColor = new Color(1.50f, 1.46f, 1.34f);
+            cb.fadeDuration = 0.12f;
+            btn.colors = cb;
+            if (onClick != null) btn.onClick.AddListener(() => onClick());
+            var txt = UIFactory.Label(rt, "label", label, 11, UIFactory.PaperInk, TextAnchor.MiddleLeft);
+            UIFactory.AnchorsFull(txt.rectTransform);
+            txt.rectTransform.offsetMin = new Vector2(10, 0);   // on the body, clear of the
+            txt.rectTransform.offsetMax = new Vector2(-6, -6);  // poking-up tab strip
+            return btn;
+        }
+
+        // Folder tabs toggle their drawer; a second click on the open folder slides it shut.
+        private void ToggleFolder(int floor)
+        {
+            if (_openFloor == floor) CloseFileDrawer();
+            else OpenFolder(floor);
+        }
+
+        // Slides the drawer open on one floor's files. Folders are computed from the live
+        // canon roster, so the drawer always lists exactly what the registry holds.
+        internal void OpenFolder(int floor)
+        {
+            _openFloor = floor;
+            var canon = _gameRoot != null && _gameRoot.Roster != null ? _gameRoot.Roster.Canon : null;
+            RecordSearch.FloorFolder folder = null;
+            if (canon != null)
+                foreach (var f in RecordSearch.BuildFloorFolders(canon))
+                    if (f.Floor == floor) { folder = f; break; }
+            PopulateDrawer(RecordSearch.FloorLabel(floor), canon,
+                folder != null ? folder.Indices : new List<int>());
+            RefreshFolderTabs();
+            if (_drawerGo != null) _drawerGo.SetActive(true);
+            if (_gameRoot != null) _gameRoot.Audio.PlaySfx("sfx_paper", 0.25f);
+        }
+
+        // Rebuilds the drawer's contents: header + one file row per student (name + registry
+        // number). An empty floor still opens — with an explicit NO FILES line. Internal so
+        // the headless FlowCheck can drive the empty-folder edge with a synthetic list.
+        internal void PopulateDrawer(string label, IReadOnlyList<StudentIdentity> canon,
+            IReadOnlyList<int> indices)
+        {
+            _fileRowInks.Clear();
+            _fileRowCanon.Clear();
+            if (_drawerRows != null) Destroy(_drawerRows.gameObject);
+            if (_drawerGo == null) return;
+            _drawerRows = UIFactory.NewUI(_drawerGo.transform, "drawerrows");
+            UIFactory.AnchorsFull(_drawerRows);
+            int count = indices != null ? indices.Count : 0;
+            if (_drawerHead != null)
+                _drawerHead.text = label + " — " + count + (count == 1 ? " FILE" : " FILES");
+            if (count == 0)
+            {
+                var none = UIFactory.Label(_drawerRows, "nofiles", "NO FILES — NOTHING FLOOR-FILED HERE", 11,
+                    UIFactory.InkFaint, TextAnchor.MiddleCenter);
+                L.Place(none.rectTransform, new L.Region(L.Inner.FileRowX, L.Inner.FileRowY0,
+                    L.Inner.FileRowW, L.Inner.FileRowH));
+                return;
+            }
+            // rows fill the fixed drawer region; a taller roster than the drawer holds shows
+            // what fits plus an explicit remainder line instead of spilling off the panel
+            int capacity = Mathf.Max(1, Mathf.FloorToInt(
+                (L.FileDrawer.H - L.Inner.FileRowY0 - 6f) / L.Inner.FileRowStep));
+            int shown = Mathf.Min(count, capacity);
+            for (int i = 0; i < shown; i++)
+            {
+                int canonIdx = indices[i];
+                var s = canon != null && canonIdx >= 0 && canonIdx < canon.Count ? canon[canonIdx] : null;
+                var rowRt = UIFactory.NewUI(_drawerRows, "filerow" + i);
+                L.Place(rowRt, new L.Region(L.Inner.FileRowX,
+                    L.Inner.FileRowY0 + i * L.Inner.FileRowStep, L.Inner.FileRowW, L.Inner.FileRowH));
+                var bg = rowRt.gameObject.AddComponent<Image>();
+                bg.color = canonIdx == _selectedCanon ? FileRowSel : FileRowIdle;
+                var edge = UIFactory.Panel(rowRt, "edge", new Color(0.55f, 0.49f, 0.33f));
+                edge.rectTransform.anchorMin = new Vector2(0, 0);   // manila left edge: a file
+                edge.rectTransform.anchorMax = new Vector2(0, 1);   // folder peeking from the row
+                edge.rectTransform.offsetMin = Vector2.zero;
+                edge.rectTransform.offsetMax = new Vector2(5, 0);
+                edge.raycastTarget = false;
+                var nm = UIFactory.Label(rowRt, "fname", s != null ? s.FullName.ToUpperInvariant() : "—",
+                    11, UIFactory.Ink, TextAnchor.MiddleLeft);
+                UIFactory.PlaceTL(nm.rectTransform, 12, 0, 168, L.Inner.FileRowH);
+                var idl = UIFactory.Label(rowRt, "fid", s != null ? s.IdNumber : "",
+                    10, UIFactory.InkDim, TextAnchor.MiddleRight);
+                UIFactory.PlaceTL(idl.rectTransform, 180, 0, 112, L.Inner.FileRowH);
+                var btn = rowRt.gameObject.AddComponent<Button>();
+                btn.targetGraphic = bg;
+                btn.transition = Selectable.Transition.ColorTint;
+                var cb = btn.colors;
+                cb.normalColor = Color.white;
+                cb.highlightedColor = new Color(1.35f, 1.33f, 1.24f);   // subtle brighten on hover
+                cb.pressedColor = new Color(1.60f, 1.56f, 1.44f);
+                cb.fadeDuration = 0.10f;
+                btn.colors = cb;
+                int ci = canonIdx;
+                btn.onClick.AddListener(() => OpenCanonFile(ci));
+                _fileRowInks.Add(bg);
+                _fileRowCanon.Add(canonIdx);
+            }
+            if (count > shown)
+            {
+                var more = UIFactory.Label(_drawerRows, "morefiles",
+                    "+ " + (count - shown) + " MORE FILES — NOT SHOWN", 10,
+                    UIFactory.InkFaint, TextAnchor.MiddleCenter);
+                L.Place(more.rectTransform, new L.Region(L.Inner.FileRowX,
+                    L.Inner.FileRowY0 + shown * L.Inner.FileRowStep, L.Inner.FileRowW, 16));
+            }
+        }
+
+        // Slides the drawer shut and resets the station readout (fresh desk per visitor).
+        private void CloseFileDrawer()
+        {
+            _openFloor = -1;
+            if (_drawerGo != null) _drawerGo.SetActive(false);
+            RefreshFolderTabs();
+            if (_stationOut != null) _stationOut.text = "";
+        }
+
+        // The open folder's tab stays lit so the drawer is never orphaned-looking.
+        private void RefreshFolderTabs()
+        {
+            for (int i = 0; i < _folderTabInks.Length; i++)
+                if (_folderTabInks[i] != null)
+                    _folderTabInks[i].color = _openFloor == i + 1 ? FolderOpen : FolderIdle;
+        }
+
+        // Pulls one canon file into the record window — the folder-browsing replacement for
+        // the old typed search. Same rule as before: during the administrator's visit the
+        // registry holds no badge, so no file replaces the memo already on the desk.
+        internal void OpenCanonFile(int canonIdx)
         {
             if (_gameRoot == null || _gameRoot.Roster == null) return;
+            var canon = _gameRoot.Roster.Canon;
+            if (canonIdx < 0 || canonIdx >= canon.Count || canon[canonIdx] == null) return;
             if (_current != null && _current.IsAdministrator)
             {
-                // the registry holds no badge: the memo already on your desk is the paper
                 if (_stationOut != null) _stationOut.text = "NO RECORD — SEE ATTACHED MEMO";
                 return;
             }
-            int idx = RecordSearch.FindInCanon(_gameRoot.Roster.Canon, query);
-            if (idx < 0)
-            {
-                if (_stationOut != null) _stationOut.text = "NO RECORD — " + (query ?? "").ToUpperInvariant();
-                if (_recordGo != null) _recordGo.SetActive(false);
-                _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.3f);
-                return;
-            }
-            var v = _gameRoot.Roster.Canon[idx];
+            var v = canon[canonIdx];
+            _selectedCanon = canonIdx;
             FillRecordSheet(v);
             if (_recordGo != null)
             {
                 _recordGo.SetActive(true);
-                _recordGo.transform.SetAsLastSibling();   // opened paper rises to the top
+                _recordGo.transform.SetAsLastSibling();   // the pulled file rises above the drawer
             }
+            RefreshFileRows();
             if (_stationOut != null) _stationOut.text = "FOUND: " + v.FullName.ToUpperInvariant();
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.4f);
+        }
+
+        // The selected file row keeps its lit manila tint while its folder is open.
+        private void RefreshFileRows()
+        {
+            for (int i = 0; i < _fileRowInks.Count; i++)
+                if (_fileRowInks[i] != null)
+                    _fileRowInks[i].color = i < _fileRowCanon.Count && _fileRowCanon[i] == _selectedCanon
+                        ? FileRowSel
+                        : FileRowIdle;
         }
 
     }

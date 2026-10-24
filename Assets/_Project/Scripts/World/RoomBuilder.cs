@@ -110,7 +110,7 @@ namespace Hollowbrook.World
                     room.AnomalySpawnPoints.Add(new Vector3(1.5f, 0, 0));
                     break;
                 }
-                default: // Classroom2 — the darker room (server room adjoins it)
+                default: // Classroom2 — the server room adjoins it (every room now starts dark)
                 {
                     room.DisplayName = "CLASSROOM 2";
                     room.HalfWidth = 8.2f;
@@ -134,7 +134,7 @@ namespace Hollowbrook.World
                 new Vector2(room.HalfWidth * 2f + 4f, 11f), Color.black);
             var lightCtl = root.AddComponent<LightController>();
             lightCtl.Init(_root, room, dark.GetComponent<SpriteRenderer>(),
-                startLit: id != RoomId.Classroom2);   // classroom 2 is the dark room
+                startLit: false);   // every room is entered dark; the wall switch (E) or the beam lights it
             room.Light = lightCtl;
             room.Darkness = dark.GetComponent<SpriteRenderer>();
             room.Darkness.maskInteraction = SpriteMaskInteraction.VisibleOutsideMask;

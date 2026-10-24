@@ -11,12 +11,12 @@ using L = Hollowbrook.Checkpoint.CheckpointLayout;
 
 namespace Hollowbrook.Checkpoint
 {
-    // Right column: scanner, stamps, utility buttons, monitor; the verdict flow.
+    // Right column: tools row, stamps; the verdict flow.
     // One area of the inspection desk; see CheckpointView.cs for the state machine,
     // the shared fields and the whole-class comment. Same class, split by desk area.
     public partial class CheckpointView
     {
-        // Stacking order is build order: questions and the tools/camera row sit BELOW
+        // Stacking order is build order: questions and the tools row sit BELOW
         // the papers layer; the stamp tray sits ABOVE it; overlays top everything.
         private void BuildQuestionsPanel()
         {
@@ -53,9 +53,11 @@ namespace Hollowbrook.Checkpoint
 
         }
 
-        private void BuildToolsAndCamera()
-        {            _scanBtn = GridButton(_desk, "scan", "SCAN", DoScan, L.UtilityScan, 11);
-            Reg("scan", _scanBtn, L.UtilityScan);
+        private void BuildToolsRow()
+        {
+            // the tools row: tonight's log, map, rules note. (The SCAN button and the
+            // camera monitor are retired — the ID scanner feature is gone; verification
+            // is manual: documents, floor files and questions.)
             _recordsBtn = GridButton(_desk, "records", "TL",
                 () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, L.UtilityRecords, 11);
             Reg("records", _recordsBtn, L.UtilityRecords);
@@ -65,19 +67,8 @@ namespace Hollowbrook.Checkpoint
                 () => ToggleOverlay(_notesRoot), L.UtilityNotes, 11);
             Reg("notes", _notesBtn, L.UtilityNotes);
 
-            // verdicts are physical: drag a stamp onto the subject's ID to commit.
+            // verdicts are physical: drag a stamp onto the slip to commit.
             // No confirm buttons anywhere — the stamp act IS the confirmation.
-
-            // the CAMERA is the scan device: drop the ID on it to scan; readout inside
-            var mon = UIFactory.BorderedPanel(_desk, "monitor", new Color(0.055f, 0.062f, 0.055f),
-                UIFactory.Border, 2);
-            Reg("monitor", mon, L.Monitor);
-            var camCap = UIFactory.Label(mon, "camcap", "CAMERA — DROP THE ID TO SCAN", 11,
-                UIFactory.InkDim, TextAnchor.MiddleCenter);
-            L.Place(camCap.rectTransform, L.Inner.MonitorCaption);
-            _monitorOutput = UIFactory.MaskedLabel(mon, "out",
-                L.Inner.MonitorOut.X, L.Inner.MonitorOut.Y, L.Inner.MonitorOut.W, L.Inner.MonitorOut.H,
-                13, new Color(0.55f, 0.75f, 0.55f));
         }
 
         // The interview at a glance: budget pips, asked-tags on the four buttons, and the
@@ -121,8 +112,12 @@ namespace Hollowbrook.Checkpoint
             _stampBase[idx] = tint;
         }
 
-        // The stamp lands ON THE SLIP, exactly where it was dropped, with a small seeded
-        // rotation. It records a PENDING verdict: nothing is scored until hand-back.
+        // Papers, Please stamping: the mark lands WHERE the player released the stamp on
+        // the slip. The drop centre (desk space) is converted into the slip's own space —
+        // position, zoom scale and resting tilt included — then clamped so the whole
+        // tilted mark stays inside the printable area: a drop near a corner stamps near
+        // that corner, a drop in the middle stamps the middle, nothing ever hangs off the
+        // paper. It records a PENDING verdict: nothing is scored until hand-back.
         private void TryStampOnDrop(Vector2 center, Verdict v)
         {
             if (_slipGo == null || !_slipGo.activeSelf || !_slipTaken || _current == null || _verdictLocked) return;
@@ -137,24 +132,33 @@ namespace Hollowbrook.Checkpoint
             if (_slipStamped) { _gameRoot.Audio.PlaySfx("sfx_paper", 0.25f); return; }   // one stamp per slip
             _pendingVerdict = v;
             _slipStamped = true;
-            PlaceStampMark(center, v);
+            var local = StampPlacement.DeskToLocal(center.x, center.y, top.x, top.y,
+                sc.x, srt.localEulerAngles.z);
+            local = StampPlacement.ClampToPrintable(local, ss.x, ss.y,
+                StampMarkSize, StampMaxTilt, StampEdgePad);
+            PlaceStampMark(v, new Vector2(local.X, local.Y));
             RefreshHandoverPrompt();
             _gameRoot.Audio.PlaySfx(v == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 0.8f);
         }
 
-        // Keyboard path: same placement rule as a drop on the slip's centre (rotation seeded).
+        // Keyboard path (A / D): there is no click point, so the mark lands on the
+        // slip's lower-right quarter — the classic corner spot — with the same clamp.
         internal void StampSlipByKey(Verdict v)
         {
             if (!_slipTaken || _slipStamped || _current == null || _verdictLocked) return;
-            var srt = _slipGo.GetComponent<RectTransform>();
-            var ss = srt.rect.size;
-            var sc = srt.localScale;
-            var top = new Vector2(srt.anchoredPosition.x, -srt.anchoredPosition.y);
-            var center = top + new Vector2(ss.x * sc.x / 2f, ss.y * sc.y / 2f);
             _pendingVerdict = v;
             _slipStamped = true;
-            PlaceStampMark(center, v);
+            PlaceStampMark(v, KeyboardStampSpot());
             _gameRoot.Audio.PlaySfx(v == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 0.8f);
+        }
+
+        private Vector2 KeyboardStampSpot()
+        {
+            var ss = _slipGo.GetComponent<RectTransform>().rect.size;
+            var local = StampPlacement.ClampToPrintable(
+                new StampPlacement.Point(ss.x * 0.8f, ss.y * 0.68f),
+                ss.x, ss.y, StampMarkSize, StampMaxTilt, StampEdgePad);
+            return new Vector2(local.X, local.Y);
         }
 
         internal void HandBackByKey()
@@ -164,9 +168,15 @@ namespace Hollowbrook.Checkpoint
             HandBackSlip();
         }
 
-        // Free placement: the mark becomes a layer of the slip at the drop point, so it
-        // moves, flips and zooms with the paper. Rotation is seeded per inspection.
-        private void PlaceStampMark(Vector2 deskCenter, Verdict v)
+        // The mark becomes a layer of the slip AT THE DROPPED SPOT (localCentre is in the
+        // slip's own space, already clamped inside the printable area), so it moves, flips
+        // and zooms with the paper and can never overhang the edge. Rotation is seeded per
+        // inspection; the clamp budget (StampMaxTilt) covers the tilt's corners.
+        private const float StampMarkSize = 56f;
+        private const float StampMaxTilt = 18f;   // |−12 + [−6..+6]| — the seeded tilt span
+        private const float StampEdgePad = 2f;    // breathing room between mark and edge
+
+        private void PlaceStampMark(Verdict v, Vector2 localCentre)
         {
             if (_stampOverlay == null || _slipGo == null) return;
             var srt = _slipGo.GetComponent<RectTransform>();
@@ -175,13 +185,10 @@ namespace Hollowbrook.Checkpoint
             var rt = _stampOverlay.rectTransform;
             rt.anchorMin = new Vector2(0, 1); rt.anchorMax = new Vector2(0, 1);
             rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = new Vector2(90f, 90f);            // point anchor: give it a real size
+            rt.sizeDelta = new Vector2(StampMarkSize, StampMarkSize);
             _stampOverlay.preserveAspect = true;
             _stampOverlay.raycastTarget = false;             // the mark never eats clicks
-            var top = new Vector2(srt.anchoredPosition.x, -srt.anchoredPosition.y);
-            var local = deskCenter - top;
-            var sc2 = srt.localScale;
-            rt.anchoredPosition = new Vector2(local.x / sc2.x, -local.y / sc2.y);
+            rt.anchoredPosition = new Vector2(localCentre.x, -localCentre.y);
             rt.localEulerAngles = new Vector3(0, 0, -12 + _stampRng.NextInt(-6, 7));
             _stampOverlay.sprite = ProceduralArt.Get(v == Verdict.Allow ? "stamp_allow" : "stamp_reject");
             rt.localScale = Vector3.one;
@@ -220,20 +227,6 @@ namespace Hollowbrook.Checkpoint
                 Queue != null && Queue.Started && !collapsed);
             UIFactory.SetButtonEnabled(_endShiftBtn, Queue != null && Queue.ShiftComplete &&
                 _gameRoot.Session.Mode == GameMode.Normal);
-        }
-
-        public void DoScan()
-        {
-            if (_current == null || _verdictLocked) return;
-            if (!_documentsTaken) { _monitorOutput.text = "TAKE THE ID FIRST."; return; }
-            if (_gameRoot.Roster == null) return;
-            var res = _gameRoot.Roster.Scan(_current, _gameRoot.Session.TonightLog);
-            _monitorOutput.text = res.Display;
-            _monitorOutput.color = res.FoundInDatabase && !res.DuplicateTonight
-                ? new Color(0.55f, 0.75f, 0.55f)
-                : new Color(0.85f, 0.35f, 0.35f);
-            _gameRoot.Audio.PlaySfx(res.FormatValid && res.FoundInDatabase && !res.DuplicateTonight ? "sfx_scan_ok" : "sfx_scan_error", 0.8f);
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.ScanPerformed, res));
         }
 
         public void Stamp(Verdict verdict)

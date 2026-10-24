@@ -32,7 +32,6 @@ namespace Hollowbrook.Core
         public const string VisitorArrived = "desk.visitor";
         public const string DocumentsShown = "desk.docs";
         public const string QuestionAsked = "desk.question";
-        public const string ScanPerformed = "desk.scan";
         public const string VisitorResolved = "desk.resolved";
         public const string RoomExited = "room.exited";
         public const string AnomalySighted = "anomaly.sighted";

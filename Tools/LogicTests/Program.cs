@@ -54,10 +54,13 @@ namespace Hollowbrook.LogicTests
             DisplayAndOptionsTests();
             TrackingAndTokenTests();
             CheckpointQueueTests();
+            SpeechBubbleTests();
+            StampPlacementTests();
             QueueBusyHurryTests();
             QueueInvariantTests();
             StampRulesTests();
             RecordSearchTests();
+            FloorFileTests();
             SlipFairnessTests();
             SeatPlannerTests();
             CultureRoundTripTests();
@@ -1096,6 +1099,53 @@ namespace Hollowbrook.LogicTests
             Eq(RecordSearch.FindInCanon(null, "x"), -1, "a null canon is safe");
         }
 
+        private static void FloorFileTests()
+        {
+            Group("RecordSearch — floor folders for the FLOOR FILES cabinet");
+            var canon = new RosterFactory(12).Canon;
+            var folders = RecordSearch.BuildFloorFolders(canon);
+            Eq(folders.Count, 2, "the roster files under exactly two floors");
+            Eq(folders[0].Floor, 1, "folders come out floor-ascending");
+            Eq(folders[1].Floor, 2, "the second folder is the second floor");
+            Check(folders[0].Indices.Count > 0 && folders[1].Indices.Count > 0,
+                  "both floors hold files (no dead folder in shipping content)");
+            var seen = new HashSet<int>();
+            bool ordered = true, floorsOk = true;
+            foreach (var f in folders)
+            {
+                int prev = -1;
+                foreach (int i in f.Indices)
+                {
+                    if (i <= prev) ordered = false;              // roster order inside a folder
+                    prev = i;
+                    if (!seen.Add(i)) ordered = false;           // filed exactly once
+                    if (RecordSearch.FloorOf(canon[i].FirstClassroom) != f.Floor) floorsOk = false;
+                }
+            }
+            Eq(seen.Count, canon.Count, "every canon student is filed exactly once");
+            Check(ordered, "files keep roster order inside their folder");
+            Check(floorsOk, "each file sits on its classroom's floor");
+            Check(folders[0].Label != folders[1].Label &&
+                  folders[0].Label.Contains("ROOM 101") && folders[1].Label.Contains("ROOM 202"),
+                  "folder labels are distinct and name the room (got '" + folders[0].Label + "')");
+            Eq(RecordSearch.FloorOf(RoomId.Classroom1), 1, "Room 101 is the 1st floor");
+            Eq(RecordSearch.FloorOf(RoomId.Classroom2), 2, "Room 202 is the 2nd floor");
+            Eq(RecordSearch.BuildFloorFolders(null).Count, 0, "a null canon files nothing");
+            Eq(RecordSearch.BuildFloorFolders(new List<StudentIdentity>()).Count, 0,
+               "an empty canon files nothing");
+            // determinism: the same roster always produces the same folders
+            var again = RecordSearch.BuildFloorFolders(canon);
+            bool same = again.Count == folders.Count;
+            for (int f = 0; same && f < again.Count; f++)
+            {
+                same = again[f].Floor == folders[f].Floor && again[f].Label == folders[f].Label &&
+                       again[f].Indices.Count == folders[f].Indices.Count;
+                for (int k = 0; same && k < again[f].Indices.Count; k++)
+                    same = again[f].Indices[k] == folders[f].Indices[k];
+            }
+            Check(same, "floor folders are deterministic (same canon, same folders)");
+        }
+
         private static void SlipFairnessTests()
         {
             Group("Slip generation — fairness across seeds and shifts");
@@ -1288,6 +1338,240 @@ namespace Hollowbrook.LogicTests
             d.AttachRoster(roster, t.Clone(), 21);
             d.RestoreFromSnapshot(legacyShort, 0);             // line 1: warning still earnable
             Check(d.ForceNextArrival().PressureWarning, "legacy save below threshold: the warning is still earnable once");
+        }
+
+        // ------------------------------------------------------- speech bubble (task 4)
+        // The bubble beside the student's head: ONE clock, a 2-second cooldown that
+        // starts when the dialogue ENDS, generation-guarded against stale hides.
+        private static void SpeechBubbleTests()
+        {
+            Group("SpeechBubbleClock — one bubble, 2 s cooldown, stale-timer proof");
+
+            Check(Math.Abs(SpeechBubbleClock.HideDelaySeconds - 2f) < 1e-6f,
+                "the cooldown between 'dialogue ended' and 'bubble removed' is exactly 2 s");
+
+            var b = new SpeechBubbleClock();
+            Check(!b.Visible && b.Generation == 0, "born hidden, with no generations spent");
+            Eq(b.Who, "", "born with no speaker");
+            Eq(b.Text, "", "born with no line");
+            b.Tick(5f);
+            Check(!b.Visible, "ticking a hidden bubble does nothing");
+
+            b.Say("AT THE WINDOW", "Good evening.");
+            Check(b.Visible, "a line shows the bubble");
+            Eq(b.Who, "AT THE WINDOW", "the bubble carries the speaker");
+            Eq(b.Text, "Good evening.", "the bubble carries the line");
+            Eq(b.Generation, 1, "the first line is generation 1");
+            Check(b.SecondsSinceLine < 1e-6f, "the countdown starts at zero with the line");
+
+            b.Tick(1.9f);
+            Check(b.Visible && Math.Abs(b.SecondsSinceLine - 1.9f) < 1e-4f,
+                "still up 1.9 s after the line — no premature hide");
+            b.Tick(0.05f);
+            Check(b.Visible, "still up at 1.95 s");
+            b.Tick(0.06f);
+            Check(!b.Visible, "hidden once the cooldown passes the 2 s mark");
+            float frozen = b.SecondsSinceLine;
+            b.Tick(3f);
+            Check(!b.Visible && Math.Abs(b.SecondsSinceLine - frozen) < 1e-6f,
+                "ticks after the hide change nothing");
+
+            // a new dialogue during/after the cooldown shows normally (cancel + restart)
+            b.Say("AT THE WINDOW", "Second visit.");
+            Check(b.Visible && b.Generation == 2, "the next line brings the bubble back (generation 2)");
+            b.Tick(1.5f);
+            b.Say("AT THE WINDOW", "Interrupting line.");
+            Check(b.Visible && b.SecondsSinceLine < 1e-6f,
+                "a new line mid-cooldown RESTARTS the countdown — the pending hide is cancelled");
+            Eq(b.Generation, 3, "...and advances the generation, so a stale callback can never hide it");
+            b.Tick(1.9f);
+            Check(b.Visible, "the newer line survives past the OLDER timer's 2 s mark");
+            b.Tick(0.2f);
+            Check(!b.Visible, "...and hides 2 s after the LAST line, not the first");
+
+            // one overshoot tick hides it too (no frame-rate dependency in the model)
+            b.Say("AT THE WINDOW", "Long frame.");
+            b.Tick(10f);
+            Check(!b.Visible, "one long tick past the cooldown hides the bubble");
+
+            // robustness: negative time, zero time, null payload
+            b.Say("AT THE WINDOW", "Negative dt.");
+            b.Tick(-3f);
+            Check(b.Visible && b.SecondsSinceLine < 1e-6f, "negative dt is clamped — the clock never rewinds below zero");
+            b.Tick(0f);
+            Check(b.Visible, "a zero tick keeps the dialogue up");
+            b.Say(null, null);
+            Check(b.Visible, "a null line still shows the bubble");
+            Eq(b.Who, "", "null speaker is stored as empty");
+            Eq(b.Text, "", "null text is stored as empty");
+
+            // HideNow: the cleanup path (room change / visitor walks off)
+            b.Say("AT THE WINDOW", "Cleanup.");
+            b.HideNow();
+            Check(!b.Visible && b.SecondsSinceLine < 1e-6f, "HideNow removes the bubble and drops the countdown instantly");
+            b.Say("AT THE WINDOW", "After cleanup.");
+            Check(b.Visible, "...and a later line still shows normally");
+
+            int g0 = b.Generation;
+            for (int i = 0; i < 10; i++) b.Say("AT THE WINDOW", "line " + i);
+            Eq(b.Generation, g0 + 10, "generations are strictly monotonic — every line gets its own");
+            Eq(b.Text, "line 9", "the bubble always shows the newest line only (no overlap)");
+
+            Group("SpeechBubbleLayout — wrap estimate, truncation, bubble height");
+
+            Eq(SpeechBubbleLayout.Wrap("", 10).Count, 1, "empty text is one empty line");
+            Eq(SpeechBubbleLayout.Wrap(null, 10).Count, 1, "null text is one empty line");
+            Eq(SpeechBubbleLayout.Wrap("short", 10)[0], "short", "a short line stays one line");
+            Eq(SpeechBubbleLayout.Wrap("0123456789", 10).Count, 1, "text exactly filling the line stays one line");
+            var wrapped = SpeechBubbleLayout.Wrap("aaaa bbbb cccc", 9);
+            Eq(wrapped.Count, 2, "word wrap: 'aaaa bbbb cccc' at 9 chars is two lines");
+            Eq(wrapped[0], "aaaa bbbb", "...first line keeps whole words");
+            Eq(wrapped[1], "cccc", "...second line carries the rest");
+            var split = SpeechBubbleLayout.Wrap("aaaaaaaaaa", 4);
+            Eq(split.Count, 3, "an overlong word is hard-split");
+            Eq(split[0], "aaaa", "...into full-line chunks");
+            Eq(split[2], "aa", "...with the remainder last");
+            Eq(SpeechBubbleLayout.Wrap("a\nb", 10).Count, 2, "explicit newlines force new lines");
+            Eq(SpeechBubbleLayout.Wrap("a\n\nb", 10).Count, 3, "an empty paragraph keeps its line");
+            Eq(SpeechBubbleLayout.CountLines("aaaa bbbb cccc", 9), 2, "CountLines agrees with Wrap");
+            foreach (int cpl in new[] { 1, 7, 20, 36 })
+            {
+                bool over = false;
+                foreach (string line in SpeechBubbleLayout.Wrap(
+                    "the quick brown fox jumps over the lazy dog near the midnight checkpoint window", cpl))
+                    if (line.Length > cpl) over = true;
+                Check(!over, "no wrapped line exceeds " + cpl + " chars");
+            }
+            Eq(SpeechBubbleLayout.Wrap("ab", 0).Count, 2, "charsPerLine below 1 is treated as 1 (no crash, no infinite loop)");
+
+            string fits = SpeechBubbleLayout.Fit("one two three", 10, 5, out int fitLines);
+            Eq(fits, "one two three", "text that fits is returned unchanged");
+            Eq(fitLines, 2, "...with its true line count");
+            string longText = "word " + string.Join(" ", Enumerable.Range(1, 60).Select(i => "w" + i));
+            string cut = SpeechBubbleLayout.Fit(longText, 20, 3, out int cutLines);
+            Eq(cutLines, 3, "overlong text is cut to the max lines");
+            Check(cut.EndsWith("…"), "the cut ends with an ellipsis");
+            Check(cut.Length <= 20 * 3, "the cut never exceeds the line budget (bubble can't overflow)");
+            Check(longText.StartsWith(cut.Substring(0, cut.Length - 1)),
+                "the cut keeps the BEGINNING of the line verbatim (word-boundary trim, nothing shuffled)");
+            Check(!cut.EndsWith(" …") && !cut.EndsWith("  …"),
+                "the ellipsis attaches directly to the last whole word");
+            string oneLine = SpeechBubbleLayout.Fit("exactly fits here", 8, 1, out int one1);
+            Eq(one1, 1, "maxLines=1 produces exactly one line");
+            Check(oneLine.EndsWith("…") && oneLine.Length <= 8, "...inside the single-line budget");
+            string exact = SpeechBubbleLayout.Fit("aaa bbb", 7, 1, out int exactLines);
+            Eq(exact, "aaa bbb", "text that exactly fills maxLines is NOT truncated");
+            Eq(exactLines, 1, "...and reports one line");
+
+            Check(Math.Abs(SpeechBubbleLayout.Height(1, 15f, 16f, 8f, 8f) - (8 + 16 + 15 + 8)) < 1e-4f,
+                "height = paddings + tag line + text lines");
+            Check(Math.Abs(SpeechBubbleLayout.Height(0, 15f, 16f, 8f, 8f) - (8 + 16 + 15 + 8)) < 1e-4f,
+                "height floors at one text line");
+            Check(Math.Abs(SpeechBubbleLayout.Height(10, 15f, 16f, 8f, 8f) - 182f) < 1e-4f,
+                "ten lines grow the bubble to 182px (the desk box caps at 210)");
+            Check(SpeechBubbleLayout.Height(4, 15f, 16f, 8f, 8f) < SpeechBubbleLayout.Height(5, 15f, 16f, 8f, 8f),
+                "the bubble grows monotonically with the line count");
+        }
+
+        // --------------------------------------------------- stamp placement (task 2)
+        // Papers, Please stamping maths: desk drop point -> paper-local spot (position,
+        // scale, tilt) and the printable-area clamp that keeps the mark on the paper.
+        private static void StampPlacementTests()
+        {
+            Group("StampPlacement — desk drop point -> slip-local spot");
+
+            var p = StampPlacement.DeskToLocal(100f, 50f, 0f, 0f, 1f, 0f);
+            Check(Math.Abs(p.X - 100f) < 1e-4f && Math.Abs(p.Y - 50f) < 1e-4f,
+                "no tilt, no zoom: the local spot is the plain offset");
+            p = StampPlacement.DeskToLocal(100f, 50f, 40f, 20f, 1f, 0f);
+            Check(Math.Abs(p.X - 60f) < 1e-4f && Math.Abs(p.Y - 30f) < 1e-4f,
+                "the paper's position is subtracted first");
+            p = StampPlacement.DeskToLocal(100f, 50f, 0f, 0f, 2f, 0f);
+            Check(Math.Abs(p.X - 50f) < 1e-4f && Math.Abs(p.Y - 25f) < 1e-4f,
+                "a 2x-zoomed paper halves the local offset (the mark scales with the sheet)");
+            p = StampPlacement.DeskToLocal(10f, 0f, 0f, 0f, 1f, 90f);
+            Check(Math.Abs(p.X) < 1e-3f && Math.Abs(p.Y - 10f) < 1e-3f,
+                "a 90°-tilted paper rotates the drop point into its own frame");
+            p = StampPlacement.DeskToLocal(10f, 0f, 0f, 0f, 1f, -90f);
+            Check(Math.Abs(p.X) < 1e-3f && Math.Abs(p.Y + 10f) < 1e-3f,
+                "...and -90° rotates the other way");
+            p = StampPlacement.DeskToLocal(10f, 5f, 0f, 0f, 1f, 180f);
+            Check(Math.Abs(p.X + 10f) < 1e-3f && Math.Abs(p.Y + 5f) < 1e-3f,
+                "180° flips both axes");
+
+            // the shipping case: slip at (660,440), zoom 1.5, resting tilt 1.2°,
+            // dropped at its visual centre (810,530) — hand-computed expectations
+            p = StampPlacement.DeskToLocal(810f, 530f, 660f, 440f, 1.5f, 1.2f);
+            Check(Math.Abs(p.X - 98.72f) < 0.02f && Math.Abs(p.Y - 62.08f) < 0.02f,
+                $"the zoomed, tilted slip maps its centre drop to ~(98.72,62.08) (got {p.X:F2},{p.Y:F2})");
+
+            // round-trip: local -> desk -> local is identity for arbitrary tilt/scale
+            foreach (float tilt in new[] { -12f, -1.2f, 0f, 3.4f, 27.9f, 180f, -179f })
+                foreach (float scale in new[] { 0.6f, 1f, 1.5f, 1.8f })
+                {
+                    float lx0 = 37f, ly0 = 81f;
+                    double rad = tilt * Math.PI / 180.0;
+                    float c = (float)Math.Cos(rad), n = (float)Math.Sin(rad);
+                    // forward map (inverse of DeskToLocal): desk = top + scale * R(tilt) * local
+                    float deskX = 200f + scale * (lx0 * c + ly0 * n);
+                    float deskY = 90f + scale * (-lx0 * n + ly0 * c);
+                    var back = StampPlacement.DeskToLocal(deskX, deskY, 200f, 90f, scale, tilt);
+                    Check(Math.Abs(back.X - lx0) < 0.02f && Math.Abs(back.Y - ly0) < 0.02f,
+                        $"round-trip holds at tilt {tilt}°, scale {scale}");
+                }
+
+            // degenerate input guards
+            p = StampPlacement.DeskToLocal(100f, 100f, 0f, 0f, 0f, 0f);
+            Check(!float.IsNaN(p.X) && !float.IsNaN(p.Y) && !float.IsInfinity(p.X) && !float.IsInfinity(p.Y),
+                "a zero scale never produces NaN/inf (epsilon-guarded)");
+
+            Group("StampPlacement — tilted half extent + printable-area clamp");
+
+            Check(Math.Abs(StampPlacement.TiltedHalfExtent(56f, 0f) - 28f) < 1e-4f,
+                "untilted: the half extent is half the mark size");
+            Check(Math.Abs(StampPlacement.TiltedHalfExtent(56f, 90f) - 28f) < 1e-4f,
+                "90°: a square's half extent is unchanged");
+            Check(Math.Abs(StampPlacement.TiltedHalfExtent(56f, 45f) - 28f * (float)Math.Sqrt(2)) < 1e-3f,
+                "45° is the worst case: half diagonal = s/2 * sqrt(2)");
+            Check(StampPlacement.TiltedHalfExtent(56f, 18f) < StampPlacement.TiltedHalfExtent(56f, 45f) &&
+                  StampPlacement.TiltedHalfExtent(56f, 10f) < StampPlacement.TiltedHalfExtent(56f, 18f),
+                "the extent grows monotonically up to 45°");
+            Check(Math.Abs(StampPlacement.TiltedHalfExtent(56f, 18f) - 35.28f) < 0.02f,
+                "the shipped tilt span (18°) budgets ~35.3px of a 56px mark");
+
+            // the shipped slip: 200x120 sheet, 56px mark, 18° max tilt, 2px padding
+            float m = StampPlacement.TiltedHalfExtent(56f, 18f) + 2f;
+            var inside = StampPlacement.ClampToPrintable(new StampPlacement.Point(100f, 60f), 200f, 120f, 56f, 18f, 2f);
+            Check(Math.Abs(inside.X - 100f) < 1e-4f && Math.Abs(inside.Y - 60f) < 1e-4f,
+                "a middle drop is untouched by the clamp");
+            var tl = StampPlacement.ClampToPrintable(new StampPlacement.Point(-40f, -40f), 200f, 120f, 56f, 18f, 2f);
+            Check(Math.Abs(tl.X - m) < 1e-3f && Math.Abs(tl.Y - m) < 1e-3f,
+                $"a far top-left drop clamps to the printable corner ({tl.X:F1},{tl.Y:F1} = margin {m:F1})");
+            var br = StampPlacement.ClampToPrintable(new StampPlacement.Point(999f, 999f), 200f, 120f, 56f, 18f, 2f);
+            Check(Math.Abs(br.X - (200f - m)) < 1e-3f && Math.Abs(br.Y - (120f - m)) < 1e-3f,
+                "a far bottom-right drop clamps to the opposite printable corner");
+            var pad = StampPlacement.ClampToPrintable(new StampPlacement.Point(0f, 0f), 200f, 120f, 56f, 18f, 10f);
+            Check(Math.Abs(pad.X - (m + 8f)) < 1e-3f, "more padding pushes the clamp further in");
+            var tiny = StampPlacement.ClampToPrintable(new StampPlacement.Point(0f, 0f), 40f, 40f, 56f, 18f, 2f);
+            Check(Math.Abs(tiny.X - 20f) < 1e-4f && Math.Abs(tiny.Y - 20f) < 1e-4f,
+                "a sheet smaller than the mark clamps to its centre (range never inverts)");
+
+            // sweep: whatever comes in, the WHOLE tilted mark stays on the paper
+            bool outside = false;
+            for (float x = -50f; x <= 250f; x += 7f)
+                for (float y = -50f; y <= 170f; y += 7f)
+                {
+                    var q = StampPlacement.ClampToPrintable(new StampPlacement.Point(x, y), 200f, 120f, 56f, 18f, 2f);
+                    if (q.X - m < -1e-3f || q.X + m > 200f + 1e-3f || q.Y - m < -1e-3f || q.Y + m > 120f + 1e-3f)
+                        outside = true;
+                }
+            Check(!outside, "every clamped spot keeps the tilted mark fully inside the 200x120 slip (sweep proof)");
+
+            // the keyboard default spot (80% / 68% of the sheet) survives the clamp unchanged
+            var kb = StampPlacement.ClampToPrintable(new StampPlacement.Point(200f * 0.8f, 120f * 0.68f),
+                200f, 120f, 56f, 18f, 2f);
+            Check(Math.Abs(kb.X - 160f) < 1e-3f && Math.Abs(kb.Y - 81.6f) < 1e-3f,
+                $"the keyboard stamp's corner default sits inside the printable area as-is ({kb.X:F1},{kb.Y:F1})");
         }
 
         private static void CheckpointQueueTests()

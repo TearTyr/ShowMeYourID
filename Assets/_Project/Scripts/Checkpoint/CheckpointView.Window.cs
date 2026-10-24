@@ -81,8 +81,7 @@ namespace Hollowbrook.Checkpoint
             offerDrag.Init(_desk, 0f);
             offerDrag.ReturnsHome = true;
             offerDrag.OnDropped = center => { if (center.y >= 420f) TakeIdAt(center); };
-            offerDrag.OnTapped = center => TakeIdAt(new Vector2(
-                L.IdCard.X + L.IdCard.W / 2f, L.IdCard.Y + L.IdCard.H / 2f));
+            offerDrag.OnTapped = center => DockIdToSlot();
             _offeredRoot.SetActive(false);
 
 
@@ -103,7 +102,10 @@ namespace Hollowbrook.Checkpoint
             _slipId = UIFactory.Label(slipRt, "sid", "", 11, UIFactory.PaperInk, TextAnchor.UpperLeft);
             L.Place(_slipId.rectTransform, new L.Region(8, 28, 184, 16));
             _slipReason = UIFactory.Label(slipRt, "sreason", "", 10, UIFactory.PaperInk, TextAnchor.UpperLeft);
-            L.Place(_slipReason.rectTransform, new L.Region(8, 52, 184, 56));
+            L.Place(_slipReason.rectTransform, L.Inner.SlipReason);
+            // no printed stamp box: the verdict mark lands WHERE the player drops the
+            // stamp (Papers, Please style), clamped fully inside the paper — see
+            // TryStampOnDrop / StampPlacement
             var slipBack = UIFactory.Panel(slipRt, "slipback", new Color(0.84f, 0.82f, 0.76f));
             UIFactory.AnchorsFull(slipBack.rectTransform);
             var backNote = UIFactory.Label(slipBack.rectTransform, "note", "RADIO NOTE: verify against the registry", 10,
@@ -115,7 +117,9 @@ namespace Hollowbrook.Checkpoint
             var slipDrag = _slipGo.AddComponent<DragPaper>();
             slipDrag.Init(_desk, 1.2f);
             slipDrag.OnLift = () => _lastPaper = _slipGo;
-            slipDrag.OnTapped = c => { if (!_slipTaken) TakeSlipAt(new Vector2(760f, 500f)); else FlipId(); };
+            // a tap on the counter slip takes it; a tap on the TAKEN slip turns it over —
+            // its own flip (FlipSlip), never the ID's: the papers are decoupled
+            slipDrag.OnTapped = c => { if (!_slipTaken) TakeSlipAt(new Vector2(760f, 500f)); else FlipSlip(); };
             slipDrag.OnDropped = c => SlipDropped(c);
             _slipGo.SetActive(false);
         }
@@ -223,7 +227,10 @@ namespace Hollowbrook.Checkpoint
             var slp = _slipGo != null ? _slipGo.GetComponent<DragPaper>() : null;
             if (slp != null) slp.Zoom = 1f;
             if (_recordGo != null) _recordGo.SetActive(false);
-            if (_searchField != null) _searchField.text = "";
+            FaceUp(_idCardGo);          // flip state never carries across visitors: both
+            FaceUp(_slipGo);            // papers are born face-up on a fresh desk
+            CloseFileDrawer();          // drawer shut, station readout cleared
+            _selectedCanon = -1;        // no file highlighted on a fresh desk
             _stampRng = new GameRng((_gameRoot.Session != null ? _gameRoot.Session.Seed : 1) ^ (v.VisitorIndex * 131 + 7));
             SetPaperHeld(_idCardGo, true);
             SetPaperHeld(_slipGo, true);
@@ -306,7 +313,9 @@ namespace Hollowbrook.Checkpoint
         private void SetVisitorVisible(bool on)
         {
             _visitorPortrait.gameObject.SetActive(on);
-            _speechPanel.gameObject.SetActive(on);
+            _visitorShown = on;
+            if (!on) _bubble.HideNow();   // an empty window carries no line — and no timer
+            SyncBubble();
             _glitchOverlay.gameObject.SetActive(on && _glitchOverlay.color.a > 0f);
         }
 

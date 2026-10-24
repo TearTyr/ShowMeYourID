@@ -5,7 +5,7 @@
 You are the newest temporary night custodian of **Hollowbrook College**, a school shut down
 mid-year without an official explanation — yet still open at night so its students can finish
 the term. Check IDs. Compare records. Ask up to **2 questions** — only after opening the interview.
-Verdicts are physical and wordless: the student slides **ID + paper slip** to the counter; drag both to your desk (move / flip `F` / zoom wheel or `Z`), search the **registry terminal** by ID or name (NO RECORD is itself a clue), then stamp **ACCEPT / DENY onto the slip** (`A` / `D`; free placement, one stamp per slip) and **hand both papers back** at the window (`H`) — the decision counts at hand-back, never at the drop. No confirm buttons, no post-decision text: the stamp mark, the thud, the subject walking off and the score tick are the whole feedback.
+Verdicts are physical and wordless: the student slides **ID + paper slip** to the counter; drag both to your desk (the ID rests slightly smaller than before and both papers keep their size while you scroll — `Z` is the one deliberate zoom; flip the ID by its **black spine** — the card body only drags — and the slip flips on its own, `F` flips whichever paper you touched last), pull the student's file from the **floor files** cabinet (browse the floor folders — a card whose number matches no filed record is itself a clue), compare the face at the window with the ID photo **with your own eyes** (the student's answers arrive in a **speech bubble beside their head**, fading 2 s after the line ends), then stamp **ACCEPT / DENY onto the slip** — *Papers, Please* style: drag a stamp onto the paper and the mark lands **where you dropped it** (always fully on the sheet; `A` / `D` stamp a corner default; one stamp per slip) — and **hand both papers back** at the window (`H`): the decision counts at hand-back, never at the drop. No confirm buttons, no post-decision text: the stamp mark, the thud, the subject walking off and the score tick are the whole feedback.
 Walk the halls between visitors. Find the ten things the school is hiding. Keep them out.
 
 > “Everyone has an ID. Not everyone is a student.”
@@ -35,11 +35,11 @@ them automatically (keys are listed in `ProceduralArt` / `ProceduralAudio`).
 
 | Context | Input |
 |---|---|
-| Checkpoint | Mouse/touch: drag the ID + slip from the counter, arrange/flip/zoom them, search the registry terminal, drag a stamp onto the slip, drag both papers back to the window. Keys: `1`–`4` questions, `A`/`D` stamp, `H` hand back, `F` flip, `Z`/wheel zoom, `E` scan-drop equivalent via scanner drop |
+| Checkpoint | Mouse/touch: drag the ID + slip from the counter, arrange them (the scroll wheel never resizes papers), flip the ID by its black spine, open a floor folder and pull the student's file, drag a stamp onto the slip — the mark lands where you drop it — and drag both papers back to the window. Student dialogue appears in a speech bubble beside the visitor's head (gone 2 s after the line ends). Keys: `1`–`4` questions, `A`/`D` stamp, `H` hand back, `F` flip (last paper touched), `Z` zoom (toggle, last paper touched) |
 | Walk / Run | `A`/`D` or `◂`/`▸`, hold `Shift` to run |
 | Interact | `E` (doors, clues, light switches) |
-| Desk papers | drag the ID card / record sheet to arrange your desk (drop the ID on SCAN to scan); hover a question for what it cross-checks; `1`–`4` ask while the interview is open |
-| Flashlight | `F` Sweep (wide) / `Q` Focus (tight) / `L` off — or hold `LMB` / `RMB` for a temporary beam |
+| Desk papers | drag the ID card / record sheet to arrange your desk; hover a question for what it cross-checks; `1`–`4` ask while the interview is open. There is no ID scanner and no face-check form — verification is manual: documents, floor files, questions and your own eyes |
+| Flashlight | `F` toggles the beam ON (wide Sweep) / OFF, `Q` Focus (tight), `L` off — the mouse buttons are **not** beam input. Rooms are entered **dark** and every entry also puts the beam **out** (it relights only on a deliberate `F`/`Q`); the wall switch (`E`) lights the room. Classroom **peeks** start dark too: the cursor lamp is OFF until `F` (the same single toggle — mouse movement never lights it), and the exit works in the dark. The HUD reads both lights: `LIGHTS` (room) and `BEAM` / `LAMP` (handheld) |
 | Map | `M` |
 | Pause | `Esc` |
 | Dialogue | Click / `Space` / `Enter` / `E` |
@@ -111,12 +111,13 @@ Assets/_Project/
       QuestionSystem, InspectionRules, CheckpointQueue (arrival line + missing
       students), ClueRegistry, ShiftPlan, SanityModel, EndingRules, GameSession,
       SaveFormat, TrackingPolicy, BeamGeometry, FlashlightInput, BatteryModel,
-      AnomalyEncounter, AnomalyBehaviorRules, RoomGraph, PatrolPool
+      AnomalyEncounter, AnomalyBehaviorRules, RoomGraph, PatrolPool,
+      SpeechBubble (bubble clock + text fitting), StampPlacement (drop-point maths)
     Core/                         EventBus, GameEvent, EventIds, GameRoot, SaveSystem,
                                   SettingsSystem, GameConfigSO, IScreenView
     Bootstrap/                    GameBootstrap (builds the scene), UIFactory,
                                   ProceduralArt, ProceduralAudio
-    Checkpoint/CheckpointView     security-room flow, documents, questions, scan, stamps
+    Checkpoint/CheckpointView     security-room flow, documents, questions, speech bubble, stamps
     World/                        ViewManager, PlayerController, Interactables, LightController
     Horror/                       WanderingAnomaly (Blink/Slide/Sprint/CoverHug),
                                   SanityController, ScareSystem, HallucinationSystem
@@ -141,8 +142,8 @@ docs/                             audit, handoff report
   Shift N replays identical visitors (generation of earlier shifts advances the RNG).
 - **Fairness invariant** (enforced by tests): legitimate visitors always have clean
   documents, truthful Normal-tone answers and are never false-flagged as duplicates; every
-  anomaly carries at least one defect discoverable with documents, the scanner, the photo,
-  or ≤2 questions.
+  anomaly carries at least one defect discoverable with documents, the floor files, the
+  photo, or ≤2 questions.
 - **Saves**: versioned, checksum-guarded text format at `Application.persistentDataPath`
   (corrupt files degrade to “no save” instead of throwing). Settings persist separately via
   PlayerPrefs.

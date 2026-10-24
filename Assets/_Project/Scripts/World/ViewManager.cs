@@ -169,6 +169,8 @@ namespace Hollowbrook.World
             Current = room;
             room.Root.SetActive(true);
             _worldRoot.SetActive(true);
+            if (room.Light != null) room.Light.ForceDarkOnEntry();   // you always arrive in darkness
+            if (Flashlight != null) Flashlight.ForceBeamOffOnEntry(); // ...and your beam arrives off
 
             Vector3 spawn = room.PlayerSpawn;
             if (from != null)

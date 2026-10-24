@@ -129,7 +129,7 @@ namespace Hollowbrook.UI
             _subs.Add(root.Bus.Subscribe(EventIds.TrackingChanged, e => SetTracking(e.Value)));
             _subs.Add(root.Bus.Subscribe(EventIds.AnomalyRevealed, e => SetTracking(0f)));
             _subs.Add(root.Bus.Subscribe(EventIds.TokenCollected, e => RefreshFindings()));
-            _subs.Add(root.Bus.Subscribe(EventIds.BatteryChanged, e => SetBattery(e.Value)));
+            _subs.Add(root.Bus.Subscribe(EventIds.BatteryChanged, e => { SetBattery(e.Value); RefreshRoom(); }));
             _subs.Add(root.Bus.Subscribe(EventIds.RoomEntered, e => RefreshRoom()));
             _subs.Add(root.Bus.Subscribe(EventIds.LightModeChanged, e => RefreshRoom()));
             _subs.Add(root.Bus.Subscribe(EventIds.StateChanged, e => OnState(e.Payload<AppViewState>())));
@@ -175,7 +175,7 @@ namespace Hollowbrook.UI
             if (!exploring && !peeking) _prompt.text = "";
             if (!exploring && !peeking && _batteryBar != null) _batteryBar.SetActive(false); // desk has no flashlight
             if (s == AppViewState.Checkpoint) _objective.text = _lastPrompt;
-            if (peeking) _objective.text = "Sweep the light — click the bottom edge to step back.";
+            if (peeking) _objective.text = "Press F for the lamp — sweep it across the room; click the bottom edge to step back.";
             if (exploring) _objective.text = _gameRoot.ObjectiveText;   // restore after a peek overwrote the hint
             if (_peekExitBand != null) _peekExitBand.SetActive(peeking);
             RefreshFindings();
@@ -232,8 +232,25 @@ namespace Hollowbrook.UI
         {
             if (_gameRoot.Views == null || _gameRoot.Views.Current == null) { _roomInfo.text = ""; return; }
             var room = _gameRoot.Views.Current;
-            string light = room.Light != null ? (room.Light.Lit ? "ON" : "OFF") : "—";
-            _roomInfo.text = room.DisplayName + "  ·  LIGHTS: " + light + "  ·  [F]sweep [Q]focus [L]off";
+            var peek = _gameRoot.Views.PeekLight;
+            bool peeking = _gameRoot.State == AppViewState.RoomPeek && peek != null && peek.Active;
+            // rooms are entered dark: while peeking the manual lamp is the light to point
+            // at, anywhere else it is the wall switch
+            string light = room.Light != null
+                ? (room.Light.Lit ? "ON" : peeking ? "OFF — lamp [F]" : "OFF — wall switch [E]")
+                : "—";
+            // the handheld light reads HERE too, live: the status line must never say OFF
+            // while a light is visibly on. While peeking, the cursor lamp IS the handheld
+            // light (the beam rests OFF for the whole peek); every lamp toggle republishes
+            // LightModeChanged, and every beam change republishes the battery — so this
+            // line refreshes with both.
+            var rig = _gameRoot.Views.Flashlight;
+            string handheld = peeking
+                ? "LAMP: " + (peek.Lit ? "ON" : "OFF")
+                : "BEAM: " + (rig == null || rig.Beam == LightMode.Off ? "OFF"
+                    : rig.Beam == LightMode.Focus ? "FOCUS"
+                    : "SWEEP");
+            _roomInfo.text = room.DisplayName + "  ·  LIGHTS: " + light + "  ·  " + handheld;
         }
 
         public void Notify(string msg)

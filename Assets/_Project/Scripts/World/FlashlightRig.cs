@@ -64,6 +64,17 @@ namespace Hollowbrook.World
                 worldPoint.x, worldPoint.y, radius);
         }
 
+        /// <summary>Room-entry reset: arriving in a room ALWAYS means arriving dark — the
+        /// beam goes off, latches clear, silently (no toast spam on every door); revival
+        /// needs a deliberate F/Q. Called by ViewManager on every entry, patrol starts
+        /// and peek returns included, so a transition can never carry a lit beam over
+        /// (audit: the beam stayed visible after entering rooms without pressing F).</summary>
+        public void ForceBeamOffOnEntry()
+        {
+            _latches = default;
+            if (Beam != LightMode.Off) ApplyBeam(LightMode.Off, true);
+        }
+
         private void Update()
         {
             if (_gameRoot == null || _cam == null || _gameRoot.Paused) return;
@@ -95,6 +106,11 @@ namespace Hollowbrook.World
             _gameRoot.State != AppViewState.Exploration ||
             (_gameRoot.Views != null && _gameRoot.Views.Transitioning);
 
+        // Keyboard-only beam input: F sweeps (toggle on/off), Q focuses (toggle), L puts it
+        // out. The mouse buttons are deliberately NOT beam input — a held click (doors,
+        // switches, dialogue) used to light the beam without any F press, which read as the
+        // flashlight turning itself on (audit task 3). FlashlightInput keeps its momentary
+        // hold parameters for the pure-logic suites; the rig simply never feeds them.
         private void ReadInput()
         {
             if (InputLocked)
@@ -104,7 +120,7 @@ namespace Hollowbrook.World
             }
             LightMode want = FlashlightInput.Resolve(_latches,
                 Input.GetKeyDown(KeyCode.F), Input.GetKeyDown(KeyCode.Q), Input.GetKeyDown(KeyCode.L),
-                Input.GetMouseButton(0), Input.GetMouseButton(1), BatteryDead, out _latches);
+                false, false, BatteryDead, out _latches);
             if (want != Beam) ApplyBeam(want, false);
         }
 

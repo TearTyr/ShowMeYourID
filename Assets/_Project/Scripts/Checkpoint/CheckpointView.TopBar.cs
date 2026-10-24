@@ -50,14 +50,16 @@ namespace Hollowbrook.Checkpoint
         }
 
         // The challenge-mode district bulletin: a short strip on the desk plus the full
-        // rule text in the speech log. A null or textless mutation hides the strip again.
+        // rule text as a HUD toast (the speech bubble belongs to the student alone).
+        // A null or textless mutation hides the strip again.
         private void ShowBulletin(RuleMutationDef mutation)
         {
             bool active = mutation != null && !string.IsNullOrEmpty(mutation.RuleText);
             _mutationStrip.gameObject.SetActive(active);
             if (!active) return;
-            _mutationStrip.text = BulletinShort;         // full rule text: speech entry + RULES NOTE
-            SayLine("DISTRICT BULLETIN", mutation.RuleText);
+            _mutationStrip.text = BulletinShort;         // full rule text: toast + RULES NOTE
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
+                "DISTRICT BULLETIN — " + mutation.RuleText));
         }
 
         // Night/clock line in Normal mode; mode/score line in endless and challenge.

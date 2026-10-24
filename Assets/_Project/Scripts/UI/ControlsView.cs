@@ -22,18 +22,28 @@ namespace Hollowbrook.UI
 
             string body =
                 "CHECKPOINT (mouse)\n" +
-                "   Drag the ID + slip from the counter; move / flip (F) / zoom (wheel, Z).\n" +
-                "   Registry terminal: search by ID or name — NO RECORD is a clue.\n" +
-                "   Stamp the slip (drag, or A / D), then hand back BOTH papers (H).\n" +
+                "   Drag the ID + slip from the counter and arrange them — papers KEEP their size\n" +
+                "   while you scroll; Z zooms the paper you touched last (deliberate, toggle).\n" +
+                "   Flip: click the ID's BLACK SPINE (the card body only drags); F flips the paper you\n" +
+                "   touched last — the slip flips on its own and never rides along with the ID.\n" +
+                "   Floor files: open a floor folder, pull the student's file — mismatches are clues.\n" +
+                "   Compare the face at the window with the ID photo yourself — answers arrive in the\n" +
+                "   speech bubble beside the student's head (it fades 2 s after the line ends).\n" +
+                "   Stamp the slip (drag, or A / D) — the mark lands WHERE you drop the stamp, always\n" +
+                "   fully on the paper — then hand back BOTH papers (H).\n" +
                 "   At most 2 questions per visitor. Decisions are permanent.\n\n" +
                 "EXPLORATION\n" +
+                "   Rooms are entered DARK and your beam starts OFF — every door you go through\n" +
+                "   puts it out again. The wall switch (E) lights the room itself. Classroom peeks\n" +
+                "   start dark too: the peek lamp is OFF until you press F (mouse never lights it).\n" +
                 "   A / D  or  ← / →     walk left / right\n" +
                 "   SHIFT                run\n" +
-                "   E                    interact (doors, clues, switches)\n" +
-                "   F                    sweep beam (toggle — wide, finds & restrains)\n" +
+                "   E                    interact (doors, clues, light switches)\n" +
+                "   F                    flashlight toggle — sweep beam on patrol, the lamp on peeks\n" +
                 "   Q                    focus beam (toggle — tight, exposes & repels)\n" +
-                "   L                    beam off    ·    HOLD LMB / RMB: temp sweep / focus\n" +
-                "   M                    map          ESC   pause\n\n" +
+                "   L                    beam off\n" +
+                "   M                    map          ESC   pause\n" +
+                "   The HUD reads both lights: LIGHTS (room) and BEAM / LAMP (handheld).\n\n" +
                 "SECURITY ROOM (School scene prototype, mouse)\n" +
                 "   Click the door panel to admit or deny late night students.\n" +
                 "   Click the marked spots to check the rooms for anomalies.\n\n" +
