@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Editor-equivalent compile harness for Show Me Your ID!
+       Compiles every script under Assets/ against REAL Unity assemblies
+       (UnityEngine.CoreModule / UnityEngine.UI / UnityEngine.UIModule / ...),
+       so a file that compiles here also compiles in the Unity editor.
+       Get the assemblies with: python3 Tools/Verify/fetch_unity_libs.py -->
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <AssemblyName>Assembly-CSharp</AssemblyName>
+    <RootNamespace>Hollowbrook</RootNamespace>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <NoWarn>CS0169;CS0414;CS0649;CS1591;CS0067;NU1701</NoWarn>
+    <DisableImplicitNuGetFallbackFolder>true</DisableImplicitNuGetFallbackFolder>
+    <GameSrc Condition="'$(GameSrc)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../Assets'))</GameSrc>
+    <UnityLibs Condition="'$(UnityLibs)' == ''">/tmp/unitylibs</UnityLibs>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(GameSrc)/**/*.cs" Exclude="$(GameSrc)/Tests/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="$(UnityLibs)/*.dll" />
+  </ItemGroup>
+
+</Project>
