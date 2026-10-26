@@ -458,3 +458,136 @@ corner-clamp proofs; bubble/stamp/layout negative proofs. Retired: the appearanc
 the stamp-box geometry and the speech-strip checks). LogicTests 27,519 invariant green
 (-35 appearance/queue/save checks; +111 SpeechBubbleClock / SpeechBubbleLayout /
 StampPlacement checks). Frozen suite 663/663. verify.sh compile + audit clean.
+
+## Readable bubble, compact tray, graded beam light, focus everywhere, face check pass (October 2026)
+Six owner requests, one pass; every change rides the existing systems.
+1. **Hover-to-read speech bubble:** `SpeechBubbleClock` gains `Hovering`/`SetHover` — entering the
+   bubble suspends the 2 s countdown, leaving RESTARTS it from zero (and changes nothing while the
+   dialogue is still talking, because the countdown only begins once it ends). The bubble's border
+   panel becomes the single raycast target in the bubble (`UI/HoverSense.cs`, fill/text/tail stay
+   click-through; the box hangs over empty glass beside the head). One clock, generation-guarded:
+   a new line still cancels any pending hide, and a hidden bubble cannot be hovered.
+2. **Compact verdict tray:** `L.StampAllow/StampDeny` 152x150 -> 118x117 (-22% linear), one aligned
+   row centred in the old 296..446 band, 8 px apart, D box right-flush; colours, labels (18 px) and
+   the A/D hotkeys untouched; >=96 px grab area kept.
+3. **Stamp readability:** `StampMarkSize` 39 -> 45 px (+15.4%, still 20% under the original 56):
+   square + preserveAspect, clamp margin 30.4 px keeps the tilted mark fully on the 200x120 slip,
+   drop-point placement and slip-riding unchanged.
+4. **The beam lights the WORLD, gradually:** the stencil hole was binary, so the reveal popped out
+   of a flat cut-out. New `beam_penumbra` sheet (ProceduralArt, cone-space gradient: full reveal in
+   the core, soft side falloff at the wedge edge, distance fade at the reach, exactly the room's
+   ambient alpha at the rim) rides at order 72 over the hole, scaled 1.35x with the cone (mask
+   overscale 1.06 -> 1.35 so the fade lands on the ambient, no seam). `LightController.AmbientAlpha`
+   / `ViewManager.AmbientAlpha` feed its tint, so lit rooms penumbra gently and dark corridors fade
+   to their own black. OFF removes cone + mask + penumbra together.
+5. **Focus, everywhere:** patrol Focus (Q) was already the arbitration; it now also concentrates
+   (core tint 0.30 -> 0.42) while Sweep stays the wide wash. The classroom peek lamp gains the same
+   language: Q toggles wide (2.6 u) <-> focus (1.3 u, hotter glow) — reshapes real coverage
+   (`EffectiveRadius` drives mask, glow AND `Covers`), never lights the lamp, and OFF wins over
+   whichever mode was last set. HUD reads `LAMP: ON · FOCUS`.
+6. **Face check returns, interactive and truthful:** click the ID PHOTO (`Checkpoint/IdPhotoSelect`
+   — a clean click selects with a thin pale frame on the photo alone; a real drag is forwarded to
+   the card past 6 px, so selecting never yanks the card), then click the face at the window
+   (`UI/ClickSense`). The answer is the run's own data: `VisitorData.DisplayedFacesMatch` (window
+   portrait vs printed photo, features AND the anomaly distortion — the administrator's glitched
+   window face is her tell), i.e. exactly what the sprites render and what PhotoMismatch/
+   PhotoSubtleMismatch book. A brief frame answers: muted green = same face, muted amber = not; it
+   informs only (no verdict, no deny). Wrong order asks for the photo first; selection resets on a
+   new visitor and on leaving the desk; one cue coroutine at a time.
+New: `UI/HoverSense.cs`, `UI/ClickSense.cs`, `Checkpoint/IdPhotoSelect.cs`,
+`Checkpoint/CheckpointView.FaceCompare.cs` (+ metas). Changed: `SpeechBubble.cs`,
+`CheckpointView.Speech.cs`, `CheckpointLayout.cs`, `CheckpointView.Decision.cs`,
+`CheckpointView.Papers.cs` (photo renamed `idphoto`), `CheckpointView.Window.cs` (`SetPaperHeld`
+skips the cue inks), `CheckpointView.cs`, `ProceduralArt(.Props).cs`, `FlashlightRig.cs`,
+`LightController.cs`, `ViewManager.cs`, `PeekLight.cs`, `HUDView.cs`, `ContentData.cs`,
+`ControlsView.cs`, README. FlowCheck: +SB hover arc, +W2b penumbra/focus arc, +W10 lamp-focus arc,
++FaceCompareProof, tray/stamp expectations follow the constants. LogicTests: +hover clock proofs,
++face-truth group (a booked photo defect can never show a matching cue; the cue equals the faces as
+rendered). Frozen suite untouched. verify.sh compile+audit clean (97 scripts, 15,601 lines);
+LogicTests 27,548/27,548; FlowCheck 982 OK / 0 BAD; frozen 663/663.
+
+## Face-hitbox, lighting sync audit, bigger stamp, temporary asset set pass (October 2026)
+1. **Face clicks match pixels:** `preserveAspect` Images raycast their WHOLE slot, so photo/student
+   clicks landed on letterbox margins. New `UIFactory.Letterbox` (pure) + `AspectHitbox`: an
+   invisible child click-catcher fitted to the sprite actually displayed, re-synced on every face
+   swap (`SyncFaceHitbox`), so hits are correct at any card zoom, position or viewport scale. The
+   photo's catcher owns `IdPhotoSelect` (clean click selects; >6 px of movement forwards the gesture
+   to the card's DragPaper, so selecting never yanks the card and dragging still works from the
+   photo); the portrait's catcher owns `ClickSense`.
+2. **Lighting state audit:** new FlowCheck `CheckLightSync` walks entry, L-off, dark corridor, peek
+   entry/exit and pause/resume asserting cone + stencil mask + penumbra activity AND the HUD readout
+   all agree with the single beam state (peek swaps the readout to the lamp line). All green: no
+   desync exists — the beam graphic, its illumination and the indicator derive from one state
+   (`FlashlightRig.Beam`), and OFF deactivates all three layers together.
+3. **Stamp:** `StampMarkSize` 45 -> 60 px (+33.3%, inside the requested 30-40%), square +
+   preserveAspect, clamp margin 39.8 px keeps the tilted mark on the 200x120 slip, drop-point
+   placement and slip-riding unchanged; the temp ink asset's tight margins keep NAME/ID readable.
+4. **Temporary asset set (AI-generated, post-processed, integrated):**
+   `Resources/Art/student_face_01..06.png` (muted grayscale, one coherent framing, grain),
+   `anomaly_face_01..03.png` (restrained uncanny: wide unblinking eyes, static patches, tilt),
+   `stamp_approval_temp.png` (worn double-ring check, white keyed out to alpha, trimmed tight).
+   Mapping is pure game data: `VisitorData.FaceAssetIndex` (canon position, set by RosterFactory,
+   saved, -1 fallback) + `GameLogic/FaceAssets` keys; `Bootstrap/FaceArt` picks asset-vs-procedural
+   per face: window = student asset (anomaly asset when the run says the window portrait is
+   distorted), card = the SAME asset only when `PhotoMatches`, else the procedural painter of the
+   card's own portrait triple — so a mismatch always SHOWS two different people and the cue never
+   contradicts the pixels. `ProceduralArt.TryGet` + a `stamp_allow -> stamp_approval_temp` alias make
+   missing files fall back gracefully (no broken images); deleting a file restores the old art.
+   Previews: `Tools/face_asset_preview.png`, raws kept in `Tools/faces_raw/`.
+FlowCheck: +CheckLightSync at six transition points, +hitbox/letterbox proofs, +face-asset file and
+stability proofs. LogicTests: +FaceAssetMappingTests (stable wrap, same-face-on-match, no borrowed
+faces, distorted => anomaly key, procedural fallback). verify.sh compile+audit clean (99 scripts,
+15,793 lines); LogicTests 27,555/27,555; FlowCheck 1001 OK / 0 BAD; frozen 663/663.
+
+## Flashlight overhaul, white-square fix, paired anomaly faces pass (October 2026)
+1. **White square over the ID photo — root cause:** five portrait Images (`idphoto`, the counter
+   `photo`, `visitor`, the security-room and dialogue portraits) were built with `sprite = null`
+   and uGUI's default `Color.white`; a null-sprite Image renders the engine's white texture, i.e. a
+   solid white rectangle over the photo slot until a sprite lands. Fix: a designed
+   `face_placeholder` sprite (dark photo-gray backdrop + muted silhouette bust, same language as the
+   real portraits) is now the build-time sprite everywhere, `FaceArt` can never return null, and a
+   FlowCheck proof asserts no visible white sprite-less Image exists on the desk.
+2. **Flashlight overhaul:** one pure profile (`GameLogic/BeamProfile`) now feeds every layer —
+   `light_cone` repainted as a soft tapered beam (hot pool at the lamp, feathered shoulders,
+   long decay at the reach, faint sub-cutoff halo that lifts nearby surfaces without cutting the
+   stencil), `beam_penumbra` repainted as its exact inverse so the graded reveal lands on the room's
+   ambient alpha with no seam and no flat cut-out. The rig damps displayed aim (1-exp(-14dt)) and
+   displayed geometry (1-exp(-12dt)) so the beam glides under mouse jitter and morphs across
+   Sweep<->Focus instead of popping; logical cone tests stay exact. Focus keeps Q, narrows (7.5u/10°)
+   and burns hotter (tint 0.42 vs 0.30); OFF deactivates cone + mask + penumbra together; the
+   classroom lamp's independent F/Q controls are untouched. New proofs: cross-section shoulder,
+   along-beam decay, sub-cutoff halo, plus the six-point `CheckLightSync` state audit.
+   (A first bake forgot the wedge's u/t normalisation and produced a cylinder — caught by the sim
+   and the profile proofs, fixed in both bakers.)
+3. **Paired anomaly faces:** six AI-derived variants of the shipped student portraits
+   (`student_face_01_anomaly.png` .. `_06_anomaly.png`, same framing/grain, restrained uncanny
+   tells: milky mis-set pupil, too-wide unblinking eyes, over-symmetric smile, blacked cap shadow,
+   double-exposure ghost edge, opaque lenses). `FaceAssets.AnomalyKey` is now the PAIRED key, and
+   `FaceArt` renders the window face with the student's own variant whenever the run's data says
+   `IsAnomaly` (or distorted) while the ID card keeps the NORMAL reference — so the mismatch is
+   visible by eye and `DisplayedFacesMatch` (now `PhotoMatches && !IsAnomaly && distortion-equal`)
+   still agrees with the pixels. The three generic `anomaly_face_0*.png` files were retired.
+Docs: `docs/ui/hallway_lighting_sim.png` (v4), `Tools/anomaly_pair_preview.png` (pairs at 48/96 px).
+verify.sh compile+audit clean (100 scripts, 15,869 lines); LogicTests 27,556/27,556; FlowCheck
+1007 OK / 0 BAD; frozen suite 663/663.
+
+## Night-shift desk UI pass (HTML mockup -> uGUI, October 2026)
+The approved `Hollowbrook Night Shift.html` mockup (fixed 2576x1449 stage) was converted into the
+desk grid at exactly stage/2.0125 = the 1280x720 reference: `CheckpointLayout` re-tabled (top bar
+81px with sanity number + clock + pause; registry station + drawer; booth hoods, frame, glow and
+counter bases; bubble beside the head; questions + inline college map + APPROVE/DECLINE blocks with
+caption strips; corner patrol/end-shift; stands for the waiting line). Palette swapped globally to
+the mockup grayscale (`UIFactory.Ns*`: ink #0c0c0c, desk #161616, paper #ececec/#c9c9c9, chalk,
+mid #8a8a8a) and the three mockup type roles are bundled open-licence fonts under
+`Resources/Fonts/` (Barlow Condensed UI, Special Elite paper type, Caveat Brush hand) with a safe
+fallback to the built-in font. New stage backdrop (`desk_bg` radial wash + grain + vignette),
+hooded queue figures (`hood_figure`) on the stands, inline map panel (still opens the full overlay),
+sheet titles per mockup (NIGHT SECURITY LOG / NIGHT SECURITY RULES). Mechanics untouched: drag,
+spine flip, zoom, drop-point stamping, questions, bubble hover + 2s cooldown, face compare,
+shortcuts. Documented deviations for readability/interaction: ID card and slip keep their readable
+sizes (repositioned to the mockup's counter cluster), bubble capped at 3 lines with ellipsis and
+shifted to x=740 so it never covers the face hitbox, patrol/end-shift in the bottom corners.
+FlowCheck layout audit re-baselined to the new table (ExpectRegion + internal grids + overlap
+matrix); the white-box proof is now targeted (face-chain sprites real, sprite-less overlay inks
+transparent). verify.sh compile+audit clean (100 scripts, 16,025 lines); LogicTests 27,556/27,556;
+FlowCheck 1003 OK / 0 BAD; frozen 663/663.

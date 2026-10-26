@@ -18,9 +18,16 @@ namespace Hollowbrook.Checkpoint
     {
         private void BuildWindowArea()
         {
-            var win = UIFactory.Img(_desk, "windowframe", ProceduralArt.Get("window_frame"));
-            Reg("window", win.rectTransform, L.Window);
-            win.raycastTarget = false;
+            // booth dressing from the mockup: two hood bands over the frame, then the frame
+            var hood1 = UIFactory.Panel(_desk, "hood1", new Color(0.03f, 0.03f, 0.03f, 0.95f));
+            Reg("hood1", hood1.rectTransform, L.Hood1);
+            hood1.raycastTarget = false;
+            var hood2 = UIFactory.Panel(_desk, "hood2", new Color(0.05f, 0.05f, 0.05f, 0.95f));
+            Reg("hood2", hood2.rectTransform, L.Hood2);
+            hood2.raycastTarget = false;
+            var win = UIFactory.BorderedPanel(_desk, "windowframe", UIFactory.NsInk, UIFactory.NsChalk, 3);
+            Reg("window", win, L.Window);
+            win.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
 
             var glass = UIFactory.Panel(_desk, "glass", new Color(0.227f, 0.227f, 0.251f));
             Reg("glass", glass.rectTransform, L.Glass);
@@ -32,7 +39,7 @@ namespace Hollowbrook.Checkpoint
             UIFactory.AnchorsFull(tint.rectTransform);
             tint.raycastTarget = false;
 
-            _visitorPortrait = UIFactory.Img(_desk, "visitor", null);
+            _visitorPortrait = UIFactory.Img(_desk, "visitor", ProceduralArt.Get("face_placeholder"));
             Reg("portrait", _visitorPortrait.rectTransform, L.Portrait);
             _visitorPortrait.preserveAspect = true;
 
@@ -40,9 +47,15 @@ namespace Hollowbrook.Checkpoint
             Reg("glitch", _glitchOverlay.rectTransform, L.Glitch);
             _glitchOverlay.raycastTarget = false;
 
-            var sill = UIFactory.Panel(_desk, "sill", new Color(0.10f, 0.10f, 0.11f));
+            var sill = UIFactory.Panel(_desk, "sill", new Color(0.85f, 0.83f, 0.78f, 0.35f));
             Reg("sill", sill.rectTransform, L.Sill);
             sill.raycastTarget = false;
+            var base1 = UIFactory.Panel(_desk, "base1", UIFactory.NsDesk);
+            Reg("base1", base1.rectTransform, L.Base1);
+            base1.raycastTarget = false;
+            var base2 = UIFactory.Panel(_desk, "base2", new Color(0.05f, 0.05f, 0.05f));
+            Reg("base2", base2.rectTransform, L.Base2);
+            base2.raycastTarget = false;
 
             // the student slides their ID to the counter edge on arrival (OfferAtCounter);
             // nothing here needs a click target any more
@@ -61,7 +74,7 @@ namespace Hollowbrook.Checkpoint
             // raycast ON: clicking anywhere on the offered card takes the ID
             var frame = UIFactory.Img(rt, "frame", ProceduralArt.Get("id_card_frame"), null, true);
             UIFactory.AnchorsFull(frame.rectTransform);
-            _offeredPhoto = UIFactory.Img(rt, "photo", null);
+            _offeredPhoto = UIFactory.Img(rt, "photo", ProceduralArt.Get("face_placeholder"));
             L.Place(_offeredPhoto.rectTransform, L.Inner.IdPhoto);
             _offeredPhoto.preserveAspect = true;
             _offeredName = OfferedRow(rt, 0);
@@ -195,12 +208,16 @@ namespace Hollowbrook.Checkpoint
             FinalizeIfReady();
         }
 
-        // dimmed = "with the student"; full = on your desk
-        private static void SetPaperHeld(GameObject go, bool held)
+        // dimmed = "with the student"; full = on your desk. The face-compare cue inks are
+        // skipped: they own their own alpha (a selection outline must not brighten with the card).
+        private void SetPaperHeld(GameObject go, bool held)
         {
             if (go == null) return;
             foreach (var img in go.GetComponentsInChildren<Image>(true))
-            { var c = img.color; c.a = held ? 1f : 0.55f; img.color = c; }
+            {
+                if (_cueInks.Contains(img)) continue;
+                var c = img.color; c.a = held ? 1f : 0.55f; img.color = c;
+            }
             foreach (var t in go.GetComponentsInChildren<Text>(true))
             { var c = t.color; c.a = held ? 1f : 0.55f; t.color = c; }
         }
@@ -219,6 +236,7 @@ namespace Hollowbrook.Checkpoint
         // Fresh hand-over state per visitor, incl. the per-inspection stamp-rotation seed.
         private void ResetHandover(VisitorData v)
         {
+            ResetFaceCompare();   // a new face at the window invalidates any selection
             _slipTaken = false; _slipStamped = false; _pendingVerdict = Verdict.None;
             _backId = false; _backSlip = false;
             // a fresh desk per student: zoom resets, the old file closes, the query clears
@@ -280,7 +298,7 @@ namespace Hollowbrook.Checkpoint
         private void FillOfferedCard(VisitorData v)
         {
             bool admin = v.IsAdministrator;
-            _offeredPhoto.sprite = ProceduralArt.Portrait("card", v.IdPhoto, 168, 208);
+            _offeredPhoto.sprite = FaceArt.IdSprite(v);   // the counter card shows the SAME photo as the desk card
             _offeredName.text = "NAME: " + v.ClaimedName;
             _offeredNumber.text = (admin ? "BADGE NO: " : "ID NO: ") + v.IdNumber;
             _offeredExpires.text = (admin ? "VALID THRU: " : "EXPIRES: ") + v.ExpirationDisplay;
@@ -324,8 +342,8 @@ namespace Hollowbrook.Checkpoint
         private void ShowVisitorPortrait(VisitorData v)
         {
             SetVisitorVisible(true);
-            _visitorPortrait.sprite = ProceduralArt.Portrait("window", v.WindowPortrait, 240, 296);
-            _idPhoto.sprite = ProceduralArt.Portrait("card", v.IdPhoto, 168, 208);
+            PaintFaces(v);
+            SyncFaceHitboxes();   // click areas follow the newly displayed sprites
             if (_stampOverlay != null)
             {
                 var sc = _stampOverlay.color; sc.a = 0f; _stampOverlay.color = sc;
@@ -333,6 +351,14 @@ namespace Hollowbrook.Checkpoint
             }
             var pc = _visitorPortrait.color; pc.a = 0f; _visitorPortrait.color = pc;
             StartCoroutine(PortraitFadeIn());
+        }
+
+        // Both faces from one place so the window, the card and the face-asset override can
+        // never disagree about who is standing there.
+        private void PaintFaces(VisitorData v)
+        {
+            _visitorPortrait.sprite = FaceArt.WindowSprite(v);
+            _idPhoto.sprite = FaceArt.IdSprite(v);
         }
 
         private IEnumerator PortraitFadeIn()

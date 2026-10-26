@@ -41,7 +41,7 @@ namespace Hollowbrook.UI
             var panelRt = UIFactory.BorderedPanel(transform, "panel", new Color(0.06f, 0.06f, 0.07f, 0.98f), UIFactory.Border, 2);
             UIFactory.Anchor(panelRt, new Vector2(0.5f, 0f), new Vector2(1000, 170), new Vector2(0, 118));
 
-            _portrait = UIFactory.Img(panelRt, "portrait", null);
+            _portrait = UIFactory.Img(panelRt, "portrait", ProceduralArt.Get("face_placeholder"));
             UIFactory.Anchor(_portrait.rectTransform, new Vector2(0, 0.5f), new Vector2(104, 128), new Vector2(-430, 0));
             _portrait.gameObject.SetActive(false);
 

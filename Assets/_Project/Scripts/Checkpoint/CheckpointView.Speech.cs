@@ -24,6 +24,7 @@ namespace Hollowbrook.Checkpoint
     public partial class CheckpointView
     {
         private RectTransform _bubbleRoot;    // registered container (L.SpeechBubble)
+        private HoverSense _bubbleHover;      // pointer enter/exit on the bubble panel
         private RectTransform _bubblePanel;   // the paper bubble; height grows per line count
         private Text _bubbleText;             // speaker tag + line (rich text)
         private readonly SpeechBubbleClock _bubble = new SpeechBubbleClock();
@@ -42,9 +43,10 @@ namespace Hollowbrook.Checkpoint
             _bubblePanel = UIFactory.BorderedPanel(_bubbleRoot, "bubble",
                 new Color(0.859f, 0.851f, 0.824f), UIFactory.Border, 2);
             L.Place(_bubblePanel, new L.Region(L.Inner.BubblePanelX, 0f, L.Inner.BubblePanelW, 60f));
-            SetNoRaycast(_bubblePanel);
-            _bubbleText = UIFactory.Label(_bubblePanel, "bubbletext", "", 12,
-                UIFactory.PaperInk, TextAnchor.UpperLeft);
+            MakeHoverable(_bubblePanel);
+            _bubbleText = UIFactory.Label(_bubblePanel, "bubbletext", "", 13,
+                UIFactory.NsInk, TextAnchor.UpperLeft);
+            _bubbleText.font = UIFactory.UiFontBold;
             _bubblePanel.gameObject.AddComponent<RectMask2D>();   // text can never spill the paper
 
             // the tail rides ON TOP of the panel's left border (later sibling) so its
@@ -67,10 +69,24 @@ namespace Hollowbrook.Checkpoint
             UIFactory.SetButtonEnabled(_endShiftBtn, false);
         }
 
-        private static void SetNoRaycast(RectTransform panel)
+        // Hover-to-read: the bubble's border panel is the ONE raycast target in the bubble, so
+        // the pointer can enter it (HoverSense suspends the hide countdown) while the fill, the
+        // text and the tail stay click-through and the box hangs over empty glass only — beside
+        // the head, clear of the portrait, the questions column and the papers layer.
+        private void MakeHoverable(RectTransform panel)
         {
             foreach (var img in panel.gameObject.GetComponentsInChildren<Image>(true))
-                img.raycastTarget = false;   // the bubble never eats desk clicks
+                img.raycastTarget = false;
+            var border = panel.GetComponent<Image>();
+            if (border != null) border.raycastTarget = true;
+            _bubbleHover = panel.gameObject.AddComponent<HoverSense>();
+            // a hidden bubble is not hoverable (it stops raycasting); the guard also
+            // covers direct/headless calls so a stray enter can never suspend the countdown
+            _bubbleHover.OnEnter = () =>
+            {
+                if (_bubbleRoot != null && _bubbleRoot.gameObject.activeSelf) _bubble.SetHover(true);
+            };
+            _bubbleHover.OnExit = () => { _bubble.SetHover(false); SyncBubble(); };
         }
 
         private void Say(string text) => SayLine("AT THE WINDOW", text);
@@ -130,7 +146,12 @@ namespace Hollowbrook.Checkpoint
             if (_bubbleRoot == null) return;
             bool on = _bubble.Visible && _visitorShown;
             _bubbleRoot.gameObject.SetActive(on);
-            if (!on) { _bubbleShownGen = -1; return; }
+            if (!on)
+            {
+                _bubbleShownGen = -1;
+                if (_bubbleHover != null) _bubbleHover.ForceExit();  // a hidden bubble is not hovered
+                return;
+            }
             if (_bubbleShownGen == _bubble.Generation) return;   // same line already rendered
             _bubbleShownGen = _bubble.Generation;
 

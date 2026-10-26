@@ -12,6 +12,11 @@ namespace Hollowbrook.World
     // Called once by ViewManager.Init; holds no state of its own beyond the root it builds into.
     public class RoomBuilder
     {
+        // The hallway's depth shroud sits under the darkness quad (70) but INSIDE the handheld
+        // beam mask's custom sorting range (60..70), so one beam hole cuts both black layers.
+        // It stays under the player (73) and the wall-switch plate (75), like the darkness does.
+        private const int DepthOrder = 65;
+
         private readonly GameRoot _root;
         private readonly GameObject _worldRoot;
         private readonly Dictionary<RoomId, RoomInstance> _rooms;
@@ -72,8 +77,8 @@ namespace Hollowbrook.World
                 case RoomId.Hallway:
                 {
                     room.DisplayName = "MAIN HALLWAY";
-                    room.HalfWidth = 11.4f;
-                    PlaceholderBg(root.transform, floorY);
+                    room.HalfWidth = HallwayDarkness.HallwayHalfWidth;   // pure module owns it: the
+                    PlaceholderBg(root.transform, floorY);               // depth shroud is sized from it
                     AddDoor(room, "Security Door", -10.6f, floorY, RoomId.Security, "prop_door_security");
                     AddDoor(room, "Classroom 1", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), floorY, RoomId.Classroom1, "prop_door");
                     AddDoor(room, "Classroom 2", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), floorY, RoomId.Classroom2, "prop_door");
@@ -131,10 +136,33 @@ namespace Hollowbrook.World
             // 1 while peeking). It draws only outside sprite masks, so the peek lamp punches
             // a hole in it. A white tint here would wash rooms out instead of darkening them.
             var dark = Quad(root.transform, "darkness", Vector3.zero, 70,
-                new Vector2(room.HalfWidth * 2f + 4f, 11f), Color.black);
+                new Vector2(room.HalfWidth * 2f + 4f, HallwayDarkness.RoomDarkHalfHeight * 2f), Color.black);
+
+            // The corridor alone is deeper than the rooms AND only reveals a pool around the
+            // custodian: one extra black layer whose alpha is a radial falloff baked in world
+            // units (ProceduralArt "hall_depth" <- HallwayDarkness), following the player, drawn
+            // under the darkness quad and INSIDE the beam mask's sorting range so the handheld
+            // beam cuts through both. Classrooms keep the single uniform layer they always had.
+            SpriteRenderer depth = null;
+            float darkAlpha = LightController.DarkAlpha;
+            float depthAlpha = HallwayDarkness.DepthAlpha;
+            if (id == RoomId.Hallway)
+            {
+                var cfg = _root != null ? _root.Config : null;
+                darkAlpha = cfg != null ? cfg.hallwayDarkAlpha : HallwayDarkness.BaseAlpha;
+                depthAlpha = cfg != null ? cfg.hallwayDepthAlpha : HallwayDarkness.DepthAlpha;
+                var shroud = SpriteGO(root.transform, "depth_darkness", ProceduralArt.Get("hall_depth"),
+                    new Vector3(room.PlayerSpawn.x, HallwayDarkness.PlayerY, 0f), DepthOrder);
+                depth = shroud.GetComponent<SpriteRenderer>();
+                depth.color = new Color(0f, 0f, 0f, depthAlpha);
+                depth.maskInteraction = SpriteMaskInteraction.VisibleOutsideMask;
+                room.Depth = depth;
+            }
+
             var lightCtl = root.AddComponent<LightController>();
             lightCtl.Init(_root, room, dark.GetComponent<SpriteRenderer>(),
-                startLit: false);   // every room is entered dark; the wall switch (E) or the beam lights it
+                startLit: false,   // every room is entered dark; the wall switch (E) or the beam lights it
+                depthShroud: depth, darkAlpha: darkAlpha, depthAlpha: depthAlpha);
             room.Light = lightCtl;
             room.Darkness = dark.GetComponent<SpriteRenderer>();
             room.Darkness.maskInteraction = SpriteMaskInteraction.VisibleOutsideMask;

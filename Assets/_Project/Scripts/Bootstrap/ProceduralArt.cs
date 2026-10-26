@@ -17,16 +17,42 @@ namespace Hollowbrook.Bootstrap
         // unit, so world placeholder quads can scale in plain units (see MakeSolid).
         public const float QuadPpu = 4f;
 
+        // Temporary-asset aliases: a shipped placeholder can stand in for a procedural key
+        // without renaming anything. Removing the file restores the previous art instantly.
+        private static readonly Dictionary<string, string> FileAlias =
+            new Dictionary<string, string> { { "stamp_allow", "stamp_approval_temp" } };
+
+        /// <summary>True when a real file (or a cached sprite) exists for the key — callers that
+        /// have their own painter use this to fall back instead of showing a broken image.</summary>
+        public static bool TryGet(string key, out Sprite sprite)
+        {
+            sprite = null;
+            if (Cache.TryGetValue(key, out var cached) && cached != null) { sprite = cached; return true; }
+            try
+            {
+                string fileKey = FileAlias.TryGetValue(key, out var a) ? a : key;
+                if (Resources.Load<Texture2D>("Art/" + fileKey) != null) { sprite = Get(key); return true; }
+                if (Resources.Load<Texture2D>("Art/" + key) != null) { sprite = Get(key); return true; }
+            }
+            catch (System.Exception) { /* no resources: caller falls back */ }
+            return false;
+        }
+
         public static Sprite Get(string key)
         {
             if (Cache.TryGetValue(key, out var s) && s != null) return s;
             try
             {
-                var tex = Resources.Load<Texture2D>("Art/" + key);
+                string fileKey = FileAlias.TryGetValue(key, out var alias) ? alias : key;
+                var tex = Resources.Load<Texture2D>("Art/" + fileKey);
+                if (tex == null) tex = Resources.Load<Texture2D>("Art/" + key);
                 if (tex != null)
                 {
                     var spr = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height),
                         new Vector2(0.5f, 0.5f), key.EndsWith("_bg") ? WorldPpu : UiPpu);
+                    // the procedural path names its sprites after the key; a dropped-in file must
+                    // behave identically (name-based lookups and the headless proofs rely on it)
+                    spr.name = key;
                     Cache[key] = spr;
                     return spr;
                 }
@@ -166,8 +192,12 @@ namespace Hollowbrook.Bootstrap
                 case "noise_overlay": return MakeNoise(256, 256, 0.5f, 7);
                 case "flash": return MakeFlash(256);
                 case "light_cone": return MakeLightCone(512, 288);
+                case "beam_penumbra": return MakeBeamPenumbra(512, 288);
                 case "menu_bg": return MakeMenuBg(1280, 720);
+                case "desk_bg": return MakeDeskBg(640, 360);
+                case "hood_figure": return MakeHoodFigure(24, 48);
                 case "hallway_bg": return MakeHallway(1536, 640);
+                case "hall_depth": return MakeHallDepth();
                 case "classroom1_bg": return MakeClassroom(1152, 640, false);
                 case "classroom2_bg": return MakeClassroom(1152, 640, true);
                 case "security_bg": return MakeSecurityRoom(1280, 720);
@@ -201,6 +231,7 @@ namespace Hollowbrook.Bootstrap
                 case "anomaly_slide": return MakeAnomaly(128, 336, AnomalyBehaviorKind.Slide);
                 case "anomaly_sprint": return MakeAnomaly(160, 336, AnomalyBehaviorKind.Sprint);
                 case "anomaly_coverhug": return MakeAnomaly(192, 224, AnomalyBehaviorKind.CoverHug);
+                case "face_placeholder": return MakeFacePlaceholder(168, 208);
                 case "id_card_frame": return MakeIdCard();
                 case "record_sheet": return MakeRecordSheet();
                 case "clipboard": return MakeClipboard(370, 490);

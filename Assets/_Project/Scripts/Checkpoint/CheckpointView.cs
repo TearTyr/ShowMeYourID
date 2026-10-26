@@ -98,10 +98,18 @@ namespace Hollowbrook.Checkpoint
             _gameRoot = root;
             _root = (RectTransform)transform;
 
-            var bg = UIFactory.Img(_root, "bg", ProceduralArt.Get("security_bg"));
+            // night-shift stage: radial grayscale wash + grain + vignette (the mockup's #stage)
+            var bg = UIFactory.Img(_root, "bg", ProceduralArt.Get("desk_bg"));
             UIFactory.AnchorsFull(bg.rectTransform);
             bg.raycastTarget = false;
-            bg.color = Color.black;   // placeholder art direction: plain black room behind the desk
+            var grain = UIFactory.Img(_root, "grain", ProceduralArt.Get("noise_overlay"));
+            UIFactory.AnchorsFull(grain.rectTransform);
+            grain.raycastTarget = false;
+            grain.color = new Color(0.6f, 0.6f, 0.6f, 0.10f);
+            var vig = UIFactory.Img(_root, "vignette", ProceduralArt.Get("vignette"));
+            UIFactory.AnchorsFull(vig.rectTransform);
+            vig.raycastTarget = false;
+            vig.color = new Color(1f, 1f, 1f, 0.55f);
 
             _desk = L.DeskFrame(_root, "DeskFrame");
             _audit = _desk.gameObject.AddComponent<DeskLayoutAudit>();
@@ -115,8 +123,10 @@ namespace Hollowbrook.Checkpoint
             BuildToolsRow();
             BuildPapersLayer();      // papers live above window/bubble/tools...
             BuildStampTray();        // ...and below the stamp tray; overlays top everything
+            BuildStands();
             BuildOverlays();
             BuildStickyNote();
+            BuildFaceCompare();    // photo/portrait click targets + their quiet cues
 
             _subscriptions.Add(_gameRoot.Bus.Subscribe(EventIds.RunTimerTick, e => OnRunTimerTick(e.Value)));
             _subscriptions.Add(_gameRoot.Bus.Subscribe(EventIds.MutationChanged,
@@ -161,6 +171,7 @@ namespace Hollowbrook.Checkpoint
             _notesRoot.SetActive(false);
             _recordsRoot.SetActive(false);
             HideBubbleNow();   // leaving the desk never carries a line (or a timer) along
+            ResetFaceCompare();  // ...nor a half-finished face comparison
         }
 
         public void BeginRun(ShiftDef shift)
@@ -449,12 +460,48 @@ namespace Hollowbrook.Checkpoint
 
         // Everything on the desk that mirrors run state, refreshed after any change:
         // top bar, queue readout, question budget, and which buttons may be clicked.
+        // The waiting line, as hooded figures on the mockup's stands: one silhouette per
+        // waiting visitor (capped at four per stand), refreshed with the HUD.
+        private readonly List<Image> _standFigures = new List<Image>();
+        private void BuildStands()
+        {
+            var strips = new[] { L.QueueStripL, L.QueueStripR };
+            var stripNames = new[] { "standL", "standR" };
+            for (int si = 0; si < strips.Length; si++)
+            {
+                var strip = strips[si];
+                var rt = UIFactory.NewUI(_desk, stripNames[si]);
+                L.Place(rt, strip);
+                rt.gameObject.SetActive(true);
+                for (int i = 0; i < 4; i++)
+                {
+                    var fig = UIFactory.Img(rt, "hood" + i, ProceduralArt.Get("hood_figure"));
+                    fig.rectTransform.anchorMin = new Vector2(0, 0);
+                    fig.rectTransform.anchorMax = new Vector2(0, 0);
+                    fig.rectTransform.pivot = new Vector2(0.5f, 0f);
+                    fig.rectTransform.anchoredPosition = new Vector2(10 + i * 16, 0);
+                    fig.rectTransform.sizeDelta = new Vector2(12, 24);
+                    fig.raycastTarget = false;
+                    fig.gameObject.SetActive(false);
+                    _standFigures.Add(fig);
+                }
+            }
+        }
+
+        private void RefreshStands()
+        {
+            int waiting = Queue != null ? Queue.WaitingCount : 0;
+            for (int i = 0; i < _standFigures.Count; i++)
+                _standFigures[i].gameObject.SetActive(i < waiting);
+        }
+
         private void RefreshHud()
         {
             if (_gameRoot == null || _gameRoot.Session == null) return;
             RefreshTopBar();
             RefreshHandoverPrompt();
             RefreshDecisionButtons();
+            RefreshStands();
         }
 
         private void OnEnable()

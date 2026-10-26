@@ -21,8 +21,8 @@ namespace Hollowbrook.Checkpoint
             // the verdict banner retired: post-decision feedback is the stamp mark, the
             // sound and the subject walking off — never text
 
-            _notesRoot = BuildPaperOverlay("OverlayRules", "PAPER NOTE — INSPECTION RULES", out _notesText);
-            _recordsRoot = BuildPaperOverlay("OverlayLog", "TONIGHT'S LOG — ANOMALY RECORD", out _recordsText);
+            _notesRoot = BuildPaperOverlay("OverlayRules", "NIGHT SECURITY RULES", out _notesText);
+            _recordsRoot = BuildPaperOverlay("OverlayLog", "NIGHT SECURITY LOG", out _recordsText);
 
             // the yes/no confirm popup retired with the button verdicts: stamping IS confirming
         }
@@ -35,8 +35,9 @@ namespace Hollowbrook.Checkpoint
             UIFactory.Dimmer(goRt, "dim", 0.6f);
             var panel = UIFactory.Img(goRt, "paper", ProceduralArt.Get("paper_flat"));
             L.Place(panel.rectTransform, L.PaperOverlay);
-            var head = UIFactory.Label(panel.rectTransform, "title", title, 20,
-                UIFactory.PaperInk, TextAnchor.MiddleCenter);
+            var head = UIFactory.Label(panel.rectTransform, "title", title, 18,
+                UIFactory.NsInk, TextAnchor.MiddleCenter);
+            head.font = UIFactory.TypeFont;
             L.Place(head.rectTransform, L.Inner.PaperHead);
             body = Body(panel.rectTransform, "body", L.Inner.PaperBody, 15, true);
             var close = GridButton(panel.rectTransform, "close", "CLOSE [X]",

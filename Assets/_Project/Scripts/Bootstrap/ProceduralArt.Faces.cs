@@ -215,6 +215,23 @@ namespace Hollowbrook.Bootstrap
         }
 
         // Printed 1:1 at the desk panel size (320x290): flat sheet, header band, seven
+        // The "no photo yet / asset failed" portrait: a designed placeholder in the photo's own
+        // language (paper-gray backdrop, muted silhouette bust, thin frame) so a missing or
+        // not-yet-assigned sprite can NEVER render as uGUI's default white rectangle. Created
+        // once; CheckpointView/SecurityRoomView/DialogueView build their portrait Images with it.
+        private static Sprite MakeFacePlaceholder(int w, int h)
+        {
+            var c = new Canvas2D(w, h);
+            c.GradientV(G(0.34f), G(0.24f));                 // darker than a real photo: reads as empty
+            float cx = w / 2f;
+            c.FillEllipse(cx, h * 1.06f, w * 0.44f, h * 0.24f, G(0.16f));          // shoulders
+            c.FillEllipse(cx, h * 0.44f, w * 0.20f, h * 0.24f, G(0.16f));          // head
+            c.Noise(0.06f, 41);
+            for (int x = 0; x < w; x++) { c.Px[x] = G(0.10f); c.Px[(h - 1) * w + x] = G(0.10f); }
+            for (int y = 0; y < h; y++) { c.Px[y * w] = G(0.10f); c.Px[y * w + w - 1] = G(0.10f); }
+            return c.ToSprite("face_placeholder", UiPpu);
+        }
+
         // form rules, stamp box and barcode strip per the approved wireframe.
         private static Sprite MakeRecordSheet()
         {

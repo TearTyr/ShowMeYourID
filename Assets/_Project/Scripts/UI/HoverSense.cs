@@ -1,0 +1,39 @@
+using System;
+using UnityEngine;
+using UnityEngine.EventSystems;
+
+namespace Hollowbrook.UI
+{
+    // Pointer enter/exit callbacks for one raycastable UI element (the speech bubble panel),
+    // so a view can hold something on screen while the cursor reads it. Created by
+    // CheckpointView.Speech beside the bubble; the callbacks are plain Actions because the
+    // creator and the hovered widget already know each other.
+    public class HoverSense : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+    {
+        public Action OnEnter;
+        public Action OnExit;
+
+        /// <summary>True between enter and exit — owners use it to ignore duplicate exits.</summary>
+        public bool Hovering { get; private set; }
+
+        public void OnPointerEnter(PointerEventData eventData)
+        {
+            if (Hovering) return;                 // no duplicate enters
+            Hovering = true;
+            OnEnter?.Invoke();
+        }
+
+        public void OnPointerExit(PointerEventData eventData) => Leave();
+
+        // A deactivated widget stops raycasting, and Unity may never deliver the exit for a
+        // target that vanished under the cursor — the owner calls this when it hides itself.
+        public void ForceExit() => Leave();
+
+        private void Leave()
+        {
+            if (!Hovering) return;                // no duplicate / stale exits
+            Hovering = false;
+            OnExit?.Invoke();
+        }
+    }
+}

@@ -98,9 +98,22 @@ namespace Hollowbrook.Logic
         public string SlipReason = "NIGHT CLASS — LATE LIST";
         public Dictionary<QuestionId, Answer> Answers = new Dictionary<QuestionId, Answer>();
         public bool BehaviorGlitchVisible;    // rare visual micro-glitch hint for BehaviorOddity
+        // Canon roster position of the person this visitor CLAIMS to be (-1 = none, e.g. the
+        // administrator). Set once by RosterFactory; drives the temporary face asset so the same
+        // student always wears the same face on the card and at the window. Old saves load -1
+        // and fall back to the procedural portraits.
+        public int FaceAssetIndex = -1;
         public bool OnLateList = true;        // office rule: on tonight's late list
 
         public bool PhotoMatches => WindowPortrait == IdPhoto;
+
+        /// <summary>Do the two faces AS DISPLAYED agree — portrait features AND the anomaly
+        /// distortion overlay (the administrator's glitched window face is her photo tell, and
+        /// Portrait equality ignores Distorted on purpose for the scoring rules). This is the
+        /// truth the desk's face-comparison cue shows; it never contradicts the rendered sprites.
+        /// Informational only: verdicts stay with InspectionRules.</summary>
+        public bool DisplayedFacesMatch =>
+            PhotoMatches && !IsAnomaly && WindowPortrait.Distorted == IdPhoto.Distorted;
 
         public List<string> DescribeDefects()
         {

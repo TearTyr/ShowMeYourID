@@ -24,12 +24,14 @@ namespace Hollowbrook.Checkpoint
 
             var banner = UIFactory.BorderedPanel(_desk, "daybanner", UIFactory.Paper, UIFactory.Border, 2);
             Reg("banner", banner, L.Banner);
-            _topLeft = UIFactory.Label(banner, "left", "", 14, UIFactory.PaperInk, TextAnchor.MiddleCenter);
+            _topLeft = UIFactory.Label(banner, "left", "", 15, UIFactory.NsChalk, TextAnchor.MiddleLeft);
+            _topLeft.font = UIFactory.UiFontBold;
             L.Place(_topLeft.rectTransform, L.Inner.BannerTop);
             // second banner line: the live queue readout (Phase 9.7 top-bar format)
 
 
-            _topClock = UIFactory.Label(_desk, "clock", "22:00", 20, UIFactory.InkDim, TextAnchor.MiddleCenter);
+            _topClock = UIFactory.Label(_desk, "clock", "22:00", 22, UIFactory.NsChalk, TextAnchor.MiddleCenter);
+            _topClock.font = UIFactory.UiFontBold;
             Reg("clock", _topClock.rectTransform, L.Clock);
 
 

@@ -1,3 +1,4 @@
+using Hollowbrook.Bootstrap;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using UnityEngine;
@@ -27,12 +28,22 @@ namespace Hollowbrook.World
         private Camera _cam;
         private SpriteRenderer _cone;
         private SpriteMask _mask;
+        private SpriteRenderer _penumbra;   // graded darkness inside the mask hole (see below)
         private BatteryState _battery = new BatteryState { Charge = 1f, Dead = false };
         private FlashlightLatches _latches;
         private Vector3 _origin;
         private Vector3 _dir = Vector3.right;
-        private BeamParams _params;
+        private BeamParams _params;          // logical geometry (gameplay queries use this)
+        private Vector3 _aimSmooth = Vector3.right;   // displayed aim (damped, never snaps)
+        private float _dispRange, _dispHalfTan;       // displayed geometry (damped across modes)
         private float _coneWorldW = 8f, _coneWorldH = 4.5f;   // light_cone: 512x288 px @ 64 ppu
+        // The mask hole is a stencil: binary. The penumbra sheet rides over it at the hole's own
+        // size and puts graded darkness BACK — full reveal in the core, soft side falloff at the
+        // wedge edge, a distance fade at the reach, ambient alpha at the rim (no seam). That is
+        // what makes lockers/walls/doors brighten by distance and angle instead of popping out of
+        // a flat cut-out. It draws at 72, outside every mask range, so nothing punches it.
+        private const float PenumbraOverScale = 1.35f;
+        private const int PenumbraOrder = 72;
         private float _pubThrottle;
 
         public void Init(GameRoot root, Camera cam, SpriteRenderer cone)
@@ -50,6 +61,12 @@ namespace Hollowbrook.World
             _mask.isCustomRangeActive = true;
             _mask.frontSortingOrder = 60;
             _mask.backSortingOrder = 70;
+            var penGo = new GameObject("BeamPenumbra");
+            penGo.transform.SetParent(transform, false);
+            _penumbra = penGo.AddComponent<SpriteRenderer>();
+            _penumbra.sprite = ProceduralArt.Get("beam_penumbra");
+            _penumbra.sortingOrder = PenumbraOrder;
+            _penumbra.color = Color.black;
             ApplyBeam(LightMode.Off, true);
         }
 
@@ -94,7 +111,7 @@ namespace Hollowbrook.World
                 return;
             }
             ReadInput();
-            AimBeam();
+            AimBeam(dt);
             TickBattery(dt);
         }
 
@@ -137,6 +154,11 @@ namespace Hollowbrook.World
             bool on = m != LightMode.Off && !BatteryDead;
             if (_mask != null) _mask.gameObject.SetActive(on);
             if (_cone != null) _cone.gameObject.SetActive(on);
+            if (_penumbra != null) _penumbra.gameObject.SetActive(on);
+            // Focus concentrates: a tighter cone AND a hotter core tint; Sweep stays the wide,
+            // softer wash. Both still reveal the environment through mask hole + penumbra.
+            if (_cone != null)
+                _cone.color = new Color(1f, 0.96f, 0.85f, m == LightMode.Focus ? FocusTint : SweepTint);
             ScaleBeam();
 
             if (!quiet)
@@ -148,8 +170,11 @@ namespace Hollowbrook.World
         }
 
         // Cursor aiming in world space: convert the mouse on the camera's z-plane, aim the cone
-        // from the player's shoulder along (aim - origin), rotate sprite AND mask together.
-        private void AimBeam()
+        // from the player's shoulder along (aim - origin), rotate sprite, mask AND penumbra
+        // together. The DISPLAYED aim and geometry are damped towards their targets so the beam
+        // glides instead of flickering/stretching with raw mouse jitter, while the logical cone
+        // test (_params/_dir) stays exact for gameplay.
+        private void AimBeam(float dt)
         {
             if (_cone == null || _cam == null) return;
             var views = _gameRoot.Views;
@@ -165,8 +190,13 @@ namespace Hollowbrook.World
             var d = aim - _origin; d.z = 0f;
             if (d.magnitude > 1e-4f) _dir = d.normalized;  // keep last aim on a degenerate delta
 
-            float angle = Mathf.Atan2(_dir.y, _dir.x) * Mathf.Rad2Deg;
-            var mid = _origin + _dir * (_params.Range * 0.5f);
+            // damped aim: fast enough to feel instant, slow enough to read as a held lamp
+            float k = 1f - (float)System.Math.Exp(-14d * Mathf.Max(dt, 0f));
+            _aimSmooth = Vector3.Lerp(_aimSmooth, _dir, k);
+            if (_aimSmooth.magnitude > 1e-4f) _aimSmooth = _aimSmooth.normalized;
+            else _aimSmooth = _dir;
+            float angle = Mathf.Atan2(_aimSmooth.y, _aimSmooth.x) * Mathf.Rad2Deg;
+            var mid = _origin + _aimSmooth * (_dispRange * 0.5f);
             _cone.transform.localPosition = mid;
             _cone.transform.localEulerAngles = new Vector3(0f, 0f, angle);
             if (_mask != null)
@@ -174,19 +204,42 @@ namespace Hollowbrook.World
                 _mask.transform.localPosition = mid;
                 _mask.transform.localEulerAngles = new Vector3(0f, 0f, angle);
             }
-            ScaleBeam();
+            if (_penumbra != null)
+            {
+                _penumbra.transform.localPosition = mid;
+                _penumbra.transform.localEulerAngles = new Vector3(0f, 0f, angle);
+            }
+            ScaleBeam(dt);
         }
 
+        private const float SweepTint = 0.30f;
+        private const float FocusTint = 0.42f;
+
         // Non-uniform scale maps the fixed cone sprite onto the mode's logical geometry:
-        // length = Range, far-end half width = Range * tan(halfAngle). The mask rides 6% larger
-        // so the darkness hole always contains the visible beam.
-        private void ScaleBeam()
+        // length = Range, far-end half width = Range * tan(halfAngle). The mask AND the penumbra
+        // ride 35% larger than the visible cone so the graded falloff has room to land back on
+        // the room's ambient alpha before the stencil hole ends (no rim, no flat cut-out).
+        private void ScaleBeam(float dt = 0f)
         {
             if (_cone == null) return;
-            float sx = _params.Range <= 0f ? 0.001f : _params.Range / _coneWorldW;
-            float sy = _params.Range <= 0f ? 0.001f : 2f * _params.Range * _params.HalfTan / _coneWorldH;
+            // damped geometry: switching Sweep<->Focus morphs the beam instead of popping
+            float kg = 1f - (float)System.Math.Exp(-12d * Mathf.Max(dt, 0f));
+            _dispRange = Mathf.Lerp(_dispRange <= 0f ? _params.Range : _dispRange, _params.Range, kg);
+            _dispHalfTan = Mathf.Lerp(_dispHalfTan <= 0f ? _params.HalfTan : _dispHalfTan, _params.HalfTan, kg);
+            float sx = _dispRange <= 0f ? 0.001f : _dispRange / _coneWorldW;
+            float sy = _dispRange <= 0f ? 0.001f : 2f * _dispRange * _dispHalfTan / _coneWorldH;
             _cone.transform.localScale = new Vector3(sx, sy, 1f);
-            if (_mask != null) _mask.transform.localScale = new Vector3(sx * 1.06f, sy * 1.06f, 1f);
+            if (_mask != null)
+                _mask.transform.localScale = new Vector3(sx * PenumbraOverScale, sy * PenumbraOverScale, 1f);
+            if (_penumbra != null)
+            {
+                _penumbra.transform.localScale = new Vector3(sx * PenumbraOverScale, sy * PenumbraOverScale, 1f);
+                // the sheet's darkness is the room's CURRENT ambient: a lit corridor penumbras
+                // gently, a dark one fades all the way back to its own black at the rim
+                var views = _gameRoot != null ? _gameRoot.Views : null;
+                float ambient = views != null ? views.AmbientAlpha : 0.62f;
+                var pc = _penumbra.color; pc.a = ambient; _penumbra.color = pc;
+            }
         }
 
         private void TickBattery(float dt)

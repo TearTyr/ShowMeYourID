@@ -22,6 +22,17 @@ namespace Hollowbrook.World
     {
         // Light circle size in world units (the mask and the glow share it).
         public float Radius = 2.6f;
+        // Focus: the same idea as the handheld beam's Focus — a tighter, hotter circle for
+        // reading details. Q toggles it; it never lights the lamp by itself and changing it
+        // never moves the ON/OFF state (two independent flags, one source of truth each).
+        public float FocusRadius = 1.3f;
+
+        /// <summary>Is the lamp in its tight, concentrated mode right now?</summary>
+        public bool Focused { get; private set; }
+
+        /// <summary>The circle the lamp actually reveals with — the illumination query and the
+        /// mask/glow scale both answer to this, so focus changes REAL light, not a label.</summary>
+        public float EffectiveRadius => Focused ? FocusRadius : Radius;
         // How close the cursor's world point must be to an interactable anchor to prompt it.
         public float CursorHitRadius = 1.3f;
 
@@ -62,6 +73,7 @@ namespace Hollowbrook.World
 
             Active = false;
             SetLit(false, true);
+            ApplyFocusVisual();
             gameObject.SetActive(false);
         }
 
@@ -95,7 +107,36 @@ namespace Hollowbrook.World
         /// <summary>True when the world point sits inside the LIT light circle — an OFF
         /// lamp illuminates nothing, exactly like the handheld beam.</summary>
         public bool Covers(Vector3 worldPoint) =>
-            Active && Lit && Vector2.Distance(worldPoint, _worldPoint) <= Radius;
+            Active && Lit && Vector2.Distance(worldPoint, _worldPoint) <= EffectiveRadius;
+
+        /// <summary>Q: wide wash <-> tight focus. Silent about ON/OFF — it only reshapes the
+        /// circle, and only a lit lamp shows the difference (an OFF lamp stays OFF).</summary>
+        public void ToggleFocus() => SetFocused(!Focused, false);
+
+        private void SetFocused(bool on, bool quiet)
+        {
+            if (Focused == on) return;
+            Focused = on;
+            ApplyFocusVisual();
+            if (_gameRoot == null) return;
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.LightModeChanged, Lit));  // HUD sync
+            if (!quiet)
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
+                    on ? "LAMP: FOCUS — a tight circle for details." : "LAMP: WIDE — the whole sweep."));
+        }
+
+        // Mask and glow are children, so one root scale reshapes the whole lamp; focus also
+        // burns a little hotter (the beam's Focus tint does the same on patrol).
+        private void ApplyFocusVisual()
+        {
+            transform.localScale = Vector3.one * EffectiveRadius * 2f;
+            if (_glow != null)
+            {
+                var c = _glow.color;
+                c.a = Focused ? 0.45f : 0.30f;
+                _glow.color = c;
+            }
+        }
 
         // The lamp's visual + illumination state. Mask and glow live and die together with
         // the Covers query, so the spotlight, the beam-like glow and the actual
@@ -152,9 +193,11 @@ namespace Hollowbrook.World
 
             // manual lamp: F toggles, gated exactly like the rest of the peek input
             if (!_gameRoot.Paused && !_gameRoot.BlockingOverlayOpen &&
-                (_gameRoot.Dialogue == null || !_gameRoot.Dialogue.IsActive) &&
-                Input.GetKeyDown(KeyCode.F))
-                ToggleLamp();
+                (_gameRoot.Dialogue == null || !_gameRoot.Dialogue.IsActive))
+            {
+                if (Input.GetKeyDown(KeyCode.F)) ToggleLamp();
+                else if (Input.GetKeyDown(KeyCode.Q)) ToggleFocus();   // reshapes, never lights
+            }
 
             var mouse = Input.mousePosition;
             mouse.z = -_cam.transform.position.z;           // project onto the z=0 world plane

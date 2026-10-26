@@ -120,6 +120,11 @@ namespace Hollowbrook.World
         /// <summary>True when the room's wall-switch lights are on (real ambient state).</summary>
         public bool RoomLit => Current != null && Current.Light != null && Current.Light.Lit;
 
+        /// <summary>The current room's ambient darkness as one alpha — the level a light's
+        /// penumbra fades back to at its rim (see LightController.AmbientAlpha).</summary>
+        public float AmbientAlpha =>
+            Current != null && Current.Light != null ? Current.Light.AmbientAlpha : LightController.DarkAlpha;
+
         /// <summary>True when the point is inside the handheld beam's cone (either live mode).</summary>
         public bool BeamCovers(Vector3 worldPoint) => Flashlight != null && Flashlight.ConeCovers(worldPoint);
 

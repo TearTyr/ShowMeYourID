@@ -22,69 +22,81 @@ namespace Hollowbrook.Checkpoint
         }
 
         // ---- top bar --------------------------------------------------------
-        public static readonly Region TopBar = new Region(0, 0, 1280, 52);
-        public static readonly Region Banner = new Region(16, 4, 320, 44);
-        public static readonly Region SanityMeter = new Region(348, 15, 280, 22);   // slim
-        public static readonly Region LightMeter = new Region(636, 4, 220, 44);      // patrol only
-        public static readonly Region TrackMeter = new Region(864, 4, 120, 44);      // chase only
-        public static readonly Region Clock = new Region(1000, 4, 150, 44);
-        public static readonly Region Pause = new Region(1160, 8, 104, 36);
+        public static readonly Region TopBar = new Region(0, 0, 1280, 81);
+        public static readonly Region Banner = new Region(22, 23, 320, 34);
+        public static readonly Region SanityMeter = new Region(471, 23, 347, 34);   // mockup sanity block
+        public static readonly Region LightMeter = new Region(340, 84, 200, 20);      // patrol only, under the bar
+        public static readonly Region TrackMeter = new Region(550, 84, 120, 20);      // chase only
+        public static readonly Region Clock = new Region(975, 23, 140, 34);
+        public static readonly Region Pause = new Region(1121, 23, 138, 34);
 
         // ---- row under the top bar (wireframe text baseline y=72) -----------
-        public static readonly Region Hint = new Region(348, 56, 540, 24);   // free strip under the top bar
-        public static readonly Region RunStats = new Region(20, 56, 320, 14);        // endless/challenge strip
-        public static readonly Region Mutation = new Region(20, 70, 320, 14);        // challenge bulletin strip
-        public static readonly Region Findings = new Region(894, 58, 370, 16);       // right edge x=1264
-        public static readonly Region RoomInfo = new Region(894, 76, 370, 16);       // exploration only
+        public static readonly Region Hint = new Region(26, 84, 300, 20);     // strip under the top bar
+        public static readonly Region RunStats = new Region(690, 84, 260, 10);        // endless/challenge strip
+        public static readonly Region Mutation = new Region(690, 95, 260, 10);        // challenge bulletin strip
+        public static readonly Region Findings = new Region(961, 84, 303, 10);       // right edge x=1264
+        public static readonly Region RoomInfo = new Region(961, 95, 303, 10);       // exploration only
 
         // ---- left column ----------------------------------------------------
         // records station slot: below the hint row, above the chat column
-        public static readonly Region Station = new Region(16, 88, 320, 96);   // floor-files cabinet
+        public static readonly Region Station = new Region(42, 119, 268, 140);   // FLOOR FILES registry
         // the floor-files drawer: slides open under the station when a folder tab is
         // clicked, listing that floor's student files. Same left-column width, in the free
         // gap between the station (bottom 184) and the TL/RN row (top 466). The pulled
         // record sheet (home 16,168 320x290) lands on top of it — the drawer sits under the
         // papers layer.
-        public static readonly Region FileDrawer = new Region(16, 188, 320, 270);
+        public static readonly Region FileDrawer = new Region(55, 278, 243, 200);
         // default slot for the held ID card; the card is draggable, so this is where it
         // rests, not where it stays (see DragPaper). The card is drawn slightly smaller
         // than the slot rect: DragPaper.BaseScale 0.82 (~18% under the old 1x display)
-        public static readonly Region IdCard = new Region(438, 478, 304, 209);   // default desk slot
+        public static readonly Region IdCard = new Region(428, 506, 304, 209);   // on the counter, under the bases
         // the offered ID during the hand-over step: same card size, centred over the window
         // counter edge: the student slides the ID here on arrival (root is scaled 0.6,
         // so the drawn card rests on the sill at ~192x132)
         public static readonly Region OfferedId = new Region(405, 208, 320, 220);  // rests on the counter, in front of the glass
         // the paper slip rides beside it on the counter
-        public static readonly Region CounterSlip = new Region(755, 288, 200, 120);  // counter edge, clear of the dialogue strip
+        public static readonly Region CounterSlip = new Region(740, 525, 200, 120);  // beside the card, clear of the stamps
 
         // ---- centre column --------------------------------------------------
-        public static readonly Region Window = new Region(405, 88, 470, 316);
-        public static readonly Region Glass = new Region(420, 98, 440, 296);         // inside the frame
-        public static readonly Region Portrait = new Region(565, 104, 150, 180);     // inside the glass
-        public static readonly Region Glitch = new Region(560, 99, 160, 190);        // transient flash
-        public static readonly Region Sill = new Region(405, 404, 470, 24);
+        public static readonly Region Window = new Region(412, 182, 455, 260);
+        public static readonly Region Glass = new Region(431, 199, 420, 241);        // portrait wrap
+        public static readonly Region Portrait = new Region(431, 199, 420, 241);     // face fills the wrap
+        public static readonly Region Glitch = new Region(426, 194, 430, 244);       // transient flash
+        public static readonly Region Sill = new Region(412, 442, 455, 14);          // under-frame glow strip
         // the speech bubble: a transient overlay box beside the visitor's head (the
         // portrait's right edge is x=715), tail pointing at the face. The registered
         // region is the bubble's FULL box; the panel inside grows down from its top
         // edge with the line count (SpeechBubbleLayout), so short lines stay compact.
-        public static readonly Region SpeechBubble = new Region(718, 100, 248, 210);
-        public static readonly Region PatrolBtn = new Region(520, 690, 140, 24);
-        public static readonly Region EndShiftBtn = new Region(672, 690, 150, 24);
+        public static readonly Region SpeechBubble = new Region(740, 288, 241, 83);  // clear of the face hitbox
+        // booth dressing from the night-shift mockup: hood bands over the frame, the under-frame
+        // glow and the two counter bases the window sits on
+        public static readonly Region Hood1 = new Region(381, 116, 519, 47);
+        public static readonly Region Hood2 = new Region(398, 163, 486, 19);
+        public static readonly Region Base1 = new Region(381, 456, 518, 26);
+        public static readonly Region Base2 = new Region(353, 482, 574, 22);
+        // stamp block captions (the .slbl strip under each APPROVE / DECLINE block)
+        public static readonly Region StampLabelAllow = new Region(998, 667, 115, 21);
+        public static readonly Region StampLabelDeny = new Region(1140, 667, 115, 21);
+        public static readonly Region PatrolBtn = new Region(26, 688, 180, 28);
+        public static readonly Region EndShiftBtn = new Region(1074, 688, 180, 28);
 
         // ---- right column ---------------------------------------------------
-        public static readonly Region Questions = new Region(968, 88, 296, 190);
-        public static readonly Region UtilityRecords = new Region(16, 466, 156, 36);   // TL
-        public static readonly Region UtilityMap = new Region(16, 510, 320, 96);        // MAP box
-        public static readonly Region UtilityNotes = new Region(180, 466, 156, 36);    // RN
+        public static readonly Region Questions = new Region(961, 110, 298, 201);
+        public static readonly Region UtilityRecords = new Region(23, 552, 150, 20);    // log sheet tab
+        public static readonly Region UtilityMap = new Region(977, 337, 268, 146);       // inline map panel
+        public static readonly Region UtilityNotes = new Region(181, 552, 150, 20);     // rules sheet tab
         // the verdict tray: two physical stamps, dragged onto the slip to commit. The
         // tray sits right under the questions panel (the retired appearance check's
         // slot) so the right column stays balanced: questions above, stamps below,
-        // open desk underneath for spreading papers.
-        public static readonly Region StampDeny = new Region(1128, 296, 152, 150);  // big D box
-        public static readonly Region StampAllow = new Region(968, 296, 152, 150);  // big A box
+        // open desk underneath for spreading papers. Sized at ~78% of the original 152x150
+        // boxes (a 22% linear cut) and centred in the same 296..446 band: 8px apart, the D
+        // box's right edge flush with the old one, both rows aligned — same colours, labels
+        // and typography, a smaller footprint with a comfortable 118x117 grab area.
+        public static readonly Region StampDeny = new Region(1130, 508, 134, 146);  // DECLINE block
+        public static readonly Region StampAllow = new Region(988, 508, 134, 146);  // APPROVE block
 
         // ---- transient overlays (bounds-checked only; they cover the desk) ---
-        public static readonly Region Toast = new Region(280, 116, 720, 30);
+        public static readonly Region Toast = new Region(280, 94, 720, 30);
         public static readonly Region Prompt = new Region(320, 598, 640, 30);        // exploration only
         public static readonly Region ConfirmBox = new Region(430, 305, 420, 110);
         public static readonly Region PaperOverlay = new Region(260, 120, 760, 480);
@@ -97,8 +109,8 @@ namespace Hollowbrook.Checkpoint
         // QUEUE/CURRENT readout is the banner's second line (Inner.BannerQueue) — the
         // top bar's right side is fully claimed by the frozen wireframe (clock, pause,
         // findings), so no new top-level top-bar region exists to take it.
-        public static readonly Region QueueStripL = new Region(340, 436, 60, 240);
-        public static readonly Region QueueStripR = new Region(884, 428, 80, 244);
+        public static readonly Region QueueStripL = new Region(111, 482, 123, 34);
+        public static readonly Region QueueStripR = new Region(930, 490, 50, 26);
         // Shift-start sticky note: transient overlay, bounds-checked like the paper overlays.
         public static readonly Region StickyNote = new Region(390, 200, 500, 320);
 
@@ -106,25 +118,25 @@ namespace Hollowbrook.Checkpoint
         public static class Inner
         {
             // HUD meters
-            public static readonly Region SanityCap = new Region(8, 4, 110, 16);
-            public static readonly Region SanityStage = new Region(118, 4, 100, 16);
-            public static readonly Region SanityVal = new Region(218, 4, 54, 16);
-            public static readonly Region SanityTrack = new Region(8, 21, 264, 12);
+            public static readonly Region SanityCap = new Region(11, 0, 68, 34);
+            public static readonly Region SanityStage = new Region(79, 24, 237, 10);
+            public static readonly Region SanityVal = new Region(322, 0, 40, 34);
+            public static readonly Region SanityTrack = new Region(79, 10, 237, 13);
             public static readonly Region LightCap = new Region(8, 4, 60, 16);
             public static readonly Region LightTrack = new Region(8, 21, 204, 12);
             public static readonly Region TrackCap = new Region(6, 4, 60, 14);
             public static readonly Region TrackTrack = new Region(6, 20, 108, 12);
 
             // floor-files station (panel-local): caption, two folder tabs, status line
-            public static readonly Region StationCap = new Region(0, 3, 320, 15);
-            public const float FolderTabX = 8f, FolderTabY0 = 20f, FolderTabStep = 26f,
-                               FolderTabW = 304f, FolderTabH = 24f;
-            public static readonly Region StationOut = new Region(8, 72, 304, 22);
+            public static readonly Region StationCap = new Region(20, 7, 228, 16);
+            public const float FolderTabX = 21f, FolderTabY0 = 26f, FolderTabStep = 40f,
+                               FolderTabW = 224f, FolderTabH = 38f;
+            public static readonly Region StationOut = new Region(20, 106, 228, 18);
 
             // floor-files drawer (panel-local): header + file rows (7 rows fit the region)
-            public static readonly Region DrawerHead = new Region(10, 6, 300, 18);
-            public const float FileRowX = 10f, FileRowY0 = 28f, FileRowStep = 32f,
-                               FileRowW = 300f, FileRowH = 30f;
+            public static readonly Region DrawerHead = new Region(8, 6, 227, 18);
+            public const float FileRowX = 8f, FileRowY0 = 28f, FileRowStep = 24f,
+                               FileRowW = 225f, FileRowH = 22f;
 
             // record sheet (sprite is printed 1:1 at 320x290)
             public static readonly Region RecordHeader = new Region(0, 2, 284, 24);  // clear of the X
@@ -141,11 +153,11 @@ namespace Hollowbrook.Checkpoint
             // speech bubble (container-local): the tail hangs off the panel's left edge,
             // tip toward the visitor's face; the text stretches inside the panel, which
             // the view sizes per line count (BubblePanelX/W are the static parts)
-            public const float BubblePanelX = 0f, BubblePanelW = 248f;
+            public const float BubblePanelX = 0f, BubblePanelW = 241f;
             public const float BubblePadTop = 8f, BubblePadBottom = 8f,
                                BubbleTagH = 16f, BubbleLineH = 15f;
-            public const int BubbleCharsPerLine = 36, BubbleMaxLines = 10;
-            public static readonly Region BubbleTail = new Region(-16, 14, 20, 26);
+            public const int BubbleCharsPerLine = 34, BubbleMaxLines = 3;
+            public static readonly Region BubbleTail = new Region(-38, 31, 48, 40);
             public static readonly Region NoteHead = new Region(10, 6, 260, 18);
             public static readonly Region NoteBody = new Region(10, 28, 260, 74);
 
@@ -155,9 +167,9 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region SlipReason = new Region(8, 52, 184, 56);
 
             // questions panel (buttons on the wireframe grid: x=980, y=118, step 42)
-            public static readonly Region QHead = new Region(12, 6, 140, 20);
-            public static readonly Region QBudget = new Region(146, 6, 138, 16);
-            public const float QBtnX = 12f, QBtnY0 = 26f, QBtnStep = 32f, QBtnW = 272f, QBtnH = 30f;
+            public static readonly Region QHead = new Region(18, 12, 150, 20);
+            public static readonly Region QBudget = new Region(178, 12, 102, 20);
+            public const float QBtnX = 18f, QBtnY0 = 45f, QBtnStep = 34f, QBtnW = 266f, QBtnH = 26f;
             public static readonly Region QHint = new Region(12, 196, 272, 16);
             public static readonly Region QTestimony = new Region(12, 214, 272, 40);
 
@@ -177,11 +189,11 @@ namespace Hollowbrook.Checkpoint
             public const float QueueSlotW = 44f, QueueSlotH = 52f, QueueSlotStep = 56f;
             public const float QueueSlotLX = 8f, QueueSlotLY0 = 6f;    // inside the 60-wide left strip
             public const float QueueSlotRX = 18f, QueueSlotRY0 = 22f;  // below the right strip's badge
-            public static readonly Region QueueBadge = new Region(0, 2, 80, 18);
+            public static readonly Region QueueBadge = new Region(0, -16, 123, 16);
 
             // day banner: night label on top, queue readout underneath
-            public static readonly Region BannerTop = new Region(4, 2, 312, 20);
-            public static readonly Region BannerQueue = new Region(4, 22, 312, 18);
+            public static readonly Region BannerTop = new Region(0, 0, 320, 20);
+            public static readonly Region BannerQueue = new Region(0, 18, 320, 16);
 
             // sticky note (shift-start gate)
             public static readonly Region StickyTitle = new Region(30, 48, 440, 40);

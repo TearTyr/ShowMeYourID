@@ -10,20 +10,48 @@ namespace Hollowbrook.Bootstrap
     {
         private static Sprite MakeLightCone(int w, int h)
         {
+            // Soft tapered beam: hot pool at the lamp, feathered shoulders, long decay at the
+            // reach, plus a faint wide halo (dust/spill) that stays under the stencil cutoff so
+            // it lifts nearby surfaces without cutting the mask. BeamProfile owns the curves.
             var c = new Canvas2D(w, h);
             for (int x = 0; x < w; x++)
             {
-                float t = x / (float)(w - 1);                       // 0 at player, 1 at far end
-                float halfH = h * 0.06f + t * h * 0.44f;             // widening cone
-                float alpha = (1f - t * 0.75f) * 0.5f;
+                float t = x / (float)(w - 1);
                 for (int y = 0; y < h; y++)
                 {
-                    float dy = Mathf.Abs(y - h / 2f);
-                    float edge = Mathf.Clamp01((halfH - dy) / (h * 0.08f));
-                    c.Px[y * w + x] = new Color(0.9f, 0.9f, 0.85f, alpha * edge);
+                    float u = Math.Abs(y - h / 2f) / (h / 2f);      // 0 on axis, 1 at the sprite rim
+                    float uN = u / Math.Max(t, 0.08f);              // ...in units of the WEDGE half-width
+                    float a = 0.55f * BeamProfile.Light(t, uN);
+                    c.Px[y * w + x] = new Color(0.92f, 0.90f, 0.84f, a);
                 }
             }
             return c.ToSprite("light_cone", WorldPpu);
+        }
+
+        // The beam's PENUMBRA: black whose alpha is the inverse of the cone's light, baked in
+        // cone space (t along the beam, u across it). Drawn over the beam mask's hole it turns
+        // the stencil's binary reveal into a graded one — full reveal in the core, a soft side
+        // falloff at the wedge edge, a distance fade at the reach, and exactly the room's
+        // ambient alpha at the sprite rim so there is no seam with the surrounding darkness.
+        // FlashlightRig scales it with the cone (x PenumbraOverScale) and tints its alpha with
+        // the room's current ambient, so lockers/doors/walls brighten by distance and angle.
+        private static Sprite MakeBeamPenumbra(int w, int h)
+        {
+            // The inverse of the beam's reveal, baked in cone space: 0 (full reveal) in the core,
+            // feathered shoulders, distance fade, and exactly 1 at the sprite rim so the graded
+            // darkness lands on the room's ambient alpha with no seam and no flat cut-out.
+            var c = new Canvas2D(w, h);
+            for (int x = 0; x < w; x++)
+            {
+                float t = x / (float)(w - 1);
+                for (int y = 0; y < h; y++)
+                {
+                    float u = Math.Abs(y - h / 2f) / (h / 2f);
+                    float uN = u / Math.Max(t, 0.08f);              // wedge-relative, like the cone
+                    c.Px[y * w + x] = new Color(0f, 0f, 0f, 1f - BeamProfile.Reveal(t, uN));
+                }
+            }
+            return c.ToSprite("beam_penumbra", WorldPpu);
         }
 
         private static void RoughLine(Canvas2D c, System.Random r, int x0, int y0, int x1, int y1, float col, int thick)

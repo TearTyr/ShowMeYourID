@@ -27,8 +27,10 @@ namespace Hollowbrook.UI
                 "   Flip: click the ID's BLACK SPINE (the card body only drags); F flips the paper you\n" +
                 "   touched last — the slip flips on its own and never rides along with the ID.\n" +
                 "   Floor files: open a floor folder, pull the student's file — mismatches are clues.\n" +
-                "   Compare the face at the window with the ID photo yourself — answers arrive in the\n" +
-                "   speech bubble beside the student's head (it fades 2 s after the line ends).\n" +
+                "   Face check: click the ID PHOTO, then the face at the window — a quiet cue\n" +
+                "   answers (green frame = same face, amber = not). It informs; the verdict is yours.\n" +
+                "   Answers arrive in the speech bubble beside the head (2 s after the line ends;\n" +
+                "   hover the bubble to keep a line on screen while you read it).\n" +
                 "   Stamp the slip (drag, or A / D) — the mark lands WHERE you drop the stamp, always\n" +
                 "   fully on the paper — then hand back BOTH papers (H).\n" +
                 "   At most 2 questions per visitor. Decisions are permanent.\n\n" +
@@ -40,7 +42,8 @@ namespace Hollowbrook.UI
                 "   SHIFT                run\n" +
                 "   E                    interact (doors, clues, light switches)\n" +
                 "   F                    flashlight toggle — sweep beam on patrol, the lamp on peeks\n" +
-                "   Q                    focus beam (toggle — tight, exposes & repels)\n" +
+                "   Q                    focus beam (toggle — tight, exposes & repels; on peeks it\n" +
+                "                        tightens the lamp without lighting it)\n" +
                 "   L                    beam off\n" +
                 "   M                    map          ESC   pause\n" +
                 "   The HUD reads both lights: LIGHTS (room) and BEAM / LAMP (handheld).\n\n" +

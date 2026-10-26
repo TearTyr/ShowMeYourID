@@ -70,7 +70,7 @@ namespace Hollowbrook.World
                 16, UIFactory.InkDim, TextAnchor.MiddleCenter);
             UIFactory.Anchor(_doorState.rectTransform, new Vector2(0.5f, 1f), new Vector2(800, 26), new Vector2(0, -84));
 
-            _portrait = UIFactory.Img(transform, "face", null);
+            _portrait = UIFactory.Img(transform, "face", ProceduralArt.Get("face_placeholder"));
             UIFactory.Anchor(_portrait.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(150, 186), new Vector2(0, 150));
             _portrait.gameObject.SetActive(false);
 

@@ -11,15 +11,23 @@ namespace Hollowbrook.UI
     {
         public static readonly Color Bg = new Color(0.035f, 0.035f, 0.04f);
         public static readonly Color PanelBase = new Color(0.09f, 0.09f, 0.10f);
-        public static readonly Color PanelAlt = new Color(0.14f, 0.14f, 0.15f);
-        public static readonly Color Border = new Color(0.30f, 0.30f, 0.32f);
-        public static readonly Color Ink = new Color(0.92f, 0.92f, 0.90f);
-        public static readonly Color InkDim = new Color(0.62f, 0.62f, 0.60f);
+        // ---- night-shift desk palette (from the approved HTML mockup) ----
+        public static readonly Color NsInk = new Color(0.047f, 0.047f, 0.047f);      // #0c0c0c
+        public static readonly Color NsDesk = new Color(0.086f, 0.086f, 0.086f);     // #161616
+        public static readonly Color NsPaper = new Color(0.925f, 0.925f, 0.925f);    // #ececec
+        public static readonly Color NsPaperDim = new Color(0.788f, 0.788f, 0.788f); // #c9c9c9
+        public static readonly Color NsChalk = new Color(1f, 1f, 1f);                // #ffffff
+        public static readonly Color NsMid = new Color(0.541f, 0.541f, 0.541f);      // #8a8a8a
+
+        public static readonly Color PanelAlt = NsDesk;
+        public static readonly Color Border = NsInk;
+        public static readonly Color Ink = NsChalk;
+        public static readonly Color InkDim = NsMid;
         public static readonly Color InkFaint = new Color(0.42f, 0.42f, 0.42f);
         public static readonly Color Accent = new Color(0.70f, 0.13f, 0.17f);   // restrained red
         public static readonly Color AccentBright = new Color(0.90f, 0.22f, 0.26f);
-        public static readonly Color Paper = new Color(0.82f, 0.81f, 0.77f);    // documents
-        public static readonly Color PaperInk = new Color(0.10f, 0.10f, 0.11f);
+        public static readonly Color Paper = NsPaper;    // documents
+        public static readonly Color PaperInk = NsInk;
         public static readonly Color Glass = new Color(0.75f, 0.78f, 0.80f, 0.10f);
 
         public const int TypeTitle = 30;
@@ -28,6 +36,21 @@ namespace Hollowbrook.UI
         public const int TypeLabel = 17;
         public const int TypeSmall = 13;
         public const int SpaceUnit = 8;
+
+        // ---- mockup type roles (bundled open-licence fonts, safe fallback to GameFont) ----
+        private static Font _uiFont, _uiFontBold, _typeFont, _handFont;
+        public static Font UiFont => LoadFont(ref _uiFont, "Fonts/BarlowCondensed-Regular");
+        public static Font UiFontBold => LoadFont(ref _uiFontBold, "Fonts/BarlowCondensed-SemiBold");
+        public static Font TypeFont => LoadFont(ref _typeFont, "Fonts/SpecialElite-Regular");
+        public static Font HandFont => LoadFont(ref _handFont, "Fonts/CaveatBrush-Regular");
+
+        private static Font LoadFont(ref Font f, string path)
+        {
+            if (f != null) return f;
+            try { f = Resources.Load<Font>(path); } catch (Exception) { }
+            if (f == null) f = GameFont;   // headless / pre-import: text must never break
+            return f;
+        }
 
         private static Font _font;
         private static readonly List<Text> _texts = new List<Text>();
@@ -521,6 +544,61 @@ namespace Hollowbrook.UI
             Anchor(b.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(width, 42),
                 new Vector2(centerX, 40f));
             return b;
+        }
+
+        // The rect a preserveAspect Image ACTUALLY paints inside its box: the sprite
+        // letterboxes, but the Image's raycast covers the whole box — face clicks need the
+        // rect the player sees. Pure float maths (top-left inside the box), unit-testable.
+        public struct Box
+        {
+            public float X, Y, W, H;
+            public Box(float x, float y, float w, float h) { X = x; Y = y; W = w; H = h; }
+        }
+
+        public static Box Letterbox(float boxW, float boxH, float spriteW, float spriteH)
+        {
+            if (boxW <= 0f || boxH <= 0f || spriteW <= 0f || spriteH <= 0f)
+                return new Box(0f, 0f, Mathf.Max(0f, boxW), Mathf.Max(0f, boxH));
+            float spriteAspect = spriteW / spriteH;
+            float w, h;
+            if (spriteAspect > boxW / boxH) { w = boxW; h = boxW / spriteAspect; }
+            else { h = boxH; w = boxH * spriteAspect; }
+            return new Box((boxW - w) / 2f, (boxH - h) / 2f, w, h);
+        }
+
+        // One invisible click-catcher sized to the sprite a preserveAspect Image displays, so
+        // pointer hits match the pixels. Created as a child of the target: it follows drags,
+        // zooms and flips for free. Re-sync whenever the sprite changes.
+        public static Image AspectHitbox(Image target, string name)
+        {
+            if (target == null) return null;
+            var found = target.transform.Find(name);
+            Image hit = found != null ? found.GetComponent<Image>() : null;
+            if (hit == null)
+            {
+                var rt = NewUI(target.transform, name);
+                hit = rt.gameObject.AddComponent<Image>();
+                hit.color = new Color(1f, 1f, 1f, 0f);   // no ink: raycast only
+            }
+            SyncAspectHitbox(target, hit);
+            return hit;
+        }
+
+        public static void SyncAspectHitbox(Image target, Image hitbox)
+        {
+            if (target == null || hitbox == null) return;
+            var r = target.rectTransform.rect;
+            var spr = target.sprite;
+            Box b = spr != null
+                ? Letterbox(r.width, r.height, spr.rect.width, spr.rect.height)
+                : new Box(0f, 0f, r.width, r.height);
+            var rt = hitbox.rectTransform;
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(b.X, -b.Y);
+            rt.sizeDelta = new Vector2(b.W, b.H);
+            hitbox.raycastTarget = true;
         }
 
         public static Image Img(Transform parent, string name, Sprite sprite, Color? color = null, bool raycast = false)

@@ -31,8 +31,9 @@ namespace Hollowbrook.Checkpoint
             // browsing IS the search.
             var station = UIFactory.Panel(_desk, "station", new Color(0.10f, 0.11f, 0.12f));
             Reg("station", station.rectTransform, L.Station);
-            var cap = UIFactory.Label(station.rectTransform, "cap", "FLOOR FILES — STUDENT REGISTRY", 11,
-                new Color(0.55f, 0.75f, 0.55f), TextAnchor.MiddleCenter);
+            var cap = UIFactory.Label(station.rectTransform, "cap", "FLOOR FILES — STUDENT REGISTRY", 12,
+                UIFactory.NsChalk, TextAnchor.MiddleCenter);
+            cap.font = UIFactory.UiFontBold;
             L.Place(cap.rectTransform, L.Inner.StationCap);
             for (int floor = 1; floor <= _folderTabs.Length; floor++)
             {
@@ -46,7 +47,8 @@ namespace Hollowbrook.Checkpoint
                 _folderTabInks[f - 1] = tab.targetGraphic as Image;
             }
             _stationOut = UIFactory.Label(station.rectTransform, "stationout", "", 10,
-                new Color(0.55f, 0.75f, 0.55f), TextAnchor.UpperLeft);
+                UIFactory.NsMid, TextAnchor.UpperLeft);
+            _stationOut.font = UIFactory.UiFont;
             L.Place(_stationOut.rectTransform, L.Inner.StationOut);
 
             // The drawer: a fixed grid rect under the station, hidden until a tab opens it.
@@ -143,7 +145,8 @@ namespace Hollowbrook.Checkpoint
             _idHeader = UIFactory.Label(idCard.rectTransform, "header", "HOLLOWBROOK COLLEGE — STUDENT ID", 12,
                 new Color(0.9f, 0.9f, 0.88f), TextAnchor.MiddleCenter);
             L.Place(_idHeader.rectTransform, L.Inner.IdHeader);
-            _idPhoto = UIFactory.Img(idCard.rectTransform, "photo", null);
+            _idPhoto = UIFactory.Img(idCard.rectTransform, "idphoto",
+                ProceduralArt.Get("face_placeholder"));   // unique name; placeholder until the face paints
             L.Place(_idPhoto.rectTransform, L.Inner.IdPhoto);
             _idPhoto.preserveAspect = true;
             _idName = IdRow(idCard.rectTransform, "name", 0);

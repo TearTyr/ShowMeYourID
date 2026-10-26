@@ -56,6 +56,9 @@ namespace Hollowbrook.LogicTests
             CheckpointQueueTests();
             SpeechBubbleTests();
             StampPlacementTests();
+            HallwayDarknessTests();
+            FaceTruthTests();
+            FaceAssetMappingTests();
             QueueBusyHurryTests();
             QueueInvariantTests();
             StampRulesTests();
@@ -1417,6 +1420,33 @@ namespace Hollowbrook.LogicTests
             Eq(b.Generation, g0 + 10, "generations are strictly monotonic — every line gets its own");
             Eq(b.Text, "line 9", "the bubble always shows the newest line only (no overlap)");
 
+            // hover-to-read: the countdown suspends while the cursor sits inside the bubble
+            b.Say("AT THE WINDOW", "Read me.");
+            b.Tick(1.2f);
+            b.SetHover(true);
+            Check(b.Hovering && b.Visible, "hovering registers and keeps the bubble up");
+            b.Tick(30f);
+            Check(b.Visible && Math.Abs(b.SecondsSinceLine - 1.2f) < 1e-4f,
+                "the countdown is suspended while hovered — no hide, no drift");
+            b.SetHover(false);
+            Check(!b.Hovering && b.SecondsSinceLine < 1e-6f,
+                "leaving RESTARTS the 2 s cooldown from zero (dialogue already over)");
+            b.Tick(1.9f);
+            Check(b.Visible, "still up 1.9 s after the cursor left");
+            b.Tick(0.2f);
+            Check(!b.Visible, "hidden 2 s after the cursor left");
+            b.Say("AT THE WINDOW", "New line while hovered.");
+            Check(b.Visible && b.SecondsSinceLine < 1e-6f,
+                "new dialogue under hover resets the timer and shows normally");
+            b.SetHover(false);
+            b.Tick(2.1f);
+            Check(!b.Visible, "...and the cooldown runs once the cursor is gone");
+            b.SetHover(true);
+            b.SetHover(true);
+            b.SetHover(false);
+            b.SetHover(false);
+            Check(!b.Hovering, "duplicate enter/exit calls cannot stack state");
+
             Group("SpeechBubbleLayout — wrap estimate, truncation, bubble height");
 
             Eq(SpeechBubbleLayout.Wrap("", 10).Count, 1, "empty text is one empty line");
@@ -1572,6 +1602,132 @@ namespace Hollowbrook.LogicTests
                 200f, 120f, 56f, 18f, 2f);
             Check(Math.Abs(kb.X - 160f) < 1e-3f && Math.Abs(kb.Y - 81.6f) < 1e-3f,
                 $"the keyboard stamp's corner default sits inside the printable area as-is ({kb.X:F1},{kb.Y:F1})");
+        }
+
+        private static void HallwayDarknessTests()
+        {
+            Group("HallwayDarkness — corridor ambient + the limited-visibility pool");
+
+            float vsLit = HallwayDarkness.DarkerThanLitRoom(0.12f);
+            Check(vsLit > 0.70f && vsLit < 0.85f,
+                $"the corridor ambient is 70-85% darker than a normally lit room ({vsLit:P1})");
+            Check(HallwayDarkness.BaseAlpha > 0.62f,
+                "the corridor's base darkness is deeper than a dark classroom's 0.62");
+
+            Eq(HallwayDarkness.DepthAt(0f), 0f, "at the custodian the depth layer adds nothing");
+            Eq(HallwayDarkness.DepthAt(HallwayDarkness.ClearRadius), 0f,
+                "the pool's edge is still fully clear (the near field is navigable)");
+            Eq(HallwayDarkness.DepthAt(HallwayDarkness.DepthRadius), 1f,
+                "from DepthRadius out the corridor is as deep as it gets");
+            float mid = HallwayDarkness.DepthAt(
+                (HallwayDarkness.ClearRadius + HallwayDarkness.DepthRadius) / 2f);
+            Check(mid > 0.2f && mid < 0.8f,
+                $"the falloff passes through the middle ({mid:F2}) — a grade, not a step");
+
+            float prev = HallwayDarkness.DepthAt(0f); bool monotone = true; bool smooth = true;
+            float slope = 0f;
+            for (float d = 0.25f; d <= 9f; d += 0.25f)
+            {
+                float v = HallwayDarkness.DepthAt(d);
+                if (v < prev - 1e-6f) monotone = false;
+                float s = v - prev;
+                if (slope >= 0f && Math.Abs(s - slope) > 0.12f) smooth = false;   // no hard jump
+                slope = s; prev = v;
+            }
+            Check(monotone, "the falloff never brightens with distance");
+            Check(smooth, "no single step of the falloff is a hard circular edge");
+
+            Check(HallwayDarkness.VisibleFractionAt(0f) > 0.10f &&
+                  HallwayDarkness.VisibleFractionAt(0f) < 0.30f,
+                "the near field keeps 10-30% of the art's brightness: navigable, not lit");
+            Check(HallwayDarkness.VisibleFractionAt(10f) < 0.08f,
+                "beyond the pool the corridor keeps under 8% brightness (darkness dominates)");
+
+            float viewHalf = 5f * 16f / 9f;      // ortho size 5 at the 16:9 reference aspect
+            float share = HallwayDarkness.PoolShareOfView(viewHalf);
+            Check(share > 0.15f && share < 0.25f,
+                $"the pool spans 15-25% of the on-screen width ({share:P1})");
+
+            Check(HallwayDarkness.ShroudWorldW / 2f >=
+                  HallwayDarkness.HallwayHalfWidth + HallwayDarkness.RoomDarkMargin +
+                  HallwayDarkness.PlayerTravel,
+                "the depth quad covers the room's dark region from either end of the walk");
+            Check(HallwayDarkness.ShroudWorldH / 2f >=
+                  HallwayDarkness.RoomDarkHalfHeight + HallwayDarkness.PlayerYOffset,
+                "...and vertically, from the custodian's standing height");
+            Check(Math.Abs(HallwayDarkness.PlayerY - (HallwayDarkness.FloorY + HallwayDarkness.PlayerBodyLift)) < 1e-6f,
+                "the pool's vertical anchor is the shared floor line + the body lift");
+        }
+
+        // The face-comparison cue must never lie: its truth is the run's own pairing data,
+        // compared exactly as the sprites render it (features + the distortion overlay).
+        private static void FaceTruthTests()
+        {
+            Group("Face comparison truth — the cue follows the rendered faces, never a coin flip");
+            int pairs = 0, mismatched = 0;
+            bool neverGreenOnBookedMismatch = true, ruleHolds = true, anomalyNeverMatches = true;
+            for (int seed = 1; seed <= 12; seed++)
+                for (int night = 1; night <= 5; night++)
+                    foreach (var v in RosterFor(seed, night))
+                    {
+                        bool photoDefect = v.Defects.Contains(DefectType.PhotoMismatch) ||
+                                           v.Defects.Contains(DefectType.PhotoSubtleMismatch);
+                        if (photoDefect && v.DisplayedFacesMatch) neverGreenOnBookedMismatch = false;
+                        bool renderedSame = v.WindowPortrait == v.IdPhoto &&
+                                            v.WindowPortrait.Distorted == v.IdPhoto.Distorted &&
+                                            !v.IsAnomaly;   // anomalies wear their altered variant
+                        if (v.DisplayedFacesMatch != renderedSame) ruleHolds = false;
+                        if (v.IsAnomaly && v.DisplayedFacesMatch) anomalyNeverMatches = false;
+                        pairs++;
+                        if (!v.DisplayedFacesMatch) mismatched++;
+                    }
+            Check(neverGreenOnBookedMismatch,
+                "a booked photo-family defect NEVER shows a matching cue (no green lies)");
+            Check(ruleHolds,
+                "the cue agrees with the faces AS RENDERED (features, distortion, anomaly variant)");
+            Check(anomalyNeverMatches,
+                "an anomaly never shows a matching cue — its in-world face is the altered variant");
+            Check(mismatched > 0 && mismatched < pairs,
+                $"rosters contain both outcomes to find ({mismatched} mismatched of {pairs})");
+            var p = new Portrait { HairStyle = 1, FaceVariant = 2, Accessory = 0 };
+            Check(p != p.Swapped(), "a swapped portrait never reads as the same face");
+            Check(p != p.SubtleVariant(new GameRng(3)), "a subtle variant differs in one feature group");
+            var d = p; d.Distorted = true;
+            Check(p == d, "Portrait equality ignores distortion (the scoring rules' contract)...");
+            var v2 = new VisitorData { WindowPortrait = d, IdPhoto = p };
+            Check(!v2.DisplayedFacesMatch, "...while the face cue still sees a glitched window face as different");
+        }
+
+        private static void FaceAssetMappingTests()
+        {
+            Group("FaceAssets — stable identity mapping for the temporary face set");
+            Check(FaceAssets.StudentKey(0) == "student_face_01" &&
+                  FaceAssets.StudentKey(FaceAssets.StudentFaceCount) == "student_face_01",
+                "student keys wrap stably over the shipped set");
+            Check(FaceAssets.AnomalyKey(0) == "student_face_01_anomaly" &&
+                  FaceAssets.AnomalyKey(5) == "student_face_06_anomaly",
+                "anomaly keys are PAIRED with their student: student_face_NN_anomaly");
+            Check(FaceAssets.WindowKey(-1, false) == null && FaceAssets.IdKey(-1, true, false) == null,
+                "no asset index (old saves, administrator) -> the procedural painter, never a broken image");
+            bool sameOnMatch = true, neverBorrowed = true, distortedIsAnomaly = true;
+            for (int i = 0; i < 24; i++)
+            {
+                if (FaceAssets.WindowKey(i, false) != FaceAssets.IdKey(i, true, false)) sameOnMatch = false;
+                if (FaceAssets.IdKey(i, false, false) != null) neverBorrowed = false;
+                if (FaceAssets.IdKey(i, true, true) != null) neverBorrowed = false;
+                var wk = FaceAssets.WindowKey(i, true);
+                if (!(wk.EndsWith("_anomaly") && wk.StartsWith(FaceAssets.StudentKey(i)))) distortedIsAnomaly = false;
+                if (wk == FaceAssets.WindowKey(i, false)) distortedIsAnomaly = false;
+            }
+            Check(sameOnMatch, "a matching pair shows the SAME face on the card and at the window");
+            Check(neverBorrowed,
+                "a mismatched (or distorted) card photo never borrows the window's face asset");
+            Check(distortedIsAnomaly,
+                "an altered window face is THAT STUDENT's anomaly variant — paired, explicit, never random");
+            var seen = new Dictionary<string, int>();
+            for (int i = 0; i < FaceAssets.StudentFaceCount; i++) seen[FaceAssets.StudentKey(i)] = i;
+            Check(seen.Count == FaceAssets.StudentFaceCount,
+                "every shipped student face maps to exactly one identity slot (no shared faces)");
         }
 
         private static void CheckpointQueueTests()

@@ -93,6 +93,7 @@ namespace Hollowbrook.Logic
                 Greeting = id.Greeting,
             };
             v.ExpirationDisplay = DisplayOf(expDay);
+            v.FaceAssetIndex = _canon.IndexOf(id);   // stable face-asset identity
             BuildAnswers(v, id, truthful: true);
             v.SlipName = v.ClaimedName;             // legit slips always agree with the card
             v.SlipIdNumber = v.IdNumber;
@@ -129,6 +130,7 @@ namespace Hollowbrook.Logic
                 Greeting = _rng.Pick(Content.AnomalyGreetings),
             };
             v.ExpirationDisplay = DisplayOf(v.ExpirationDay);
+            v.FaceAssetIndex = _canon.IndexOf(id);   // the person being impersonated, stably
             // slip baseline agrees with the card; defects below may move it (seeded, so
             // resumes replay the identical ticket)
             v.SlipName = v.ClaimedName;

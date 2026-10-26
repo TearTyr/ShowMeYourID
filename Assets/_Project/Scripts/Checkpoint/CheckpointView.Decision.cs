@@ -23,10 +23,12 @@ namespace Hollowbrook.Checkpoint
             var qPanel = UIFactory.BorderedPanel(_desk, "qpanel", UIFactory.Paper, UIFactory.Border, 2);
             Reg("questions", qPanel, L.Questions);
             qPanel.gameObject.AddComponent<RectMask2D>();
-            var qHead = UIFactory.Label(qPanel, "head", "QUESTIONS", 13, UIFactory.PaperInk, TextAnchor.UpperLeft);
+            var qHead = UIFactory.Label(qPanel, "head", "QUESTIONS", 15, UIFactory.NsChalk, TextAnchor.UpperLeft);
+            qHead.font = UIFactory.UiFontBold;
             L.Place(qHead.rectTransform, L.Inner.QHead);
-            _budgetLabel = UIFactory.Label(qPanel, "budget", "QUESTIONS: 3 LEFT", 11,
-                new Color(0.35f, 0.35f, 0.34f), TextAnchor.MiddleRight);
+            _budgetLabel = UIFactory.Label(qPanel, "budget", "QUESTIONS: 3 LEFT", 13,
+                UIFactory.NsMid, TextAnchor.MiddleRight);
+            _budgetLabel.font = UIFactory.UiFontBold;
             L.Place(_budgetLabel.rectTransform, L.Inner.QBudget);
             _budgetLabel.gameObject.SetActive(false);
 
@@ -45,6 +47,8 @@ namespace Hollowbrook.Checkpoint
                     new L.Region(L.Inner.QBtnX, L.Inner.QBtnY0 + i * L.Inner.QBtnStep,
                         L.Inner.QBtnW, L.Inner.QBtnH));
                 SizeLabel(b, 13);
+                var bt = b.GetComponentInChildren<UnityEngine.UI.Text>();
+                if (bt != null) { bt.font = UIFactory.UiFont; bt.color = UIFactory.NsChalk; }
                 _questionButtons[i] = b;
                 _qLabels[i] = qs[i];
                 b.gameObject.SetActive(false);
@@ -61,8 +65,23 @@ namespace Hollowbrook.Checkpoint
             _recordsBtn = GridButton(_desk, "records", "TL",
                 () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, L.UtilityRecords, 11);
             Reg("records", _recordsBtn, L.UtilityRecords);
-            _mapBtn = GridButton(_desk, "map", "MAP", () => _gameRoot.OpenMap(), L.UtilityMap, 16);
+            // the mockup's inline college map: a panel-button (click still opens the full
+            // overlay) with the floor plan as static chalk labels
+            _mapBtn = GridButton(_desk, "map", "", () => _gameRoot.OpenMap(), L.UtilityMap, 16);
             Reg("map", _mapBtn, L.UtilityMap);
+            var mt = UIFactory.Label(_mapBtn.transform, "mtitle", "HOLLOWBROOK COLLEGE MAP", 13,
+                UIFactory.NsChalk, TextAnchor.MiddleCenter);
+            L.Place(mt.rectTransform, new L.Region(0, 4, 268, 16));
+            mt.font = UIFactory.UiFontBold;
+            string[] rooms = { "FIRST FLOOR", "ROOM 101", "ROOM 202", "HALLWAY",
+                               "SECURITY ROOM", "INVESTIGATION ROOM — SEALED —", "2ND FLOOR — ARCHIVE" };
+            for (int i = 0; i < rooms.Length; i++)
+            {
+                var rl = UIFactory.Label(_mapBtn.transform, "m" + i, rooms[i], 10,
+                    i == 0 || i == 6 ? UIFactory.NsMid : UIFactory.NsPaperDim, TextAnchor.MiddleLeft);
+                L.Place(rl.rectTransform, new L.Region(10 + (i == 6 ? 0 : 0), 24 + i * 16, 248, 14));
+                rl.font = UIFactory.UiFont;
+            }
             _notesBtn = GridButton(_desk, "notes", "RN",
                 () => ToggleOverlay(_notesRoot), L.UtilityNotes, 11);
             Reg("notes", _notesBtn, L.UtilityNotes);
@@ -92,8 +111,14 @@ namespace Hollowbrook.Checkpoint
 
         private void BuildStampTray()
         {
-            BuildStamp("stamp_allow", "A — ACCEPT", new Color(0.42f, 0.58f, 0.42f), L.StampAllow, Verdict.Allow, 0, 18);
-            BuildStamp("stamp_deny", "D — DENY", new Color(0.58f, 0.28f, 0.28f), L.StampDeny, Verdict.Reject, 1, 18);
+            BuildStamp("stamp_allow", "APPROVE", new Color(0.42f, 0.58f, 0.42f), L.StampAllow, Verdict.Allow, 0, 20);
+            BuildStamp("stamp_deny", "DECLINE", new Color(0.58f, 0.28f, 0.28f), L.StampDeny, Verdict.Reject, 1, 20);
+            var la = UIFactory.Label(_desk, "slblA", "A — STAMP THE SLIP", 11, UIFactory.NsMid, TextAnchor.MiddleCenter);
+            L.Place(la.rectTransform, L.StampLabelAllow);
+            la.font = UIFactory.UiFont;
+            var ld = UIFactory.Label(_desk, "slblD", "D — STAMP THE SLIP", 11, UIFactory.NsMid, TextAnchor.MiddleCenter);
+            L.Place(ld.rectTransform, L.StampLabelDeny);
+            ld.font = UIFactory.UiFont;
         }
 
         private void BuildStamp(string goName, string label, Color tint, L.Region region, Verdict verdict, int idx, int fontSize = 13)
@@ -172,9 +197,16 @@ namespace Hollowbrook.Checkpoint
         // slip's own space, already clamped inside the printable area), so it moves, flips
         // and zooms with the paper and can never overhang the edge. Rotation is seeded per
         // inspection; the clamp budget (StampMaxTilt) covers the tilt's corners.
-        private const float StampMarkSize = 56f;
-        private const float StampMaxTilt = 18f;   // |−12 + [−6..+6]| — the seeded tilt span
-        private const float StampEdgePad = 2f;    // breathing room between mark and edge
+        //
+        // 60px on the 200x120 slip: +33.3% over the 45px mark (this pass's readability request)
+        // and 30% of the slip's width — the same footprint class as the original 56px art, with
+        // the temp ink asset's tighter margins keeping the NAME / ID lines readable around it.
+        // Square sizeDelta + preserveAspect keep the ink undistorted; the printable clamp
+        // (margin 39.8px) still holds the whole tilted mark on the paper. internal so the
+        // headless proofs clamp and measure with the SAME numbers the view renders with.
+        internal const float StampMarkSize = 60f;
+        internal const float StampMaxTilt = 18f;   // |−12 + [−6..+6]| — the seeded tilt span
+        internal const float StampEdgePad = 2f;    // breathing room between mark and edge
 
         private void PlaceStampMark(Verdict v, Vector2 localCentre)
         {

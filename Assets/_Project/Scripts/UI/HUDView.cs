@@ -246,7 +246,7 @@ namespace Hollowbrook.UI
             // line refreshes with both.
             var rig = _gameRoot.Views.Flashlight;
             string handheld = peeking
-                ? "LAMP: " + (peek.Lit ? "ON" : "OFF")
+                ? "LAMP: " + (peek.Lit ? (peek.Focused ? "ON · FOCUS" : "ON") : "OFF")
                 : "BEAM: " + (rig == null || rig.Beam == LightMode.Off ? "OFF"
                     : rig.Beam == LightMode.Focus ? "FOCUS"
                     : "SWEEP");

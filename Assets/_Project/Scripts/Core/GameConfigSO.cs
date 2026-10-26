@@ -56,8 +56,16 @@ namespace Hollowbrook.Core
         [Tooltip("Charge needed before a dead beam can switch on again (no soft-lock).")][Range(0f, 1f)]
         public float batteryRebootFraction = 0.2f;
 
-        [Header("Flashlight beam geometry")]
-        [Tooltip("World units the wide Sweep beam reaches.")][Range(1f, 20f)]
+        [Header("Hallway darkness (limited visibility)")]
+        [Tooltip("Ambient darkness of the MAIN HALLWAY while its lights are off. Rooms use 0.62, a lit room 0.12; 0.76 leaves the corridor 73% darker than a lit room. Applied to the room darkness layer's alpha.")][Range(0f, 1f)]
+        public float hallwayDarkAlpha = HallwayDarkness.BaseAlpha;
+        [Tooltip("Extra darkness the corridor's depth layer adds beyond the pool around the custodian, while the lights are off. 0 = the whole corridor is equally visible.")][Range(0f, 1f)]
+        public float hallwayDepthAlpha = HallwayDarkness.DepthAlpha;
+        // NOTE: the pool's radii are NOT here on purpose — they are baked into the painted
+        // hall_depth sprite, so they live with the rest of that geometry in HallwayDarkness
+        // (ClearRadius / DepthRadius). Only the two alphas are runtime-mutable.
+
+        [Header("Flashlight beam geometry")]        [Tooltip("World units the wide Sweep beam reaches.")][Range(1f, 20f)]
         public float sweepRange = BeamGeometry.DefaultSweepRange;
         [Tooltip("Half-angle of the Sweep cone, degrees.")][Range(2f, 60f)]
         public float sweepHalfAngleDeg = BeamGeometry.DefaultSweepHalfAngleDeg;
