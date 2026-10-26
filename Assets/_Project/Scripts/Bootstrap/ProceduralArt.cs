@@ -192,7 +192,7 @@ namespace Hollowbrook.Bootstrap
                 case "noise_overlay": return MakeNoise(256, 256, 0.5f, 7);
                 case "flash": return MakeFlash(256);
                 case "light_cone": return MakeLightCone(512, 288);
-                case "beam_penumbra": return MakeBeamPenumbra(512, 288);
+                case "outline_frame": return MakeOutlineFrame(96, 6);
                 case "menu_bg": return MakeMenuBg(1280, 720);
                 case "desk_bg": return MakeDeskBg(640, 360);
                 case "hood_figure": return MakeHoodFigure(24, 48);

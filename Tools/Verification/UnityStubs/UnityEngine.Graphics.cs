@@ -108,6 +108,7 @@ namespace UnityEngine
         public Sprite sprite;
         public bool isCustomRangeActive;
         public int frontSortingOrder;
+        public float alphaCutoff = 0.2f;
         public int backSortingOrder;
     }
 

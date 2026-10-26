@@ -28,7 +28,6 @@ namespace Hollowbrook.World
         private Camera _cam;
         private SpriteRenderer _cone;
         private SpriteMask _mask;
-        private SpriteRenderer _penumbra;   // graded darkness inside the mask hole (see below)
         private BatteryState _battery = new BatteryState { Charge = 1f, Dead = false };
         private FlashlightLatches _latches;
         private Vector3 _origin;
@@ -37,13 +36,13 @@ namespace Hollowbrook.World
         private Vector3 _aimSmooth = Vector3.right;   // displayed aim (damped, never snaps)
         private float _dispRange, _dispHalfTan;       // displayed geometry (damped across modes)
         private float _coneWorldW = 8f, _coneWorldH = 4.5f;   // light_cone: 512x288 px @ 64 ppu
-        // The mask hole is a stencil: binary. The penumbra sheet rides over it at the hole's own
-        // size and puts graded darkness BACK — full reveal in the core, soft side falloff at the
-        // wedge edge, a distance fade at the reach, ambient alpha at the rim (no seam). That is
-        // what makes lockers/walls/doors brighten by distance and angle instead of popping out of
-        // a flat cut-out. It draws at 72, outside every mask range, so nothing punches it.
-        private const float PenumbraOverScale = 1.35f;
-        private const int PenumbraOrder = 72;
+        // ONE authoritative illumination pair: the stencil mask cuts the room darkness, the cone
+        // sprite paints the warm beam on top. The mask's alpha cutoff is dropped to 0.05 so the
+        // hole reaches into the cone sprite's faintest feather — the reveal edge lands where the
+        // beam art is already almost transparent, which reads as a soft falloff with no second
+        // layer, no rect artifacts and nothing that can desynchronise.
+        private const float MaskOverScale = 1.06f;
+        private const float MaskAlphaCutoff = 0.05f;
         private float _pubThrottle;
 
         public void Init(GameRoot root, Camera cam, SpriteRenderer cone)
@@ -61,12 +60,7 @@ namespace Hollowbrook.World
             _mask.isCustomRangeActive = true;
             _mask.frontSortingOrder = 60;
             _mask.backSortingOrder = 70;
-            var penGo = new GameObject("BeamPenumbra");
-            penGo.transform.SetParent(transform, false);
-            _penumbra = penGo.AddComponent<SpriteRenderer>();
-            _penumbra.sprite = ProceduralArt.Get("beam_penumbra");
-            _penumbra.sortingOrder = PenumbraOrder;
-            _penumbra.color = Color.black;
+            _mask.alphaCutoff = MaskAlphaCutoff;   // soft-edge hole: cut where the art is ~invisible
             ApplyBeam(LightMode.Off, true);
         }
 
@@ -154,7 +148,6 @@ namespace Hollowbrook.World
             bool on = m != LightMode.Off && !BatteryDead;
             if (_mask != null) _mask.gameObject.SetActive(on);
             if (_cone != null) _cone.gameObject.SetActive(on);
-            if (_penumbra != null) _penumbra.gameObject.SetActive(on);
             // Focus concentrates: a tighter cone AND a hotter core tint; Sweep stays the wide,
             // softer wash. Both still reveal the environment through mask hole + penumbra.
             if (_cone != null)
@@ -204,11 +197,6 @@ namespace Hollowbrook.World
                 _mask.transform.localPosition = mid;
                 _mask.transform.localEulerAngles = new Vector3(0f, 0f, angle);
             }
-            if (_penumbra != null)
-            {
-                _penumbra.transform.localPosition = mid;
-                _penumbra.transform.localEulerAngles = new Vector3(0f, 0f, angle);
-            }
             ScaleBeam(dt);
         }
 
@@ -230,16 +218,7 @@ namespace Hollowbrook.World
             float sy = _dispRange <= 0f ? 0.001f : 2f * _dispRange * _dispHalfTan / _coneWorldH;
             _cone.transform.localScale = new Vector3(sx, sy, 1f);
             if (_mask != null)
-                _mask.transform.localScale = new Vector3(sx * PenumbraOverScale, sy * PenumbraOverScale, 1f);
-            if (_penumbra != null)
-            {
-                _penumbra.transform.localScale = new Vector3(sx * PenumbraOverScale, sy * PenumbraOverScale, 1f);
-                // the sheet's darkness is the room's CURRENT ambient: a lit corridor penumbras
-                // gently, a dark one fades all the way back to its own black at the rim
-                var views = _gameRoot != null ? _gameRoot.Views : null;
-                float ambient = views != null ? views.AmbientAlpha : 0.62f;
-                var pc = _penumbra.color; pc.a = ambient; _penumbra.color = pc;
-            }
+                _mask.transform.localScale = new Vector3(sx * MaskOverScale, sy * MaskOverScale, 1f);
         }
 
         private void TickBattery(float dt)

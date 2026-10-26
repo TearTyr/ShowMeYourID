@@ -25,17 +25,17 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region TopBar = new Region(0, 0, 1280, 81);
         public static readonly Region Banner = new Region(22, 23, 320, 34);
         public static readonly Region SanityMeter = new Region(471, 23, 347, 34);   // mockup sanity block
-        public static readonly Region LightMeter = new Region(340, 84, 200, 20);      // patrol only, under the bar
-        public static readonly Region TrackMeter = new Region(550, 84, 120, 20);      // chase only
+        public static readonly Region LightMeter = new Region(348, 84, 200, 40);      // patrol only, under the bar
+        public static readonly Region TrackMeter = new Region(568, 84, 110, 40);     // chase only
         public static readonly Region Clock = new Region(975, 23, 140, 34);
         public static readonly Region Pause = new Region(1121, 23, 138, 34);
 
         // ---- row under the top bar (wireframe text baseline y=72) -----------
         public static readonly Region Hint = new Region(26, 84, 300, 20);     // strip under the top bar
-        public static readonly Region RunStats = new Region(690, 84, 260, 10);        // endless/challenge strip
-        public static readonly Region Mutation = new Region(690, 95, 260, 10);        // challenge bulletin strip
-        public static readonly Region Findings = new Region(961, 84, 303, 10);       // right edge x=1264
-        public static readonly Region RoomInfo = new Region(961, 95, 303, 10);       // exploration only
+        public static readonly Region RunStats = new Region(700, 84, 250, 10);        // endless/challenge strip
+        public static readonly Region Mutation = new Region(700, 95, 250, 10);        // challenge bulletin strip
+        public static readonly Region Findings = new Region(961, 84, 303, 12);       // right edge x=1264
+        public static readonly Region RoomInfo = new Region(961, 96, 303, 12);       // exploration only
 
         // ---- left column ----------------------------------------------------
         // records station slot: below the hint row, above the chat column
@@ -67,7 +67,7 @@ namespace Hollowbrook.Checkpoint
         // portrait's right edge is x=715), tail pointing at the face. The registered
         // region is the bubble's FULL box; the panel inside grows down from its top
         // edge with the line count (SpeechBubbleLayout), so short lines stay compact.
-        public static readonly Region SpeechBubble = new Region(740, 288, 241, 83);  // clear of the face hitbox
+        public static readonly Region SpeechBubble = new Region(740, 288, 215, 83);  // clear of face hitbox AND questions
         // booth dressing from the night-shift mockup: hood bands over the frame, the under-frame
         // glow and the two counter bases the window sits on
         public static readonly Region Hood1 = new Region(381, 116, 519, 47);
@@ -123,7 +123,8 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region SanityVal = new Region(322, 0, 40, 34);
             public static readonly Region SanityTrack = new Region(79, 10, 237, 13);
             public static readonly Region LightCap = new Region(8, 4, 60, 16);
-            public static readonly Region LightTrack = new Region(8, 21, 204, 12);
+            public static readonly Region LightTrack = new Region(8, 21, 120, 12);
+            public static readonly Region LightState = new Region(134, 8, 62, 24);
             public static readonly Region TrackCap = new Region(6, 4, 60, 14);
             public static readonly Region TrackTrack = new Region(6, 20, 108, 12);
 
@@ -153,10 +154,10 @@ namespace Hollowbrook.Checkpoint
             // speech bubble (container-local): the tail hangs off the panel's left edge,
             // tip toward the visitor's face; the text stretches inside the panel, which
             // the view sizes per line count (BubblePanelX/W are the static parts)
-            public const float BubblePanelX = 0f, BubblePanelW = 241f;
+            public const float BubblePanelX = 0f, BubblePanelW = 215f;
             public const float BubblePadTop = 8f, BubblePadBottom = 8f,
                                BubbleTagH = 16f, BubbleLineH = 15f;
-            public const int BubbleCharsPerLine = 34, BubbleMaxLines = 3;
+            public const int BubbleCharsPerLine = 30, BubbleMaxLines = 3;
             public static readonly Region BubbleTail = new Region(-38, 31, 48, 40);
             public static readonly Region NoteHead = new Region(10, 6, 260, 18);
             public static readonly Region NoteBody = new Region(10, 28, 260, 74);

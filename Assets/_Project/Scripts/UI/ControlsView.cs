@@ -22,9 +22,9 @@ namespace Hollowbrook.UI
 
             string body =
                 "CHECKPOINT (mouse)\n" +
-                "   Drag the ID + slip from the counter and arrange them — papers KEEP their size\n" +
-                "   while you scroll; Z zooms the paper you touched last (deliberate, toggle).\n" +
-                "   Flip: click the ID's BLACK SPINE (the card body only drags); F flips the paper you\n" +
+                "   The ID + slip are ON YOUR DESK when the student steps up — drag to arrange,\n" +
+                "   papers KEEP their size while you scroll; Z zooms the paper you touched last.\n" +
+                                "   Flip: click the ID's BLACK SPINE (the card body only drags); F flips the paper you\n" +
                 "   touched last — the slip flips on its own and never rides along with the ID.\n" +
                 "   Floor files: open a floor folder, pull the student's file — mismatches are clues.\n" +
                 "   Face check: click the ID PHOTO, then the face at the window — a quiet cue\n" +

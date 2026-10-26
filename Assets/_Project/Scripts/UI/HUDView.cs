@@ -24,6 +24,7 @@ namespace Hollowbrook.UI
         private Text _toast;
         private Text _findings;
         private Text _roomInfo;
+        private Text _beamLabel;
         private GameObject _trackBar;
         private Image _trackFill;
         private Text _stageLabel;
@@ -71,6 +72,8 @@ namespace Hollowbrook.UI
             L.Place(btrack, L.Inner.LightTrack);
             _batteryFill = UIFactory.Img(btrack, "fill", ProceduralArt.Get("solid_white"), UIFactory.InkDim);
             StretchFill(_batteryFill.rectTransform);
+            _beamLabel = UIFactory.Label(bbg, "beamstate", "", 11, UIFactory.Ink, TextAnchor.MiddleRight);
+            L.Place(_beamLabel.rectTransform, L.Inner.LightState);
             _batteryBar = bbg.gameObject;
 
             _findings = UIFactory.Label(_frame, "findings", "FINDINGS 0/10", 13, UIFactory.InkDim, TextAnchor.MiddleRight);

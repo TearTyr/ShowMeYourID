@@ -39,8 +39,11 @@ namespace Hollowbrook.Checkpoint
             UIFactory.AnchorsFull(tint.rectTransform);
             tint.raycastTarget = false;
 
-            _visitorPortrait = UIFactory.Img(_desk, "visitor", ProceduralArt.Get("face_placeholder"));
-            Reg("portrait", _visitorPortrait.rectTransform, L.Portrait);
+            // stable registered container; the face Image is letterboxed INSIDE it per sprite,
+            // so the artwork is centred whatever its source dimensions (FrameToSlot)
+            _portraitRoot = UIFactory.NewUI(_desk, "portraitroot");
+            Reg("portrait", _portraitRoot, L.Portrait);
+            _visitorPortrait = UIFactory.Img(_portraitRoot, "visitor", ProceduralArt.Get("face_placeholder"));
             _visitorPortrait.preserveAspect = true;
 
             _glitchOverlay = UIFactory.Img(_desk, "glitch", ProceduralArt.Get("noise_overlay"), new Color(1, 1, 1, 0f));
@@ -132,7 +135,7 @@ namespace Hollowbrook.Checkpoint
             slipDrag.OnLift = () => _lastPaper = _slipGo;
             // a tap on the counter slip takes it; a tap on the TAKEN slip turns it over —
             // its own flip (FlipSlip), never the ID's: the papers are decoupled
-            slipDrag.OnTapped = c => { if (!_slipTaken) TakeSlipAt(new Vector2(760f, 500f)); else FlipSlip(); };
+            slipDrag.OnTapped = c => { if (!_slipTaken) TakeSlipAt(new Vector2(850f, 530f)); else FlipSlip(); };
             slipDrag.OnDropped = c => SlipDropped(c);
             _slipGo.SetActive(false);
         }
@@ -164,7 +167,7 @@ namespace Hollowbrook.Checkpoint
             rt.localScale = Vector3.one;
             var drag = _slipGo.GetComponent<DragPaper>();
             drag.PlaceCenter(deskCenter);
-            drag.SetHome(new Vector2(660f, 440f));   // desk slot if it ever returns home
+            drag.SetHome(new Vector2(750f, 470f));   // desk slot if it ever returns home
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.5f);
             RefreshHandoverPrompt();
         }
@@ -254,8 +257,13 @@ namespace Hollowbrook.Checkpoint
             SetPaperHeld(_slipGo, true);
             if (_stampOverlay != null) { var c = _stampOverlay.color; c.a = 0f; _stampOverlay.color = c; }
             _lastPaper = _idCardGo;
-            OfferAtCounter();          // the ID slides to the counter edge
-            OfferSlipAtCounter();      // and the slip beside it
+            OfferAtCounter();          // fills + activates the counter card...
+            OfferSlipAtCounter();      // ...and the slip (FillSlip lives here)
+            // §6 automation: the papers are ALREADY on the desk when the student steps up —
+            // dragging still arranges them, but never gates the inspection
+            TakeId();
+            DockIdToSlot();
+            TakeSlipAt(new Vector2(850f, 530f));
         }
 
         // Offered card rows reuse the ID-card grid offsets (same card size).
@@ -299,6 +307,7 @@ namespace Hollowbrook.Checkpoint
         {
             bool admin = v.IsAdministrator;
             _offeredPhoto.sprite = FaceArt.IdSprite(v);   // the counter card shows the SAME photo as the desk card
+            FrameToSlot(_offeredPhoto, L.Inner.IdPhoto);
             _offeredName.text = "NAME: " + v.ClaimedName;
             _offeredNumber.text = (admin ? "BADGE NO: " : "ID NO: ") + v.IdNumber;
             _offeredExpires.text = (admin ? "VALID THRU: " : "EXPIRES: ") + v.ExpirationDisplay;
@@ -330,6 +339,7 @@ namespace Hollowbrook.Checkpoint
 
         private void SetVisitorVisible(bool on)
         {
+            if (_portraitRoot != null) _portraitRoot.gameObject.SetActive(on);
             _visitorPortrait.gameObject.SetActive(on);
             _visitorShown = on;
             if (!on) _bubble.HideNow();   // an empty window carries no line — and no timer
@@ -359,6 +369,9 @@ namespace Hollowbrook.Checkpoint
         {
             _visitorPortrait.sprite = FaceArt.WindowSprite(v);
             _idPhoto.sprite = FaceArt.IdSprite(v);
+            // artwork centred in the window (root-local slot)... and in the card's photo slot
+            FrameToSlot(_visitorPortrait, new L.Region(0f, 0f, L.Portrait.W, L.Portrait.H));
+            FrameToSlot(_idPhoto, L.Inner.IdPhoto);
         }
 
         private IEnumerator PortraitFadeIn()

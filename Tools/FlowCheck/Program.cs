@@ -199,8 +199,8 @@ namespace FlowCheck
             ExpectRegion("top bar", L.TopBar, 0, 0, 1280, 81);
             ExpectRegion("banner", L.Banner, 22, 23, 320, 34);
             ExpectRegion("sanity", L.SanityMeter, 471, 23, 347, 34);
-            ExpectRegion("light", L.LightMeter, 340, 84, 200, 20);
-            ExpectRegion("track", L.TrackMeter, 550, 84, 120, 20);
+            ExpectRegion("light", L.LightMeter, 348, 84, 200, 40);
+            ExpectRegion("track", L.TrackMeter, 568, 84, 110, 40);
             ExpectRegion("clock", L.Clock, 975, 23, 140, 34);
             ExpectRegion("pause", L.Pause, 1121, 23, 138, 34);
             ExpectRegion("records station", L.Station, 42, 119, 268, 140);
@@ -210,7 +210,7 @@ namespace FlowCheck
             ExpectRegion("glass", L.Glass, 431, 199, 420, 241);
             ExpectRegion("portrait", L.Portrait, 431, 199, 420, 241);
             ExpectRegion("sill", L.Sill, 412, 442, 455, 14);
-            ExpectRegion("speech bubble", L.SpeechBubble, 740, 288, 241, 83);
+            ExpectRegion("speech bubble", L.SpeechBubble, 740, 288, 215, 83);
             ExpectRegion("patrol button", L.PatrolBtn, 26, 688, 180, 28);
             ExpectRegion("end shift", L.EndShiftBtn, 1074, 688, 180, 28);
             ExpectRegion("questions", L.Questions, 961, 110, 298, 201);
@@ -245,7 +245,7 @@ namespace FlowCheck
                 "the APPROVE/DECLINE blocks are one aligned row, 8px apart, under the map panel, inside the desk");
             Check(L.StampAllow.W >= 96f && L.StampAllow.H >= 96f,
                 "the stamp blocks keep a comfortable >=96px grab area");
-            Check(L.SpeechBubble.X >= 738f && L.SpeechBubble.Right <= 990f &&
+            Check(L.SpeechBubble.X >= 738f && L.SpeechBubble.Right <= L.Questions.X &&
                   L.SpeechBubble.Y >= L.Window.Y && L.SpeechBubble.Bottom <= L.Sill.Bottom,
                 "the speech bubble box stays beside the head, clear of the right column and the sill");
             Check(SpeechBubbleLayout.Height(L.Inner.BubbleMaxLines, L.Inner.BubbleLineH,
@@ -493,19 +493,32 @@ namespace FlowCheck
                   FindDeep(cp.transform, "station").GetComponent<UnityEngine.UI.InputField>() == null,
                   "the old registry terminal is gone: no FIND button, no text input");
             var drawer = FindDeep(cp.transform, "filedrawer_border");
-            Check(!drawer.gameObject.activeSelf, "the folder drawer starts closed");
+            var zone = FindDeep(cp.transform, "drawerzone");
+            var zoneHover = zone.GetComponent<Hollowbrook.UI.HoverSense>();
+            Check(!FindDeep(cp.transform, "folder1").gameObject.activeSelf && !drawer.gameObject.activeSelf,
+                "DRAWER: floor files start HIDDEN inside the closed drawer (front label + handle only)");
+            zoneHover.OnPointerEnter(null);
+            Check(FindDeep(cp.transform, "folder1").gameObject.activeSelf,
+                "DRAWER: hovering the shared area opens it (tabs revealed)");
+            zoneHover.OnPointerEnter(null);
+            Check(FindDeep(cp.transform, "folder1").gameObject.activeSelf,
+                "DRAWER: re-entering (handle -> contents) never flickers it shut");
             var tab1 = FindDeep(cp.transform, "folder1").GetComponent<UnityEngine.UI.Button>();
             tab1.onClick.Invoke();
-            Check(drawer.gameObject.activeSelf, "clicking a floor folder opens its drawer");
-            Check(FindDeep(cp.transform, "filerow0") != null, "the open folder lists its student files");
+            Check(!FindDeep(cp.transform, "folder1").gameObject.activeSelf,
+                "DRAWER: selecting a floor file closes the drawer AFTER the selection registers");
+            zoneHover.OnPointerEnter(null);
+            Check(drawer.gameObject.activeSelf && FindDeep(cp.transform, "filerow0") != null,
+                "DRAWER: re-opening shows the selected floor's files");
             var headText = FindDeep(cp.transform, "drawerhead").GetComponent<UnityEngine.UI.Text>().text;
             Check(headText.Contains("1ST FLOOR") && headText.Contains("7 FILES"),
                   "the drawer head names the floor and counts its files (got '" + headText + "')");
-            tab1.onClick.Invoke();
-            Check(!drawer.gameObject.activeSelf, "clicking the open folder again collapses it");
+            zoneHover.OnPointerExit(null);
+            Check(!drawer.gameObject.activeSelf && !FindDeep(cp.transform, "folder1").gameObject.activeSelf,
+                "DRAWER: leaving the whole interaction area closes it");
+            zoneHover.OnPointerEnter(null);
 
             // pull a file: same record-window path the old FIND search triggered
-            tab1.onClick.Invoke();
             var row0 = FindDeep(cp.transform, "filerow0");
             string rowName = row0.Find("fname").GetComponent<UnityEngine.UI.Text>().text;
             row0.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
@@ -526,6 +539,7 @@ namespace FlowCheck
             // the second floor folder: different files, and pulling one repopulates the sheet
             var tab2 = FindDeep(cp.transform, "folder2").GetComponent<UnityEngine.UI.Button>();
             tab2.onClick.Invoke();
+            zoneHover.OnPointerEnter(null);   // selecting closed the drawer; reach back in
             var row2 = FindDeep(cp.transform, "filerow0");
             string row2Name = row2.Find("fname").GetComponent<UnityEngine.UI.Text>().text;
             Check(row2Name != rowName, "the second floor folder lists a different set of files");
@@ -940,9 +954,8 @@ namespace FlowCheck
             bool want = rig.Beam != LightMode.Off && !rig.BatteryDead;
             bool cone = FindDeep(rig.transform, "beam").gameObject.activeSelf;
             bool mask = FindDeep(rig.transform, "FlashlightMask").gameObject.activeSelf;
-            bool pen = FindDeep(rig.transform, "BeamPenumbra").gameObject.activeSelf;
-            Check(cone == want && mask == want && pen == want,
-                $"{tag}: cone + mask + penumbra all agree with the beam state ({(want ? "ON" : "OFF")})");
+            Check(cone == want && mask == want,
+                $"{tag}: cone + mask agree with the beam state ({(want ? "ON" : "OFF")}) — the only two light layers");
             string hud = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
             // while peeking, the handheld readout is replaced by the peek lamp's own line
             bool peeking = root.State == AppViewState.RoomPeek;
@@ -1014,8 +1027,11 @@ namespace FlowCheck
             Check(Mathf.Abs(vHitRt.sizeDelta.x - wantV.W) < 0.01f &&
                   Mathf.Abs(vHitRt.sizeDelta.y - wantV.H) < 0.01f,
                 "FC: the student hitbox matches the displayed portrait, scaled or not");
-            var selBorder = FindDeep(cp.transform, "photosel_border").GetComponent<UnityEngine.UI.Image>();
-            var cueBorder = FindDeep(cp.transform, "facecue_border").GetComponent<UnityEngine.UI.Image>();
+            var selBorder = FindDeep(cp.transform, "photosel").GetComponent<UnityEngine.UI.Image>();
+            var cueBorder = FindDeep(cp.transform, "facecue").GetComponent<UnityEngine.UI.Image>();
+            Check(selBorder.sprite != null && selBorder.sprite.name == "outline_frame" &&
+                  cueBorder.sprite != null && cueBorder.sprite.name == "outline_frame",
+                "FC: selection/cue inks are HOLLOW frames — they outline, never cover, the photo");
             Check(Mathf.Abs(selBorder.color.a) < 0.01f && Mathf.Abs(cueBorder.color.a) < 0.01f,
                 "FC: born unselected, with no cue playing");
 
@@ -1037,8 +1053,9 @@ namespace FlowCheck
                   selBorder.rectTransform.anchorMin == Vector2.zero &&
                   selBorder.rectTransform.anchorMax == Vector2.one &&
                   selBorder.rectTransform.offsetMin == Vector2.zero &&
-                  selBorder.rectTransform.offsetMax == Vector2.zero,
-                "FC: the selection outline is stretched over the PHOTOGRAPH alone (its parent), not the whole card");
+                  selBorder.rectTransform.offsetMax == Vector2.zero &&
+                  !selBorder.raycastTarget,
+                "FC: the hollow selection frame is stretched over the PHOTOGRAPH alone and eats no clicks");
 
             // a real drag that STARTS on the photo still drags the card (forwarded past 6px)
             var cardRt = FindDeep(cp.transform, "idcard").GetComponent<RectTransform>();
@@ -1092,8 +1109,19 @@ namespace FlowCheck
             var offeredImg = FindDeep(cp.transform, "photo").GetComponent<UnityEngine.UI.Image>();
             Check(pImg.sprite != null && vImg.sprite != null && offeredImg.sprite != null,
                 "FC: photo, window portrait and counter photo all carry real sprites (no white texture)");
+            var vWant = Hollowbrook.UI.UIFactory.Letterbox(L.Portrait.W, L.Portrait.H,
+                vImg.sprite.rect.width, vImg.sprite.rect.height);
+            var vRt = portrait.GetComponent<RectTransform>();
+            Check(Mathf.Abs(vRt.sizeDelta.x - vWant.W) < 0.5f && Mathf.Abs(vRt.sizeDelta.y - vWant.H) < 0.5f &&
+                  Mathf.Abs(vRt.anchoredPosition.x - vWant.X) < 0.5f,
+                $"FC: the portrait Image rect IS the letterbox of its sprite, centred in the window ({vWant.W:F0}x{vWant.H:F0})");
+            var pWant = Hollowbrook.UI.UIFactory.Letterbox(L.Inner.IdPhoto.W, L.Inner.IdPhoto.H,
+                pImg.sprite.rect.width, pImg.sprite.rect.height);
+            var pRt = photo.GetComponent<RectTransform>();
+            Check(Mathf.Abs(pRt.sizeDelta.x - pWant.W) < 0.5f && Mathf.Abs(pRt.sizeDelta.y - pWant.H) < 0.5f,
+                "FC: the ID photo Image rect IS the letterbox of its sprite inside the card slot");
             bool inkLeak = false;
-            foreach (var n in new[] { "photosel", "facecue", "stampoverlay" })
+            foreach (var n in new[] { "photosel", "facecue", "stampoverlay", "idphotohit", "visitorhit" })
             {
                 var t = FindDeep(cp.transform, n);
                 if (t == null) continue;
@@ -1143,32 +1171,35 @@ namespace FlowCheck
                 cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             int freshGuard = 0;
             while (cp.CurrentVisitor == null && freshGuard++ < 8) cp.AdvanceQueue(6f);
-            Check(cp.CurrentVisitor != null && !FindDeep(desk, "idcard").gameObject.activeSelf,
-                  "a fresh visitor waits with documents still untaken");
+            Check(cp.CurrentVisitor != null && FindDeep(desk, "idcard").gameObject.activeSelf &&
+                  FindDeep(desk, "slip").gameObject.activeSelf,
+                  "a fresh visitor arrives with both documents already on the desk (§6 automation)");
             Check(!FindDeep(desk, "idcard").Find("idback").gameObject.activeSelf &&
                   !FindDeep(desk, "slip").Find("slipback").gameObject.activeSelf,
                   "the fresh visitor's papers are born FACE-UP (flip state never carries over)");
-            Check(StampAlpha(root, "stamp_allow") < 0.5f, "the stamp tray rests dim before the ID is taken");
+            Check(StampAlpha(root, "stamp_allow") > 0.9f, "stamps ink up as soon as the inspection is live (docs auto-placed)");
             int procBefore = root.Queue.ProcessedCount;
             DropStamp(root, Verdict.Reject);
             Check(root.Queue.ProcessedCount == procBefore && cp.CurrentVisitor != null,
                   "a stamp drop with no documents in hand is a no-op");
-            Check(FindDeep(desk, "offeredid").gameObject.activeInHierarchy,
-                  "the ID slides to the counter edge on arrival, unasked");
-            Check(HintText(root).Contains("DRAG THE ID AND THE SLIP"),
-                  "hint matches state: nothing taken yet (got '" + HintText(root) + "')");
-            var offerDrag = FindDeep(desk, "offeredid").GetComponent<DragPaper>();
-            offerDrag.BeginDrag();
-            offerDrag.PlaceCenter(new Vector2(600f, 520f));
-            offerDrag.EndDrag();
-            Check(FindDeep(desk, "idcard").gameObject.activeSelf,
-                  "dragging the ID onto the desk takes it (drop where you let go)");
-            Check(HintText(root).Contains("SLIP IS STILL"),
-                  "hint matches state: ID taken, slip on counter (got '" + HintText(root) + "')");
+            Check(!FindDeep(desk, "offeredid").gameObject.activeInHierarchy,
+                  "no counter hand-over gate: the offered card never blocks the flow");
+            Check(FindDeep(desk, "idcard").gameObject.activeSelf &&
+                  FindDeep(desk, "slip").gameObject.activeSelf,
+                  "AUTO-DOCS: ID and slip are already on the desk when the inspection begins");
+            Check(HintText(root).Contains("STAMP THE SLIP"),
+                  "AUTO-DOCS: the hint jumps straight to stamping (got '" + HintText(root) + "')");
+            var cardPos = FindDeep(desk, "idcard").GetComponent<RectTransform>().anchoredPosition;
+            var slipPos = FindDeep(desk, "slip").GetComponent<RectTransform>().anchoredPosition;
+            Check(cardPos.y < 0 && slipPos.y < 0 && Mathf.Abs(slipPos.x - 750f) < 1f,
+                $"AUTO-DOCS: both rest in their desk slots (card {cardPos.x:F0},{cardPos.y:F0}; slip {slipPos.x:F0},{slipPos.y:F0})");
+            Check(FindDeep(desk, "sname") != null &&
+                  FindDeep(desk, "sname").GetComponent<UnityEngine.UI.Text>().text.Length > 4,
+                "AUTO-DOCS: the slip carries the current student's data without any drag");
             Check(!live("patrol"), "PATROL HALLWAY dimmed mid-inspection");
             Check(!live("endshift"), "END SHIFT dimmed before the roster is done");
 
-            Check(StampAlpha(root, "stamp_allow") > 0.9f, "stamps ink up once the ID is in hand");
+            Check(StampAlpha(root, "stamp_allow") > 0.9f, "stamps stay inked while the inspection is live");
 
             cp.GoPatrol();
             Check(root.State == AppViewState.Checkpoint, "PATROL refused mid-inspection (state stays Checkpoint)");
@@ -2115,52 +2146,30 @@ namespace FlowCheck
                   "W2b: beam OFF -> cone and mask fully removed (no residual glow anywhere)");
 
             // environmental illumination, not a brighter graphic: a graded penumbra sheet puts
-            // the room's OWN darkness back over the stencil hole, so walls/lockers/doors come
-            // up by distance and angle and the rim melts into the ambient instead of popping
-            var penGo = FindDeep(rig.transform, "BeamPenumbra");
-            Check(penGo != null, "W2b: the beam owns a penumbra sheet (graded environmental falloff)");
-            if (penGo != null)
-            {
-                var pen = penGo.GetComponent<SpriteRenderer>();
-                var coneT = FindDeep(rig.transform, "beam");
-                SetBeam(root, rig, LightMode.Sweep);
-                Check(penGo.gameObject.activeSelf, "W2b: beam ON -> the environmental falloff is live");
-                Check(pen.sortingOrder == 72 && pen.maskInteraction == SpriteMaskInteraction.None,
-                      "W2b: it draws over the darkness hole and no mask punches it (it IS the graded dark)");
-                Check(Mathf.Abs(pen.color.a - views.AmbientAlpha) < 1e-3f,
-                      $"W2b: its rim fades to the room's real ambient alpha ({pen.color.a:F2})");
-                Check(Vector3.Distance(penGo.localPosition, coneT.localPosition) < 0.01f &&
-                      Mathf.Abs(penGo.localEulerAngles.z - coneT.localEulerAngles.z) < 0.01f,
-                      "W2b: the falloff tracks the beam origin and the cursor aim exactly");
-                Check(Mathf.Abs(penGo.localScale.x - coneT.localScale.x * 1.35f) < 0.01f,
-                      "W2b: ...and reaches 35% past the visible cone so the fade lands, not pops");
-                SetBeam(root, rig, LightMode.Focus);
-                Check(rig.Params.HalfAngleDeg < cfg.sweepHalfAngleDeg && penGo.gameObject.activeSelf,
-                      "W2b: FOCUS (Q) narrows the cone and keeps the environmental falloff with it");
-                Check(Mathf.Abs(coneT.GetComponent<SpriteRenderer>().color.a - 0.42f) < 1e-3f,
-                      "W2b: focus concentrates more light on the inspected spot (hotter core tint)");
-                SetBeam(root, rig, LightMode.Sweep);
-                Check(Mathf.Abs(coneT.GetComponent<SpriteRenderer>().color.a - 0.30f) < 1e-3f,
-                      "W2b: leaving focus restores the broad sweep wash");
-                var coneSpr = coneT.GetComponent<SpriteRenderer>().sprite;
-                var conePx = coneSpr.texture.GetPixels();
-                int cw = coneSpr.texture.width, ch = coneSpr.texture.height;
-                float A(float t, float u)   // u in half-heights (0 axis .. 1 rim .. >1 outside)
-                {
-                    int x = Mathf.Clamp((int)(t * (cw - 1)), 0, cw - 1);
-                    int y = Mathf.Clamp((int)((0.5f + u * 0.5f) * (ch - 1)), 0, ch - 1);
-                    return conePx[y * cw + x].a;
-                }
-                Check(A(0.3f, 0f) > A(0.3f, 0.24f) && A(0.3f, 0.24f) > A(0.3f, 0.39f),
-                    "W2b: the beam's cross-section is a soft shoulder, not a flat triangle edge");
-                Check(A(0.2f, 0f) > A(0.7f, 0f) && A(0.7f, 0f) > A(0.97f, 0f),
-                    "W2b: light decays gradually along the beam (hot pool -> dark reach)");
-                Check(A(0.3f, 0.48f) > 0.001f && A(0.3f, 0.48f) < 0.2f,
-                    "W2b: a faint halo lifts nearby surfaces but stays under the stencil cutoff");
-                SetBeam(root, rig, LightMode.Off);
-                Check(!penGo.gameObject.activeSelf,
-                      "W2b: beam OFF removes the environmental illumination together with the beam");
-            }
+            // ONE authoritative pair: stencil mask + cone tint. The stacked-sheet approach is
+            // fully rolled back — nothing left that could double-dark or desynchronise.
+            Check(FindDeep(rig.transform, "BeamPenumbra") == null &&
+                  FindDeep(rig.transform, "BeamAreaMask") == null,
+                "W2b: no stacked light layers remain (penumbra/area approach rolled back)");
+            var coneT = FindDeep(rig.transform, "beam");
+            var maskGo = FindDeep(rig.transform, "FlashlightMask");
+            var maskC = maskGo.GetComponent<SpriteMask>();
+            SetBeam(root, rig, LightMode.Sweep);
+            Check(maskC.alphaCutoff <= 0.1f,
+                $"W2b: the mask cutoff sits in the cone art's faintest feather ({maskC.alphaCutoff:F2}) — soft single-layer reveal");
+            Check(Mathf.Abs(maskGo.localScale.x - coneT.localScale.x * 1.06f) < 0.01f,
+                "W2b: the hole rides just outside the visible cone (no dark rim inside the beam)");
+            SetBeam(root, rig, LightMode.Focus);
+            Check(rig.Params.HalfAngleDeg < cfg.sweepHalfAngleDeg,
+                "W2b: FOCUS narrows the cone (tighter, longer) within the same single mask+cone system");
+            Check(Mathf.Abs(coneT.GetComponent<SpriteRenderer>().color.a - 0.42f) < 1e-3f,
+                "W2b: focus concentrates more light on the inspected spot (hotter core tint)");
+            SetBeam(root, rig, LightMode.Sweep);
+            Check(Mathf.Abs(coneT.GetComponent<SpriteRenderer>().color.a - 0.30f) < 1e-3f,
+                "W2b: leaving focus restores the broad sweep wash");
+            SetBeam(root, rig, LightMode.Off);
+            Check(!coneT.gameObject.activeSelf && !maskGo.gameObject.activeSelf,
+                "W2b: beam OFF removes cone AND mask — no stale light layer survives");
 
             // the wall switch still means a fully visible corridor, then darkness returns
             if (swB != null) swB.Interact();

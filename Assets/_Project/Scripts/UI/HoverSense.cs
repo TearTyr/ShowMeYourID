@@ -18,9 +18,8 @@ namespace Hollowbrook.UI
 
         public void OnPointerEnter(PointerEventData eventData)
         {
-            if (Hovering) return;                 // no duplicate enters
             Hovering = true;
-            OnEnter?.Invoke();
+            OnEnter?.Invoke();                    // owners are idempotent; never swallow a re-enter
         }
 
         public void OnPointerExit(PointerEventData eventData) => Leave();

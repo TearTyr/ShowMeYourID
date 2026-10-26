@@ -63,6 +63,24 @@ namespace Hollowbrook.Checkpoint
             _drawerGo = drawer.gameObject;
             _drawerGo.SetActive(false);
 
+            // Closed-drawer presentation: only the worn front (caption + handle) shows; the
+            // tabs, readout and file rows live in a hover-gated body inside ONE shared boundary
+            // (the zone), so moving between front and contents never closes it mid-reach.
+            var handle = UIFactory.Panel(station.rectTransform, "handle", UIFactory.NsMid);
+            L.Place(handle.rectTransform, new L.Region(104, 128, 60, 6));
+            handle.raycastTarget = false;
+            _drawerZone = UIFactory.Img(_desk, "drawerzone", null, new Color(0f, 0f, 0f, 0f), true);
+            L.Place(_drawerZone.rectTransform, new L.Region(42, 119, 268, 380));
+            station.rectTransform.SetParent(_drawerZone.rectTransform, true);   // one hover boundary
+            _drawerGo.transform.SetParent(_drawerZone.rectTransform, true);
+            var zoneHover = _drawerZone.gameObject.AddComponent<Hollowbrook.UI.HoverSense>();
+            zoneHover.OnEnter = () => SetDrawerBody(true);
+            zoneHover.OnExit = () => SetDrawerBody(false);
+            var zoneBtn = _drawerZone.gameObject.AddComponent<UnityEngine.UI.Button>();
+            zoneBtn.targetGraphic = _drawerZone;
+            zoneBtn.onClick.AddListener(() => SetDrawerBody(!_drawerBodyOpen));  // click/keyboard toggle
+            SetDrawerBody(false);
+
             // The student file: a draggable window, opened only by pulling it from the
             // floor-files drawer.
             var rec = UIFactory.Img(_desk, "record", ProceduralArt.Get("record_sheet"));
@@ -322,10 +340,25 @@ namespace Hollowbrook.Checkpoint
         }
 
         // Folder tabs toggle their drawer; a second click on the open folder slides it shut.
+        private bool _drawerBodyOpen;
+        private Image _drawerZone;
+
+        /// <summary>Open/close the drawer body (tabs + readout + rows). The closed front keeps
+        /// its label and handle; nothing room-specific is visible while shut.</summary>
+        internal void SetDrawerBody(bool on)
+        {
+            _drawerBodyOpen = on;
+            for (int i = 0; i < _folderTabs.Length; i++)
+                if (_folderTabs[i] != null) _folderTabs[i].gameObject.SetActive(on);
+            if (_stationOut != null) _stationOut.gameObject.SetActive(on);
+            if (_drawerGo != null) _drawerGo.SetActive(on && _openFloor >= 1);
+        }
+
         private void ToggleFolder(int floor)
         {
             if (_openFloor == floor) CloseFileDrawer();
             else OpenFolder(floor);
+            SetDrawerBody(false);   // selecting a floor file closes the drawer, after the selection
         }
 
         // Slides the drawer open on one floor's files. Folders are computed from the live
@@ -341,7 +374,7 @@ namespace Hollowbrook.Checkpoint
             PopulateDrawer(RecordSearch.FloorLabel(floor), canon,
                 folder != null ? folder.Indices : new List<int>());
             RefreshFolderTabs();
-            if (_drawerGo != null) _drawerGo.SetActive(true);
+            if (_drawerGo != null) _drawerGo.SetActive(_drawerBodyOpen);
             if (_gameRoot != null) _gameRoot.Audio.PlaySfx("sfx_paper", 0.25f);
         }
 

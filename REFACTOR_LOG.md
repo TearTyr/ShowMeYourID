@@ -591,3 +591,27 @@ FlowCheck layout audit re-baselined to the new table (ExpectRegion + internal gr
 matrix); the white-box proof is now targeted (face-chain sprites real, sprite-less overlay inks
 transparent). verify.sh compile+audit clean (100 scripts, 16,025 lines); LogicTests 27,556/27,556;
 FlowCheck 1003 OK / 0 BAD; frozen 663/663.
+
+## Screenshot-driven Unity hotfix pass (October 2026)
+Four defects visible in the owner's editor screenshots, all root-caused and fixed:
+1. **White square over the ID photo:** the selection/comparison cues were `BorderedPanel`s — whose
+   OUTER Image is a FILLED rect — so a selected photo (or a playing cue) painted a pale solid square
+   over the photograph. Both cues now use a new hollow `outline_frame` sprite (opaque border,
+   transparent centre): they outline, never cover.
+2. **Dark trapezoids flanking the beam:** the penumbra sheet added its darkness ON TOP of the room
+   darkness outside the wedge but inside its rect (double-dark corners). New `BeamAreaMask`
+   (SpriteMask, range 60..70, 0.98x the penumbra sheet) cuts the base+pool layers exactly where the
+   penumbra takes over, so the penumbra REPLACES the ambient inside the beam area and equals it at
+   the boundary — one coherent beam, no geometric shadows.
+3. **HUD collisions under the top bar:** LightMeter/TrackMeter moved to (348,84,200,40) /
+   (568,84,110,40), clear of Findings/RoomInfo and of each other's captions.
+4. **Portrait framing:** `ShowVisitorPortrait` re-asserts the portrait rect + preserveAspect on
+   every present, so no stale rect/anchor can leave the face off-centre.
+5. **§6 automation:** `ResetHandover` now offers AND auto-takes both papers (TakeId + DockIdToSlot +
+   TakeSlipAt) — the inspection never gates on dragging; dragging still arranges. The earlier
+   auto-take attempt had deleted the Offer calls (which fill + activate the slip); restored before
+   the take. ControlsView/README wording updated.
+FlowCheck proofs rewired (auto-docs, hollow frames, area mask, HUD row). verify.sh compile+audit
+clean (100 scripts, 16,078 lines); LogicTests 27,556/27,556; FlowCheck 1008 OK / 0 BAD; frozen
+663/663. The single-file browser game was NOT modified this pass; its 50/50 Playwright result from
+the previous pass still applies to its unchanged bytes.

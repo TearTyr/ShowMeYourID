@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using Hollowbrook.Bootstrap;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using Hollowbrook.UI;
@@ -50,39 +51,34 @@ namespace Hollowbrook.Checkpoint
                 // stays click-through, leaving the card body free to drag)
                 _idPhoto.raycastTarget = false;
                 _idPhotoHit = UIFactory.AspectHitbox(_idPhoto, "idphotohit");
+                _cueInks.Add(_idPhotoHit);   // SetPaperHeld must never brighten the click-catcher
                 _photoSelect = _idPhotoHit.gameObject.AddComponent<IdPhotoSelect>();
                 _photoSelect.Init(_idCardGo != null ? _idCardGo.GetComponent<DragPaper>() : null);
                 _photoSelect.OnSelected = () => SetPhotoSelected(!_photoSelected);  // click toggles
-                _photoSelOutline = UIFactory.BorderedPanel(_idPhoto.rectTransform, "photosel",
-                    new Color(1f, 1f, 1f, 0f), SelInk, 2);
+                // a hollow frame sprite: outlines the photo without ever covering it
+                _photoSelOutline = UIFactory.Img(_idPhoto.rectTransform, "photosel",
+                    ProceduralArt.Get("outline_frame"), SelInk).rectTransform;
                 UIFactory.AnchorsFull(_photoSelOutline);
                 _photoSelBorder = _photoSelOutline.GetComponent<Image>();
-                foreach (var img in _photoSelOutline.gameObject.GetComponentsInChildren<Image>(true))
-                    _cueInks.Add(img);
-                SetOutlineRaycast(_photoSelOutline, false);
+                _photoSelBorder.raycastTarget = false;
+                _cueInks.Add(_photoSelBorder);
                 SetPhotoSelected(false, true);
             }
             if (_visitorPortrait != null)
             {
                 _visitorPortrait.raycastTarget = false;
                 _portraitHit = UIFactory.AspectHitbox(_visitorPortrait, "visitorhit");
+                _cueInks.Add(_portraitHit);
                 _portraitClick = _portraitHit.gameObject.AddComponent<ClickSense>();
                 _portraitClick.OnClick = OnWindowStudentClicked;
-                _faceCue = UIFactory.BorderedPanel(_visitorPortrait.rectTransform, "facecue",
-                    new Color(1f, 1f, 1f, 0f), MatchInk, 3);
+                _faceCue = UIFactory.Img(_visitorPortrait.rectTransform, "facecue",
+                    ProceduralArt.Get("outline_frame"), MatchInk).rectTransform;
                 UIFactory.AnchorsFull(_faceCue);
                 _faceCueBorder = _faceCue.GetComponent<Image>();
-                foreach (var img in _faceCue.gameObject.GetComponentsInChildren<Image>(true))
-                    _cueInks.Add(img);
-                SetOutlineRaycast(_faceCue, false);
+                _faceCueBorder.raycastTarget = false;
+                _cueInks.Add(_faceCueBorder);
                 SetCueAlpha(0f);
             }
-        }
-
-        private static void SetOutlineRaycast(RectTransform rt, bool on)
-        {
-            foreach (var img in rt.gameObject.GetComponentsInChildren<Image>(true))
-                img.raycastTarget = on;   // the cues are pure ink: they never eat a click
         }
 
         /// <summary>Selection state of the ID photograph (thin outline on the photo only —
@@ -196,6 +192,21 @@ namespace Hollowbrook.Checkpoint
         {
             UIFactory.SyncAspectHitbox(_idPhoto, _idPhotoHit);
             UIFactory.SyncAspectHitbox(_visitorPortrait, _portraitHit);
+        }
+
+        // Centre the ARTWORK, not the container: the face Image's own rect is set to the
+        // letterbox of its sprite inside the slot, so preserveAspect has nothing left to guess
+        // and every portrait — any source dimensions — sits centred in the window/slot.
+        internal static void FrameToSlot(Image img, L.Region slot)
+        {
+            if (img == null || img.sprite == null) return;
+            var b = UIFactory.Letterbox(slot.W, slot.H, img.sprite.rect.width, img.sprite.rect.height);
+            var rt = img.rectTransform;
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(slot.X + b.X, -(slot.Y + b.Y));
+            rt.sizeDelta = new Vector2(b.W, b.H);
         }
 
         // Headless hooks: the same two paths the pointer takes.

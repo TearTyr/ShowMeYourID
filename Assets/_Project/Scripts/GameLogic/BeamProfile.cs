@@ -28,11 +28,6 @@ namespace Hollowbrook.Logic
         public static float Light(float t, float uNorm) =>
             Math.Min(1f, Reach(t) * Side(uNorm) + 0.30f * Halo(t, uNorm));
 
-        /// <summary>How much of the room's darkness the beam removes at a point (0..1): the wedge
-        /// light WITHOUT the halo — the penumbra sheet is 1 - Reveal, so the reveal fades exactly
-        /// as fast as the painted light does and lands on the ambient alpha at the rim.</summary>
-        public static float Reveal(float t, float uNorm) => Reach(t) * Side(uNorm);
-
         public static float Smooth(float lo, float hi, float v)
         {
             if (hi <= lo) return v >= hi ? 1f : 0f;

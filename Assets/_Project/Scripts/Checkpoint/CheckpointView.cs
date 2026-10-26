@@ -45,6 +45,7 @@ namespace Hollowbrook.Checkpoint
         private Button _stickyButton;
 
         private Image _visitorPortrait;
+        private RectTransform _portraitRoot;
         private Image _glitchOverlay;
 
         private Text _idName, _idNumber, _idYear, _idCourse, _idExpires, _idStatus, _idHeader;
