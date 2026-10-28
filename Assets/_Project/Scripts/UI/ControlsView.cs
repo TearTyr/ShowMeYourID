@@ -26,14 +26,18 @@ namespace Hollowbrook.UI
                 "   papers KEEP their size while you scroll; Z zooms the paper you touched last.\n" +
                                 "   Flip: click the ID's BLACK SPINE (the card body only drags); F flips the paper you\n" +
                 "   touched last — the slip flips on its own and never rides along with the ID.\n" +
-                "   Floor files: open a floor folder, pull the student's file — mismatches are clues.\n" +
-                "   Face check: click the ID PHOTO, then the face at the window — a quiet cue\n" +
-                "   answers (green frame = same face, amber = not). It informs; the verdict is yours.\n" +
+                "   Floor files: click the cabinet front (or TAB) to PULL THE DRAWER OUT, pick a floor\n" +
+                "   folder, then click a file to pull it onto the desk — mismatches are clues.\n" +
+                "   The face at the window vs the ID photo is YOUR eye-check: this desk has no\n" +
+                "   face-match widget, nothing to click and nothing that scores it for you.\n" +
                 "   Answers arrive in the speech bubble beside the head (2 s after the line ends;\n" +
                 "   hover the bubble to keep a line on screen while you read it).\n" +
                 "   Stamp the slip (drag, or A / D) — the mark lands WHERE you drop the stamp, always\n" +
-                "   fully on the paper — then hand back BOTH papers (H).\n" +
-                "   At most 2 questions per visitor. Decisions are permanent.\n\n" +
+                "   fully on the paper — then hand back BOTH papers (H). TAB pulls the file drawer.\n" +
+                "   At most 2 questions per visitor. Decisions are permanent.\n" +
+                "   NIGHT 5: when the district administrator arrives, T (or the bar beside the\n" +
+                "   stamps) opens THE CONVERSATION — challenge, comply, raise what you have\n" +
+                "   found, or say nothing. Words are evidence only: the stamp still decides.\n\n" +
                 "EXPLORATION\n" +
                 "   Rooms are entered DARK and your beam starts OFF — every door you go through\n" +
                 "   puts it out again. The wall switch (E) lights the room itself. Classroom peeks\n" +

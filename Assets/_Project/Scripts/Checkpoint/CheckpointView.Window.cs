@@ -45,6 +45,7 @@ namespace Hollowbrook.Checkpoint
             Reg("portrait", _portraitRoot, L.Portrait);
             _visitorPortrait = UIFactory.Img(_portraitRoot, "visitor", ProceduralArt.Get("face_placeholder"));
             _visitorPortrait.preserveAspect = true;
+            _visitorPortrait.raycastTarget = false;   // the face is scenery: it takes no clicks
 
             _glitchOverlay = UIFactory.Img(_desk, "glitch", ProceduralArt.Get("noise_overlay"), new Color(1, 1, 1, 0f));
             Reg("glitch", _glitchOverlay.rectTransform, L.Glitch);
@@ -59,6 +60,9 @@ namespace Hollowbrook.Checkpoint
             var base2 = UIFactory.Panel(_desk, "base2", new Color(0.05f, 0.05f, 0.05f));
             Reg("base2", base2.rectTransform, L.Base2);
             base2.raycastTarget = false;
+            var base3 = UIFactory.Panel(_desk, "base3", new Color(0.04f, 0.04f, 0.04f));
+            Reg("base3", base3.rectTransform, L.Base3);
+            base3.raycastTarget = false;
 
             // the student slides their ID to the counter edge on arrival (OfferAtCounter);
             // nothing here needs a click target any more
@@ -80,6 +84,7 @@ namespace Hollowbrook.Checkpoint
             _offeredPhoto = UIFactory.Img(rt, "photo", ProceduralArt.Get("face_placeholder"));
             L.Place(_offeredPhoto.rectTransform, L.Inner.IdPhoto);
             _offeredPhoto.preserveAspect = true;
+            _offeredPhoto.raycastTarget = false;   // the card frame is the drag target, not the photo
             _offeredName = OfferedRow(rt, 0);
             _offeredNumber = OfferedRow(rt, 1);
             _offeredExpires = OfferedRow(rt, 5);
@@ -108,21 +113,31 @@ namespace Hollowbrook.Checkpoint
         {
             // The paper slip (ticket): arrives with the ID, carries name/ID/reason, takes
             // the stamp, and goes back to the student with the ID to close the inspection.
+            // Same container + scaled-art pattern as the ID card: the slip's written lines
+            // keep their 200x120 design space inside one uniformly scaled art layer, while
+            // the desk footprint is the concept-measured paper rect.
             var slipRt = UIFactory.NewUI(_desk, "slip");
             L.Place(slipRt, L.CounterSlip);
             slipRt.localScale = Vector3.one;   // readable at the counter, clear of the frame
-            var slipBg = UIFactory.Panel(slipRt, "bg", new Color(0.88f, 0.86f, 0.80f));
+            slipRt.localEulerAngles = new Vector3(0, 0, L.TiltSlip);
+            var slipSurface = slipRt.gameObject.AddComponent<UnityEngine.UI.Image>();
+            slipSurface.color = new Color(0f, 0f, 0f, 0f);
+            slipSurface.raycastTarget = true;   // the container owns the pointer
+            var slipArtRt = UIFactory.NewUI(slipRt, "slipart");
+            UIFactory.PlaceTL(slipArtRt, 0, 0, 200, 120);
+            slipArtRt.localScale = new Vector3(L.SlipScale, L.SlipScale, 1f);
+            var slipBg = UIFactory.Panel(slipArtRt, "bg", new Color(0.88f, 0.86f, 0.80f));
             UIFactory.AnchorsFull(slipBg.rectTransform);
-            _slipName = UIFactory.Label(slipRt, "sname", "", 11, UIFactory.PaperInk, TextAnchor.UpperLeft);
+            _slipName = UIFactory.Label(slipArtRt, "sname", "", 11, UIFactory.PaperInk, TextAnchor.UpperLeft);
             L.Place(_slipName.rectTransform, new L.Region(8, 8, 184, 16));
-            _slipId = UIFactory.Label(slipRt, "sid", "", 11, UIFactory.PaperInk, TextAnchor.UpperLeft);
+            _slipId = UIFactory.Label(slipArtRt, "sid", "", 11, UIFactory.PaperInk, TextAnchor.UpperLeft);
             L.Place(_slipId.rectTransform, new L.Region(8, 28, 184, 16));
-            _slipReason = UIFactory.Label(slipRt, "sreason", "", 10, UIFactory.PaperInk, TextAnchor.UpperLeft);
+            _slipReason = UIFactory.Label(slipArtRt, "sreason", "", 10, UIFactory.PaperInk, TextAnchor.UpperLeft);
             L.Place(_slipReason.rectTransform, L.Inner.SlipReason);
             // no printed stamp box: the verdict mark lands WHERE the player drops the
             // stamp (Papers, Please style), clamped fully inside the paper — see
             // TryStampOnDrop / StampPlacement
-            var slipBack = UIFactory.Panel(slipRt, "slipback", new Color(0.84f, 0.82f, 0.76f));
+            var slipBack = UIFactory.Panel(slipArtRt, "slipback", new Color(0.84f, 0.82f, 0.76f));
             UIFactory.AnchorsFull(slipBack.rectTransform);
             var backNote = UIFactory.Label(slipBack.rectTransform, "note", "RADIO NOTE: verify against the registry", 10,
                 UIFactory.PaperInk, TextAnchor.MiddleCenter);
@@ -135,7 +150,7 @@ namespace Hollowbrook.Checkpoint
             slipDrag.OnLift = () => _lastPaper = _slipGo;
             // a tap on the counter slip takes it; a tap on the TAKEN slip turns it over —
             // its own flip (FlipSlip), never the ID's: the papers are decoupled
-            slipDrag.OnTapped = c => { if (!_slipTaken) TakeSlipAt(new Vector2(850f, 530f)); else FlipSlip(); };
+            slipDrag.OnTapped = c => { if (!_slipTaken) TakeSlipAt(new Vector2(740f, 560f)); else FlipSlip(); };
             slipDrag.OnDropped = c => SlipDropped(c);
             _slipGo.SetActive(false);
         }
@@ -167,7 +182,7 @@ namespace Hollowbrook.Checkpoint
             rt.localScale = Vector3.one;
             var drag = _slipGo.GetComponent<DragPaper>();
             drag.PlaceCenter(deskCenter);
-            drag.SetHome(new Vector2(750f, 470f));   // desk slot if it ever returns home
+            drag.SetHome(new Vector2(740f, 560f));   // desk slot if it ever returns home
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.5f);
             RefreshHandoverPrompt();
         }
@@ -211,14 +226,12 @@ namespace Hollowbrook.Checkpoint
             FinalizeIfReady();
         }
 
-        // dimmed = "with the student"; full = on your desk. The face-compare cue inks are
-        // skipped: they own their own alpha (a selection outline must not brighten with the card).
+        // dimmed = "with the student"; full = on your desk.
         private void SetPaperHeld(GameObject go, bool held)
         {
             if (go == null) return;
             foreach (var img in go.GetComponentsInChildren<Image>(true))
             {
-                if (_cueInks.Contains(img)) continue;
                 var c = img.color; c.a = held ? 1f : 0.55f; img.color = c;
             }
             foreach (var t in go.GetComponentsInChildren<Text>(true))
@@ -239,7 +252,6 @@ namespace Hollowbrook.Checkpoint
         // Fresh hand-over state per visitor, incl. the per-inspection stamp-rotation seed.
         private void ResetHandover(VisitorData v)
         {
-            ResetFaceCompare();   // a new face at the window invalidates any selection
             _slipTaken = false; _slipStamped = false; _pendingVerdict = Verdict.None;
             _backId = false; _backSlip = false;
             // a fresh desk per student: zoom resets, the old file closes, the query clears
@@ -252,6 +264,7 @@ namespace Hollowbrook.Checkpoint
             FaceUp(_slipGo);            // papers are born face-up on a fresh desk
             CloseFileDrawer();          // drawer shut, station readout cleared
             _selectedCanon = -1;        // no file highlighted on a fresh desk
+            ResetTalkDock();            // ...and the window conversation starts empty
             _stampRng = new GameRng((_gameRoot.Session != null ? _gameRoot.Session.Seed : 1) ^ (v.VisitorIndex * 131 + 7));
             SetPaperHeld(_idCardGo, true);
             SetPaperHeld(_slipGo, true);
@@ -263,7 +276,7 @@ namespace Hollowbrook.Checkpoint
             // dragging still arranges them, but never gates the inspection
             TakeId();
             DockIdToSlot();
-            TakeSlipAt(new Vector2(850f, 530f));
+            TakeSlipAt(new Vector2(740f, 560f));
         }
 
         // Offered card rows reuse the ID-card grid offsets (same card size).
@@ -280,6 +293,15 @@ namespace Hollowbrook.Checkpoint
         {
             var admin = new RosterFactory(_gameRoot.Session.Seed).BuildAdministrator(ShiftPlan.Build()[4]);
             PresentFromQueue(admin, false);   // same state machine the queue path uses
+        }
+
+        // Headless hook: the window goes empty mid-beat (the visitor walked off while a
+        // typed line was still in flight) so the dock's error path is provable.
+        internal void DebugClearVisitor()
+        {
+            _current = null;
+            SetVisitorVisible(false);
+            RefreshHud();
         }
 
         // Arrival beat: the student slides the ID to the counter edge, unasked.
@@ -337,11 +359,14 @@ namespace Hollowbrook.Checkpoint
             RefreshHud();
         }
 
-        private void SetVisitorVisible(bool on)
+        // internal so the headless dump harness can land the post-verdict beat the stubbed
+        // coroutine pump skips (the editor runs AfterStamp for real)
+        internal void SetVisitorVisible(bool on)
         {
             if (_portraitRoot != null) _portraitRoot.gameObject.SetActive(on);
             _visitorPortrait.gameObject.SetActive(on);
             _visitorShown = on;
+            RefreshWindowLayer(on);       // the booth shutter follows the visitor
             if (!on) _bubble.HideNow();   // an empty window carries no line — and no timer
             SyncBubble();
             _glitchOverlay.gameObject.SetActive(on && _glitchOverlay.color.a > 0f);
@@ -353,7 +378,6 @@ namespace Hollowbrook.Checkpoint
         {
             SetVisitorVisible(true);
             PaintFaces(v);
-            SyncFaceHitboxes();   // click areas follow the newly displayed sprites
             if (_stampOverlay != null)
             {
                 var sc = _stampOverlay.color; sc.a = 0f; _stampOverlay.color = sc;
@@ -364,7 +388,10 @@ namespace Hollowbrook.Checkpoint
         }
 
         // Both faces from one place so the window, the card and the face-asset override can
-        // never disagree about who is standing there.
+        // never disagree about who is standing there. Neither face is a click target: the
+        // portrait is scenery behind the glass and the ID photo belongs to the card you drag,
+        // so both stay click-through (verification is the player's own eyes — there is no
+        // photo-matching widget on this desk).
         private void PaintFaces(VisitorData v)
         {
             _visitorPortrait.sprite = FaceArt.WindowSprite(v);
@@ -372,6 +399,21 @@ namespace Hollowbrook.Checkpoint
             // artwork centred in the window (root-local slot)... and in the card's photo slot
             FrameToSlot(_visitorPortrait, new L.Region(0f, 0f, L.Portrait.W, L.Portrait.H));
             FrameToSlot(_idPhoto, L.Inner.IdPhoto);
+        }
+
+        // Centre the ARTWORK, not the container: the face Image's own rect is set to the
+        // letterbox of its sprite inside the slot, so preserveAspect has nothing left to guess
+        // and every portrait — any source dimensions — sits centred in the window/slot.
+        internal static void FrameToSlot(Image img, L.Region slot)
+        {
+            if (img == null || img.sprite == null) return;
+            var b = UIFactory.Letterbox(slot.W, slot.H, img.sprite.rect.width, img.sprite.rect.height);
+            var rt = img.rectTransform;
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(slot.X + b.X, -(slot.Y + b.Y));
+            rt.sizeDelta = new Vector2(b.W, b.H);
         }
 
         private IEnumerator PortraitFadeIn()
@@ -421,7 +463,10 @@ namespace Hollowbrook.Checkpoint
                     lines.Add(new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "That face. The old school photo — the staff member who never aged. It's them." });
                 lines.Add(new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[3] });
                 SayLine("AT THE WINDOW", "A formal coat. A briefcase. A smile that arrives a half-second late.");
-                if (_gameRoot.Dialogue != null) _gameRoot.Dialogue.Play(lines, null);
+                // the scripted introduction hands over to the branching conversation: same
+                // visitor, same state, one owner (CheckpointView.AdminTalk)
+                if (_gameRoot.Dialogue != null) _gameRoot.Dialogue.Play(lines, () => OpenAdminTalk());
+                else OpenAdminTalk();
                 _gameRoot.Audio.PlayMusic("final");
             }
             else

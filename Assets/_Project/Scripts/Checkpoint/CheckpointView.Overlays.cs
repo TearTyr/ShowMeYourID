@@ -35,6 +35,8 @@ namespace Hollowbrook.Checkpoint
             UIFactory.Dimmer(goRt, "dim", 0.6f);
             var panel = UIFactory.Img(goRt, "paper", ProceduralArt.Get("paper_flat"));
             L.Place(panel.rectTransform, L.PaperOverlay);
+            // the kit's photographed papers skin the sheets (their tilt is baked into the art)
+            Stretch(panel, goName == "OverlayRules" ? "sec_rules_paper" : "sec_log_paper");
             var head = UIFactory.Label(panel.rectTransform, "title", title, 18,
                 UIFactory.NsInk, TextAnchor.MiddleCenter);
             head.font = UIFactory.TypeFont;
@@ -43,6 +45,9 @@ namespace Hollowbrook.Checkpoint
             var close = GridButton(panel.rectTransform, "close", "CLOSE [X]",
                 () => go.SetActive(false), L.Inner.PaperClose, 14);
             L.Place(close.GetComponent<RectTransform>(), L.Inner.PaperClose);
+            SkinButton(close, "sec_btn_pill");
+            var closeLbl = close.GetComponentInChildren<Text>();
+            if (closeLbl != null) closeLbl.color = UIFactory.NsInk;
             go.SetActive(false);
             return go;
         }

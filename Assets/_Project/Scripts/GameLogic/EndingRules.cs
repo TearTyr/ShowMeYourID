@@ -28,9 +28,17 @@ namespace Hollowbrook.Logic
 
             if (s.Mode == GameMode.Normal && s.CompletedShifts >= ShiftPlan.TotalShifts)
             {
+                // The Secret ending is the clue chain's own prize (ten findings, in order, in
+                // the right rooms) and outranks the ordinary Win; a hard Lose outranks both.
                 if (s.Clues.SecretConditionsMet)
                     return Result(EndingType.Secret, "secret",
                         "Ten findings, in the order they were meant to be found. You leave Hollowbrook carrying what the official explanation never included — and what no custodian before you ever discovered.");
+                // The design's Win definition names the administrator's rejection explicitly,
+                // so the evaluator checks it explicitly: a completed fifth shift with the
+                // administrator neither rejected nor allowed is an unfinished night, not a win.
+                if (!s.AdminRejected)
+                    return Result(EndingType.None, "admin_unresolved",
+                        "The books close with the district's administrator neither admitted nor turned away. Some nights refuse to be filed.");
                 return Result(EndingType.Win, "win",
                     "Five nights. You trusted your own judgment, kept the checkpoint, and rejected the thing wearing the administrator's face. You walk out of Hollowbrook relieved — and alive.");
             }

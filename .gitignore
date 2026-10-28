@@ -30,6 +30,9 @@
 Tools/**/bin/
 Tools/**/obj/
 
+# Generated visual-check output (Tools/Preview/render_map_preview.py, FlowCheck --dump-drawer)
+/preview/
+
 # OS
 .DS_Store
 Thumbs.db

@@ -21,12 +21,22 @@ namespace UnityEngine
         private readonly Color[] _pixels;
         public Texture2D(int w, int h) : this(w, h, TextureFormat.RGBA32, false) { }
         public Texture2D(int w, int h, TextureFormat fmt, bool mipChain)
+            : this(w, h, fmt, mipChain, true) { }
+        private Texture2D(int w, int h, TextureFormat fmt, bool mipChain, bool alloc)
         {
             width = w; height = h;
-            _pixels = new Color[w * h];
-            for (int i = 0; i < _pixels.Length; i++) _pixels[i] = Color.clear;
+            _pixels = alloc ? new Color[w * h] : null;
+            if (alloc) for (int i = 0; i < _pixels.Length; i++) _pixels[i] = Color.clear;
         }
         public static Texture2D whiteTexture { get; } = new Texture2D(4, 4);
+        // file-probed textures carry real dimensions but no pixel buffer (headless proofs only
+        // need width/height/name — allocating 8M pixels per kit layer would sink the harness)
+        public static Texture2D HeaderOnly(int w, int h, string texName)
+        {
+            var t = new Texture2D(w, h, TextureFormat.RGBA32, false, false);
+            t.name = texName;
+            return t;
+        }
         public void SetPixel(int x, int y, Color c)
         {
             if (x < 0 || y < 0 || x >= width || y >= height) return;
@@ -68,6 +78,12 @@ namespace UnityEngine
             new Sprite { texture = tex, rect = rect, pixelsPerUnit = pixelsPerUnit, name = tex != null ? tex.name : "sprite" };
         public static Sprite Create(Texture2D tex, Rect rect, Vector2 pivot, float pixelsPerUnit, uint extrude, SpriteMeshType meshType) =>
             Create(tex, rect, pivot, pixelsPerUnit);
+        // the 9-slice overload: border is in texture pixels, exactly like UnityEngine
+        public Vector4 border { get; private set; } = Vector4.zero;
+        public static Sprite Create(Texture2D tex, Rect rect, Vector2 pivot, float pixelsPerUnit,
+            uint extrude, SpriteMeshType meshType, Vector4 border, bool generatePhysics) =>
+            new Sprite { texture = tex, rect = rect, pixelsPerUnit = pixelsPerUnit, border = border,
+                         name = tex != null ? tex.name : "sprite" };
     }
 
     public struct Bounds

@@ -82,14 +82,16 @@ namespace Hollowbrook.World
                     AddDoor(room, "Security Door", -10.6f, floorY, RoomId.Security, "prop_door_security");
                     AddDoor(room, "Classroom 1", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), floorY, RoomId.Classroom1, "prop_door");
                     AddDoor(room, "Classroom 2", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), floorY, RoomId.Classroom2, "prop_door");
-                    Quad(root.transform, "server_door_art", new Vector3(10.4f, floorY + 1.5f, 0), 10,
-                        new Vector2(2.4f, 3.0f), new Color(0.17f, 0.17f, 0.19f));
+                    var serverSprite = ProceduralArt.Get("prop_server_door");
+                    float serverH = serverSprite.rect.height / Mathf.Max(1f, serverSprite.pixelsPerUnit);
+                    SpriteGO(root.transform, "server_door_art", serverSprite,
+                        new Vector3(10.4f, floorY + serverH / 2f, 0), 10);
                     AddLightSwitch(room, -9.2f, floorY);
-                    AddClue(room, "light", -7.0f, floorY, "Flickering Light (switch panel)");
+                    AddClue(room, "light", -7.0f, floorY, "Flickering Light (switch panel)", "prop_lightfixture", 1.5f);
                     AddClue(room, "door", 10.0f, floorY, "Sealed Door");
-                    AddClue(room, "board", 0.6f, floorY, "Notice Board");
-                    AddClue(room, "photo", 7.2f, floorY, "Old School Photo");
-                    AddClue(room, "clock", 2.6f, floorY, "Wall Clock");
+                    AddClue(room, "board", 0.6f, floorY, "Notice Board", "prop_noticeboard", 1.0f);
+                    AddClue(room, "photo", 7.2f, floorY, "Old School Photo", "prop_photoframe", 1.1f);
+                    AddClue(room, "clock", 2.6f, floorY, "Wall Clock", "prop_clock", 1.6f);
                     SpriteGO(root.transform, "lockers", ProceduralArt.Get("prop_lockers"), new Vector3(-1.4f, floorY + 2.5f, 0), 8);
                     SpriteGO(root.transform, "lockers2", ProceduralArt.Get("prop_lockers"), new Vector3(7.8f, floorY + 2.5f, 0), 8);
                     room.PlayerSpawn = new Vector3(-9.4f, 0, 0);
@@ -105,9 +107,9 @@ namespace Hollowbrook.World
                     PlaceholderBg(root.transform, floorY);
                     AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.Classroom1, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door");
                     AddLightSwitch(room, 6.4f, floorY);
-                    AddClue(room, "chalkboard", -6.2f, floorY, "Chalkboard");
+                    AddClue(room, "chalkboard", -6.2f, floorY, "Chalkboard", "prop_chalkboard", 1.2f);
                     AddClue(room, "desk", -7.6f, floorY, "Front Desk");
-                    AddClue(room, "lostid", -5.0f, floorY, "Lost-and-Found Shelf");
+                    AddClue(room, "lostid", -5.0f, floorY, "Lost-and-Found Shelf", "prop_lostid", 0.2f);
                     AddSecurityDoor(room, -1.6f, floorY);
                     SpriteGO(root.transform, "deskprop", ProceduralArt.Get("prop_desk"), new Vector3(-7.6f, floorY + 1f, 0), 9);
                     room.PlayerSpawn = new Vector3(4.0f, 0, 0);
@@ -122,7 +124,7 @@ namespace Hollowbrook.World
                     PlaceholderBg(root.transform, floorY);
                     AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.Classroom2, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door");
                     AddLightSwitch(room, 6.4f, floorY);
-                    AddClue(room, "window", -6.6f, floorY, "Classroom Window");
+                    AddClue(room, "window", -6.6f, floorY, "Classroom Window", "prop_window", 1.2f);
                     AddClue(room, "cabinet", 7.4f, floorY, "Filing Cabinet");
                     SpriteGO(root.transform, "cabinetprop", ProceduralArt.Get("prop_cabinet"), new Vector3(7.6f, floorY + 2.1f, 0), 9);
                     room.PlayerSpawn = new Vector3(4.0f, 0, 0);
@@ -174,10 +176,23 @@ namespace Hollowbrook.World
 
         private void AddDoor(RoomInstance room, string label, float x, float floorY, RoomId target, string spriteKey)
         {
-            // placeholder art: one flat slab standing on the floor band (spriteKey kept in the
-            // signature so real art can return without touching call sites)
-            var go = Quad(room.Root.transform, "door_" + target, new Vector3(x, floorY + 1.7f, 0), 10,
-                new Vector2(1.7f, 3.4f), new Color(0.20f, 0.20f, 0.22f));
+            // The door's art key always stood in the signature; the flat slab was only there
+            // until art existed. Draw the sprite standing ON the floor band, sized from its own
+            // pixels-per-unit, so dropping a real door PNG at Resources/Art/<key>.png resizes
+            // and replaces it with no code change. (Null sprite keeps the old slab.)
+            var sprite = ProceduralArt.Get(spriteKey);
+            GameObject go;
+            if (sprite != null)
+            {
+                float h = sprite.rect.height / Mathf.Max(1f, sprite.pixelsPerUnit);
+                go = SpriteGO(room.Root.transform, "door_" + target, sprite,
+                    new Vector3(x, floorY + h / 2f, 0), 10);
+            }
+            else
+            {
+                go = Quad(room.Root.transform, "door_" + target, new Vector3(x, floorY + 1.7f, 0), 10,
+                    new Vector2(1.7f, 3.4f), new Color(0.20f, 0.20f, 0.22f));
+            }
             var d = go.AddComponent<Doorway>();
             d.Init(_root, room, label, target, x);
             room.Interactables.Add(d);
@@ -194,18 +209,29 @@ namespace Hollowbrook.World
 
         private void AddLightSwitch(RoomInstance room, float x, float floorY)
         {
-            var go = Quad(room.Root.transform, "lightswitch", new Vector3(x, floorY + 2.1f, 0), 75,
-                new Vector2(0.16f, 0.26f), new Color(0.8f, 0.8f, 0.78f));
+            var go = SpriteGO(room.Root.transform, "lightswitch", ProceduralArt.Get("prop_lightswitch"),
+                new Vector3(x, floorY + 2.1f, 0), 75);
             var sw = go.AddComponent<LightSwitchObject>();
             sw.Init(_root, room, x);
             room.Interactables.Add(sw);
         }
 
-        private void AddClue(RoomInstance room, string clueKey, float x, float floorY, string label)
+        // The clue anchor (chest height, what the interact test uses) stays where it was; the
+        // optional sprite hangs off it as a child so each GDD interaction object is actually
+        // SEEN in the room. A dropped-in Resources/Art/<key>.png replaces the placeholder and
+        // resizes itself from its own pixels-per-unit — no call-site changes.
+        private void AddClue(RoomInstance room, string clueKey, float x, float floorY, string label,
+            string spriteKey = null, float mountY = 0.8f)
         {
             var go = new GameObject("clue_" + clueKey);
             go.transform.SetParent(room.Root.transform, false);
             go.transform.localPosition = new Vector3(x, floorY + 1.4f, 0);
+            if (spriteKey != null)
+            {
+                var sprite = ProceduralArt.Get(spriteKey);
+                if (sprite != null)
+                    SpriteGO(go.transform, "art_" + spriteKey, sprite, new Vector3(0f, mountY, 0f), 9);
+            }
             var co = go.AddComponent<ClueObject>();
             co.Init(_root, room, clueKey, label, x);
             room.Interactables.Add(co);

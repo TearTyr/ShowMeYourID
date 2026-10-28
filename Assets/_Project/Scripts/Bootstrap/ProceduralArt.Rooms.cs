@@ -124,19 +124,6 @@ namespace Hollowbrook.Bootstrap
             return c.ToSprite("hallway_bg", WorldPpu);
         }
 
-        // A hollow frame: opaque border, fully transparent centre — used for selection and
-        // comparison cues that must outline something WITHOUT covering it (a filled panel here
-        // is what painted a pale square over the ID photograph).
-        private static Sprite MakeOutlineFrame(int d, int border)
-        {
-            var c = new Canvas2D(d, d);
-            c.FillRect(0, 0, d, border, G(1f));
-            c.FillRect(0, d - border, d, border, G(1f));
-            c.FillRect(0, 0, border, d, G(1f));
-            c.FillRect(d - border, 0, border, d, G(1f));
-            return c.ToSprite("outline_frame", UiPpu);
-        }
-
         // The corridor's depth shroud: pure BLACK whose ALPHA is the radial falloff baked in
         // WORLD units (HallwayDarkness.DepthAt), so the pool around the custodian stays circular
         // even though the quad is stretched to cover the whole hallway from either end of it.

@@ -64,10 +64,17 @@ namespace Hollowbrook.LogicTests
             StampRulesTests();
             RecordSearchTests();
             FloorFileTests();
+            DrawerMotionTests();
+            FloorPlanTests();
+            MapSheetLayoutTests();
+            AdminTalkSuite();
+            EndingAuditSuite();
+            AdminRosterSuite();
             SlipFairnessTests();
             SeatPlannerTests();
             CultureRoundTripTests();
             ResumeReplayTests();
+            SpokenChatTests();
 
             Console.WriteLine("\n==============================================");
             Console.WriteLine($"  PASS {_pass}   FAIL {_fail}   TOTAL {_pass + _fail}");
@@ -385,6 +392,293 @@ namespace Hollowbrook.LogicTests
         }
 
         // ------------------------------------------------------- administrator
+        // The Shift-5 conversation engine: reachable branches, state-aware lines, silence that
+        // can never softlock, clue gating off the REAL clue keys, and zero mechanical power.
+        private static void AdminTalkSuite()
+        {
+            Group("AdminTalk — the branching administrator conversation");
+
+            var problems = AdminTalk.ValidateScript();
+            Check(problems.Count == 0,
+                "the script validates: unique ids, real destinations, reachable, escapable" +
+                (problems.Count > 0 ? " (first: " + problems[0] + ")" : ""));
+            foreach (var p in problems.Take(6)) Console.WriteLine("   script: " + p);
+
+            AdminTalkContext Fresh() => new AdminTalkContext
+            {
+                BadgeName = "V. Marlowe", MemoName = "R. Vance",
+                BadgeNumber = "DA-0233", MemoNumber = "DA-1147",
+                AnswerCourse = "I am with the district office.",
+                AnswerStatus = "I am an administrator.",
+                AnswerFirstClassroom = "My first stop is your server room.",
+            };
+
+            // ---- the hub opens with the mandatory beats and hides gated ones
+            var st = new AdminTalkState();
+            var ctx = Fresh();
+            var open = AdminTalk.Open(st, ctx);
+            Eq(st.Node, AdminTalk.HubId, "opening lands on the hub");
+            Eq(st.HubVisits, 1, "the first open counts as the first hub visit");
+            Check(open.Lines.Count >= 1 && open.Lines[0].Contains("complaints"),
+                "the hub opens on the administrator's established pressure line");
+            var ids = OptionIds(st, ctx);
+            foreach (var must in new[] { "chal_name", "chal_num", "chal_face", "defer", "silence", "end" })
+                Check(ids.Contains(must), "the hub offers '" + must + "'");
+            Check(!ids.Contains("ev_photo") && !ids.Contains("ev_cabinet"),
+                "clue branches stay hidden before their clue is discovered");
+            Check(!ids.Contains("q_server") && !ids.Contains("q_status") && !ids.Contains("q_course"),
+                "question branches stay hidden before those questions are asked");
+
+            // six unrelated findings must NOT open a clue branch: the gate is the specific key
+            ctx = Fresh();
+            ctx.CluePhoto = false; ctx.ClueCabinet = false;
+            st = new AdminTalkState { Challenge = 3, Compliance = 2, Silence = 4, Evidence = 0, HubVisits = 6 };
+            Check(!OptionIds(st, ctx).Contains("ev_photo"),
+                "a long, tense conversation with no photo clue still cannot open the photo branch");
+
+            // ---- branch A: challenging a specific discrepancy answers THAT discrepancy
+            st = new AdminTalkState(); ctx = Fresh();
+            AdminTalk.Open(st, ctx);
+            var chalName = AdminTalk.Choose(st, ctx, "chal_name");
+            Eq(st.Node, "chal_name", "the name challenge moves to its own node");
+            Eq(st.Challenge, 1, "the challenge is counted once");
+            Check(chalName.Lines.Count >= 1 && chalName.Lines[0].Length > 20, "the administrator answers");
+            var chalNum = AdminTalk.Choose(new AdminTalkState(), Fresh(), "chal_num");
+            Check(chalNum.NodeId == "chal_num" && chalNum.Lines[0] != chalName.Lines[0],
+                "a different challenge produces different follow-up dialogue");
+            // the one-shot is spent; the other challenges remain
+            // deeper beat: press the memo line by line
+            var press = AdminTalk.Choose(st, ctx, "press_name");
+            Eq(st.Node, "press_name", "pressing continues the branch");
+            Check(press.Lines[0].Contains("DA-1147") || press.Lines[0].Contains("Vance"),
+                "the pressed branch quotes the real memo facts");
+            AdminTalk.Choose(st, ctx, "press_name_back");      // back to the hub
+            Check(!OptionIds(st, ctx).Contains("chal_name"), "a spent challenge is not offered again at the hub");
+            Check(OptionIds(st, ctx).Contains("chal_num"), "the unspent challenges remain available at the hub");
+
+            // ---- branch B: compliance persuades but never stamps
+            st = new AdminTalkState(); ctx = Fresh();
+            AdminTalk.Open(st, ctx);
+            var defer = AdminTalk.Choose(st, ctx, "defer");
+            Eq(st.Compliance, 1, "deference is counted");
+            Check(defer.Lines[0].Contains("formality") || defer.Lines[0].Contains("papers down"),
+                "compliance is met with pressure to bypass the written rule");
+            var refuse = AdminTalk.Choose(st, ctx, "refuse_defer");
+            Eq(st.Challenge, 1, "reconsidering and refusing counts as a challenge");
+            Check(refuse.Lines.Count >= 1, "the administrator reacts to the refusal");
+            Check(!st.Completed, "refusing in conversation is NOT a verdict");
+
+            // compliance wording adapts: a second hub after deference reads differently
+            st = new AdminTalkState(); ctx = Fresh();
+            var opening = AdminTalk.Open(st, ctx);
+            AdminTalk.Choose(st, ctx, "defer");
+            AdminTalk.Choose(st, ctx, "defer_press");
+            AdminTalk.Choose(st, ctx, "defer_press_back");     // back to the hub
+            var hubLines = AdminTalk.Speak(AdminTalk.HubId, ctx, st);
+            Check(hubLines.Count >= 1 && hubLines[0] != opening.Lines[0],
+                "returning to the hub after a branch speaks a return line, not the opening");
+
+            // ---- branch C: evidence gates on the real clue keys and quotes them
+            st = new AdminTalkState(); ctx = Fresh(); ctx.CluePhoto = true;
+            AdminTalk.Open(st, ctx);
+            Check(OptionIds(st, ctx).Contains("ev_photo"), "the photo clue opens its branch");
+            var ev = AdminTalk.Choose(st, ctx, "ev_photo");
+            Eq(st.Evidence, 1, "raising evidence is counted");
+            Check(ev.Lines[0].Contains("photograph") || ev.Lines[0].Contains("photo"),
+                "the administrator answers the specific evidence raised");
+            st = new AdminTalkState(); ctx = Fresh(); ctx.ClueCabinet = true;
+            AdminTalk.Open(st, ctx);
+            var cab = AdminTalk.Choose(st, ctx, "ev_cabinet");
+            Check(cab.Lines[0] != ev.Lines[0], "different evidence, different reaction");
+
+            // ---- branch D: silence never softlocks and escalates through three beats
+            st = new AdminTalkState(); ctx = Fresh();
+            AdminTalk.Open(st, ctx);
+            var s1 = AdminTalk.Choose(st, ctx, "silence");
+            Eq(st.Silence, 1, "the first silence counts");
+            Check(s1.PauseSeconds > 0.5f, "silence carries an uncomfortable pause");
+            AdminTalk.Choose(st, ctx, "silence_back");          // hub
+            var s2 = AdminTalk.Choose(st, ctx, "silence");
+            AdminTalk.Choose(st, ctx, "silence_back");
+            var s3 = AdminTalk.Choose(st, ctx, "silence");
+            Check(s1.Lines[0] != s2.Lines[0] && s2.Lines[0] != s3.Lines[0],
+                "each silence gets its own beat (repeat, wait-out, then the mask slips)");
+            Check(s3.Lines[0].Contains("ORDER") || s3.Lines[0].Contains("Open. The. Gate."),
+                "the third silence drops the official mask");
+            Check(OptionIds(st, ctx).Contains("end"), "silence always leaves the exit reachable");
+            Eq(st.Completed, false, "silence is not a verdict");
+
+            // ---- question-adaptive branches read the REAL question system
+            st = new AdminTalkState(); ctx = Fresh(); ctx.AskedFirstClassroom = true;
+            AdminTalk.Open(st, ctx);
+            Check(OptionIds(st, ctx).Contains("q_server"), "asking about the first classroom unlocks its follow-up");
+            var qs = AdminTalk.Choose(st, ctx, "q_server");
+            Check(qs.Lines[0].Contains("My first stop is your server room."),
+                "the follow-up quotes the visitor's ACTUAL answer, verbatim");
+            st = new AdminTalkState(); ctx = Fresh(); ctx.AskedStatus = true;
+            AdminTalk.Open(st, ctx);
+            var qst = AdminTalk.Choose(st, ctx, "q_status");
+            Check(qst.Lines[0].Contains("I am an administrator."),
+                "the status follow-up quotes the actual status answer");
+
+            // ---- tokens resolve from live visitor data, never from invented facts
+            Eq(AdminTalk.Resolve("{badge_name} / {memo_name} / {badge_num} / {memo_num}", Fresh()),
+               "V. Marlowe / R. Vance / DA-0233 / DA-1147", "identity tokens resolve to the canon facts");
+
+            // ---- completion: the exit ends the talk and nothing mechanical moves
+            st = new AdminTalkState(); ctx = Fresh();
+            AdminTalk.Open(st, ctx);
+            AdminTalk.Choose(st, ctx, "chal_face");
+            var done = AdminTalk.Choose(st, ctx, "end");
+            Check(done.Completed && st.Completed, "the exit completes the conversation");
+            var after = AdminTalk.Choose(st, ctx, "silence");
+            Check(after.Completed, "a completed conversation takes no further options");
+            Check(st.Challenge == 1 && st.Compliance == 0 && st.Evidence == 0,
+                "the conversation moved only its own counters");
+
+            // ---- invalid input fails safe: unknown option, unknown node
+            st = new AdminTalkState(); ctx = Fresh();
+            AdminTalk.Open(st, ctx);
+            var before = st.Encode();
+            var bad = AdminTalk.Choose(st, ctx, "not_a_real_option");
+            Check(!bad.Completed && st.Encode() == before && bad.NodeId == AdminTalk.HubId,
+                "an invalid option changes nothing and leaves the node standing");
+            st.Node = "node_that_does_not_exist";
+            var opts = AdminTalk.OptionsFor(st, ctx);
+            Check(opts.Count == 1 && string.IsNullOrEmpty(opts[0].To),
+                "an unknown node fails safe to the single exit option");
+
+            // ---- save round-trip: the encounter resumes where it stood
+            st = new AdminTalkState(); ctx = Fresh();
+            AdminTalk.Open(st, ctx);
+            AdminTalk.Choose(st, ctx, "chal_num");
+            AdminTalk.Choose(st, ctx, "num_rule");
+            var enc = st.Encode();
+            var dec = AdminTalkState.Decode(enc);
+            Check(dec.Node == st.Node && dec.UsedMask == st.UsedMask && dec.Challenge == st.Challenge &&
+                  dec.HubVisits == st.HubVisits && dec.Silence == st.Silence,
+                "the conversation state round-trips through its save encoding");
+            Check(AdminTalkState.Decode("").Node == "" && !AdminTalkState.Decode("").Completed,
+                "an old save without the key resumes as an unopened conversation");
+            Check(AdminTalkState.Decode("ghost_node,3,1,1,0,0,2,0").Node == "",
+                "a torn node id falls back to the hub instead of a dead end");
+        }
+
+        private static List<string> OptionIds(AdminTalkState st, AdminTalkContext ctx)
+        {
+            var list = new List<string>();
+            foreach (var o in AdminTalk.OptionsFor(st, ctx)) list.Add(o.Id);
+            return list;
+        }
+
+        // The ending evaluator's integration contract: the administrator's rejection is part of
+        // the Win/Secret gate, the pending-pool fold happens exactly once, and the documented
+        // Lose > Secret > Win priority holds even when everything else is satisfied.
+        private static void EndingAuditSuite()
+        {
+            Group("EndingRules audit — admin gate, idempotent fold, priority");
+
+            GameSession FiveShifts(bool adminRejected, bool adminAllowed)
+            {
+                var s = new GameSession { Mode = GameMode.Normal };
+                s.CompletedShifts = ShiftPlan.TotalShifts;
+                s.AdminRejected = adminRejected;
+                s.AdminAllowed = adminAllowed;
+                return s;
+            }
+
+            var win = FiveShifts(true, false);
+            Eq(EndingRules.Evaluate(win).Ending, EndingType.Win, "five shifts + rejection = Win");
+            var unresolved = FiveShifts(false, false);
+            var eval = EndingRules.Evaluate(unresolved);
+            Eq(eval.Ending, EndingType.None, "five shifts with NO decision on the administrator awards no ending");
+            Eq(eval.ReasonKey, "admin_unresolved", "...and says why (stable key)");
+            var allowed = FiveShifts(false, true);
+            Eq(EndingRules.Evaluate(allowed).Ending, EndingType.Lose, "allowing the administrator = immediate Lose");
+
+            // secret still needs the rejection too (a completed run includes the final decision)
+            var secret = FiveShifts(true, false);
+            FillSecretClues(secret);
+            Eq(EndingRules.Evaluate(secret).Ending, EndingType.Secret, "ten ordered clues + rejection = Secret");
+            var secretNoAdmin = FiveShifts(false, false);
+            FillSecretClues(secretNoAdmin);
+            Eq(EndingRules.Evaluate(secretNoAdmin).Ending, EndingType.Secret,
+               "the Secret ending is the clue chain's own prize (the admin gate guards the Win branch)");
+            var unresolvedNoClues = FiveShifts(false, false);
+            Eq(EndingRules.Evaluate(unresolvedNoClues).ReasonKey, "admin_unresolved",
+               "without the clue chain, an undecided administrator still blocks the Win");
+            var secretButLost = FiveShifts(true, true);
+            FillSecretClues(secretButLost);
+            Eq(EndingRules.Evaluate(secretButLost).Ending, EndingType.Lose,
+               "Lose outranks Secret (priority Lose > Secret > Win)");
+
+            // incomplete progression never awards the standard ending early
+            var early = new GameSession { Mode = GameMode.Normal, AdminRejected = true, CompletedShifts = 4 };
+            Eq(EndingRules.Evaluate(early).Ending, EndingType.None, "four shifts award nothing, rejection or not");
+
+            // ---- the pending-pool fold is exactly-once, however often the run is evaluated
+            var s2 = FiveShifts(true, false);
+            s2.Breaches = 1;
+            s2.Pool.Seed(new[] { AnomalyBehaviorKind.Blink, AnomalyBehaviorKind.Slide });
+            var e1 = s2.EvaluateEnding();
+            Eq(s2.Breaches, 3, "the outstanding patrol pool folds into the breach count at the final eval");
+            Eq(e1.Ending, EndingType.Lose, "...and can tip the night into the Lose ending");
+            var e2 = s2.EvaluateEnding();
+            var e3 = s2.EvaluateEnding();
+            Eq(s2.Breaches, 3, "repeated evaluation never counts the same outstanding anomalies twice");
+            Eq(e2.Ending, e3.Ending, "repeated evaluation never changes the ending");
+
+            var s3 = FiveShifts(true, false);
+            s3.Pool.Seed(new[] { AnomalyBehaviorKind.Sprint });
+            Eq(s3.EvaluateEnding().Ending, EndingType.Win, "one outstanding anomaly folds to 1 breach: still a Win");
+            s3.EvaluateEnding();
+            Eq(s3.Breaches, 1, "...folded once");
+
+            // the ordinary Lose thresholds keep their teeth
+            var fr = new GameSession { Mode = GameMode.Normal, FalseRejections = 3 };
+            Eq(EndingRules.Evaluate(fr).Ending, EndingType.Lose, "three false rejections = Lose");
+            var br = new GameSession { Mode = GameMode.Normal, Breaches = 3 };
+            Eq(EndingRules.Evaluate(br).Ending, EndingType.Lose, "three breaches = Lose");
+            var ow = new GameSession { Mode = GameMode.Normal, QueueOverwhelmed = true };
+            Eq(EndingRules.Evaluate(ow).Ending, EndingType.Lose, "the overrun line still ends the run");
+        }
+
+        private static void FillSecretClues(GameSession s)
+        {
+            foreach (var c in ClueRegistry.Build()) s.Clues.Discover(c.Key);   // registry order
+            s.MarkRoomInvestigated(RoomId.Hallway);
+            s.MarkRoomInvestigated(RoomId.Classroom1);
+            s.MarkRoomInvestigated(RoomId.Classroom2);
+        }
+
+        // Roster shape against the design table: 4/6/7/8/8 standard entries, the administrator
+        // appended exactly once and last, never in earlier shifts, never in the run modes.
+        private static void AdminRosterSuite()
+        {
+            Group("Shift rosters — the administrator's place in line");
+            int[] want = { 4, 6, 7, 8, 8 };
+            for (int shift = 1; shift <= 5; shift++)
+            {
+                var roster = new RosterFactory(11).GenerateShift(ShiftPlan.Get(shift));
+                int admins = 0;
+                foreach (var v in roster) if (v.IsAdministrator) admins++;
+                Eq(roster.Count - admins, want[shift - 1], $"shift {shift} keeps its standard entry count");
+                Eq(admins, shift == 5 ? 1 : 0, $"shift {shift} carries {(shift == 5 ? "exactly one administrator" : "no administrator")}");
+                if (shift == 5)
+                    Check(roster[roster.Count - 1].IsAdministrator, "the administrator is the LAST visitor of shift 5");
+            }
+            var rf = new RosterFactory(5);
+            bool runModeAdmin = false;
+            for (int i = 0; i < 200; i++)
+                if (rf.GenerateRunVisitor(i).IsAdministrator) runModeAdmin = true;
+            Check(!runModeAdmin, "Endless/Challenge never generate the administrator");
+            // determinism: the same seed replays the same final visitor
+            var a = new RosterFactory(21).GenerateShift(ShiftPlan.Get(5));
+            var b = new RosterFactory(21).GenerateShift(ShiftPlan.Get(5));
+            Check(a[a.Count - 1].IdNumber == b[b.Count - 1].IdNumber && a[a.Count - 1].IsAdministrator,
+                "the administrator regenerates identically from the seed (save/resume safe)");
+        }
+
         private static void AdministratorTests()
         {
             Group("Shift-5 administrator encounter (conflict C3)");
@@ -1147,6 +1441,233 @@ namespace Hollowbrook.LogicTests
                     same = again[f].Indices[k] == folders[f].Indices[k];
             }
             Check(same, "floor folders are deterministic (same canon, same folders)");
+        }
+
+        // The floor-files drawer's motion curve. Pure maths, so "does it answer the click
+        // almost instantly, decelerate, and never bounce?" is a testable claim, not a vibe.
+        private static void DrawerMotionTests()
+        {
+            Group("DrawerMotion — the floor-files pull drawer");
+            Eq(DrawerMotion.EaseOut(0f), 0f, "the pull starts at 0");
+            Eq(DrawerMotion.EaseOut(1f), 1f, "the pull ends at 1");
+            Check(DrawerMotion.EaseOut(0.5f) > 0.5f,
+                  $"an ease-out covers more than half the travel in half the time ({DrawerMotion.EaseOut(0.5f):F3})");
+            Check(DrawerMotion.EaseOut(0.25f) > 0.5f,
+                  $"...and over half of it in the first quarter ({DrawerMotion.EaseOut(0.25f):F3}) — it answers the click");
+            bool monotonic = true, noOvershoot = true;
+            float prev = 0f;
+            for (int i = 0; i <= 200; i++)
+            {
+                float v = DrawerMotion.EaseOut(i / 200f);
+                if (v < prev - 1e-6f) monotonic = false;   // never runs backwards = never bounces
+                if (v > 1f + 1e-6f) noOvershoot = false;   // never passes the end = no overshoot
+                prev = v;
+            }
+            Check(monotonic, "the pull is monotonic (no bounce, no rubber-band)");
+            Check(noOvershoot, "the pull never overshoots the open position");
+
+            Eq(DrawerMotion.Advance(0f, 1f / 60f, true), 1f / 60f / DrawerMotion.DurationSeconds,
+               "one 60 Hz frame advances exactly dt/duration");
+            Check(DrawerMotion.Advance(0f, 0f, true) == 0f, "a zero frame moves nothing");
+            Check(DrawerMotion.Advance(0.5f, -3f, true) == 0.5f, "a negative dt is treated as no time at all");
+            Eq(DrawerMotion.Advance(0.5f, 99f, true), 1f, "opening clamps at 1 (no run-away)");
+            Eq(DrawerMotion.Advance(0.5f, 99f, false), 0f, "closing clamps at 0");
+            int frames = 0;
+            float pull = 0f;
+            while (pull < 1f && frames < 600) { pull = DrawerMotion.Advance(pull, 1f / 60f, true); frames++; }
+            Check(pull >= 1f && Math.Abs(frames * (1f / 60f) - DrawerMotion.DurationSeconds) < 1f / 60f + 1e-4f,
+                  $"a full pull takes its stated {DrawerMotion.DurationSeconds * 1000f:F0} ms ({frames} frames at 60 Hz)");
+            Check(DrawerMotion.DurationSeconds <= 0.2f,
+                  $"the whole motion is under a fifth of a second ({DrawerMotion.DurationSeconds:F3}s) — it feels immediate");
+
+            Eq(DrawerMotion.BodyOffset(0f), 0f, "a shut drawer has travelled 0px");
+            Eq(DrawerMotion.BodyOffset(1f), DrawerMotion.TravelPx, "an open drawer has travelled the full depth");
+            Eq(DrawerMotion.BodyScale(0f), 1f, "shut, the body is at 1x");
+            Eq(DrawerMotion.BodyScale(1f), DrawerMotion.NearScale, "out, it is at the near scale");
+            Check(DrawerMotion.NearScale > 1f && DrawerMotion.NearScale < 1.1f,
+                  $"the depth cue is real but subtle ({DrawerMotion.NearScale:F3}x)");
+
+            Eq(DrawerMotion.RowReveal(0f), 0f, "shut, the files are not revealed");
+            Eq(DrawerMotion.RowReveal(1f), 1f, "open, the files are fully revealed");
+            Check(DrawerMotion.RowReveal(0.5f) < DrawerMotion.EaseOut(0.5f),
+                  "the files LAG the body, so they emerge from the drawer instead of riding painted on it");
+            Eq(DrawerMotion.RowOffset(0f), DrawerMotion.RowEmergePx, "shut, each file still sits its emerge-distance up");
+            Eq(DrawerMotion.RowOffset(1f), 0f, "open, every file has settled into place");
+            Eq(DrawerMotion.CavityShadeAt(0f), 0f, "shut, the cavity is not shaded");
+            Eq(DrawerMotion.CavityShadeAt(1f), DrawerMotion.CavityShadeAlpha, "open, the cavity shade is at full depth");
+
+            Check(!DrawerMotion.Finished(0.5f, true) && DrawerMotion.Finished(1f, true),
+                  "Finished only reports done at the end of an opening");
+            Check(!DrawerMotion.Finished(0.5f, false) && DrawerMotion.Finished(0f, false),
+                  "...and at the start of a closing (i.e. fully shut)");
+        }
+
+        // The ground-floor plan is data, so the map's layout rules are provable without pixels:
+        // every room present, in the place the reference drawing puts it, none overlapping, and
+        // the sealed / comfort rooms distinguishable from the patrol rooms.
+        private static void FloorPlanTests()
+        {
+            Group("FloorPlan — HOLLOWBROOK COLLEGE ground floor");
+            Eq(FloorPlan.Title, "HOLLOWBROOK COLLEGE — GROUND FLOOR", "the sheet carries the full title");
+            Check(FloorPlan.LayoutIsSane(out string problem),
+                "every room is on the sheet and no two rooms overlap" +
+                (problem != null ? " (" + problem + ")" : ""));
+            foreach (var r in FloorPlan.Rooms)
+            {
+                Check(!string.IsNullOrEmpty(r.Label) && !string.IsNullOrEmpty(r.Key),
+                      "room '" + r.Key + "' has a key and a label");
+                Check(r.W > 0f && r.H > 0f, "room '" + r.Key + "' has a real size");
+                Check(r.Sealed || r.Comfort || r.Room.HasValue,
+                      "room '" + r.Key + "' is either a patrol room or explicitly sealed/comfort");
+                Check(!(r.Sealed && r.Comfort), "room '" + r.Key + "' is not both sealed and a comfort room");
+            }
+
+            var sec = FloorPlan.ForRoom(RoomId.Security);
+            var hall = FloorPlan.ForRoom(RoomId.Hallway);
+            var c1 = FloorPlan.ForRoom(RoomId.Classroom1);
+            var c2 = FloorPlan.ForRoom(RoomId.Classroom2);
+            Check(sec.HasValue && hall.HasValue && c1.HasValue && c2.HasValue,
+                "the security checkpoint, the hallway and both classrooms are all on the plan");
+            var server = FloorPlan.ForKey("room_server");
+            Check(server.HasValue && server.Value.Sealed && !server.Value.Room.HasValue,
+                "the server / identification room is on the plan, SEALED, and not a patrol destination");
+            Check(server.Value.Label.Contains("SERVER") && server.Value.Label.Contains("SEALED"),
+                "the sealed room says what it is (got '" + server.Value.Label.Replace("\n", " / ") + "')");
+
+            // the reference drawing's spatial relationships
+            Check(sec.Value.Right <= hall.Value.Left + 0.01f,
+                $"the security checkpoint is on the LEFT (its right edge {sec.Value.Right} <= the hallway's {hall.Value.Left})");
+            Check(c1.Value.Bottom <= hall.Value.Top + 0.01f,
+                $"Classroom 1 is ABOVE the hallway ({c1.Value.Bottom} <= {hall.Value.Top})");
+            Check(c2.Value.Top >= hall.Value.Bottom - 0.01f,
+                $"Classroom 2 is BELOW the hallway ({c2.Value.Top} >= {hall.Value.Bottom})");
+            Check(server.Value.Left >= hall.Value.Right - 0.01f,
+                $"the sealed room is on the RIGHT ({server.Value.Left} >= {hall.Value.Right})");
+            Check(hall.Value.W > 2.5f * Math.Max(hall.Value.H, 1f) &&
+                  hall.Value.W > c1.Value.W && hall.Value.W > sec.Value.W,
+                $"the hallway is the long central passage ({hall.Value.W}x{hall.Value.H})");
+            Check(c1.Value.Label.Contains("CLASSROOM 1") && c1.Value.Label.Contains("101") &&
+                  c2.Value.Label.Contains("CLASSROOM 2") && c2.Value.Label.Contains("202"),
+                "the classrooms keep their names and room numbers");
+
+            // comfort rooms: present, labelled, and out of the way
+            var comfort = FloorPlan.ComfortRooms();
+            Eq(comfort.Count, 2, "the plan carries two comfort rooms");
+            foreach (var cr in comfort)
+            {
+                Check(cr.Comfort && !cr.Room.HasValue && !cr.Sealed,
+                      "'" + cr.Key + "' is a comfort room, not a patrol room and not sealed");
+                Check(cr.Label.ToUpperInvariant().Contains("COMFORT ROOM"),
+                      "'" + cr.Key + "' is labelled as a comfort room");
+                Check(!cr.Overlaps(hall.Value) && !cr.Overlaps(c1.Value) && !cr.Overlaps(c2.Value) &&
+                      !cr.Overlaps(sec.Value) && !cr.Overlaps(server.Value),
+                      "'" + cr.Key + "' obstructs nothing — not the hallway, not a room");
+                Check(cr.DoorX.HasValue && cr.DoorY.HasValue, "'" + cr.Key + "' has a doorway on the plan");
+            }
+
+            // doors sit on their room's own wall, so the drawn gap reads as a way in
+            bool doorsOnWalls = true;
+            foreach (var r in FloorPlan.Rooms)
+            {
+                if (!r.DoorX.HasValue || !r.DoorY.HasValue) continue;
+                float dx = r.DoorX.Value, dy = r.DoorY.Value;
+                bool onWall = Math.Abs(dx - r.Left) < 0.01f || Math.Abs(dx - r.Right) < 0.01f ||
+                              Math.Abs(dy - r.Top) < 0.01f || Math.Abs(dy - r.Bottom) < 0.01f;
+                if (!onWall) { doorsOnWalls = false; Console.WriteLine("   door off-wall: " + r.Key); }
+            }
+            Check(doorsOnWalls, "every doorway is drawn on its own room's wall");
+
+            // patrol coverage: the map can never lose a room the player can actually walk to
+            foreach (var id in RoomGraph.Roamable)
+                Check(FloorPlan.ForRoom(id).HasValue, "roamable room " + id + " is on the plan");
+            float mx, my;
+            Check(FloorPlan.TryMarkerPos(RoomId.Hallway, out mx, out my) &&
+                  Math.Abs(mx - hall.Value.X) < 1e-4f && Math.Abs(my - hall.Value.Y) < 1e-4f,
+                "the position marker for a room is that room's centre");
+
+            // the fit maths the map view centres itself with
+            Eq(FloorPlan.FitScale(FloorPlan.DesignW, FloorPlan.DesignH), 1f, "the design space fits itself at 1x");
+            Eq(FloorPlan.FitScale(FloorPlan.DesignW / 2f, FloorPlan.DesignH), 0.5f,
+               "a half-width area scales the plan to half (uniform, never stretched)");
+            Eq(FloorPlan.FitScale(FloorPlan.DesignW, FloorPlan.DesignH / 2f), 0.5f,
+               "a half-height area does the same");
+            Eq(FloorPlan.FitScale(0f, 0f), 1f, "a degenerate area falls back to 1x instead of dividing by zero");
+        }
+
+        // The map sheet's layout maths. Pure, so "centred at every resolution, never clipped,
+        // never unreadable" is a proved property rather than a screenshot someone squinted at.
+        private static void MapSheetLayoutTests()
+        {
+            Group("MapSheetLayout — the centred ground-floor sheet");
+            var baseFit = MapSheetLayout.Fit(1280f, 720f);
+            Check(baseFit.SheetW > 0f && baseFit.SheetH > 0f, "the sheet has a real size");
+            Check(Math.Abs(baseFit.SheetW / baseFit.SheetH - FloorPlan.DesignW / FloorPlan.DesignH) < 1e-4f,
+                  $"the sheet keeps the plan's aspect ({baseFit.SheetW / baseFit.SheetH:F4} vs " +
+                  $"{FloorPlan.DesignW / FloorPlan.DesignH:F4}) — the drawing is scaled, never stretched");
+            Check(baseFit.FitsIn(1280f, 720f), "the sheet and its CLOSE row fit inside 1280x720");
+
+            // CLOSE is anchored to the screen's bottom edge while the sheet is centred, so the
+            // gap between them is only meaningful once both are in the same space
+            float gap = baseFit.GapUnderSheet(720f);
+            Check(Math.Abs(gap - MapSheetLayout.CloseGap) < 0.01f,
+                  $"CLOSE hangs exactly CloseGap under the sheet (got {gap:F2})");
+            Check(baseFit.CloseBottomMargin >= 0f,
+                  $"CLOSE stays on screen with a {baseFit.CloseBottomMargin:F0}px bottom margin");
+
+            var screens = new[]
+            {
+                new[] { 1280f, 720f }, new[] { 1920f, 1080f }, new[] { 1024f, 768f },
+                new[] { 800f, 600f }, new[] { 2560f, 1080f }, new[] { 1280f, 600f },
+                new[] { 3840f, 2160f }, new[] { 3440f, 1440f }, new[] { 640f, 480f },
+            };
+            bool allFit = true, allReadable = true, allGap = true, allCentred = true;
+            foreach (var s in screens)
+            {
+                // AspectMatchGuard: wider than 16:9 matches HEIGHT, otherwise WIDTH
+                var visible = s[0] / s[1] > 1280f / 720f
+                    ? new[] { s[0] * 720f / s[1], 720f }
+                    : new[] { 1280f, s[1] * 1280f / s[0] };
+                var fit = MapSheetLayout.Fit(visible[0], visible[1]);
+                if (!fit.FitsIn(visible[0], visible[1])) { allFit = false; Console.WriteLine("   does not fit: " + s[0] + "x" + s[1]); }
+                if (MapSheetLayout.TypeSize(30, fit.ChromeTextScale, 1f) < 20 ||
+                    MapSheetLayout.TypeSize(12, fit.ChromeTextScale, 1f) < 10 ||
+                    MapSheetLayout.TypeSize(15, fit.PlanTextScale, 1f) < 11)
+                { allReadable = false; Console.WriteLine("   unreadable type: " + s[0] + "x" + s[1]); }
+                if (Math.Abs(fit.GapUnderSheet(visible[1]) - MapSheetLayout.CloseGap) > 0.01f ||
+                    fit.CloseBottomMargin < 0f) allGap = false;
+                // centred BY CONSTRUCTION: the sheet is anchored to the centre with no offset,
+                // so the only thing that can break centring is a size that overflows — hence
+                // the fit check above. Assert the margin symmetry that follows from it.
+                float sideMargin = (visible[0] - fit.SheetW) / 2f;
+                float topMargin = (visible[1] - fit.SheetH) / 2f;
+                if (sideMargin < -0.01f || topMargin < -0.01f) allCentred = false;
+            }
+            Check(allFit, "the sheet and CLOSE fit at 9 resolutions from 640x480 to 4k, 4:3 to 21:9");
+            Check(allCentred, "...with non-negative margins on both axes, i.e. centred and unclipped");
+            Check(allReadable, "...and the type never drops below readable at any of them");
+            Check(allGap, "...and CLOSE keeps the same gap under the sheet, on screen, at all of them");
+
+            // the drawing scales with the space it is given (no hard-coded pixel offsets)
+            var big = MapSheetLayout.Fit(2560f, 1440f);
+            var small = MapSheetLayout.Fit(1280f, 720f);
+            Check(big.PlanScale > small.PlanScale, "a bigger window draws a bigger plan");
+            Check(Math.Abs(big.PlanScale / small.PlanScale - big.PaperScale / small.PaperScale) < 1e-3f,
+                  "the plan and the sheet scale together (one uniform fit)");
+
+            // the design -> RectTransform mapping. Design y points DOWN like a drawing,
+            // RectTransform y points UP: the flip lives in exactly one function.
+            Check(MapSheetLayout.ToAnchoredY(-126f, 1f) > 0f,
+                  "a room ABOVE the centre in design space lands above the centre on screen");
+            Check(MapSheetLayout.ToAnchoredY(126f, 1f) < 0f,
+                  "...and a room below it lands below it (the plan is never mirrored)");
+            Eq(MapSheetLayout.ToAnchoredX(20f, 2f), 40f, "x scales by the plan scale");
+            Eq(MapSheetLayout.ToAnchoredY(20f, 2f), -40f, "y scales by the plan scale, negated");
+
+            // degenerate input must not produce a broken sheet
+            var tiny = MapSheetLayout.Fit(0f, 0f);
+            Check(tiny.SheetW > 0f && tiny.SheetH > 0f && tiny.PlanScale > 0f,
+                  "a zero-size window still yields a sane (minimum) sheet instead of NaN");
+            Check(MapSheetLayout.TypeSize(30, 0f, 1f) >= 9, "type sizes have a floor");
         }
 
         private static void SlipFairnessTests()
@@ -2223,6 +2744,87 @@ namespace Hollowbrook.LogicTests
             Check(string.Join(",", list) != before || true, "shuffle ran");
             try { new GameRng(1).Pick(new int[0]); Check(false, "Pick on an empty collection should throw"); }
             catch (ArgumentException) { Check(true, "Pick on an empty collection throws ArgumentException"); }
+        }
+        // ---------------------------------------------------------------- window talk
+        // The typed-line router is pure: classification, question mapping, reply
+        // determinism and the bounded transcript memory.
+        private static void SpokenChatTests()
+        {
+            Group("Spoken chat router + window transcript");
+
+            Eq(SpokenChat.Normalize("  What's   your COURSE? "), "whats your course",
+               "normalize flattens case, punctuation and whitespace");
+            Eq(SpokenChat.Normalize("   \n "), "", "normalize maps blank input to empty");
+            Eq(SpokenChat.Normalize(null), "", "normalize maps null to empty");
+
+            Check(SpokenChat.TryMatchQuestion("whats your course", out var q1) && q1 == QuestionId.Course,
+                  "course phrasing maps to the Course question");
+            Check(SpokenChat.TryMatchQuestion("are you a regular student or a transferee", out var q2) && q2 == QuestionId.Status,
+                  "regular/transferee phrasing maps to Status");
+            Check(SpokenChat.TryMatchQuestion("what year are you in", out var q3) && q3 == QuestionId.Year,
+                  "year phrasing maps to Year");
+            Check(SpokenChat.TryMatchQuestion("what classroom is your first class in", out var q4) && q4 == QuestionId.FirstClassroom,
+                  "classroom phrasing maps to FirstClassroom");
+            Check(!SpokenChat.TryMatchQuestion("good evening", out _),
+                  "a greeting is not a verification question");
+            Check(!SpokenChat.TryMatchQuestion("", out _), "blank is not a question");
+
+            Eq(SpokenChat.Classify(""), SpokenTopic.Rejected, "blank classifies as Rejected");
+            Eq(SpokenChat.Classify("hi what is your course"), SpokenTopic.Question,
+               "a greeting wrapped around a question still classifies as the question");
+            Eq(SpokenChat.Classify("who are you"), SpokenTopic.NameAsk, "name ask classifies");
+            Eq(SpokenChat.Classify("your id number please"), SpokenTopic.IdAsk, "id ask classifies");
+            Eq(SpokenChat.Classify("thank you"), SpokenTopic.Thanks, "thanks classifies");
+            Eq(SpokenChat.Classify("you are a liar"), SpokenTopic.Hostile, "hostility classifies");
+            Eq(SpokenChat.Classify("hello"), SpokenTopic.Greeting, "greeting classifies");
+            Eq(SpokenChat.Classify("rain again tonight"), SpokenTopic.SmallTalk, "small talk classifies");
+            Eq(SpokenChat.Classify("blorp blorp"), SpokenTopic.Fallback, "nonsense falls through");
+
+            var nobody = new SpokenContext { HasVisitor = false };
+            Eq(SpokenChat.Route(nobody, "hello").Topic, SpokenTopic.Rejected,
+               "with nobody at the window every line is rejected");
+            Check(SpokenChat.Route(nobody, "hello").RejectReason.Length > 0,
+                  "the rejection carries a reason the desk can toast");
+
+            var stu = new SpokenContext
+            {
+                HasVisitor = true, IsAdmin = false,
+                ClaimedName = "Marco Reyes", ClaimedId = "HB-2025-01387", ClaimedRoom = "ROOM 202",
+            };
+            Eq(SpokenChat.Route(stu, "   ").Topic, SpokenTopic.Rejected, "blank is rejected even with a visitor");
+            Eq(SpokenChat.Route(stu, "what is your course").Topic, SpokenTopic.Question,
+               "a typed question routes to the question path");
+            Check(SpokenChat.Route(stu, "what is your course").Text == "",
+                  "the question path carries no text: the view answers through the budget");
+            var g0 = SpokenChat.Route(stu, "hello");
+            var g1 = SpokenChat.Route(new SpokenContext { HasVisitor = true, ClaimedName = "Marco Reyes", Variant = 1 }, "hello");
+            Check(g0.Topic == SpokenTopic.Greeting && g1.Topic == SpokenTopic.Greeting && g0.Text != g1.Text,
+                  "greeting replies vary with the caller-owned variant");
+            Check(SpokenChat.Route(stu, "hello").Text ==
+                  SpokenChat.Route(stu, "hello").Text, "same context, same reply: no hidden dice");
+            Check(SpokenChat.Route(stu, "your name").Text.Contains("Marco Reyes"),
+                  "the name answer uses the claimed name");
+            Check(SpokenChat.Route(stu, "your id number").Text.Contains("HB-2025-01387"),
+                  "the id answer reads the badge number");
+
+            var adm = new SpokenContext { HasVisitor = true, IsAdmin = true, ClaimedName = "Administrative Office" };
+            Check(SpokenChat.Route(adm, "hello").Text != g0.Text,
+                  "the administrator answers in her own register");
+            Check(SpokenChat.Route(adm, "what is your course").Topic == SpokenTopic.Question,
+                  "typed questions to the administrator still route to the budget path");
+
+            var t = new WindowTranscript();
+            for (int i = 0; i < WindowTranscript.Capacity + 5; i++)
+                t.Add("YOU", "line " + i, true);
+            Eq(t.Count, WindowTranscript.Capacity, "the transcript is bounded");
+            Eq(t.Dropped, 5, "dropped lines are counted for the +N EARLIER marker");
+            Eq(t.Entries[t.Count - 1].Text, "line " + (WindowTranscript.Capacity + 4),
+               "the newest line survives");
+            Eq(t.Last(3).Count, 3, "Last(n) hands over n entries");
+            Eq(t.Last(3)[0].Text, "line " + (WindowTranscript.Capacity + 2), "Last(n) is oldest-first");
+            t.Clear();
+            Eq(t.Count, 0, "clear empties the memory");
+            Eq(t.Dropped, 0, "clear resets the dropped counter");
         }
     }
 }

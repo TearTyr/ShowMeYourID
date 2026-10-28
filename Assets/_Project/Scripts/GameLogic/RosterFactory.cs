@@ -40,9 +40,7 @@ namespace Hollowbrook.Logic
             }
             if (shift.HasAdministrator)
             {
-                var admin = BuildAdministrator(shift);
-                admin.VisitorIndex = shift.VisitorCount;
-                visitors.Add(admin);
+                visitors.Add(BuildAdministrator(shift));
             }
             return visitors;
         }
@@ -400,6 +398,10 @@ namespace Hollowbrook.Logic
             v.SlipName = v.ClaimedName;
             v.SlipIdNumber = v.IdNumber;
             v.SlipReason = "DISTRICT BUSINESS — SEE OFFICE";
+            // the administrator is the EXTRA final entry after the standard roster, so its
+            // run-wide index is the roster length — set here, where the identity is built, so
+            // every caller (roster generation AND the headless harness) gets a unique index
+            v.VisitorIndex = shift.VisitorCount;
             return v;
         }
 

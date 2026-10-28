@@ -159,6 +159,15 @@ namespace Hollowbrook.Logic
     {
         public int Number;           // 1..5
         public string DateLabel;     // "Mon · Nov 2"
+        public string LongDateLabel  // "MONDAY - NOVEMBER 2" (header board form)
+        {
+            get
+            {
+                int i = System.Array.IndexOf(Content.ShiftDates, DateLabel);
+                return i < 0 || i >= Content.ShiftDatesLong.Length
+                    ? (DateLabel ?? "") : Content.ShiftDatesLong[i];
+            }
+        }
         public int VisitorCount;     // 4/6/7/8/8 per the approved progression
         public int AnomalyCount;     // 0/2/3/4/4
         public bool HasAdministrator;
@@ -211,6 +220,14 @@ namespace Hollowbrook.Logic
         public static readonly string[] ShiftDates =
         {
             "Mon · Nov 2", "Tue · Nov 3", "Wed · Nov 4", "Thu · Nov 5", "Fri · Nov 6",
+        };
+
+        // The header board spells the night out in full (the reference header line):
+        // "NIGHT 1 - MONDAY - NOVEMBER 2". ShiftDates stays the short form for papers.
+        public static readonly string[] ShiftDatesLong =
+        {
+            "MONDAY - NOVEMBER 2", "TUESDAY - NOVEMBER 3", "WEDNESDAY - NOVEMBER 4",
+            "THURSDAY - NOVEMBER 5", "FRIDAY - NOVEMBER 6",
         };
 
         public static int ShiftDayNumber(int shift) => 1000 + shift; // arbitrary monotonic base

@@ -23,19 +23,28 @@ namespace Hollowbrook.Checkpoint
             var qPanel = UIFactory.BorderedPanel(_desk, "qpanel", UIFactory.Paper, UIFactory.Border, 2);
             Reg("questions", qPanel, L.Questions);
             qPanel.gameObject.AddComponent<RectMask2D>();
-            var qHead = UIFactory.Label(qPanel, "head", "QUESTIONS", 15, UIFactory.NsChalk, TextAnchor.UpperLeft);
+            var qHead = UIFactory.Label(qPanel, "head", "QUESTIONS", 24, UIFactory.NsChalk, TextAnchor.UpperLeft);
             qHead.font = UIFactory.UiFontBold;
             L.Place(qHead.rectTransform, L.Inner.QHead);
-            _budgetLabel = UIFactory.Label(qPanel, "budget", "QUESTIONS: 3 LEFT", 13,
+            qHead.rectTransform.localScale = new Vector3(0.72f, 1f, 1f);   // condensed, like the board
+            _budgetLabel = UIFactory.Label(qPanel, "budget", "2/2", 22,
                 UIFactory.NsMid, TextAnchor.MiddleRight);
             _budgetLabel.font = UIFactory.UiFontBold;
+            // short HUD labels never word-wrap: the counter keeps one clean line and grows
+            // leftwards from its right anchor instead of stacking fragments (owner #2B)
+            _budgetLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
             L.Place(_budgetLabel.rectTransform, L.Inner.QBudget);
             _budgetLabel.gameObject.SetActive(false);
+            _qEmpty = UIFactory.Label(qPanel, "qempty", "NO VISITOR AT THE WINDOW", 12,
+                UIFactory.NsMid, TextAnchor.MiddleCenter);
+            _qEmpty.font = UIFactory.UiFont;
+            L.Place(_qEmpty.rectTransform, new L.Region(16, 104, 277, 20));
+            _qEmpty.gameObject.SetActive(false);
 
             string[] qs =
             {
-                "1 · Your course?", "2 · Your year?",
-                "3 · Regular or transferee?", "4 · First classroom?",
+                "YOUR COURSE?", "YOUR YEAR?",
+                "REGULAR OR TRANSFEREE?", "FIRST CLASSROOM?",
             };
             var qids = QuestionSystem.All;
             for (int i = 0; i < 4; i++)
@@ -46,7 +55,7 @@ namespace Hollowbrook.Checkpoint
                 L.Place(b.GetComponent<RectTransform>(),
                     new L.Region(L.Inner.QBtnX, L.Inner.QBtnY0 + i * L.Inner.QBtnStep,
                         L.Inner.QBtnW, L.Inner.QBtnH));
-                SizeLabel(b, 13);
+                SizeLabel(b, 16);
                 var bt = b.GetComponentInChildren<UnityEngine.UI.Text>();
                 if (bt != null) { bt.font = UIFactory.UiFont; bt.color = UIFactory.NsChalk; }
                 _questionButtons[i] = b;
@@ -62,32 +71,90 @@ namespace Hollowbrook.Checkpoint
             // the tools row: tonight's log, map, rules note. (The SCAN button and the
             // camera monitor are retired — the ID scanner feature is gone; verification
             // is manual: documents, floor files and questions.)
-            _recordsBtn = GridButton(_desk, "records", "TL",
-                () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, L.UtilityRecords, 11);
+            // the two desk papers are PROPS: the kit's printed sheets lying on the desk at
+            // the concept art's angles, clickable to open their overlay sheet
+            _recordsBtn = PaperProp("records", "sec_log_paper",
+                () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, L.UtilityRecords, L.TiltLog);
             Reg("records", _recordsBtn, L.UtilityRecords);
             // the mockup's inline college map: a panel-button (click still opens the full
-            // overlay) with the floor plan as static chalk labels
+            // overlay) whose chalk list mirrors the ground-floor plan the overlay draws —
+            // same rooms, same order, same wording, so the two can never disagree
             _mapBtn = GridButton(_desk, "map", "", () => _gameRoot.OpenMap(), L.UtilityMap, 16);
             Reg("map", _mapBtn, L.UtilityMap);
+            // the reference paints a torn paper plan, not a chalk list: the overlay's paper and
+            // room inks reused at desk scale, so the two can never disagree
+            var mpaper = UIFactory.Img(_mapBtn.transform, "mpaper", ProceduralArt.Get("paper_flat"),
+                Color.white);
+            mpaper.raycastTarget = false;
+            UIFactory.AnchorsFull(mpaper.rectTransform);
             var mt = UIFactory.Label(_mapBtn.transform, "mtitle", "HOLLOWBROOK COLLEGE MAP", 13,
-                UIFactory.NsChalk, TextAnchor.MiddleCenter);
-            L.Place(mt.rectTransform, new L.Region(0, 4, 268, 16));
+                UIFactory.NsInk, TextAnchor.MiddleCenter);
+            L.Place(mt.rectTransform, new L.Region(0, 8, 290, 16));
             mt.font = UIFactory.UiFontBold;
-            string[] rooms = { "FIRST FLOOR", "ROOM 101", "ROOM 202", "HALLWAY",
-                               "SECURITY ROOM", "INVESTIGATION ROOM — SEALED —", "2ND FLOOR — ARCHIVE" };
-            for (int i = 0; i < rooms.Length; i++)
+            var mf = UIFactory.Label(_mapBtn.transform, "mfloor", "FIRST FLOOR", 10,
+                UIFactory.NsInk, TextAnchor.MiddleLeft);
+            L.Place(mf.rectTransform, new L.Region(14, 42, 90, 14));
+            mf.font = UIFactory.UiFont;
+            // hand-drawn room boxes (map-local): two classrooms, the hall, the comfort rooms,
+            // the sealed server room in red — same rooms, same order as the full plan
+            float[][] boxes =
             {
-                var rl = UIFactory.Label(_mapBtn.transform, "m" + i, rooms[i], 10,
-                    i == 0 || i == 6 ? UIFactory.NsMid : UIFactory.NsPaperDim, TextAnchor.MiddleLeft);
-                L.Place(rl.rectTransform, new L.Region(10 + (i == 6 ? 0 : 0), 24 + i * 16, 248, 14));
-                rl.font = UIFactory.UiFont;
+                new float[] { 78, 62, 62, 34 },  new float[] { 148, 62, 62, 34 },
+                new float[] { 112, 100, 74, 30 }, new float[] { 24, 108, 46, 26 },
+                new float[] { 222, 78, 52, 52 },
+            };
+            string[] tags = { "ROOM 101", "ROOM 202", "MAIN HALL", "CR-1/2", "SERVER — SEALED" };
+            for (int i = 0; i < boxes.Length; i++)
+            {
+                bool sealedRoom = i == boxes.Length - 1;
+                var box = UIFactory.Img(_mapBtn.transform, "mbox" + i,
+                    ProceduralArt.Get(sealedRoom ? "map_sealed" : "map_room"), Color.white);
+                box.raycastTarget = false;
+                L.Place(box.rectTransform, new L.Region(boxes[i][0], boxes[i][1], boxes[i][2], boxes[i][3]));
+                var bl = UIFactory.Label(box.rectTransform, "t", tags[i], 8,
+                    sealedRoom ? new Color(0.80f, 0.32f, 0.33f) : UIFactory.NsInk,
+                    TextAnchor.MiddleCenter);
+                UIFactory.AnchorsFull(bl.rectTransform);
+                bl.font = UIFactory.UiFont;
             }
-            _notesBtn = GridButton(_desk, "notes", "RN",
-                () => ToggleOverlay(_notesRoot), L.UtilityNotes, 11);
+            var mh = UIFactory.Label(_mapBtn.transform, "mhint", "CLICK — OPEN THE FULL PLAN", 9,
+                UIFactory.NsMid, TextAnchor.MiddleRight);
+            L.Place(mh.rectTransform, new L.Region(90, 150, 190, 12));
+            mh.font = UIFactory.UiFont;
+            // two tape tabs pin the sheet down, like the reference's corners
+            for (int tI = 0; tI < 2; tI++)
+            {
+                var tape = UIFactory.Panel(_mapBtn.transform, "mtape" + tI,
+                    new Color(0.13f, 0.13f, 0.14f, 0.85f));
+                tape.raycastTarget = false;
+                L.Place(tape.rectTransform, new L.Region(tI == 0 ? -8f : 244f, -6f, 46f, 14f));
+                tape.rectTransform.localEulerAngles = new Vector3(0, 0, tI == 0 ? 8f : -8f);
+            }
+            _notesBtn = PaperProp("notes", "sec_rules_paper",
+                () => ToggleOverlay(_notesRoot), L.UtilityNotes, L.TiltRules);
             Reg("notes", _notesBtn, L.UtilityNotes);
 
             // verdicts are physical: drag a stamp onto the slip to commit.
             // No confirm buttons anywhere — the stamp act IS the confirmation.
+        }
+
+        // A paper prop: kit sheet art on the desk, tilted like the concept art paints it,
+        // and a real Button (the sheet itself is the click target). Falls soft: without the
+        // kit the prop is a plain paper panel, still clickable.
+        private Button PaperProp(string name, string kitKey, System.Action onClick, L.Region r, float tilt)
+        {
+            var rt = UIFactory.NewUI(_desk, name);
+            var img = rt.gameObject.AddComponent<UnityEngine.UI.Image>();
+            var sp = ProceduralArt.Get(kitKey);
+            if (sp != null) { img.sprite = sp; img.color = Color.white; }
+            else img.color = UIFactory.Paper;
+            img.raycastTarget = true;
+            var b = rt.gameObject.AddComponent<UnityEngine.UI.Button>();
+            b.targetGraphic = img;
+            b.onClick.AddListener(() => onClick());
+            L.Place(rt, r);
+            rt.localEulerAngles = new Vector3(0, 0, tilt);
+            return b;
         }
 
         // The interview at a glance: budget pips, asked-tags on the four buttons, and the
@@ -96,9 +163,7 @@ namespace Hollowbrook.Checkpoint
         {
             if (_budgetLabel != null)
             {
-                string pips = "";
-                for (int i = 0; i < _budget.Max; i++) pips += (i < _budget.Remaining ? "● " : "○ ");
-                _budgetLabel.text = "QUESTIONS: " + _budget.Remaining + " LEFT  " + pips.Trim();
+                _budgetLabel.text = _budget.Remaining + "/" + _budget.Max;
             }
             for (int i = 0; i < 4; i++)
             {
@@ -106,6 +171,8 @@ namespace Hollowbrook.Checkpoint
                 bool asked = _budget.HasAsked(QuestionSystem.All[i]);
                 var t = _questionButtons[i].GetComponentInChildren<Text>();
                 if (t != null) t.text = asked ? _qLabels[i] + "  ✓ ASKED" : _qLabels[i];
+                if (t != null) t.color = _kitOn ? UIFactory.NsInk : UIFactory.NsChalk;
+                RefreshQuestionArrow(i, asked);   // the kit's arrow is the asked-mark
             }
         }
 
@@ -147,8 +214,12 @@ namespace Hollowbrook.Checkpoint
         {
             if (_slipGo == null || !_slipGo.activeSelf || !_slipTaken || _current == null || _verdictLocked) return;
             var srt = _slipGo.GetComponent<RectTransform>();
-            var ss = srt.rect.size;
-            var sc = srt.localScale;                 // zoomed slip = bigger target, true placement
+            // the written slip lives on its scaled art layer: placement maths runs in the
+            // art's 200x120 design space, converted through the container's zoom+tilt
+            var artT = _slipGo.transform.Find("slipart");
+            var art = artT != null ? artT.GetComponent<RectTransform>() : srt;
+            var ss = art.rect.size;
+            var sc = new Vector3(srt.localScale.x * art.localScale.x, srt.localScale.y * art.localScale.y, 1f);
             float w = ss.x * sc.x, h = ss.y * sc.y;
             var top = new Vector2(srt.anchoredPosition.x, -srt.anchoredPosition.y);
             bool onSlip = center.x >= top.x - 8f && center.x <= top.x + w + 8f &&
@@ -179,7 +250,10 @@ namespace Hollowbrook.Checkpoint
 
         private Vector2 KeyboardStampSpot()
         {
-            var ss = _slipGo.GetComponent<RectTransform>().rect.size;
+            var artT = _slipGo.transform.Find("slipart");
+            var ss = artT != null
+                ? artT.GetComponent<RectTransform>().rect.size
+                : _slipGo.GetComponent<RectTransform>().rect.size;
             var local = StampPlacement.ClampToPrintable(
                 new StampPlacement.Point(ss.x * 0.8f, ss.y * 0.68f),
                 ss.x, ss.y, StampMarkSize, StampMaxTilt, StampEdgePad);
@@ -211,7 +285,8 @@ namespace Hollowbrook.Checkpoint
         private void PlaceStampMark(Verdict v, Vector2 localCentre)
         {
             if (_stampOverlay == null || _slipGo == null) return;
-            var srt = _slipGo.GetComponent<RectTransform>();
+            var artT = _slipGo.transform.Find("slipart");
+            var srt = artT != null ? artT : _slipGo.transform;
             _stampOverlay.transform.SetParent(srt, false);
             if (_punch != null) StopCoroutine(_punch);      // one punch at a time
             var rt = _stampOverlay.rectTransform;
@@ -249,16 +324,22 @@ namespace Hollowbrook.Checkpoint
             for (int i = 0; i < 4; i++)
             {
                 _questionButtons[i].gameObject.SetActive(atWindow);   // compact row, no gate
+                if (i == 0 && _qEmpty != null) _qEmpty.gameObject.SetActive(!atWindow);
                 UIFactory.SetButtonEnabled(_questionButtons[i],
                     atWindow && !_budget.HasAsked(QuestionSystem.All[i]) && _budget.Remaining > 0);
             }
             _budgetLabel.gameObject.SetActive(atWindow);
             RefreshQuestionsPanel();
             RefreshStamps(live);
-            UIFactory.SetButtonEnabled(_patrolBtn, !atWindow &&
-                Queue != null && Queue.Started && !collapsed);
-            UIFactory.SetButtonEnabled(_endShiftBtn, Queue != null && Queue.ShiftComplete &&
-                _gameRoot.Session.Mode == GameMode.Normal);
+            bool patrolOn = !atWindow && Queue != null && Queue.Started && !collapsed;
+            bool endOn = Queue != null && Queue.ShiftComplete &&
+                         _gameRoot.Session.Mode == GameMode.Normal;
+            if (_kitOn) { ApplyKitPill(_patrolBtn, patrolOn); ApplyKitPill(_endShiftBtn, endOn); }
+            else
+            {
+                UIFactory.SetButtonEnabled(_patrolBtn, patrolOn);
+                UIFactory.SetButtonEnabled(_endShiftBtn, endOn);
+            }
         }
 
         public void Stamp(Verdict verdict)

@@ -21,6 +21,12 @@ namespace Hollowbrook.UI
         {
             _bg = UIFactory.Panel(transform, "bg", Color.black).gameObject;
             UIFactory.AnchorsFull(_bg.GetComponent<RectTransform>());
+            // the shut booth behind the NIGHT card: the kit's closed-shutter composite, dimmed
+            var kitBg = UIFactory.Img(_bg.transform, "kitbg", ProceduralArt.Get("sec_background_close"),
+                new Color(1f, 1f, 1f, 0.35f));
+            UIFactory.AnchorsFull(kitBg.rectTransform);
+            kitBg.raycastTarget = false;
+            kitBg.rectTransform.SetAsFirstSibling();
             _label = UIFactory.Label(_bg.transform, "label", "", 40, UIFactory.Ink, TextAnchor.MiddleCenter);
             UIFactory.Anchor(_label.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(900, 80), new Vector2(0, 30));
             var sub = UIFactory.Label(_bg.transform, "sub", "HOLLOWBROOK COLLEGE — NIGHT CUSTODIAN PROGRAM", 15, UIFactory.InkFaint, TextAnchor.MiddleCenter);

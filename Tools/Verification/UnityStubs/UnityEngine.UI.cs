@@ -40,8 +40,33 @@ namespace UnityEngine
         public Vector2 pivot = new Vector2(0.5f, 0.5f);
         public Vector2 anchoredPosition = Vector2.zero;
         public Vector2 sizeDelta = Vector2.zero;
-        public Vector2 offsetMin = Vector2.zero;
-        public Vector2 offsetMax = Vector2.zero;
+        // Unity's stretch drivers: the rect edges hang off the anchor points, and
+        // anchoredPosition/sizeDelta are the derived pair. Modelling them (instead of four
+        // independent fields) keeps code that writes offsets — DialogueView, FileDrawer edges,
+        // paper stripes — in the same geometry as code that writes anchoredPosition.
+        public Vector2 offsetMin
+        {
+            get => anchoredPosition - new Vector2(pivot.x * sizeDelta.x, pivot.y * sizeDelta.y);
+            set
+            {
+                var max = offsetMax;
+                sizeDelta = max - value;
+                anchoredPosition = new Vector2(value.x + pivot.x * sizeDelta.x,
+                                               value.y + pivot.y * sizeDelta.y);
+            }
+        }
+        public Vector2 offsetMax
+        {
+            get => anchoredPosition + new Vector2((1f - pivot.x) * sizeDelta.x,
+                                                  (1f - pivot.y) * sizeDelta.y);
+            set
+            {
+                var min = offsetMin;
+                sizeDelta = value - min;
+                anchoredPosition = new Vector2(min.x + pivot.x * sizeDelta.x,
+                                               min.y + pivot.y * sizeDelta.y);
+            }
+        }
         public new Rect rect => new Rect(anchoredPosition.x, anchoredPosition.y, sizeDelta.x, sizeDelta.y);
         public void SetSizeWithCurrentAnchors(Axis axis, float size) { }
         public void SetInsetAndSizeFromParentEdge(Edge edge, float inset, float size) { }
@@ -82,17 +107,87 @@ namespace UnityEngine.UI
 
     public class GraphicRaycaster : Behaviour { }
 
-    // Minimal headless InputField: the text plus the two events real uGUI fires.
-    // Headless proofs set .text and invoke onEndEdit directly.
+    // Minimal headless InputField: the text plus the events real uGUI fires.
+    // Headless proofs set .text and invoke onEndEdit / SimulateEnter directly.
+    // Line semantics mirror real uGUI and the project's input contract:
+    //   MultiLineSubmit — Enter submits (onSubmit), Shift+Enter inserts a newline;
+    //   MultiLineNewline — Enter inserts a newline, Shift+Enter submits;
+    //   SingleLine — Enter submits, newlines are refused.
     public class InputField : Behaviour
     {
-        public string text = "";
+        private string _text = "";
+        // Assigning mirrors real uGUI: the visible ink and the placeholder's enabled state
+        // follow the string, so headless dumps render exactly what the editor would show.
+        public string text
+        {
+            get => _text;
+            set
+            {
+                _text = value ?? "";
+                if (characterLimit > 0 && _text.Length > characterLimit) _text = _text.Substring(0, characterLimit);
+                if (textComponent != null) textComponent.text = _text;
+                if (placeholder != null) placeholder.enabled = _text.Length == 0;
+            }
+        }
         public bool isFocused;
+        public bool interactable = true;
+        public int characterLimit = 0;
+        public LineType lineType = LineType.SingleLine;
         public Graphic targetGraphic;
         public Text textComponent;
         public Graphic placeholder;
         public UnityEngine.Events.UnityEvent<string> onEndEdit = new UnityEngine.Events.UnityEvent<string>();
         public UnityEngine.Events.UnityEvent<string> onValueChanged = new UnityEngine.Events.UnityEvent<string>();
+        public UnityEngine.Events.UnityEvent<string> onSubmit = new UnityEngine.Events.UnityEvent<string>();
+        public enum LineType { SingleLine = 0, MultiLineNewline = 1, MultiLineSubmit = 2 }
+
+        // ActivateInputField mirrors real uGUI — and the stub deliberately exposes ONLY the
+        // real surface (uGUI's InputField has no Focus(); an invented member here once let a
+        // stub-only call compile headless and then fail in the editor). The field becomes the
+        // EventSystem's selected object, so UIFactory.TypingInField() sees it exactly as the
+        // editor would.
+        public void ActivateInputField() { isFocused = true; Select(); }
+        public void DeactivateInputField()
+        {
+            isFocused = false;
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            if (es != null && es.currentSelectedGameObject == gameObject) es.SetSelectedGameObject(null);
+            onEndEdit.Invoke(text);
+        }
+        private void Select()
+        {
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            if (es != null) es.SetSelectedGameObject(gameObject);
+        }
+
+        /// <summary>Headless stand-in for pressing Return in the field: applies the line-type
+        /// semantics above (submit vs. newline) exactly as real uGUI would.</summary>
+        public void SimulateEnter(bool shift)
+        {
+            if (!interactable) return;
+            bool submit = lineType == LineType.MultiLineNewline ? shift     // Enter newline, Shift+Enter submit
+                        : lineType == LineType.MultiLineSubmit ? !shift     // Enter submit, Shift+Enter newline
+                        : true;                                             // single line: Enter submits
+            if (submit) { onSubmit.Invoke(text); return; }
+            Append("\n");
+        }
+
+        /// <summary>Headless stand-in for typing a string into the field.</summary>
+        public void SimulateTyping(string s)
+        {
+            if (!interactable) return;
+            Append(s);
+        }
+
+        private void Append(string s)
+        {
+            string next = text + s;
+            if (characterLimit > 0 && next.Length > characterLimit) next = next.Substring(0, characterLimit);
+            if (lineType == LineType.SingleLine) next = next.Replace("\n", " ");
+            text = next;
+            if (textComponent != null) textComponent.text = next;
+            onValueChanged.Invoke(text);
+        }
     }
     public class Mask : Behaviour { public bool showMaskGraphic = true; }
     public class RectMask2D : Behaviour { }
@@ -355,6 +450,9 @@ namespace UnityEngine.EventSystems
 
     public class EventSystem : Behaviour
     {
+        // real Unity assigns this on Awake; the stub assigns on construction so headless
+        // harnesses that build a bootstrap (CoreBootstrap) get a live EventSystem for free.
+        public EventSystem() { current = this; }
         public static EventSystem current { get; set; }
         public GameObject currentSelectedGameObject;
         public bool sendNavigationEvents = true;

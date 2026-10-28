@@ -31,13 +31,30 @@ namespace Hollowbrook.Core
             _scaler.matchWidthOrHeight = aspect > ReferenceAspect ? 1f : 0f;
         }
 
-        public Vector2 VisibleReferenceSize()
+        /// <summary>How much reference space the screen actually shows right now. Matching the
+        /// width leaves 1280 across and lets the height grow; matching the height leaves 720 down
+        /// and lets the width grow. Anything that must stay centred AND fully visible sizes
+        /// itself from this instead of assuming 1280x720 (the ground-floor map sheet).</summary>
+        public Vector2 VisibleReferenceSize() => VisibleReferenceSize(_scaler, _w, _h);
+
+        /// <summary>The same rule for callers that found their own CanvasScaler.</summary>
+        public static Vector2 VisibleReferenceSize(CanvasScaler scaler, int screenWidth, int screenHeight)
         {
-            float scale = _scaler != null && _scaler.matchWidthOrHeight > 0.5f
-                ? _h / 720f
-                : _w / 1280f;
+            int w = screenWidth > 0 ? screenWidth : Screen.width;
+            int h = screenHeight > 0 ? screenHeight : Screen.height;
+            if (scaler == null ||
+                scaler.referenceResolution.x <= 0f || scaler.referenceResolution.y <= 0f ||
+                w <= 0 || h <= 0)
+                return new Vector2(w > 0 ? w : 1280f, h > 0 ? h : 720f);
+            float scale = scaler.matchWidthOrHeight > 0.5f
+                ? scaler.referenceResolution.y / h
+                : scaler.referenceResolution.x / w;
             if (scale <= 0f) scale = 1f;
-            return new Vector2(_w / scale, _h / scale);
+            // scale is reference-units-per-screen-pixel (refY/h when the height is matched,
+            // refX/w when the width is), so the visible reference area is the screen size
+            // TIMES it. Dividing (the old bug) squared the error: 1920x1080 reported 2880x1620
+            // instead of the 1280x720 the scaler actually shows, and 4:3 under-reported.
+            return new Vector2(w * scale, h * scale);
         }
     }
 }

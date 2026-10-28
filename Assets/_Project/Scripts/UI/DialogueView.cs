@@ -40,6 +40,10 @@ namespace Hollowbrook.UI
 
             var panelRt = UIFactory.BorderedPanel(transform, "panel", new Color(0.06f, 0.06f, 0.07f, 0.98f), UIFactory.Border, 2);
             UIFactory.Anchor(panelRt, new Vector2(0.5f, 0f), new Vector2(1000, 170), new Vector2(0, 118));
+            // The intro panel stays the DARK cinematic box: the kit's white paper speech bubble
+            // (sec_bubble) is the DESK bubble's skin only. Sliced onto this 1000x170 panel its
+            // torn white centre tile painted a large irregular white shape across the narration
+            // (owner UI report #1) — and white paper under white ink hid the text outright.
 
             _portrait = UIFactory.Img(panelRt, "portrait", ProceduralArt.Get("face_placeholder"));
             UIFactory.Anchor(_portrait.rectTransform, new Vector2(0, 0.5f), new Vector2(104, 128), new Vector2(-430, 0));
@@ -149,6 +153,7 @@ namespace Hollowbrook.UI
         private void Update()
         {
             if (!IsActive) return;
+            if (UIFactory.TypingInField()) return;   // the caret owns Enter while you type
             if (_gameRoot != null && _gameRoot.Paused) return; // no dialogue advance while paused
             if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.E))
                 Advance();

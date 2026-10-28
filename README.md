@@ -17,7 +17,7 @@ Walk the halls between visitors. Find the ten things the school is hiding. Keep 
 1. Install **Unity 6.3** (project stamped `6000.3.0f1`; Built-in Render Pipeline — no URP/HDRP,
    no paid packages). Also opens fine on any Unity 6.x or 2022.3 LTS — the code only uses APIs
    common to all of them (uGUI, legacy Input Manager, `LegacyRuntime.ttf`).
-2. Open this folder as a Unity project and let it import (first import compiles ~35 scripts).
+2. Open this folder as a Unity project and let it import (first import compiles ~100 scripts).
 3. Press **Play** — the startup scene is `Assets/_Project/Scenes/MainMenu.unity` (build index 0).
    Each of the three scenes contains a single bootstrap object that builds everything in code:
    `MainMenu.unity` (menu), `Hollowbrook.unity` (Scene A — the inspection-desk loop),
@@ -27,20 +27,27 @@ Walk the halls between visitors. Find the ten things the school is hiding. Keep 
    in the build list via `ProjectSettings/EditorBuildSettings.asset`).
 
 No external art or audio files are required: all sprites and sound are **generated
-procedurally at runtime**. To upgrade any of them with real assets later, drop files at
+procedurally at runtime**. To upgrade any of them with real assets, drop files at
 `Assets/_Project/Resources/Art/<key>.png` or `Resources/Audio/<key>.wav` — the game prefers
-them automatically (keys are listed in `ProceduralArt` / `ProceduralAudio`).
+them automatically. **The naming contract for the art/audio pass is
+[`docs/ASSET-MANIFEST.md`](docs/ASSET-MANIFEST.md)** (machine-readable twin:
+`docs/asset-manifest.csv` — 126 rows with format, pixel spec, ppu, shift priority, status and
+what each key is used by). The keys themselves live in `ProceduralArt.AllKeys` /
+`ProceduralAudio.AllKeys` / `FaceAssets`, and `Tools/FlowCheck` proves manifest and code stay in
+sync (`== asset manifest sync ==`).
 
 ## Controls
 
 | Context | Input |
 |---|---|
-| Checkpoint | Mouse/touch: the ID + slip are placed on your desk when the student steps up — drag to arrange them (the scroll wheel never resizes papers), flip the ID by its black spine, open a floor folder and pull the student's file, drag a stamp onto the slip — the mark lands where you drop it — and drag both papers back to the window. Student dialogue appears in a speech bubble beside the visitor's head (gone 2 s after the line ends; **hover the bubble** to keep reading it). Click the **ID photo**, then the **face at the window**, for a quiet second-opinion cue (green frame = same face, amber = not) — it informs, never decides. Keys: `1`–`4` questions, `A`/`D` stamp, `H` hand back, `F` flip (last paper touched), `Z` zoom (toggle, last paper touched) |
+| Checkpoint | Mouse/touch: the ID + slip are placed on your desk when the student steps up — drag to arrange them (the scroll wheel never resizes papers), flip the ID by its black spine, open a floor folder and pull the student's file, drag a stamp onto the slip — the mark lands where you drop it — and drag both papers back to the window. Student dialogue appears in a speech bubble beside the visitor's head (gone 2 s after the line ends; **hover the bubble** to keep reading it). The face at the window and the ID photo are **yours to compare** — there is no click-to-match widget, no selection frame and no result cue anywhere on the desk. Keys: `1`–`4` questions, `A`/`D` stamp, `H` hand back, `F` flip (last paper touched), `Z` zoom (toggle, last paper touched), `Tab` pull the file drawer |
+| Window talk | `V` focuses the talk box at the foot of the desk — type and press `Enter` to speak through the glass (`Shift+Enter` = newline, `Esc` = blur). A typed line that matches an unasked question spends one of the two question slots and is answered in the bubble exactly like the numbered buttons; anything else draws an in-character refusal. The `LOG` button opens the transcript sheet (last 24 lines). The box is disabled (with a saying-so placeholder) when nobody is at the window, locks during the send beat, clears on success and keeps your text on a failed send |
 | Walk / Run | `A`/`D` or `◂`/`▸`, hold `Shift` to run |
 | Interact | `E` (doors, clues, light switches) |
-| Desk papers | drag the ID card / record sheet to arrange your desk; hover a question for what it cross-checks; `1`–`4` ask while the interview is open. There is no ID scanner and no face-check form — verification is manual: documents, floor files, questions and your own eyes |
-| Flashlight | `F` toggles the beam ON (wide Sweep) / OFF, `Q` Focus (tight, hotter core), `L` off — the mouse buttons are **not** beam input. The beam's reveal is graded: environment brightens by distance/angle inside the cone and fades back to the room's ambient at its rim. The classroom **peek lamp** uses the same language: `F` on/off, `Q` wide ↔ focus | Rooms are entered **dark** and every entry also puts the beam **out** (it relights only on a deliberate `F`/`Q`); the wall switch (`E`) lights the room. Classroom **peeks** start dark too: the cursor lamp is OFF until `F` (the same single toggle — mouse movement never lights it), and the exit works in the dark. The HUD reads both lights: `LIGHTS` (room) and `BEAM` / `LAMP` (handheld) |
-| Map | `M` |
+| Desk papers | drag the ID card / record sheet to arrange your desk; hover a question for what it cross-checks; `1`–`4` ask while the interview is open. There is no ID scanner, no face-check form and no face-matching click — verification is manual: documents, floor files, questions and your own eyes |
+| Floor files | click the **FLOOR FILES** cabinet front (or `Tab`) to **pull the drawer out**; it answers on the click frame and is fully out in ~0.14 s. Pick a floor folder, then click a file to pull the record sheet onto the desk (it lands *on top* of the open drawer). Click the front again, or `Tab`, to push it back in; the drawer stays out while you browse, and a fresh visitor shuts it |
+| Flashlight | `F` toggles the beam ON (wide Sweep) / OFF, `Q` Focus (tight, hotter core), `L` off — the mouse buttons are **not** beam input. Switching it on is **instant**: the cone and its stencil hole are aimed at the cursor, at the mode's full length and width and at full brightness, on the very frame the key goes down (only a *held* beam glides, and only a Sweep↔Focus change while lit morphs). The beam's reveal is graded: environment brightens by distance/angle inside the cone and fades back to the room's ambient at its rim. The classroom **peek lamp** uses the same language: `F` on/off, `Q` wide ↔ focus | Rooms are entered **dark** and every entry also puts the beam **out** (it relights only on a deliberate `F`/`Q`); the wall switch (`E`) lights the room. Classroom **peeks** start dark too: the cursor lamp is OFF until `F` (the same single toggle — mouse movement never lights it), and the exit works in the dark. The HUD reads both lights: `LIGHTS` (room) and `BEAM` / `LAMP` (handheld) |
+| Map | `M` — the hand-drawn **HOLLOWBROOK COLLEGE — GROUND FLOOR** plan: security checkpoint on the left, the long central hallway, Classroom 1 (Room 101) above it, Classroom 2 (Room 202) below it, the **sealed** server / identification room (red hatch, not clickable) at the corridor's east end, and the two **comfort rooms** (CR-1 / CR-2) off that same end. Your position and every logged finding are marked on it. The sheet is centred and scaled to the window at every resolution; `M`/`Esc` or CLOSE dismisses it |
 | Pause | `Esc` |
 | Dialogue | Click / `Space` / `Enter` / `E` |
 | Track an anomaly | hold the **Focus** beam on it to fill TRACK (Sweep or room lights only *hold* the meter); a full meter exposes and repels it, leaving a token |
@@ -112,12 +119,15 @@ Assets/_Project/
       students), ClueRegistry, ShiftPlan, SanityModel, EndingRules, GameSession,
       SaveFormat, TrackingPolicy, BeamGeometry, FlashlightInput, BatteryModel,
       AnomalyEncounter, AnomalyBehaviorRules, RoomGraph, PatrolPool,
-      SpeechBubble (bubble clock + text fitting), StampPlacement (drop-point maths)
+      SpeechBubble (bubble clock + text fitting), StampPlacement (drop-point maths),
+      DrawerMotion (the file drawer's pull curve), FloorPlan (the ground-floor rooms),
+      MapSheetLayout (the map sheet's fit/centre maths)
     Core/                         EventBus, GameEvent, EventIds, GameRoot, SaveSystem,
                                   SettingsSystem, GameConfigSO, IScreenView
     Bootstrap/                    GameBootstrap (builds the scene), UIFactory,
                                   ProceduralArt, ProceduralAudio
-    Checkpoint/CheckpointView     security-room flow, documents, questions, speech bubble, stamps
+    Checkpoint/CheckpointView     security-room flow, documents, questions, speech bubble, stamps,
+                                  the floor-files pull drawer (CheckpointView.FileDrawer.cs)
     World/                        ViewManager, PlayerController, Interactables, LightController
     Horror/                       WanderingAnomaly (Blink/Slide/Sprint/CoverHug),
                                   SanityController, ScareSystem, HallucinationSystem
@@ -125,6 +135,8 @@ Assets/_Project/
     Audio/AudioDirector           event-driven music contexts + SFX pool + captions
 Tools/
   generate_meta.py                regenerates stable .meta GUIDs
+  Preview/render_map_preview.py   draws the map sheet to SVG from the real FloorPlan/MapSheetLayout
+                                  numbers at several resolutions (centring + clipping contact sheet)
   Verification/                   HEADLESS test harness (not imported by Unity)
     UnityStubs/                   faithful UnityEngine/UnityEngine.UI API stubs
     LogicTests/                   runs the pure rules:   dotnet run --project Tools/Verification/LogicTests
@@ -148,15 +160,36 @@ docs/                             audit, handoff report
   (corrupt files degrade to “no save” instead of throwing). Settings persist separately via
   PlayerPrefs.
 
+## The owner's art kit (`Art/SecurityRoom`)
+
+The layered SecurityRoom UI kit ships verbatim in `Art/SecurityRoom/`. Run
+`python3 Tools/prep_securityroom_art.py` after any kit update: it slices and copies the export
+into `Resources/Art/SecurityRoom/` (`sec_*` keys) and unpacks the Bahnschrift/Chiller font
+families into `Resources/Fonts/kit_*`. The desk wears the kit as a **skin over the audited
+grid** (`CheckpointView.KitSkin.cs`): geometry stays owned by `CheckpointLayout`, every kit
+layer is click-through, and each skin call falls back to the procedural look if a file is
+missing. `docs/ASSET-MANIFEST.md` §9 documents the contract; FlowCheck's
+`SecurityRoom art kit` proof checks that all 32 sprites ship, resolve and stay click-through.
+
 ## Headless verification (no Unity required)
 
 ```bash
 export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 dotnet run --project Tools/Verification/LogicTests    # frozen suite: 663 checks
-dotnet run --project Tools/LogicTests                 # independent suite: 27,336 checks
+dotnet run --project Tools/LogicTests                 # independent suite: 27,773 checks
 bash Tools/Verify/verify.sh                           # compile vs real Unity assemblies + static audit
-dotnet run --project Tools/FlowCheck                  # button-level flow proofs: 830 OK / 0 BAD
+dotnet run --project Tools/FlowCheck                  # button-level flow proofs: 1127 OK / 0 BAD
+
+# opt-in visual checks (no Unity needed)
+python3 Tools/Preview/render_map_preview.py out/      # map sheet at 7 resolutions: centring/clipping
+dotnet run --project Tools/FlowCheck -- --dump-drawer=out/   # the file drawer at 5 points of its pull
+dotnet run --project Tools/FlowCheck -- --dump-screen=out/screen.json --dump-sprites=out/procsprites/
+python3 Tools/Preview/render_screen.py --dump out/screen.json --out out/shots --res 1280x720 1920x1080
 ```
+
+`render_screen.py` replays a real hierarchy dump at any resolution with the real fonts and
+9-slice maths (borders converted through the sprite's pixelsPerUnit, like uGUI) — the desk is
+laid out in 1280x720 reference units, so one dump serves every breakpoint.
 
 (`Tools/Verification/EngineSmoke` is frozen-broken by decision — it references a bootstrap API
 removed in an earlier refactor; it is kept as-is, not run, and not fixed.)
@@ -171,11 +204,12 @@ clue sequence).
   0 errors, 0 warnings, static audit clean.
 - Frozen team suite: `Tools/Verification/LogicTests` **663 passing** (additive changes only —
   `AnomalyEncounter.Step`, save format and ending priority untouched semantically).
-- Independent suite: `Tools/LogicTests` — **27,336 assertions, 0 failures** (includes the
+- Independent suite: `Tools/LogicTests` — **27,773 assertions, 0 failures** (includes the
   checkpoint-queue groups: arrival clock, FIFO promotion, pressure edges, missing student,
-  snapshot/legacy resume, budget mask).
-- Flow harness: `Tools/FlowCheck` — **830 OK / 0 BAD across 5 consecutive runs** (sticky-note
-  gate, queue proofs Q1–Q10, settings-modal proofs S1–S8, desk loop, patrol world loop W0–W9).
+  snapshot/legacy resume, budget mask; plus `DrawerMotion`, `FloorPlan` and `MapSheetLayout`).
+- Flow harness: `Tools/FlowCheck` — **1143 OK / 0 BAD** (sticky-note gate, queue proofs Q1–Q10,
+  settings-modal proofs S1–S8, desk loop incl. the drawer pull, patrol world loop W0–W9 incl.
+  the instant-beam proofs W2c, the ground-floor map proofs, and the face-match removal proofs).
 - Scene-load health in the editor: `[Flow]` breadcrumbs for every step of NEW GAME / CONTINUE,
   plus a 3.5 s handshake watchdog that names and recovers from any bootstrap that fails to run.
 - Not verifiable without the editor: pixel layout, audio mix, Play-mode feel, Windows build.

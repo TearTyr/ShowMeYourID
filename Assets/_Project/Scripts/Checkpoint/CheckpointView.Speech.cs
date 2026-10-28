@@ -157,15 +157,25 @@ namespace Hollowbrook.Checkpoint
 
             string display = SpeechBubbleLayout.Fit(_bubble.Text,
                 L.Inner.BubbleCharsPerLine, L.Inner.BubbleMaxLines, out int lines);
-            _bubbleText.text = "<b><color=" + SpeakerColor(_bubble.Who) + ">" +
-                               _bubble.Who + "</color></b>\n" + display;
+            // the kit bubble is the reference bubble: the spoken line alone, no speaker
+            // tag — the tail already points at who is talking
+            _bubbleText.text = _kitOn ? display :
+                "<b><color=" + SpeakerColor(_bubble.Who) + ">" + _bubble.Who + "</color></b>\n" + display;
+            float tagH = _kitOn ? 0f : L.Inner.BubbleTagH;
             float h = Mathf.Clamp(
-                SpeechBubbleLayout.Height(lines, L.Inner.BubbleLineH, L.Inner.BubbleTagH,
+                SpeechBubbleLayout.Height(lines, L.Inner.BubbleLineH, tagH,
                     L.Inner.BubblePadTop, L.Inner.BubblePadBottom),
                 56f, L.SpeechBubble.H);
-            L.Place(_bubblePanel, new L.Region(L.Inner.BubblePanelX, 0f, L.Inner.BubblePanelW, h));
-            L.Place(_bubbleText.rectTransform, new L.Region(10f, L.Inner.BubblePadTop,
-                L.Inner.BubblePanelW - 20f, h - L.Inner.BubblePadTop - L.Inner.BubblePadBottom));
+            // the kit bubble's sliced left border (48u) carries the painted tail: the panel
+            // hangs that border OUTSIDE the registered box so the white lands exactly on
+            // the reference bubble rect, and the tail points at the face from the wall side
+            float px = _kitOn ? -48f : L.Inner.BubblePanelX;
+            float pw = _kitOn ? L.Inner.BubblePanelW + 62f : L.Inner.BubblePanelW;
+            float tx = _kitOn ? 56f : 10f;
+            float tw = _kitOn ? 166f : L.Inner.BubblePanelW - 20f;
+            L.Place(_bubblePanel, new L.Region(px, 0f, pw, h));
+            L.Place(_bubbleText.rectTransform, new L.Region(tx, L.Inner.BubblePadTop,
+                tw, h - L.Inner.BubblePadTop - L.Inner.BubblePadBottom));
         }
 
         private void RefreshHandoverPrompt()

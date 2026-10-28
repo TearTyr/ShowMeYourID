@@ -16,11 +16,38 @@ namespace UnityEngine
     {
         public string name = "";
         internal bool destroyed;
+        // Set on stand-ins fabricated by Resources.Load: they represent IMPORTED ASSETS on
+        // disk. The real engine refuses to Destroy those (editor and builds alike) and logs
+        // "Destroying assets is not permitted to avoid data loss." — the stub mirrors that
+        // guard so asset-destroy bugs surface headlessly instead of only in the owner's
+        // editor console.
+        internal bool isPersistentAsset;
         public int GetInstanceID() => GetHashCode();
         public static void Destroy(Object obj)
         {
             // headless stub: deactivates + detaches so scene swaps isolate in tests
             if (ReferenceEquals(obj, null) || obj.destroyed) return;
+            if (obj.isPersistentAsset)
+            {
+                Debug.LogError("Destroying assets is not permitted to avoid data loss.\n" +
+                               "If you really want to remove an asset use DestroyImmediate (theObject, true);");
+                return;
+            }
+            DestroyCore(obj);
+        }
+        public static void DestroyImmediate(Object obj, bool allowDestroyingAssets = false)
+        {
+            if (ReferenceEquals(obj, null) || obj.destroyed) return;
+            if (obj.isPersistentAsset && !allowDestroyingAssets)
+            {
+                Debug.LogError("Destroying assets is not permitted to avoid data loss.\n" +
+                               "If you really want to remove an asset use DestroyImmediate (theObject, true);");
+                return;
+            }
+            DestroyCore(obj);
+        }
+        private static void DestroyCore(Object obj)
+        {
             obj.destroyed = true;
             if (obj is GameObject go)
             {
@@ -32,7 +59,6 @@ namespace UnityEngine
                 if (c is Behaviour b) b.enabled = false;
             }
         }
-        public static void DestroyImmediate(Object obj) => Destroy(obj);
         public static void DontDestroyOnLoad(Object obj) { }
         public static implicit operator bool(Object o) => !ReferenceEquals(o, null) && !o.destroyed;
         public override string ToString() => name;
@@ -269,6 +295,15 @@ namespace UnityEngine
             return null;
         }
         public int GetSiblingIndex() => parent != null ? parent.Children().IndexOf(this) : 0;
+        public void SetSiblingIndex(int index)
+        {
+            if (parent == null) return;
+            var kids = parent.Children();
+            kids.Remove(this);
+            if (index < 0) index = kids.Count + 1 + index;
+            if (index > kids.Count) index = kids.Count;
+            kids.Insert(index, this);
+        }
         public void SetAsLastSibling()
         {
             if (parent == null) return;
@@ -304,10 +339,13 @@ namespace UnityEngine
     public static class Debug
     {
         public static bool isDebugBuild = true;
+        // total LogError/LogException calls so far — proofs diff this around risky
+        // operations (e.g. teardown) to assert the engine logged nothing
+        public static int ErrorCount { get; private set; }
         public static void Log(object m) => Console.WriteLine("[LOG] " + m);
         public static void LogWarning(object m) => Console.WriteLine("[WARN] " + m);
-        public static void LogError(object m) => Console.Error.WriteLine("[ERR] " + m);
-        public static void LogException(Exception e) => Console.Error.WriteLine("[EXC] " + e);
+        public static void LogError(object m) { ErrorCount++; Console.Error.WriteLine("[ERR] " + m); }
+        public static void LogException(Exception e) { ErrorCount++; Console.Error.WriteLine("[EXC] " + e); }
         public static void Assert(bool cond) { if (!cond) LogError("Assertion failed"); }
     }
 
@@ -393,7 +431,74 @@ namespace UnityEngine
 
     public static class Resources
     {
-        public static T Load<T>(string path) where T : Object => null;
+        // Headless stand-in for Unity's Resources folder: Texture2D loads probe the REAL
+        // Assets/_Project/Resources tree (PNG header only — no pixel memory), so drop-in art
+        // (faces, stamps, the SecurityRoom kit) is exercised by the headless proofs exactly as
+        // the editor would resolve it. Every other type stays null, as before.
+        public static T Load<T>(string path) where T : Object
+        {
+            if (typeof(T) == typeof(Texture2D))
+            {
+                var tex = ProbeTexture(path);
+                if (tex != null) return (T)(Object)tex;
+            }
+            // Fonts probe the real Resources tree too (file presence, no parsing): the kit
+            // families extracted from Art/SecurityRoom/1. Fonts/*.zip therefore win the
+            // UIFactory load order headless exactly as they do in the editor, and the proofs
+            // can assert WHICH family a label ends up wearing.
+            if (typeof(T) == typeof(Font))
+            {
+                var font = ProbeFont(path);
+                if (font != null) return (T)(Object)font;
+            }
+            return null;
+        }
+
+        private static Font ProbeFont(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+            var dir = new System.IO.DirectoryInfo(Environment.CurrentDirectory);
+            while (dir != null && !System.IO.Directory.Exists(
+                       System.IO.Path.Combine(dir.FullName, "Assets/_Project")))
+                dir = dir.Parent;
+            if (dir == null) return null;
+            foreach (var ext in new[] { ".ttf", ".otf" })
+            {
+                string file = System.IO.Path.Combine(dir.FullName, "Assets/_Project/Resources", path + ext);
+                if (System.IO.File.Exists(file))
+                    return new Font { name = System.IO.Path.GetFileName(path), isPersistentAsset = true };
+            }
+            return null;
+        }
+
+        private static Texture2D ProbeTexture(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+            var dir = new System.IO.DirectoryInfo(Environment.CurrentDirectory);
+            while (dir != null && !System.IO.Directory.Exists(
+                       System.IO.Path.Combine(dir.FullName, "Assets/_Project")))
+                dir = dir.Parent;
+            if (dir == null) return null;
+            string file = System.IO.Path.Combine(dir.FullName, "Assets/_Project/Resources", path + ".png");
+            if (!System.IO.File.Exists(file)) return null;
+            try
+            {
+                using (var fs = System.IO.File.OpenRead(file))
+                {
+                    var hdr = new byte[24];
+                    if (fs.Read(hdr, 0, 24) != 24) return null;
+                    if (hdr[0] != 0x89 || hdr[1] != 0x50 || hdr[2] != 0x4E || hdr[3] != 0x47) return null;
+                    int w = (hdr[16] << 24) | (hdr[17] << 16) | (hdr[18] << 8) | hdr[19];
+                    int h = (hdr[20] << 24) | (hdr[21] << 16) | (hdr[22] << 8) | hdr[23];
+                    if (w <= 0 || h <= 0) return null;
+                    var asset = Texture2D.HeaderOnly(w, h, System.IO.Path.GetFileName(path));
+                    // stands in for an imported PNG: an asset on disk, never Destroy-able
+                    asset.isPersistentAsset = true;
+                    return asset;
+                }
+            }
+            catch (System.Exception) { return null; }
+        }
         public static T GetBuiltinResource<T>(string path) where T : Object
         {
             // real Unity returns the built-in font/meshes; stub fabricates one so text
@@ -470,6 +575,10 @@ namespace UnityEngine
     {
         public float x, y, z, w;
         public Vector4(float x, float y, float z, float w) { this.x = x; this.y = y; this.z = z; this.w = w; }
+        public float sqrMagnitude => x * x + y * y + z * z + w * w;
+        public float magnitude => Mathf.Sqrt(sqrMagnitude);
+        public static Vector4 zero => new Vector4(0f, 0f, 0f, 0f);
+        public static Vector4 one => new Vector4(1f, 1f, 1f, 1f);
     }
 
     public struct Quaternion
@@ -559,6 +668,13 @@ namespace UnityEngine
         public static bool Approximately(float a, float b) => Abs(a - b) < 1e-5f;
         public static float Repeat(float t, float len) => t - Floor(t / len) * len;
         public static float PingPong(float t, float len) { t = Repeat(t, len * 2); return len - Abs(t - len); }
+        // UnityEngine.Mathf.DeltaAngle: the shortest signed difference between two angles
+        public static float DeltaAngle(float current, float target)
+        {
+            float num = Repeat(target - current, 360f);
+            if (num > 180f) num -= 360f;
+            return num;
+        }
     }
 
     public static class Random

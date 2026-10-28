@@ -39,15 +39,23 @@ namespace Hollowbrook.UI
 
         // ---- mockup type roles (bundled open-licence fonts, safe fallback to GameFont) ----
         private static Font _uiFont, _uiFontBold, _typeFont, _handFont;
-        public static Font UiFont => LoadFont(ref _uiFont, "Fonts/BarlowCondensed-Regular");
-        public static Font UiFontBold => LoadFont(ref _uiFontBold, "Fonts/BarlowCondensed-SemiBold");
-        public static Font TypeFont => LoadFont(ref _typeFont, "Fonts/SpecialElite-Regular");
-        public static Font HandFont => LoadFont(ref _handFont, "Fonts/CaveatBrush-Regular");
+        // The owner's SecurityRoom kit ships its own type families (Bahnschrift for the UI,
+        // Chiller for the horror display face). They are tried FIRST, with the bundled open
+        // licence families as fallbacks, so a missing kit file can never leave text unrendered.
+        public static Font UiFont => LoadFont(ref _uiFont,
+            "Fonts/kit_bahnschrift_regular", "Fonts/BarlowCondensed-Regular");
+        public static Font UiFontBold => LoadFont(ref _uiFontBold,
+            "Fonts/kit_bahnschrift_bold", "Fonts/BarlowCondensed-SemiBold");
+        public static Font TypeFont => LoadFont(ref _typeFont,
+            "Fonts/kit_chiller", "Fonts/SpecialElite-Regular");
+        public static Font HandFont => LoadFont(ref _handFont,
+            "Fonts/CaveatBrush-Regular", "Fonts/CaveatBrush-Regular");
 
-        private static Font LoadFont(ref Font f, string path)
+        private static Font LoadFont(ref Font f, string path, string fallbackPath)
         {
             if (f != null) return f;
             try { f = Resources.Load<Font>(path); } catch (Exception) { }
+            if (f == null) try { f = Resources.Load<Font>(fallbackPath); } catch (Exception) { }
             if (f == null) f = GameFont;   // headless / pre-import: text must never break
             return f;
         }
@@ -88,6 +96,26 @@ namespace Hollowbrook.UI
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
             return (RectTransform)go.transform;
+        }
+
+        /// <summary>How much reference-space this element's canvas actually shows: finds the
+        /// canvas' AspectMatchGuard (the thing that decides which axis is matched) and asks it.
+        /// Matching the width leaves 1280 across and lets the height grow; matching the height
+        /// leaves 720 down and lets the width grow. Anything that must stay centred AND fully
+        /// visible sizes itself from this instead of assuming 1280x720. Falls back to the raw
+        /// screen size when there is no canvas/guard (headless harnesses, pre-import).</summary>
+        public static Vector2 VisibleReferenceSize(RectTransform rt)
+        {
+            CanvasScaler scaler = null;
+            if (rt != null)
+            {
+                var canvas = rt.GetComponentInParent<Canvas>();
+                var root = canvas != null ? canvas.rootCanvas : null;
+                if (root != null) scaler = root.GetComponent<CanvasScaler>();
+            }
+            var guard = scaler != null ? scaler.GetComponent<Core.AspectMatchGuard>() : null;
+            if (guard != null) return guard.VisibleReferenceSize();
+            return Core.AspectMatchGuard.VisibleReferenceSize(scaler, Screen.width, Screen.height);
         }
 
         public static void AnchorsFull(RectTransform rt)
@@ -248,6 +276,48 @@ namespace Hollowbrook.UI
             return t;
         }
 
+        // A functional text box: dark well, live ink, dim placeholder, MultiLineSubmit
+        // semantics (Enter sends, Shift+Enter breaks the line). The InputField component is
+        // the single owner of the string; the view reads/writes only through it.
+        public static InputField TextField(RectTransform parent, string name, string placeholder,
+            int fontSize, Color ink, Color well)
+        {
+            var rt = NewUI(parent, name);
+            var box = rt.gameObject.AddComponent<Image>();
+            box.color = well;
+            var input = rt.gameObject.AddComponent<InputField>();
+            input.targetGraphic = box;
+            input.lineType = InputField.LineType.MultiLineSubmit;
+
+            var text = Label(rt, "ink", "", fontSize, ink, TextAnchor.UpperLeft);
+            var trt = text.rectTransform;
+            trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
+            trt.offsetMin = new Vector2(8f, 3f); trt.offsetMax = new Vector2(-8f, -3f);
+            input.textComponent = text;
+
+            // named "ph", not "placeholder": the retired registry terminal's proof looks for
+            // a node named "placeholder" anywhere on the desk — this box is the dialogue
+            // input, not the terminal's return
+            var ph = Label(rt, "ph", placeholder, fontSize, InkDim, TextAnchor.MiddleLeft);
+            var prt = ph.rectTransform;
+            prt.anchorMin = Vector2.zero; prt.anchorMax = Vector2.one;
+            prt.offsetMin = new Vector2(8f, 3f); prt.offsetMax = new Vector2(-8f, -3f);
+            ph.raycastTarget = false;
+            input.placeholder = ph;
+            return input;
+        }
+
+        // True while ANY uGUI input field holds the keyboard focus — gameplay hotkeys and
+        // dialogue advance stand down so typing an "f" never flips a paper. Works in the
+        // editor (real EventSystem) and headless (the stub EventSystem mirrors selection).
+        public static bool TypingInField()
+        {
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            if (es == null) return false;
+            var go = es.currentSelectedGameObject;
+            return go != null && go.GetComponent<InputField>() != null;
+        }
+
         public static void ApplyTextScale(float multiplier)
         {
             _textScale = multiplier;
@@ -255,6 +325,20 @@ namespace Hollowbrook.UI
             foreach (var t in _texts)
                 if (_baseSizes.TryGetValue(t, out int baseSize))
                     t.fontSize = Mathf.RoundToInt(baseSize * multiplier);
+        }
+
+        /// <summary>The current text-scale multiplier, for the views that re-fit themselves to
+        /// the screen and therefore compute their own font sizes (the ground-floor map sheet).
+        /// Such a view keeps its DESIGN size as the recorded base, so ApplyTextScale and a
+        /// relayout multiply independently instead of compounding.</summary>
+        public static float TextScale => _textScale;
+
+        /// <summary>Record a label's design size once (Label already records the size it was
+        /// built with; use this when the intended base differs from the first rendered size).</summary>
+        public static void RememberBaseSize(Text text, int designSize)
+        {
+            if (text == null) return;
+            if (!_baseSizes.ContainsKey(text)) _baseSizes[text] = designSize;
         }
 
         public static void PruneDestroyedTexts()
@@ -546,9 +630,10 @@ namespace Hollowbrook.UI
             return b;
         }
 
-        // The rect a preserveAspect Image ACTUALLY paints inside its box: the sprite
-        // letterboxes, but the Image's raycast covers the whole box — face clicks need the
-        // rect the player sees. Pure float maths (top-left inside the box), unit-testable.
+        // The rect a preserveAspect Image ACTUALLY paints inside its box: the sprite letterboxes
+        // while the Image's rect covers the whole box, so anything that must line up with the
+        // VISIBLE pixels (a centred portrait, the ID photo in its slot) needs this letterbox.
+        // Pure float maths (top-left inside the box), unit-testable.
         public struct Box
         {
             public float X, Y, W, H;
@@ -564,41 +649,6 @@ namespace Hollowbrook.UI
             if (spriteAspect > boxW / boxH) { w = boxW; h = boxW / spriteAspect; }
             else { h = boxH; w = boxH * spriteAspect; }
             return new Box((boxW - w) / 2f, (boxH - h) / 2f, w, h);
-        }
-
-        // One invisible click-catcher sized to the sprite a preserveAspect Image displays, so
-        // pointer hits match the pixels. Created as a child of the target: it follows drags,
-        // zooms and flips for free. Re-sync whenever the sprite changes.
-        public static Image AspectHitbox(Image target, string name)
-        {
-            if (target == null) return null;
-            var found = target.transform.Find(name);
-            Image hit = found != null ? found.GetComponent<Image>() : null;
-            if (hit == null)
-            {
-                var rt = NewUI(target.transform, name);
-                hit = rt.gameObject.AddComponent<Image>();
-                hit.color = new Color(1f, 1f, 1f, 0f);   // no ink: raycast only
-            }
-            SyncAspectHitbox(target, hit);
-            return hit;
-        }
-
-        public static void SyncAspectHitbox(Image target, Image hitbox)
-        {
-            if (target == null || hitbox == null) return;
-            var r = target.rectTransform.rect;
-            var spr = target.sprite;
-            Box b = spr != null
-                ? Letterbox(r.width, r.height, spr.rect.width, spr.rect.height)
-                : new Box(0f, 0f, r.width, r.height);
-            var rt = hitbox.rectTransform;
-            rt.anchorMin = new Vector2(0f, 1f);
-            rt.anchorMax = new Vector2(0f, 1f);
-            rt.pivot = new Vector2(0f, 1f);
-            rt.anchoredPosition = new Vector2(b.X, -b.Y);
-            rt.sizeDelta = new Vector2(b.W, b.H);
-            hitbox.raycastTarget = true;
         }
 
         public static Image Img(Transform parent, string name, Sprite sprite, Color? color = null, bool raycast = false)

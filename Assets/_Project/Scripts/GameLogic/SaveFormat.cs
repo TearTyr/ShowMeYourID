@@ -54,6 +54,7 @@ namespace Hollowbrook.Logic
             KV(sb, "pool", s.Pool.Encode());
             KV(sb, "admitted", string.Join(",", s.AdmittedStudents.ConvertAll(st => st.VisitorIndex + ":" + (st.IsAnomaly ? 1 : 0))));
             sb.Append("adminAllowed=").Append(s.AdminAllowed ? 1 : 0).Append('\n');
+            KV(sb, "adminTalk", s.AdminTalk != null ? s.AdminTalk.Encode() : "");
             sb.Append("adminRejected=").Append(s.AdminRejected ? 1 : 0).Append('\n');
             sb.Append("runFinished=").Append(s.RunFinished ? 1 : 0).Append('\n');
             KV(sb, "sanity", Inv(s.Sanity));
@@ -61,6 +62,7 @@ namespace Hollowbrook.Logic
             sb.Append("streak=").Append(s.Streak).Append('\n');
             sb.Append("bestStreak=").Append(s.BestStreak).Append('\n');
             KV(sb, "runTimer", Inv(s.RunTimer));
+            KV(sb, "shiftClock", Inv(s.ShiftClockMinutes));
             sb.Append("runProcessed=").Append(s.RunProcessed).Append('\n');
             sb.Append("warnings=").Append(s.Warnings).Append('\n');
             sb.Append("fines=").Append(s.Fines).Append('\n');
@@ -159,12 +161,16 @@ namespace Hollowbrook.Logic
                 }
                 s.AdminAllowed = Int(map, "adminAllowed", 0) == 1;
                 s.AdminRejected = Int(map, "adminRejected", 0) == 1;
+                // absent in older files: Decode("") is a fresh, unopened conversation
+                s.AdminTalk = AdminTalkState.Decode(map.TryGetValue("adminTalk", out var talk) ? talk : "");
                 s.RunFinished = Int(map, "runFinished", 0) == 1;
                 s.Sanity = Flt(map, "sanity", 100f);
                 s.Score = Int(map, "score", 0);
                 s.Streak = Int(map, "streak", 0);
                 s.BestStreak = Int(map, "bestStreak", 0);
                 s.RunTimer = Flt(map, "runTimer", 0f);
+                // older saves have no clock line: they resume at 22:00, as they always did
+                s.ShiftClockMinutes = Flt(map, "shiftClock", 0f);
                 s.RunProcessed = Int(map, "runProcessed", 0);
                 s.Warnings = Int(map, "warnings", 0);
                 s.Fines = Int(map, "fines", 0);

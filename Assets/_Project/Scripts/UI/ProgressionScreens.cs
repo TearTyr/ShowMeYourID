@@ -8,151 +8,458 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
+    // HOLLOWBROOK COLLEGE — GROUND FLOOR: the hand-drawn plan the custodian keeps at the desk.
+    //
+    // Layout rule (and the fix for the old off-centre sheet): the plan is authored ONCE in
+    // FloorPlan's fixed design space, and this view fits that space to whatever the screen can
+    // actually show (UIFactory.VisibleReferenceSize — AspectMatchGuard widens the visible
+    // reference on wide windows and heightens it on tall ones). One uniform scale, one centred
+    // stack (title / plan / controls), so the sheet is centred horizontally AND vertically at
+    // any resolution and can never clip — there are no hand-tuned pixel offsets left to drift.
+    //
+    // Rooms come from the same FloorPlan table the proofs read: the security checkpoint on the
+    // left, the long central hallway, Classroom 1 above it, Classroom 2 below it, the sealed
+    // server / identification room on the right, and the two comfort rooms off the corridor's
+    // east end. Sealed stays sealed (no Button at all); patrol rooms keep their TravelViaMap
+    // click; the comfort rooms are on the plan for orientation and say so when clicked.
     public class MapView : MonoBehaviour, IScreenView
     {
+        // The sheet's composition, sizes and type scales all live in MapSheetLayout (pure,
+        // engine-free, unit-tested); this view only applies them. Design-space type sizes:
+        private const int TitleSize = 28, SubTitleSize = 13, LegendSize = 12, HintSize = 13;
+        private const int YouLabelSize = 13;
+
+        // design-space sizes of the drawn furniture (also in MapSheetLayout, so the proofs and
+        // the renderer can never disagree about them)
+        private static readonly Vector2 DoorOnLongWall =
+            new Vector2(MapSheetLayout.DoorLongWallW, MapSheetLayout.DoorLongWallH);
+        private static readonly Vector2 DoorOnEndWall =
+            new Vector2(MapSheetLayout.DoorEndWallW, MapSheetLayout.DoorEndWallH);
+        private static readonly Vector2 MarkerSize =
+            new Vector2(MapSheetLayout.MarkerSize, MapSheetLayout.MarkerSize);
+        private static readonly Vector2 CloseSize =
+            new Vector2(MapSheetLayout.CloseRowW, MapSheetLayout.CloseRowH);
+
         private GameRoot _gameRoot;
+        private RectTransform _paper;        // the distressed plan sheet (the centred stack)
+        private RectTransform _plan;         // the scaled design-space container
         private RectTransform _hereMarker;
-        private RectTransform _sheet;
-        private readonly List<GameObject> _clueDots = new List<GameObject>();
-        private Text _hint;
+        private Text _hereLabel;
+        private RectTransform _rule;
+        private Text _title, _subTitle, _hint, _legend;
+        private RectTransform _closeRt;
+        private readonly List<Transform> _clueDots = new List<Transform>();
+
+        // one entry per drawn room, in FloorPlan order
+        private sealed class RoomEntry
+        {
+            public FloorRoom Def;
+            public RectTransform Rt;
+            public Text Label;
+        }
+        private readonly List<RoomEntry> _rooms = new List<RoomEntry>();
+
+        private sealed class DoorEntry
+        {
+            public float X, Y;
+            public bool Horizontal;
+            public RectTransform Rt;
+        }
+        private readonly List<DoorEntry> _doors = new List<DoorEntry>();
+
+        private sealed class RunEntry
+        {
+            public float X0, Y0, X1, Y1;
+            public RectTransform Rt;
+        }
+        private readonly List<RunEntry> _runs = new List<RunEntry>();
+
+        private int _w = -1, _h = -1;
+        private float _paperScale = 1f, _planScale = 1f, _planTextScale = 1f, _chromeTextScale = 1f;
+        private MapSheetLayout _layout;
+        private RoomId _hereRoom = RoomId.Security;
 
         public void Init(GameRoot root)
         {
             _gameRoot = root;
-            UIFactory.Dimmer(transform, "dim", 0.86f);
-            var head = UIFactory.Label(transform, "head", "HOLLOWBROOK COLLEGE — GROUND FLOOR", 28, UIFactory.Ink, TextAnchor.MiddleCenter);
-            UIFactory.Anchor(head.rectTransform, new Vector2(0.5f, 1f), new Vector2(800, 40), new Vector2(0, -64));
+            UIFactory.Dimmer(transform, "dim", 0.88f);
 
-            var sheet = UIFactory.BorderedPanel(transform, "sheet", new Color(0.07f, 0.07f, 0.075f, 0.98f), UIFactory.Border, 2);
-            UIFactory.Anchor(sheet, new Vector2(0.5f, 0.5f), new Vector2(940, 500), new Vector2(0, 10));
-            _sheet = sheet;
+            _paper = UIFactory.NewUI(transform, "mapsheet");
+            _paper.localEulerAngles = new Vector3(0f, 0f, MapSheetLayout.PaperTiltDeg);
+            var paperImg = _paper.gameObject.AddComponent<Image>();
+            paperImg.sprite = ProceduralArt.Get("map_paper");
+            paperImg.raycastTarget = false;      // the sheet is scenery: only rooms are clickable
 
-            RoomBox(sheet, new Vector2(-360, 90), new Vector2(170, 130), "SECURITY\nCheckpoint", RoomId.Security, out _);
-            RoomBox(sheet, new Vector2(-60, 90), new Vector2(430, 110), "MAIN HALLWAY", RoomId.Hallway, out _);
-            RoomBox(sheet, new Vector2(-110, 210), new Vector2(200, 120), "CLASSROOM 1\nRoom 101", RoomId.Classroom1, out _);
-            RoomBox(sheet, new Vector2(120, -30), new Vector2(200, 120), "CLASSROOM 2\nRoom 202", RoomId.Classroom2, out _);
-            RoomBox(sheet, new Vector2(330, 90), new Vector2(180, 130), "SERVER /\nIDENTIFICATION ROOM\n— SEALED —", RoomId.Security, out _, sealedRoom: true);
+            _title = HandLabel(_paper, "maptitle", FloorPlan.Title, TitleSize, UIFactory.NsChalk);
+            var ruleImg = UIFactory.Img(_paper, "titlerule", null, new Color(0.72f, 0.68f, 0.60f, 0.30f));
+            ruleImg.raycastTarget = false;
+            _rule = ruleImg.rectTransform;
+            _subTitle = HandLabel(_paper, "mapsubtitle",
+                "NIGHT PATROL REFERENCE  ·  DISTRICT FILE 3-B", SubTitleSize,
+                new Color(0.78f, 0.74f, 0.66f, 0.62f));
 
-            Line(sheet, new Vector2(-275, 90), new Vector2(-175, 90));
-            Line(sheet, new Vector2(-110, 145), new Vector2(-110, 150));
-            Line(sheet, new Vector2(20, 145), new Vector2(20, 30));
-            Line(sheet, new Vector2(120, 90), new Vector2(240, 30));
-            Line(sheet, new Vector2(155, 90), new Vector2(240, 90));
+            _plan = UIFactory.NewUI(_paper, "plan");
 
-            _hereMarker = UIFactory.NewUI(sheet, "here");
-            var dot = _hereMarker.gameObject.AddComponent<Image>();
-            dot.sprite = ProceduralArt.Get("solid_white");
-            dot.color = UIFactory.AccentBright;
-            _hereMarker.sizeDelta = new Vector2(14, 14);
-            var hereLbl = UIFactory.Label(_hereMarker, "lbl", "YOU", 12, UIFactory.AccentBright, TextAnchor.MiddleCenter);
-            UIFactory.Anchor(hereLbl.rectTransform, new Vector2(0.5f, 0f), new Vector2(60, 18), new Vector2(0, -20));
+            BuildCorridors();     // under the rooms: the chalk runs between room and corridor
+            BuildRooms();
+            BuildDoors();
 
-            _hint = UIFactory.Label(transform, "hint", "", 15, UIFactory.InkDim, TextAnchor.MiddleCenter);
-            UIFactory.Anchor(_hint.rectTransform, new Vector2(0.5f, 0f), new Vector2(900, 26), new Vector2(0, 74));
+            // YOU ARE HERE: the position marker the patrol reads, drawn on top of the rooms
+            _hereMarker = UIFactory.NewUI(_plan, "here");
+            var markerInk = _hereMarker.gameObject.AddComponent<Image>();
+            markerInk.sprite = ProceduralArt.Get("rough_circle");
+            markerInk.color = UIFactory.AccentBright;
+            markerInk.raycastTarget = false;
+            _hereLabel = UIFactory.Label(_hereMarker, "lbl", "YOU", YouLabelSize, UIFactory.AccentBright,
+                TextAnchor.MiddleCenter);
+            _hereLabel.font = UIFactory.UiFontBold;
+            _hereLabel.raycastTarget = false;
 
-            var close = UIFactory.StandardButton(transform, "close", "CLOSE [M]", () => _gameRoot.CloseMap(), 180, 42);
-            UIFactory.Anchor(close.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(180, 42), new Vector2(0, 34));
+            _legend = HandLabel(_paper, "maplegend",
+                "RED HATCH = SEALED, NO ENTRY        RED DOT = A FINDING YOU HAVE LOGGED", LegendSize,
+                new Color(0.78f, 0.74f, 0.66f, 0.55f));
+            _hint = HandLabel(_paper, "hint", "", HintSize, new Color(0.88f, 0.86f, 0.80f, 0.9f));
 
+            // CLOSE lives under the sheet, centred with it: always reachable, never over the
+            // plan, and it follows the sheet's own fit so it cannot drift off-screen
+            _closeRt = UIFactory.NewUI(transform, "close");
+            // raycast ON: this child Image is what the pointer actually hits, and the click then
+            // walks up to the Button on the row — with it off the CLOSE row would take no clicks
+            var closeInk = UIFactory.Img(_closeRt, "bg", null, new Color(0.055f, 0.055f, 0.06f, 0.94f), true);
+            UIFactory.AnchorsFull(closeInk.rectTransform);
+            var closeLbl = UIFactory.Label(_closeRt, "label", "CLOSE  [M]", 14, UIFactory.Ink,
+                TextAnchor.MiddleCenter);
+            closeLbl.font = UIFactory.UiFontBold;
+            closeLbl.raycastTarget = false;
+            UIFactory.AnchorsFull(closeLbl.rectTransform);
+            var close = _closeRt.gameObject.AddComponent<Button>();
+            close.targetGraphic = closeInk;
+            close.transition = Selectable.Transition.ColorTint;
+            var cb = close.colors;
+            cb.normalColor = Color.white;
+            cb.highlightedColor = new Color(1.35f, 1.33f, 1.28f);
+            cb.pressedColor = new Color(1.6f, 1.58f, 1.5f);
+            cb.fadeDuration = 0.10f;
+            close.colors = cb;
+            close.onClick.AddListener(() =>
+            {
+                _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.5f);
+                _gameRoot.CloseMap();
+            });
+            _closeRt.gameObject.AddComponent<HoverCursor>();
+
+            Relayout();
             gameObject.SetActive(false);
         }
 
-        private static void Line(RectTransform parent, Vector2 a, Vector2 b)
+        // One node per FloorPlan room. The label is a child of the room node, so the ink and its
+        // clickable area can never drift apart; every room but the sealed one gets a Button, and
+        // the sealed room gets none at all (its locked behaviour is intentional).
+        private void BuildRooms()
         {
-            var img = UIFactory.Img(parent, "line", ProceduralArt.Get("solid_white"), UIFactory.Border);
-            float dx = b.x - a.x, dy = b.y - a.y;
-            float len = Mathf.Sqrt(dx * dx + dy * dy);
-            UIFactory.Anchor(img.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(len, 3), new Vector2((a.x + b.x) / 2f, (a.y + b.y) / 2f));
-            img.rectTransform.localEulerAngles = new Vector3(0, 0, Mathf.Atan2(dy, dx) * Mathf.Rad2Deg);
+            foreach (var def in FloorPlan.Rooms)
+            {
+                var rt = UIFactory.NewUI(_plan, def.Key);
+                var ink = rt.gameObject.AddComponent<Image>();
+                ink.sprite = ProceduralArt.Get(def.Sealed ? "map_sealed" : "map_room");
+                ink.raycastTarget = !def.Sealed;      // sealed: nothing to click, nothing to raycast
+
+                int size = RoomLabelSize(def);
+                var label = UIFactory.Label(rt, "label", def.Label, size,
+                    def.Sealed ? UIFactory.AccentBright : UIFactory.NsChalk, TextAnchor.MiddleCenter);
+                label.font = def.Comfort || def.Label == "MAIN HALLWAY" ? UIFactory.UiFontBold : UIFactory.HandFont;
+                label.raycastTarget = false;
+                label.lineSpacing = 0.92f;
+                UIFactory.AnchorsFull(label.rectTransform);
+                UIFactory.RememberBaseSize(label, size);
+
+                _rooms.Add(new RoomEntry { Def = def, Rt = rt, Label = label });
+
+                if (def.Sealed) continue;             // SEALED: no Button, no travel, no hover
+                var btn = rt.gameObject.AddComponent<Button>();
+                btn.targetGraphic = ink;
+                btn.transition = Selectable.Transition.ColorTint;
+                var colors = btn.colors;
+                colors.normalColor = Color.white;
+                colors.highlightedColor = new Color(1.22f, 1.20f, 1.14f);   // subtle brighten on hover
+                colors.pressedColor = new Color(1.42f, 1.40f, 1.32f);
+                colors.fadeDuration = 0.10f;
+                btn.colors = colors;
+                var captured = def;
+                btn.onClick.AddListener(() => OnRoomClicked(captured));
+                rt.gameObject.AddComponent<HoverCursor>();
+            }
         }
 
-        private void RoomBox(RectTransform sheet, Vector2 pos, Vector2 size, string label, RoomId target,
-            out RectTransform box, bool sealedRoom = false)
+        private static int RoomLabelSize(FloorRoom def)
         {
-            box = UIFactory.BorderedPanel(sheet, "room_" + label.Replace("\n", ""), 
-                sealedRoom ? new Color(0.10f, 0.05f, 0.05f, 0.98f) : new Color(0.11f, 0.11f, 0.12f, 0.98f),
-                sealedRoom ? UIFactory.Accent : UIFactory.Border, 2);
-            UIFactory.Anchor(box, new Vector2(0.5f, 0.5f), size, pos);
-            var t = UIFactory.Label(box, "label", label, 15, sealedRoom ? UIFactory.AccentBright : UIFactory.Ink, TextAnchor.MiddleCenter);
-            UIFactory.AnchorsFull(t.rectTransform);
-            if (!sealedRoom)
+            if (def.Label == "MAIN HALLWAY") return 20;
+            if (def.Sealed) return 13;
+            return def.Comfort ? 13 : 15;
+        }
+
+        // Doorway gaps, drawn from the same table as the rooms and oriented by the wall they sit
+        // on: a door in the corridor's long wall is a horizontal leaf, one in its end wall is
+        // vertical. The sealed room's is tinted red and turned — a barred plate, not a way in.
+        private void BuildDoors()
+        {
+            var hall = FloorPlan.ForRoom(RoomId.Hallway);
+            float hallTop = hall.HasValue ? hall.Value.Top : -38f;
+            float hallBottom = hall.HasValue ? hall.Value.Bottom : 38f;
+            int i = 0;
+            foreach (var def in FloorPlan.Rooms)
             {
-                var btn = box.gameObject.AddComponent<Button>();
-                btn.targetGraphic = box.GetComponent<Image>();
-                RoomId captured = target;
-                btn.onClick.AddListener(() =>
+                if (!def.DoorX.HasValue || !def.DoorY.HasValue) continue;
+                float dy = def.DoorY.Value;
+                var rt = UIFactory.NewUI(_plan, "door" + i++ + "_" + def.Key);
+                var ink = rt.gameObject.AddComponent<Image>();
+                ink.sprite = ProceduralArt.Get("map_door");
+                ink.color = def.Sealed ? new Color(0.78f, 0.26f, 0.27f) : new Color(0.85f, 0.82f, 0.74f);
+                ink.raycastTarget = false;
+                if (def.Sealed) rt.localEulerAngles = new Vector3(0f, 0f, 90f);
+                _doors.Add(new DoorEntry
                 {
-                    _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.5f);
-                    _gameRoot.TravelViaMap(captured);
+                    X = def.DoorX.Value,
+                    Y = dy,
+                    // a door whose y lies inside the corridor's band sits in one of its LONG walls
+                Horizontal = dy > hallTop + 1f && dy < hallBottom - 1f,
+                    Rt = rt,
                 });
             }
+        }
+
+        // The chalk runs that connect a room to the corridor (FloorPlan.Corridors).
+        private void BuildCorridors()
+        {
+            int i = 0;
+            foreach (var run in FloorPlan.Corridors)
+            {
+                if (run == null || run.Length < 4) continue;
+                var rt = UIFactory.NewUI(_plan, "corridor" + i++);
+                var ink = rt.gameObject.AddComponent<Image>();
+                ink.sprite = ProceduralArt.Get("solid_white");
+                ink.color = new Color(0.76f, 0.72f, 0.64f, 0.55f);
+                ink.raycastTarget = false;
+                _runs.Add(new RunEntry { X0 = run[0], Y0 = run[1], X1 = run[2], Y1 = run[3], Rt = rt });
+            }
+        }
+
+        private void OnRoomClicked(FloorRoom def)
+        {
+            if (def.Comfort || !def.Room.HasValue)
+            {
+                // the comfort rooms are on the plan for orientation only: no findings are filed
+                // there and the patrol graph does not include them, so they say so instead of
+                // pretending to be a destination (no new mechanics, and no dead click either)
+                _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.35f);
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
+                    "COMFORT ROOMS — nothing filed there. The findings are in the hallway and the classrooms."));
+                return;
+            }
+            _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.5f);
+            _gameRoot.TravelViaMap(def.Room.Value);
+        }
+
+        private static Text HandLabel(RectTransform parent, string name, string text, int size, Color color)
+        {
+            var t = UIFactory.Label(parent, name, text, size, color, TextAnchor.MiddleCenter);
+            t.font = UIFactory.HandFont;      // the handwritten plan face (bundled, open licence)
+            t.raycastTarget = false;
+            t.lineSpacing = 0.95f;
+            return t;
         }
 
         public void Show()
         {
             gameObject.SetActive(true);
+            Relayout();
             Refresh();
         }
 
-        private void Refresh()
-        {
-            foreach (var d in _clueDots) Destroy(d);
-            _clueDots.Clear();
-
-            var sheet = _sheet;
-            if (sheet == null) return;
-
-            RoomId here = _gameRoot.State == AppViewState.Exploration && _gameRoot.Views != null && _gameRoot.Views.Current != null
-                ? _gameRoot.Views.Current.Id : RoomId.Security;
-            _hereMarker.anchoredPosition = HerePos(here);
-
-            var roomCounts = new Dictionary<RoomId, int>();
-            foreach (var key in _gameRoot.Session.Clues.FoundKeys)
-            {
-                var def = _gameRoot.Session.Clues.Get(key);
-                if (def == null) continue;
-                int idx = roomCounts.TryGetValue(def.Room, out var c) ? c : 0;
-                roomCounts[def.Room] = idx + 1;
-                var dotGo = new GameObject("dot_" + key);
-                dotGo.transform.SetParent(sheet, false);
-                var img = dotGo.AddComponent<Image>();
-                img.sprite = ProceduralArt.Get("solid_white");
-                img.color = new Color(0.78f, 0.18f, 0.2f, 0.95f);
-                var rt = (RectTransform)dotGo.transform;
-                var basePos = HerePos(def.Room);
-                rt.anchorMin = new Vector2(0.5f, 0.5f); rt.anchorMax = new Vector2(0.5f, 0.5f);
-                rt.sizeDelta = new Vector2(9, 9);
-                rt.anchoredPosition = basePos + new Vector2(-46 + idx * 20, -34);
-                _clueDots.Add(dotGo);
-            }
-
-            bool exploring = _gameRoot.State == AppViewState.Exploration;
-            _hint.text = exploring
-                ? "Click a room to move there. Red dots are findings you have discovered."
-                : "From the checkpoint the map is reference only — use PATROL HALLWAY to investigate.";
-        }
-
-        private Vector2 HerePos(RoomId room)
-        {
-            switch (room)
-            {
-                case RoomId.Hallway: return new Vector2(-60, 90);
-                case RoomId.Classroom1: return new Vector2(-110, 210);
-                case RoomId.Classroom2: return new Vector2(120, -30);
-                default: return new Vector2(-360, 90);
-            }
-        }
+        public void Hide() => gameObject.SetActive(false);
 
         private void Update()
         {
-            if (gameObject.activeInHierarchy &&
-                ((Input.GetKeyDown(KeyCode.M) && InputGate.TryM()) ||
-                 (Input.GetKeyDown(KeyCode.Escape) && InputGate.TryEscape())))
+            if (!gameObject.activeInHierarchy) return;
+            if (Screen.width != _w || Screen.height != _h) Relayout();   // responsive: any resize
+            if ((Input.GetKeyDown(KeyCode.M) && InputGate.TryM()) ||
+                (Input.GetKeyDown(KeyCode.Escape) && InputGate.TryEscape()))
             {
                 if (_gameRoot.State == AppViewState.Map) _gameRoot.CloseMap();
             }
         }
 
-        public void Hide() => gameObject.SetActive(false);
+        // ---------------------------------------------------------------- layout
+        // Fits the sheet to the visible reference space and re-places every drawn element from
+        // the design-space table. Called on Show and whenever the window size changes, so the
+        // plan stays centred and unclipped at every resolution. internal so the headless proofs
+        // can drive the same re-fit against a synthetic screen size.
+        internal void Relayout()
+        {
+            _w = Screen.width; _h = Screen.height;
+            var visible = UIFactory.VisibleReferenceSize((RectTransform)transform);
+            var fit = MapSheetLayout.Fit(visible.x, visible.y);
+            _layout = fit;
+
+            float paperW = fit.SheetW, paperH = fit.SheetH;
+            _paperScale = fit.PaperScale;
+            _planScale = fit.PlanScale;
+            _planTextScale = fit.PlanTextScale;
+            _chromeTextScale = fit.ChromeTextScale;
+
+            // the sheet is dead-centre of the visible space; CLOSE hangs under it
+            UIFactory.Anchor(_paper, new Vector2(0.5f, 0.5f), new Vector2(paperW, paperH), Vector2.zero);
+            UIFactory.Anchor(_closeRt, new Vector2(0.5f, 0f), CloseSize,
+                new Vector2(0f, fit.CloseFromBottom));
+
+            // the plan fills the sheet between the title band and the control band
+            float contentW = fit.ContentW;
+            UIFactory.Anchor(_plan, new Vector2(0.5f, 0.5f),
+                new Vector2(FloorPlan.DesignW * _planScale, FloorPlan.DesignH * _planScale),
+                new Vector2(0f, fit.PlanCentreY));
+
+            // title band, top to bottom: hand-written title, a ruled line, then the file stamp
+            UIFactory.Anchor(_title.rectTransform, new Vector2(0.5f, 1f),
+                new Vector2(contentW, 40f), new Vector2(0f, -(MapSheetLayout.Margin + 6f)));
+            UIFactory.Anchor(_rule, new Vector2(0.5f, 1f),
+                new Vector2(contentW * 0.60f, 2f), new Vector2(0f, -(MapSheetLayout.Margin + 56f)));
+            UIFactory.Anchor(_subTitle.rectTransform, new Vector2(0.5f, 1f),
+                new Vector2(contentW, 18f), new Vector2(0f, -(MapSheetLayout.Margin + 60f)));
+            UIFactory.Anchor(_legend.rectTransform, new Vector2(0.5f, 0f),
+                new Vector2(contentW, 18f), new Vector2(0f, MapSheetLayout.Margin + 28f));
+            UIFactory.Anchor(_hint.rectTransform, new Vector2(0.5f, 0f),
+                new Vector2(contentW, 20f), new Vector2(0f, MapSheetLayout.Margin + 6f));
+
+            foreach (var e in _rooms)
+            {
+                UIFactory.Anchor(e.Rt, new Vector2(0.5f, 0.5f),
+                    new Vector2(e.Def.W * _planScale, e.Def.H * _planScale),
+                    Design(e.Def.X, e.Def.Y));
+                e.Label.fontSize = ScaledSize(RoomLabelSize(e.Def), _planTextScale);
+            }
+            foreach (var d in _doors)
+            {
+                var size = (d.Horizontal ? DoorOnLongWall : DoorOnEndWall) * _planScale;
+                UIFactory.Anchor(d.Rt, new Vector2(0.5f, 0.5f), size, Design(d.X, d.Y));
+            }
+            foreach (var r in _runs) PlaceRun(r);
+
+            UIFactory.Anchor(_hereLabel.rectTransform, new Vector2(0.5f, 0f),
+                new Vector2(70f, 18f) * _planScale, new Vector2(0f, -MarkerSize.y * _planScale * 0.5f - 3f));
+            _hereLabel.fontSize = ScaledSize(YouLabelSize, _planTextScale);
+
+            _title.fontSize = ScaledSize(TitleSize, _chromeTextScale);
+            _subTitle.fontSize = ScaledSize(SubTitleSize, _chromeTextScale);
+            _legend.fontSize = ScaledSize(LegendSize, _chromeTextScale);
+            _hint.fontSize = ScaledSize(HintSize, _chromeTextScale);
+
+            PlaceHereMarker();
+            RebuildClueDots();
+        }
+
+        /// <summary>Design-space point -> the plan container's anchored space, origin at the
+        /// container's centre. FloorPlan's y axis points DOWN (like a drawing) while a
+        /// RectTransform's points UP, so the y is negated HERE and nowhere else — every
+        /// coordinate on the sheet goes through this one function, which is why the plan can
+        /// never come out mirrored and why one scale factor keeps the whole sheet coherent.</summary>
+        private Vector2 Design(float x, float y) => new Vector2(
+            MapSheetLayout.ToAnchoredX(x, _planScale), MapSheetLayout.ToAnchoredY(y, _planScale));
+
+        /// <summary>The same mapping exposed to the proofs, so "is the drawing faithful to the
+        /// floor-plan table?" can be asserted instead of eyeballed.</summary>
+        internal Vector2 DesignOf(float x, float y) => Design(x, y);
+
+        /// <summary>Design size -> on-screen size: the sheet fit (clamped, so a small window
+        /// shrinks the plan but never makes the labels unreadable) times the player's text-scale
+        /// setting. The design size stays the recorded base, so ApplyTextScale and a relayout
+        /// multiply independently instead of compounding.</summary>
+        private static int ScaledSize(int designSize, float fitScale) =>
+            Mathf.Max(9, Mathf.RoundToInt(designSize * fitScale * UIFactory.TextScale));
+
+        private void PlaceRun(RunEntry r)
+        {
+            var a = Design(r.X0, r.Y0);
+            var b = Design(r.X1, r.Y1);
+            float dx = b.x - a.x, dy = b.y - a.y;
+            float len = Mathf.Sqrt(dx * dx + dy * dy);
+            float thick = Mathf.Max(2f, 3f * _planScale);
+            UIFactory.Anchor(r.Rt, new Vector2(0.5f, 0.5f), new Vector2(Mathf.Max(len, thick), thick),
+                new Vector2((a.x + b.x) / 2f, (a.y + b.y) / 2f));
+            r.Rt.localEulerAngles = new Vector3(0f, 0f, Mathf.Atan2(dy, dx) * Mathf.Rad2Deg);
+        }
+
+        private void PlaceHereMarker()
+        {
+            if (_hereMarker == null) return;
+            float x, y;
+            if (!FloorPlan.TryMarkerPos(_hereRoom, out x, out y)) { x = 0f; y = 0f; }
+            UIFactory.Anchor(_hereMarker, new Vector2(0.5f, 0.5f), MarkerSize * _planScale, Design(x, y));
+        }
+
+        // ---------------------------------------------------------------- state
+        private void Refresh()
+        {
+            _hereRoom = _gameRoot.State == AppViewState.Exploration &&
+                        _gameRoot.Views != null && _gameRoot.Views.Current != null
+                ? _gameRoot.Views.Current.Id
+                : RoomId.Security;
+            PlaceHereMarker();
+            RebuildClueDots();
+
+            bool exploring = _gameRoot.State == AppViewState.Exploration;
+            _hint.text = exploring
+                ? "Click a room to move there. Red dots are findings you have discovered."
+                : "From the checkpoint the map is reference only — use PATROL HALLWAY to investigate.";
+            _hint.fontSize = ScaledSize(HintSize, _chromeTextScale);
+        }
+
+        // Findings keep their red-dot language: one dot per discovered clue, fanned out under
+        // its room so a room with several findings reads as a cluster, not a blob.
+        private void RebuildClueDots()
+        {
+            foreach (var d in _clueDots)
+                if (d != null) Destroy(d.gameObject);
+            _clueDots.Clear();
+            if (_gameRoot == null || _gameRoot.Session == null) return;   // built before a run
+
+            var counts = new Dictionary<RoomId, int>();
+            foreach (var key in _gameRoot.Session.Clues.FoundKeys)
+            {
+                var def = _gameRoot.Session.Clues.Get(key);
+                if (def == null) continue;
+                int idx = counts.TryGetValue(def.Room, out var c) ? c : 0;
+                counts[def.Room] = idx + 1;
+                float x, y;
+                if (!FloorPlan.TryMarkerPos(def.Room, out x, out y)) continue;
+                var dotRt = UIFactory.NewUI(_plan, "dot_" + key);
+                var img = dotRt.gameObject.AddComponent<Image>();
+                img.sprite = ProceduralArt.Get("solid_white");
+                img.color = new Color(0.78f, 0.18f, 0.2f, 0.95f);
+                img.raycastTarget = false;
+                float dx = -30f + idx * 15f;
+                float dy = 24f + (idx % 2) * 8f;
+                UIFactory.Anchor(dotRt, new Vector2(0.5f, 0.5f), new Vector2(8f, 8f) * _planScale,
+                    Design(x + dx, y + dy));
+                _clueDots.Add(dotRt);
+            }
+        }
+
+        // ---- headless / diagnostic surface -----------------------------------
+        internal RectTransform Sheet => _paper;
+        internal RectTransform PlanRoot => _plan;
+        internal RectTransform CloseRow => _closeRt;
+        internal float PlanScale => _planScale;
+        internal float PaperScale => _paperScale;
+        internal MapSheetLayout Fit => _layout;
+        internal float PlanTextScale => _planTextScale;
+        internal float ChromeTextScale => _chromeTextScale;
+        internal Text Hint => _hint;
+        internal Text Title => _title;
+        internal Transform RoomNode(string key)
+        {
+            foreach (var e in _rooms) if (e.Def.Key == key) return e.Rt;
+            return null;
+        }
     }
 
     public class ShiftResultsView : MonoBehaviour, IScreenView
@@ -164,6 +471,11 @@ namespace Hollowbrook.UI
         {
             _gameRoot = root;
             UIFactory.Dimmer(transform, "dim", 0.9f);
+            // the open booth glows behind the shift summary (dimmed: the numbers are the star)
+            var kitBg = UIFactory.Img(transform, "kitbg", ProceduralArt.Get("sec_background_open"),
+                new Color(1f, 1f, 1f, 0.30f));
+            UIFactory.AnchorsFull(kitBg.rectTransform);
+            kitBg.raycastTarget = false;
             var panel = UIFactory.BorderedPanel(transform, "panel", new Color(0.05f, 0.05f, 0.06f, 0.98f), UIFactory.Border, 2);
             UIFactory.Anchor(panel, new Vector2(0.5f, 0.5f), new Vector2(760, 540), Vector2.zero);
             _title = UIFactory.Label(panel, "title", "", 30, UIFactory.Ink, TextAnchor.MiddleCenter);

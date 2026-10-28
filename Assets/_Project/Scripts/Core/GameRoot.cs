@@ -130,6 +130,15 @@ namespace Hollowbrook.Core
         // shift clock (22:00 → 02:00): real time x Config rate in any in-shift scene,
         // plus a bump per processed visitor. Atmosphere only — dawn never ends a shift early.
         private float _shiftMinutes;
+        /// <summary>Live shift-clock minutes since 22:00. Read by the desk top bar every frame
+        /// so the displayed time can never lag the model; written by the save/restore path so a
+        /// resumed night continues at the clock the player saved at, not back at 22:00.</summary>
+        public float ShiftMinutes => _shiftMinutes;
+        public void SetShiftMinutes(float minutes) { _shiftMinutes = Mathf.Max(0f, minutes); }
+        /// <summary>One frame's worth of simulated time. Clamped so a stall (tab-out, GC hitch,
+        /// debugger) can never fast-forward the night or burn run-timer seconds in one jump:
+        /// pause/resume and focus loss already freeze the clock, this covers the wake-up spike.</summary>
+        public static float ClampedDelta => Mathf.Min(Time.deltaTime, 0.5f);
         /// <summary>Last published objective, so a HUD built after the publish (scene load)
         /// can show it immediately instead of staying blank.</summary>
         public string ObjectiveText { get; private set; } = "";
@@ -167,6 +176,16 @@ namespace Hollowbrook.Core
             });
         }
 
+        // Tab-out / alt-tab: the OS stops painting us, so the first frame back carries a huge
+        // deltaTime. Pause the moment focus goes instead of letting the night jump forward —
+        // only during a live run, never from menus, and never while already paused.
+        private void OnApplicationFocus(bool focused)
+        {
+            if (focused || Paused || Session == null) return;
+            if (State == AppViewState.MainMenu || State == AppViewState.ModeSelect) return;
+            TogglePause(true);
+        }
+
         private void Update()
         {
             CheckSceneHandshake();
@@ -184,7 +203,7 @@ namespace Hollowbrook.Core
                 State == AppViewState.SecurityRoom || State == AppViewState.Map ||
                 State == AppViewState.RoomPeek)
             {
-                AdvanceShiftClock(Time.deltaTime * (Config != null ? Config.clockMinutesPerSecond : 0.25f));
+                AdvanceShiftClock(ClampedDelta * (Config != null ? Config.clockMinutesPerSecond : 0.25f));
             }
         }
 
@@ -196,7 +215,7 @@ namespace Hollowbrook.Core
             if (!runMode || State != AppViewState.Checkpoint) return;
             if (Dialogue == null || Dialogue.IsActive) return;
             if (Queue == null || !Queue.Started) return;
-            Session.RunTimer -= Time.deltaTime;
+            Session.RunTimer -= ClampedDelta;   // clamped: a tab-out spike must not eat run time
             Bus.Publish(GameEvent.Of(EventIds.RunTimerTick, Session.RunTimer));
             if (Session.RunTimer <= 0f)
             {
@@ -275,6 +294,7 @@ namespace Hollowbrook.Core
 
             int seed = mode == GameMode.Normal ? 20261102 : (int)(System.DateTime.UtcNow.Ticks & 0x7FFFFFFF);
             Session = new GameSession { Mode = mode, Seed = seed };
+            _resolvedVisitorIndices.Clear();
             _runRng = new GameRng(seed ^ 0x5EED);
             _continuePending = false;
             EndlessProcessed = 0;
@@ -322,6 +342,7 @@ namespace Hollowbrook.Core
             Session = save.Session;
             Records = save.Records;
             Settings.AdoptFromSaveIfFresh(save.Settings);
+            _resolvedVisitorIndices.Clear();
             _runRng = new GameRng(Session.Seed ^ 0x5EED);
             _continuePending = true;
             if (Session.Mode == GameMode.Normal)
@@ -360,7 +381,9 @@ namespace Hollowbrook.Core
                 Session.TonightLog.Clear();
                 Session.AdmittedStudents.Clear();
             }
-            _shiftMinutes = 0f;
+            // a resume continues the saved night at its saved clock; a fresh shift starts at 22:00
+            _shiftMinutes = isResume ? Session.ShiftClockMinutes : 0f;
+            if (!isResume) Session.ShiftClockMinutes = 0f;
             SetupShiftQueue(number, resumeFromVisitor);
             PlayIntroThenCheckpoint(BuildShiftIntroLines(number), CurrentShiftDef);
             _resumeFromVisitor = 0;
@@ -514,8 +537,14 @@ namespace Hollowbrook.Core
         }
 
         /// <summary>Called by the checkpoint after every stamped verdict.</summary>
+        // Exactly-once per visitor per run: a verdict callback that fires twice (a re-entrant
+        // banner, a resumed desk re-committing) must not double-count anything. The queue's
+        // ResolutionPending already guards its own books; this guards the session counters.
+        private readonly HashSet<int> _resolvedVisitorIndices = new HashSet<int>();
+
         public void OnVerdictResolved(VisitorData visitor, InspectionRules.Outcome outcome)
         {
+            if (visitor == null || !_resolvedVisitorIndices.Add(visitor.VisitorIndex)) return;
             Session.RecordVerdict(outcome);
             Session.TonightLog.RecordFrom(visitor, "earlier tonight");
             _shiftMinutes += 240f / (CurrentRoster.Count + 1);
@@ -763,6 +792,7 @@ namespace Hollowbrook.Core
                 Session.QueueState = Queue.BuildSnapshot();
                 Session.QueueOverwhelmed = Queue.Collapsed;
             }
+            Session.ShiftClockMinutes = _shiftMinutes;   // the resume must not rewind the night
             var save = new SaveGame
             {
                 Session = Session,

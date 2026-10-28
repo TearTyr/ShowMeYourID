@@ -15,7 +15,8 @@ namespace Hollowbrook.Bootstrap
         {
             if (v == null) return null;
             bool altered = v.IsAnomaly || v.WindowPortrait.Distorted;
-            string key = FaceAssets.WindowKey(v.FaceAssetIndex, altered);
+            string key = v.IsAdministrator ? FaceAssets.AdminWindowKey
+                         : FaceAssets.WindowKey(v.FaceAssetIndex, altered);
             Sprite asset;
             if (key != null && ProceduralArt.TryGet(key, out asset)) return asset;
             var drawn = ProceduralArt.Portrait("window", v.WindowPortrait, 240, 296);
@@ -28,8 +29,9 @@ namespace Hollowbrook.Bootstrap
         public static Sprite IdSprite(VisitorData v)
         {
             if (v == null) return null;
-            string key = FaceAssets.IdKey(v.FaceAssetIndex, v.PhotoMatches,
-                v.IsAnomaly || v.WindowPortrait.Distorted);
+            string key = v.IsAdministrator ? FaceAssets.AdminKey
+                         : FaceAssets.IdKey(v.FaceAssetIndex, v.PhotoMatches,
+                           v.IsAnomaly || v.WindowPortrait.Distorted);
             Sprite asset;
             if (key != null && ProceduralArt.TryGet(key, out asset)) return asset;
             var drawn = ProceduralArt.Portrait("card", v.IdPhoto, 168, 208);

@@ -9,6 +9,10 @@ namespace Hollowbrook.Bootstrap
     {
         public const int Rate = 44100;
         private static readonly Dictionary<string, AudioClip> Cache = new Dictionary<string, AudioClip>();
+        // Keys whose clip was LOADED from Resources/Audio: that clip is an imported asset and
+        // Destroy on it is refused by Unity ("Destroying assets is not permitted") — ClearCache
+        // drops the reference only. Clips built by Make() below are runtime objects and are freed.
+        private static readonly HashSet<string> FileBacked = new HashSet<string>();
 
         public static AudioClip Get(string key)
         {
@@ -16,7 +20,7 @@ namespace Hollowbrook.Bootstrap
             try
             {
                 var loaded = Resources.Load<AudioClip>("Audio/" + key);
-                if (loaded != null) { Cache[key] = loaded; return loaded; }
+                if (loaded != null) { Cache[key] = loaded; FileBacked.Add(key); return loaded; }
             }
             catch (Exception) { /* fall through to procedural */ }
 
@@ -64,6 +68,20 @@ namespace Hollowbrook.Bootstrap
         private const float Eb1 = 38.89f, Bb1 = 58.27f, Db2 = 69.30f, Gb2 = 46.25f * 2f;
         private const float Eb2 = 77.78f, Gb3 = 185.00f, Bb2 = 116.54f, Ab2 = 103.83f;
         private const float F2 = 87.31f, Cb2 = 61.74f, G2 = 98.00f, Db3 = 138.59f;
+
+        /// <summary>Every clip key the synth knows: the sfx the game fires plus the music
+        /// contexts (AudioDirector prefixes "music_"). A file at Resources/Audio/&lt;key&gt;.wav
+        /// replaces any of them without a code change; the manifest cross-checks this list.</summary>
+        public static readonly string[] AllKeys =
+        {
+            "sfx_click", "sfx_ui_open", "sfx_ui_close", "sfx_paper", "sfx_stamp_allow",
+            "sfx_stamp_reject", "sfx_scan_ok", "sfx_scan_error", "sfx_knock", "sfx_door",
+            "sfx_footstep", "sfx_flicker", "sfx_static", "sfx_glitch", "sfx_intercom",
+            "sfx_bell", "sfx_pickup", "sfx_heartbeat", "sfx_stinger", "sfx_scare", "sfx_alarm",
+            "music_menu", "music_checkpoint", "music_hallway", "music_classroom",
+            "music_darkroom", "music_investigation", "music_anomaly", "music_final",
+            "music_end_win", "music_end_lose", "music_end_secret",
+        };
 
         private static AudioClip Build(string key)
         {
@@ -330,8 +348,14 @@ namespace Hollowbrook.Bootstrap
         public static void ClearCache()
         {
             foreach (var kv in Cache)
-                if (kv.Value != null) UnityEngine.Object.Destroy(kv.Value);
+            {
+                if (kv.Value == null) continue;
+                // never Destroy a clip loaded from Resources: it is an asset on disk
+                if (FileBacked.Contains(kv.Key)) continue;
+                UnityEngine.Object.Destroy(kv.Value);
+            }
             Cache.Clear();
+            FileBacked.Clear();
             _lpState.Clear();
         }
     }

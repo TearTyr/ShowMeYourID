@@ -24,14 +24,21 @@ namespace Hollowbrook.Checkpoint
 
             var banner = UIFactory.BorderedPanel(_desk, "daybanner", UIFactory.Paper, UIFactory.Border, 2);
             Reg("banner", banner, L.Banner);
-            _topLeft = UIFactory.Label(banner, "left", "", 15, UIFactory.NsChalk, TextAnchor.MiddleLeft);
+            _topLeft = UIFactory.Label(banner, "left", "", 34, UIFactory.NsChalk, TextAnchor.MiddleLeft);
             _topLeft.font = UIFactory.UiFontBold;
+            _topLeft.horizontalOverflow = HorizontalWrapMode.Overflow;   // one line, always
             L.Place(_topLeft.rectTransform, L.Inner.BannerTop);
+            // the reference board line is a CONDENSED bold: "NIGHT 1 - MONDAY - NOVEMBER 2"
+            // on one 375px line. The shipped face is wide, so the line is squeezed ~72%
+            // horizontally — tall glyphs, narrow advance, exactly the reference read.
+            _topLeft.rectTransform.localScale = new Vector3(0.72f, 1f, 1f);
             // second banner line: the live queue readout (Phase 9.7 top-bar format)
 
 
-            _topClock = UIFactory.Label(_desk, "clock", "22:00", 22, UIFactory.NsChalk, TextAnchor.MiddleCenter);
+            _topClock = UIFactory.Label(_desk, "clock", "22:00", 30, UIFactory.NsChalk, TextAnchor.MiddleCenter);
             _topClock.font = UIFactory.UiFontBold;
+            _topClock.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _topClock.rectTransform.localScale = new Vector3(0.75f, 1f, 1f);   // condensed digits
             Reg("clock", _topClock.rectTransform, L.Clock);
 
 
@@ -78,18 +85,30 @@ namespace Hollowbrook.Checkpoint
             ApplyModeGates();
             if (_gameRoot.Session.Mode == GameMode.Normal)
             {
-                _topLeft.text = "NIGHT " + _gameRoot.Session.CurrentShift + " · " + (_shift != null ? _shift.DateLabel : "");
-                _topClock.text = _gameRoot.ClockString;
+                _topLeft.text = "NIGHT " + _gameRoot.Session.CurrentShift + " - " + (_shift != null ? _shift.LongDateLabel : "");
+                TickClockText();
             }
             else
             {
                 _topLeft.text = (_gameRoot.Session.Mode == GameMode.Endless ? "ENDLESS WATCH" : "CHALLENGE PROTOCOL") +
                                 "   ·   PROCESSED " + _gameRoot.Session.RunProcessed;
-                _topClock.text = _gameRoot.ClockString;
+                TickClockText();
                 float mult = EndlessRules.StreakMultiplier(_gameRoot.Session.Streak) *
                              (_gameRoot.Session.Mode == GameMode.Challenge ? ChallengeRules.ScoreMultiplier : 1f);
                 _runStats.text = "SCORE " + _gameRoot.Session.Score + "   ·   STREAK " + _gameRoot.Session.Streak + " (×" + mult.ToString("0.0") + ")";
             }
+        }
+
+        // The shift clock model ticks every frame in GameRoot.Update; the label that shows
+        // it must tick with it. RefreshHud() (visitor arrivals, verdicts, dialogue) used to
+        // be the ONLY writer of _topClock.text, so between events the header kept showing a
+        // stale time — the clock looked frozen even though the model ran. One cached string
+        // compare per frame keeps this allocation-free.
+        private void TickClockText()
+        {
+            if (_topClock == null || _gameRoot == null) return;
+            string s = _gameRoot.ClockString;
+            if (s != _lastClockText) { _lastClockText = s; _topClock.text = s; }
         }
 
         public void OnRunTimerTick(float secondsLeft)

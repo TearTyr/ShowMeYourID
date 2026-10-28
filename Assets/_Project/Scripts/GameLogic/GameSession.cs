@@ -48,11 +48,17 @@ namespace Hollowbrook.Logic
         public int VisitorIndexAtSave = 0;   // where a mid-shift continue resumes      // fully-tracked anomalies (master prompt §3)
         public bool AdminAllowed = false;
         public bool AdminRejected = false;
+        // The Shift-5 conversation: where it stands, which one-shots were spent, the tactic
+        // counters. Encoded into the save as one invariant string (see SaveFormat "adminTalk").
+        // It carries no mechanical power — no clues, no budget, no verdict — so resuming it
+        // can never be exploited; it only keeps the administrator's memory consistent.
+        public AdminTalkState AdminTalk = new AdminTalkState();
         public float Sanity = SanityModel.Max;
         public int Score = 0;
         public int Streak = 0;
         public int BestStreak = 0;
         public float RunTimer = 0f;         // Endless/Challenge seconds remaining
+        public float ShiftClockMinutes = 0f;  // shift clock at last save (22:00 + this)
         public int RunProcessed = 0;        // Endless/Challenge visitors this run
         public string ActiveMutationKey = "none";
         public ClueTracker Clues = new ClueTracker();
@@ -163,10 +169,20 @@ namespace Hollowbrook.Logic
         public EndingRules.Evaluation EvaluateEnding()
         {
             // the night's books close: anomalies still outstanding count as breaches, so
-            // patrol finally feeds the ending (issue #7). Applied once, at the final eval.
-            if (CompletedShifts >= ShiftPlan.TotalShifts) Breaches += Pool.Pending;
+            // patrol finally feeds the ending (issue #7). Folded EXACTLY ONCE per run — the
+            // pool is closed with the books, so a repeated evaluation (ending screen, summary,
+            // a resumed save) can never count the same outstanding anomalies twice.
+            if (CompletedShifts >= ShiftPlan.TotalShifts && !PoolFolded)
+            {
+                Breaches += Pool.Pending;
+                Pool.Seed(null);
+                PoolFolded = true;
+            }
             return EndingRules.Evaluate(this);
         }
+
+        /// <summary>True once the outstanding patrol pool has been folded into the breach count.</summary>
+        public bool PoolFolded = false;
 
 
         public bool LoseThresholdReached =>

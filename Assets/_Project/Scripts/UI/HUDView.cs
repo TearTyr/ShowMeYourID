@@ -18,6 +18,7 @@ namespace Hollowbrook.UI
         private RectTransform _frame;
         private Image _sanityFill;
         private Text _sanityLabel;
+        private Text _sanityCapLabel;
         private Text _objective;
         private string _lastPrompt = "";   // the desk hint strip mirrors the interaction prompt
         private Text _prompt;
@@ -27,6 +28,36 @@ namespace Hollowbrook.UI
         private Text _beamLabel;
         private GameObject _trackBar;
         private Image _trackFill;
+        // Under the SecurityRoom kit the sanity furniture is a WHITE pill on the board: the
+        // HUD's own box retires, the track goes invisible and the fill/caption/value flip to
+        // dark ink so the live meter reads exactly like the concept art's bar.
+        // The flag is sticky because SetSanity repaints the fill on every sanity event — a
+        // one-shot tint used to be clobbered by the next SetSanity call.
+        private bool _kitSanity;
+        internal void ApplyKitSanity(bool kit)
+        {
+            _kitSanity = kit;
+            var track = _sanityFill != null ? _sanityFill.rectTransform.parent.GetComponent<UnityEngine.UI.Image>() : null;
+            if (track != null)
+            {
+                // the kit pill carries a DARK recessed bed (the concept art's bar); the live
+                // fill is paper-white inside it, so full reads full and empty reads empty
+                track.color = kit ? UIFactory.NsInk : UIFactory.PanelAlt;
+            }
+            if (_sanityFill != null)
+            {
+                // 1-unit inset: the bed keeps a keyline around the fill at every value
+                var frt = _sanityFill.rectTransform;
+                frt.offsetMin = kit ? new Vector2(1f, 1f) : Vector2.zero;
+                frt.offsetMax = kit ? new Vector2(-1f, -1f) : Vector2.zero;
+            }
+            if (_sanityLabel != null) _sanityLabel.color = kit ? UIFactory.NsInk : UIFactory.Ink;
+            if (_sanityCapLabel != null) _sanityCapLabel.color = kit ? UIFactory.NsInk : UIFactory.InkDim;
+            // fill + stage caption are stage-driven: route the repaint through SetSanity so
+            // the kit inks are what lands, and any later sanity event keeps them.
+            SetSanity(_gameRoot != null && _gameRoot.Session != null ? _gameRoot.Session.Sanity : 100f);
+        }
+
         private Text _stageLabel;
         private GameObject _batteryBar;
         private Image _batteryFill;
@@ -41,9 +72,13 @@ namespace Hollowbrook.UI
             var audit = _frame.gameObject.AddComponent<DeskLayoutAudit>();
 
             var barBg = UIFactory.BorderedPanel(_frame, "sanitybg", UIFactory.PanelBase, UIFactory.Border, 2);
+            // the SecurityRoom kit paints the sanity bar's furniture on the desk canvas; the HUD
+            // keeps the live track/fill/text and retires its own box (both stay registered)
+            foreach (var kitImg in barBg.gameObject.GetComponentsInChildren<Image>(true))
+            { var kc = kitImg.color; kc.a = 0f; kitImg.color = kc; }
             Reg(audit, "sanity", barBg, L.SanityMeter);
-            var label = UIFactory.Label(barBg, "cap", "SANITY", 12, UIFactory.InkDim, TextAnchor.MiddleLeft);
-            L.Place(label.rectTransform, L.Inner.SanityCap);
+            _sanityCapLabel = UIFactory.Label(barBg, "cap", "SANITY", 12, UIFactory.InkDim, TextAnchor.MiddleLeft);
+            L.Place(_sanityCapLabel.rectTransform, L.Inner.SanityCap);
             var track = UIFactory.Panel(barBg, "track", UIFactory.PanelAlt).rectTransform;
             L.Place(track, L.Inner.SanityTrack);
             _sanityFill = UIFactory.Img(track, "fill", ProceduralArt.Get("solid_white"), UIFactory.Ink);
@@ -85,7 +120,7 @@ namespace Hollowbrook.UI
             _objective = UIFactory.Label(_frame, "objective", "", 14, UIFactory.InkDim);
             Reg(audit, "hint", _objective.rectTransform, L.Hint);
 
-            _prompt = UIFactory.Label(_frame, "prompt", "", 20, UIFactory.AccentBright, TextAnchor.MiddleCenter);
+            _prompt = UIFactory.Label(_frame, "prompt", "", 15, UIFactory.AccentBright, TextAnchor.MiddleCenter);
             Reg(audit, "prompt", _prompt.rectTransform, L.Prompt);
 
             _toast = UIFactory.Label(_frame, "toast", "", 16, UIFactory.Ink, TextAnchor.MiddleCenter);
@@ -122,10 +157,10 @@ namespace Hollowbrook.UI
             _subs.Add(root.Bus.Subscribe(EventIds.InteractionPrompt, e =>
             {
                 _lastPrompt = e.Text ?? "";
+                // ONE instruction per band: the red strip owns the moment-to-moment hint.
+                // The grey strip keeps the shift objective — mirroring the prompt into both
+                // read as a duplicated, conflicting instruction (owner UI report #2A).
                 _prompt.text = _lastPrompt;
-                // at the desk the free strip under the top bar carries the hand-over hint
-                if (_gameRoot != null && _gameRoot.State == AppViewState.Checkpoint && _objective != null)
-                    _objective.text = _lastPrompt;
             }));
             _subs.Add(root.Bus.Subscribe(EventIds.Notification, e => Notify(e.Text)));
             _subs.Add(root.Bus.Subscribe(EventIds.ClueDiscovered, e => RefreshFindings()));
@@ -174,10 +209,12 @@ namespace Hollowbrook.UI
             // the desk keeps only night/clock/pause/sanity: battery and track are patrol tools
             if (_batteryBar != null) _batteryBar.SetActive(exploring || peeking);
             if (_trackBar != null) _trackBar.SetActive(exploring || peeking);
-            _objective.gameObject.SetActive(true);   // exploration: objective; desk: the hint strip
+            _objective.gameObject.SetActive(exploring || peeking);   // the desk header keeps
+            // night/clock/pause/sanity only: the reference board has no objective strip, and
+            // at the desk the red prompt strip already owns the moment-to-moment instruction
             if (!exploring && !peeking) _prompt.text = "";
             if (!exploring && !peeking && _batteryBar != null) _batteryBar.SetActive(false); // desk has no flashlight
-            if (s == AppViewState.Checkpoint) _objective.text = _lastPrompt;
+            if (s == AppViewState.Checkpoint) _objective.text = _gameRoot.ObjectiveText ?? "";
             if (peeking) _objective.text = "Press F for the lamp — sweep it across the room; click the bottom edge to step back.";
             if (exploring) _objective.text = _gameRoot.ObjectiveText;   // restore after a peek overwrote the hint
             if (_peekExitBand != null) _peekExitBand.SetActive(peeking);
@@ -191,16 +228,28 @@ namespace Hollowbrook.UI
             var rt = _sanityFill.rectTransform;
             rt.anchorMax = new Vector2(k, 1);
             var stage = SanityModel.StageFor(v);
-            _sanityFill.color = stage == SanityStage.Breaking ? UIFactory.AccentBright :
-                                stage == SanityStage.Shaken ? new Color(0.75f, 0.45f, 0.2f) :
-                                stage == SanityStage.Uneasy ? UIFactory.InkDim : UIFactory.Ink;
+            _sanityFill.color = FillInk(stage);
             _sanityLabel.text = ((int)v).ToString();
             if (_stageLabel != null)
             {
                 _stageLabel.text = stage.ToString().ToUpperInvariant();
-                _stageLabel.color = stage == SanityStage.Breaking ? UIFactory.AccentBright :
-                                    stage == SanityStage.Shaken ? new Color(0.75f, 0.45f, 0.2f) : UIFactory.InkFaint;
+                var c = stage == SanityStage.Breaking ? UIFactory.AccentBright :
+                        stage == SanityStage.Shaken ? new Color(0.75f, 0.45f, 0.2f) : UIFactory.InkFaint;
+                if (_kitSanity) c.a = 0f;   // the kit pill has no room for the stage caption
+                _stageLabel.color = c;
             }
+        }
+
+        // Stage language for the fill. Under the kit the bar sits on a WHITE pill, so the
+        // healthy ink flips to dark; the alarm reds/oranges read on either bed and stay.
+        private Color FillInk(SanityStage stage)
+        {
+            if (stage == SanityStage.Breaking) return UIFactory.AccentBright;
+            if (stage == SanityStage.Shaken) return new Color(0.75f, 0.45f, 0.2f);
+            if (stage == SanityStage.Uneasy)
+                return _kitSanity ? new Color(0.93f, 0.86f, 0.72f) : UIFactory.InkDim;
+            // kit bed is dark ink: the healthy fill is the paper white of the pill family
+            return _kitSanity ? new Color(0.93f, 0.92f, 0.89f) : UIFactory.Ink;
         }
 
         private void SetBattery(float v)

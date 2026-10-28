@@ -11,6 +11,12 @@ namespace Hollowbrook.Bootstrap
     public static partial class ProceduralArt
     {
         private static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>();
+        // Cache keys whose sprite wraps a texture IMPORTED from Resources (drop-in art /
+        // the SecurityRoom kit). That texture is an asset on disk: Unity refuses Destroy on
+        // it in the editor AND in builds ("Destroying assets is not permitted to avoid data
+        // loss"), so ClearCache must free only the runtime Sprite wrapper for these keys and
+        // never the borrowed texture. Every writer of Cache's file branch registers here.
+        private static readonly HashSet<string> FileBacked = new HashSet<string>();
         public const float WorldPpu = 64f;   // world sprites: 64 px per unit
         public const float UiPpu = 100f;     // UI/document sprites
         // flat quad sprite (solid_white): 4 px texture at 4 px per unit => native 1x1 world
@@ -22,17 +28,46 @@ namespace Hollowbrook.Bootstrap
         private static readonly Dictionary<string, string> FileAlias =
             new Dictionary<string, string> { { "stamp_allow", "stamp_approval_temp" } };
 
+        // 9-slice borders in TEXTURE PIXELS for kit sprites that must stretch without dragging
+        // their detail: the dialogue bubble keeps its left tail and its rough edge intact.
+        // Measured on the TRIMMED master (2879x1031): the tail+left edge run to x=480, the
+        // torn top/bottom/right edges to ~140. (x=left, y=bottom, z=right, w=top —
+        // UnityEngine's Sprite.border order.)
+        private static readonly Dictionary<string, Vector4> FileBorders =
+            new Dictionary<string, Vector4> { { "sec_bubble", new Vector4(480f, 140f, 140f, 140f) } };
+
+        // pixelsPerUnit overrides for kit masters authored at print resolution: sec_bubble's
+        // 2879x1031 texture maps to ~288x103 reference units at PPU 10, so its 480px tail slice
+        // lands as a real 48-unit border. At the default UI PPU the same slice would draw as
+        // a 5-unit sliver and the bubble would lose its tail.
+        private static readonly Dictionary<string, float> FilePpus =
+            new Dictionary<string, float> { { "sec_bubble", 10f } };
+
         /// <summary>True when a real file (or a cached sprite) exists for the key — callers that
         /// have their own painter use this to fall back instead of showing a broken image.</summary>
+        // The owner's layered UI kit ships under its own folder; a key resolves from the flat
+        // Art folder first (long-standing convention), then from the kit folder, then from the
+        // procedural painter. Adding art never means renaming a key.
+        private static Texture2D LoadFileTexture(string key)
+        {
+            string fileKey = FileAlias.TryGetValue(key, out var a) ? a : key;
+            var tex = Resources.Load<Texture2D>("Art/" + fileKey);
+            if (tex == null) tex = Resources.Load<Texture2D>("Art/" + key);
+            if (tex == null) tex = Resources.Load<Texture2D>("Art/SecurityRoom/" + fileKey);
+            if (tex == null) tex = Resources.Load<Texture2D>("Art/SecurityRoom/" + key);
+            return tex;
+        }
+
+        /// <summary>Every cached sprite key — the headless sprite export walks this.</summary>
+        public static System.Collections.Generic.IEnumerable<string> CachedKeys => Cache.Keys;
+
         public static bool TryGet(string key, out Sprite sprite)
         {
             sprite = null;
             if (Cache.TryGetValue(key, out var cached) && cached != null) { sprite = cached; return true; }
             try
             {
-                string fileKey = FileAlias.TryGetValue(key, out var a) ? a : key;
-                if (Resources.Load<Texture2D>("Art/" + fileKey) != null) { sprite = Get(key); return true; }
-                if (Resources.Load<Texture2D>("Art/" + key) != null) { sprite = Get(key); return true; }
+                if (LoadFileTexture(key) != null) { sprite = Get(key); return true; }
             }
             catch (System.Exception) { /* no resources: caller falls back */ }
             return false;
@@ -43,17 +78,20 @@ namespace Hollowbrook.Bootstrap
             if (Cache.TryGetValue(key, out var s) && s != null) return s;
             try
             {
-                string fileKey = FileAlias.TryGetValue(key, out var alias) ? alias : key;
-                var tex = Resources.Load<Texture2D>("Art/" + fileKey);
-                if (tex == null) tex = Resources.Load<Texture2D>("Art/" + key);
+                var tex = LoadFileTexture(key);
                 if (tex != null)
                 {
-                    var spr = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height),
-                        new Vector2(0.5f, 0.5f), key.EndsWith("_bg") ? WorldPpu : UiPpu);
+                    var ppu = FilePpus.TryGetValue(key, out var fppu) ? fppu : UiPpu;
+                    var spr = FileBorders.TryGetValue(key, out var border)
+                        ? Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height),
+                            new Vector2(0.5f, 0.5f), ppu, 0, SpriteMeshType.FullRect, border, false)
+                        : Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height),
+                            new Vector2(0.5f, 0.5f), key.EndsWith("_bg") ? WorldPpu : ppu);
                     // the procedural path names its sprites after the key; a dropped-in file must
                     // behave identically (name-based lookups and the headless proofs rely on it)
                     spr.name = key;
                     Cache[key] = spr;
+                    FileBacked.Add(key);
                     return spr;
                 }
             }
@@ -183,6 +221,30 @@ namespace Hollowbrook.Bootstrap
 
         private static Color G(float v, float a = 1f) => new Color(v, v, v, a);
 
+        /// <summary>Every sprite key the procedural painter knows — the exact list an asset
+        /// drop-in can replace (Resources/Art/&lt;key&gt;.png wins over the painter) and the list
+        /// the asset manifest and the headless proofs cross-check against. Kept next to Build so
+        /// a new case and a new name land in the same edit.</summary>
+        public static readonly string[] AllKeys =
+        {
+            "solid_white", "vignette", "noise_overlay", "flash", "light_cone",
+            "menu_bg", "desk_bg", "hood_figure",
+            "hallway_bg", "hall_depth", "classroom1_bg", "classroom2_bg", "security_bg",
+            "prop_door", "prop_door_security", "prop_server_door", "prop_lockers", "prop_desk",
+            "prop_chalkboard", "prop_window", "prop_noticeboard", "prop_cabinet", "prop_clock",
+            "prop_lightswitch", "token",
+            "rough_panel", "rough_panel_dark", "rough_circle", "circle_dark", "circle_paper",
+            "paper_flat", "school_facade", "camera_frame", "window_frame", "lamp_glow",
+            "prop_photoframe", "prop_lightfixture", "prop_lostid",
+            "custodian_0", "custodian_1",
+            "anomaly_blink", "anomaly_slide", "anomaly_sprint", "anomaly_coverhug",
+            "face_placeholder",
+            "record_sheet", "clipboard", "note_paper", "stamp_allow", "stamp_reject",
+            "folder_tab", "cursor_hand", "icon_check", "icon_x", "bubble_tail",
+            "id_card_frame",
+            "map_paper", "map_room", "map_sealed", "map_door",
+        };
+
         private static Sprite Build(string key)
         {
             switch (key)
@@ -192,7 +254,6 @@ namespace Hollowbrook.Bootstrap
                 case "noise_overlay": return MakeNoise(256, 256, 0.5f, 7);
                 case "flash": return MakeFlash(256);
                 case "light_cone": return MakeLightCone(512, 288);
-                case "outline_frame": return MakeOutlineFrame(96, 6);
                 case "menu_bg": return MakeMenuBg(1280, 720);
                 case "desk_bg": return MakeDeskBg(640, 360);
                 case "hood_figure": return MakeHoodFigure(24, 48);
@@ -211,9 +272,10 @@ namespace Hollowbrook.Bootstrap
                 case "prop_noticeboard": return MakeNoticeBoard(208, 160);
                 case "prop_cabinet": return MakeCabinet(160, 272);
                 case "prop_clock": return MakeClock(112);
-                case "token": return MakeClock(28);   // pocket-watch token left by a revealed anomaly
-                case "rough_panel": return MakeRoughPanel(256, 192, 0.88f);
-                case "rough_panel_dark": return MakeRoughPanel(256, 192, 0.16f);
+                case "prop_lightswitch": return MakeLightSwitch(32, 48);
+                case "token": return MakeClock(28, "token");   // pocket-watch token left by a revealed anomaly
+                case "rough_panel": return MakeRoughPanel(256, 192, 0.88f, "rough_panel");
+                case "rough_panel_dark": return MakeRoughPanel(256, 192, 0.16f, "rough_panel_dark");
                 case "rough_circle": return MakeRoughCircle(128);
                 case "circle_dark": return MakeFlatCircle("circle_dark", new Color(0.098f, 0.098f, 0.110f));
                 case "circle_paper": return MakeFlatCircle("circle_paper", new Color(0.839f, 0.831f, 0.800f));
@@ -243,6 +305,11 @@ namespace Hollowbrook.Bootstrap
                 case "icon_check": return MakeIcon(true);
                 case "icon_x": return MakeIcon(false);
                 case "bubble_tail": return MakeBubbleTail();
+                // the hand-drawn ground-floor plan (sheet, rough room outlines, seal, doorways)
+                case "map_paper": return MakeMapPaper(940, 440);
+                case "map_room": return MakeMapRoom(160, 120);
+                case "map_sealed": return MakeMapSealed(160, 120);
+                case "map_door": return MakeMapDoor(24, 20);
                 default:
                     Debug.LogWarning("[ProceduralArt] unknown sprite key '" + key + "' — returning solid.");
                     return MakeSolid(G(1f, 0f));
@@ -311,7 +378,7 @@ namespace Hollowbrook.Bootstrap
             return c.ToSprite("flash", UiPpu);
         }
 
-        private static Sprite MakeRoughPanel(int w, int h, float paper)
+        private static Sprite MakeRoughPanel(int w, int h, float paper, string name = "rough_panel")
         {
             var c = new Canvas2D(w, h);
             var r = new System.Random(77);
@@ -322,7 +389,7 @@ namespace Hollowbrook.Bootstrap
             RoughLine(c, r, 2, h - 3, 2, 2, 0.07f, 3);
             RoughLine(c, r, 6, 7, w - 7, 7, 0.18f, 1);
             RoughLine(c, r, 7, 6, 7, h - 7, 0.18f, 1);
-            return c.ToSprite("rough_panel", UiPpu);
+            return c.ToSprite(name, UiPpu);
         }
 
         private static Sprite MakeRoughCircle(int d)
@@ -375,8 +442,23 @@ namespace Hollowbrook.Bootstrap
         public static void ClearCache()
         {
             foreach (var kv in Cache)
-                if (kv.Value != null && kv.Value.texture != null) UnityEngine.Object.Destroy(kv.Value.texture);
+            {
+                var spr = kv.Value;
+                if (spr == null) continue;
+                if (FileBacked.Contains(kv.Key))
+                {
+                    // kit/drop-in sprite: the texture belongs to the imported asset — releasing
+                    // it is forbidden (and wrong: the next session reloads the same asset).
+                    // Only the Sprite.Create wrapper is ours, so only that gets destroyed.
+                    UnityEngine.Object.Destroy(spr);
+                    continue;
+                }
+                // procedural sprite: texture and wrapper were both allocated here — free both.
+                if (spr.texture != null) UnityEngine.Object.Destroy(spr.texture);
+                UnityEngine.Object.Destroy(spr);
+            }
             Cache.Clear();
+            FileBacked.Clear();
         }
     }
 }

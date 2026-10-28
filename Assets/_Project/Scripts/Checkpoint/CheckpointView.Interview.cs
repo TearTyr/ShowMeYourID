@@ -35,8 +35,10 @@ namespace Hollowbrook.Checkpoint
             if (!_budget.TryAsk(_current, q, out var answer))
             {
                 // the desk has no scanner readout any more — refusals surface as HUD toasts
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    _budget.HasAsked(q) ? "ALREADY ASKED THAT." : "NO MORE QUESTIONS — DISTRICT POLICY."));
+                string refusal = _budget.HasAsked(q) ? "ALREADY ASKED THAT." : "NO MORE QUESTIONS — DISTRICT POLICY.";
+                _transcript.Add("DESK", refusal, false);   // ...and in the window log
+                if (_logOpen) SyncTalkLog();
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, refusal));
                 _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.35f);
                 return;
             }
@@ -44,6 +46,9 @@ namespace Hollowbrook.Checkpoint
             // the player's own question needs no echo — the button already shows it asked;
             // the bubble carries the student's answer beside their face
             SayLine("AT THE WINDOW", "“" + answer.Text + "”" + tone);
+            // ...and the window log remembers it: whether the question came from a button
+            // or from the typed text box, the answer line belongs to the conversation
+            _transcript.Add(_current.IsAdministrator ? "ADMIN" : "VISITOR", answer.Text + tone, false);
             if (Queue != null) Queue.ActiveBudgetMask = _budget.Mask;   // survives quit/continue
             _gameRoot.Audio.PlaySfx("sfx_intercom", 0.5f);
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.QuestionAsked, q));

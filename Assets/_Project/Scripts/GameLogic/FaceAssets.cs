@@ -43,6 +43,16 @@ namespace Hollowbrook.Logic
             return StudentKey(faceIndex);   // the card always keeps the NORMAL reference face
         }
 
+        /// <summary>The Night-5 district administrator's badge photo. She has no canon roster
+        /// row, so she gets her own pair instead of an index: the formal portrait on the badge,
+        /// and the window variant that carries her tell.</summary>
+        public const string AdminKey = "admin_face";
+
+        /// <summary>The face at the window during the administrator encounter: the same person,
+        /// a half-second wrong. Paired with <see cref="AdminKey"/> exactly like the student
+        /// anomaly variants are paired with their students.</summary>
+        public const string AdminWindowKey = "admin_face_glitch";
+
         private static int Mod(int v, int n) { int r = v % n; return r < 0 ? r + n : r; }
 
         private static string Pad(int v) => v < 10 ? "0" + v : v.ToString();

@@ -9,6 +9,7 @@ using Hollowbrook.Logic;
 using Hollowbrook.UI;
 using Hollowbrook.World;
 using UnityEngine;
+using UnityEngine.UI;
 using L = Hollowbrook.Checkpoint.CheckpointLayout;
 
 namespace FlowCheck
@@ -26,8 +27,40 @@ namespace FlowCheck
             if (!ok) _failures++;
         }
 
-        private static void Main()
+        private static void Main(string[] args)
         {
+            // opt-in: boot to the desk and dump the file drawer as SVG at three points of its
+            // travel, so the animation can be LOOKED AT rather than inferred from numbers.
+            // Not part of the proof run: `dotnet run --project Tools/FlowCheck -- --dump-drawer=DIR`
+            string screenArg = null, dumpState = "occupied";
+            foreach (var a in args)
+            {
+                if (a.StartsWith("--dump-screen=")) screenArg = a.Substring("--dump-screen=".Length);
+                if (a.StartsWith("--dump-state=")) dumpState = a.Substring("--dump-state=".Length);
+            }
+            if (screenArg != null)
+            {
+                DumpScreen(screenArg, dumpState);
+                return;
+            }
+            if (args.Length > 0 && args[0].StartsWith("--dump-sprites="))
+            {
+                // the procedural sprites are painted while the desk builds, so build first
+                MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore());
+                var bootRoot = GameRoot.Instance;
+                bootRoot.MainMenu.transform.Find("buttons").Find("NEW GAME")
+                    .GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+                CheckpointSceneBootstrap.Build(bootRoot);
+                for (int i = 0; i < 8 && bootRoot.Dialogue != null && bootRoot.Dialogue.IsActive; i++)
+                    bootRoot.Dialogue.Advance();
+                DumpSprites(args[0].Substring("--dump-sprites=".Length));
+                return;
+            }
+            if (args.Length > 0 && args[0].StartsWith("--dump-drawer="))
+            {
+                DumpDrawer(args[0].Substring("--dump-drawer=".Length));
+                return;
+            }
             Console.WriteLine("== NEW GAME flow, headless ==");
             MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore());
             var root = GameRoot.Instance;
@@ -89,7 +122,10 @@ namespace FlowCheck
             LayoutAudit(root);
             BubbleProof(root);
             PapersProof(root);
-            FaceCompareProof(root);
+            FaceMatchRetiredProof(root);
+            SecurityKitProof(root);
+            MapProof(root);
+            AssetManifestProof(root);
             SaveContinueResume();
             StampPlaceProof(root);
             DeskLoop(root);
@@ -106,9 +142,44 @@ namespace FlowCheck
                   "I-02: re-booting a scene never creates a second core");
 
             IssueOneProofs(root);
+            AdminTalkProof(root);
+            TalkDockProof(root);
+            TeardownProof();
 
             Console.WriteLine(_failures == 0 ? "== FLOW CHAIN COMPLETE ==" : "== " + _failures + " CHECK(S) FAILED ==");
             Environment.Exit(_failures == 0 ? 0 : 1);
+        }
+
+        // ------------------------------------------------------- teardown (OnDestroy)
+        // GameRoot.OnDestroy releases the procedural caches. Kit/drop-in sprites BORROW
+        // imported Resources textures: those are assets on disk, and Destroy on them is
+        // refused by Unity ("Destroying assets is not permitted to avoid data loss") —
+        // exactly the editor-console flood this proof pins shut. Runtime objects (painted
+        // textures, Sprite wrappers, synthesised clips) must still be freed.
+        private static void TeardownProof()
+        {
+            Console.WriteLine("== teardown: OnDestroy cache release never destroys assets ==");
+            var fileSprite = ProceduralArt.Get("sec_bubble");   // kit file -> borrowed asset texture
+            var procSprite = ProceduralArt.Get("vignette");     // procedural -> owned texture
+            var fileTex = fileSprite != null ? fileSprite.texture : null;
+            var procTex = procSprite != null ? procSprite.texture : null;
+            Check(fileTex != null && procTex != null && !ReferenceEquals(fileTex, procTex),
+                  "fixture: a file-backed and a procedural sprite cache distinct textures");
+            Check(fileTex && procTex, "fixture: both textures alive before teardown");
+
+            int errs = UnityEngine.Debug.ErrorCount;
+            ProceduralArt.ClearCache();     // exactly what GameRoot.OnDestroy calls
+            ProceduralAudio.ClearCache();
+            Check(UnityEngine.Debug.ErrorCount == errs,
+                  "teardown logs no engine error (no 'Destroying assets is not permitted')");
+            Check(fileTex, "the imported kit texture SURVIVES teardown (asset on disk — not ours to free)");
+            Check(!procTex, "the procedural texture is released with the core");
+            Check(!fileSprite && !procSprite, "both runtime Sprite wrappers are released");
+            Check(!ProceduralArt.CachedKeys.Any(), "the art cache is empty after teardown");
+
+            var again = ProceduralArt.Get("sec_bubble");
+            Check(again != null && again.texture != null && !ReferenceEquals(again, fileSprite),
+                  "next session: the sprite is rebuilt fresh around the surviving asset");
         }
 
         // ------------------------------------------------------- required elements
@@ -121,16 +192,31 @@ namespace FlowCheck
             {
                 "DeskFrame", "topbar", "daybanner_border", "clock", "pause", "runstats", "mutationbg",
                 "record", "station", "folder1", "folder2", "filedrawer_border", "closefile", "idcard",
+                "drawerbody", "drawerfront", "drawercavity", "drawerhead", "stationout",
                 "windowframe", "glass", "facade", "visitor", "glitch", "sill",
                 "speechbubble", "bubble_border", "bubble", "bubbletext", "bubbletail",
                 "offeredid", "patrol", "endshift",
                 "qpanel_border", "q0", "q1", "q2", "q3",
                 "records", "map", "notes", "stamp_allow", "stamp_deny",
                 "OverlayRules", "OverlayLog",
+                "admintalk", "admintalkbar",
                 "StickyNoteOverlay", "stickynote_border",
             };
             foreach (var n in deskNames)
                 Check(FindDeep(root.Checkpoint.transform, n) != null, "desk element '" + n + "'");
+
+            // a Button whose target graphic cannot be hit is a dead control, and nothing else in
+            // the build would notice: walk the whole desk and say so if one shows up
+            var deadClicks = new List<string>();
+            foreach (var b in root.Checkpoint.gameObject.GetComponentsInChildren<UnityEngine.UI.Button>(true))
+            {
+                if (!b.isActiveAndEnabled) continue;      // hidden widgets are not dead clicks
+                var g = b.targetGraphic;
+                if (g == null || !g.raycastTarget) deadClicks.Add(b.gameObject.name);
+            }
+            Check(deadClicks.Count == 0,
+                "every enabled desk button has a raycast-enabled target graphic" +
+                (deadClicks.Count > 0 ? " (dead: " + string.Join(", ", deadClicks) + ")" : ""));
 
             // presentation cuts: the checklist widget and the waiting-line DISPLAY are
             // gone for good (the queue itself still runs headless); nothing is built-then-hidden
@@ -195,57 +281,63 @@ namespace FlowCheck
 
         private static void LayoutAudit(GameRoot root)
         {
-            Console.WriteLine("== code table vs approved wireframe (desk_layout_wireframe.svg) ==");
-            ExpectRegion("top bar", L.TopBar, 0, 0, 1280, 81);
-            ExpectRegion("banner", L.Banner, 22, 23, 320, 34);
-            ExpectRegion("sanity", L.SanityMeter, 471, 23, 347, 34);
-            ExpectRegion("light", L.LightMeter, 348, 84, 200, 40);
-            ExpectRegion("track", L.TrackMeter, 568, 84, 110, 40);
-            ExpectRegion("clock", L.Clock, 975, 23, 140, 34);
-            ExpectRegion("pause", L.Pause, 1121, 23, 138, 34);
-            ExpectRegion("records station", L.Station, 42, 119, 268, 140);
-            ExpectRegion("file drawer", L.FileDrawer, 55, 278, 243, 200);
-            ExpectRegion("id card", L.IdCard, 428, 506, 304, 209);
-            ExpectRegion("window frame", L.Window, 412, 182, 455, 260);
-            ExpectRegion("glass", L.Glass, 431, 199, 420, 241);
-            ExpectRegion("portrait", L.Portrait, 431, 199, 420, 241);
-            ExpectRegion("sill", L.Sill, 412, 442, 455, 14);
-            ExpectRegion("speech bubble", L.SpeechBubble, 740, 288, 215, 83);
-            ExpectRegion("patrol button", L.PatrolBtn, 26, 688, 180, 28);
-            ExpectRegion("end shift", L.EndShiftBtn, 1074, 688, 180, 28);
-            ExpectRegion("questions", L.Questions, 961, 110, 298, 201);
-            ExpectRegion("TL", L.UtilityRecords, 23, 552, 150, 20);
-            ExpectRegion("MAP", L.UtilityMap, 977, 337, 268, 146);
-            ExpectRegion("RN", L.UtilityNotes, 181, 552, 150, 20);
+            Console.WriteLine("== code table vs the approved UI reference (uploads/UI Reference.jpg) ==");
+            ExpectRegion("top bar", L.TopBar, 0, 0, 1280, 80);
+            ExpectRegion("banner", L.Banner, 20, 25, 375, 30);
+            ExpectRegion("sanity", L.SanityMeter, 470, 22, 349, 38);
+            ExpectRegion("light", L.LightMeter, 348, 96, 200, 40);
+            ExpectRegion("track", L.TrackMeter, 568, 96, 110, 40);
+            ExpectRegion("clock", L.Clock, 1000, 25, 85, 30);
+            ExpectRegion("pause", L.Pause, 1119, 22, 125, 38);
+            ExpectRegion("records station", L.Station, 40, 85, 305, 160);
+            ExpectRegion("file drawer", L.FileDrawer, 55, 255, 275, 290);
+            ExpectRegion("id card", L.IdCard, 462, 533, 182, 122);
+            ExpectRegion("window frame", L.Window, 375, 160, 520, 330);
+            ExpectRegion("glass", L.Glass, 430, 200, 415, 235);
+            ExpectRegion("portrait", L.Portrait, 530, 205, 200, 230);
+            ExpectRegion("sill", L.Sill, 375, 450, 520, 18);
+            ExpectRegion("speech bubble", L.SpeechBubble, 737, 297, 182, 72);
+            ExpectRegion("patrol button", L.PatrolBtn, 450, 655, 180, 40);
+            ExpectRegion("end shift", L.EndShiftBtn, 650, 655, 180, 40);
+            ExpectRegion("questions", L.Questions, 950, 105, 305, 215);
+            ExpectRegion("TL", L.UtilityRecords, 80, 555, 160, 165);
+            ExpectRegion("MAP", L.UtilityMap, 955, 330, 290, 170);
+            ExpectRegion("RN", L.UtilityNotes, 240, 570, 160, 150);
             ExpectRegion("sticky note", L.StickyNote, 390, 200, 500, 320);
             // question buttons: wireframe x=980, y=118, 272x38, step 42 (panel-local grid)
-            Check(Math.Abs(L.Inner.QBtnX - 18) < 0.01f && Math.Abs(L.Inner.QBtnY0 - 45) < 0.01f &&
-                  Math.Abs(L.Inner.QBtnStep - 34) < 0.01f && Math.Abs(L.Inner.QBtnW - 266) < 0.01f &&
-                  Math.Abs(L.Inner.QBtnH - 26) < 0.01f &&
+            Check(Math.Abs(L.Inner.QBtnX - 15) < 0.01f && Math.Abs(L.Inner.QBtnY0 - 60) < 0.01f &&
+                  Math.Abs(L.Inner.QBtnStep - 37) < 0.01f && Math.Abs(L.Inner.QBtnW - 275) < 0.01f &&
+                  Math.Abs(L.Inner.QBtnH - 28) < 0.01f &&
                   L.Inner.QBtnY0 + 4 * L.Inner.QBtnStep <= L.Questions.H + 0.01f,
-                "question buttons == the night-shift panel grid (18,45 + i*34, 266x26), 4 fit");
-            // folder tabs: station-local grid (x=8, y=20, step 26, 304x24) + file rows:
-            // drawer-local grid (x=10, y=28, step 32, 300x30) — 7 rows fit the region
-            Check(Math.Abs(L.Inner.FolderTabX - 21) < 0.01f && Math.Abs(L.Inner.FolderTabY0 - 26) < 0.01f &&
-                  Math.Abs(L.Inner.FolderTabStep - 40) < 0.01f && Math.Abs(L.Inner.FolderTabW - 224) < 0.01f &&
-                  Math.Abs(L.Inner.FolderTabH - 38) < 0.01f,
-                "folder tabs == the registry grid (21,26 + i*40, 224x38)");
-            Check(Math.Abs(L.Inner.FileRowX - 8) < 0.01f && Math.Abs(L.Inner.FileRowY0 - 28) < 0.01f &&
-                  Math.Abs(L.Inner.FileRowStep - 24) < 0.01f && Math.Abs(L.Inner.FileRowW - 225) < 0.01f &&
-                  L.Inner.FileRowY0 + 7 * L.Inner.FileRowStep <= L.FileDrawer.H + 0.01f,
-                "file rows == drawer grid (8,28 + i*24, 225x22) and 7 rows fit");
+                "question buttons == the reference panel grid (15,60 + i*37, 275x28), 4 fit");
+            // folder tabs: station-local grid; file rows: drawer-body grid, starting under the
+            // 52px front lip and the 18px header — a whole floor folder (7 files) fits
+            Check(Math.Abs(L.Inner.FolderTabX - 50) < 0.01f && Math.Abs(L.Inner.FolderTabY0 - 40) < 0.01f &&
+                  Math.Abs(L.Inner.FolderTabStep - 35) < 0.01f && Math.Abs(L.Inner.FolderTabW - 230) < 0.01f &&
+                  Math.Abs(L.Inner.FolderTabH - 34) < 0.01f,
+                "folder tabs == the reference cabinet grid (50,40 + i*35, 230x34): tab + folder body");
+            Check(Math.Abs(L.Inner.FileRowX - 15) < 0.01f && Math.Abs(L.Inner.FileRowY0 - 50) < 0.01f &&
+                  Math.Abs(L.Inner.FileRowStep - 27) < 0.01f && Math.Abs(L.Inner.FileRowW - 250) < 0.01f &&
+                  L.Inner.FileRowY0 + 6 * L.Inner.FileRowStep + L.Inner.FileRowH <= L.Inner.DrawerBodyH + 0.01f,
+                "file rows == the reference drawer grid (15,50 + i*27, 250x22), 7 rows fit the sheet");
+            Check(Math.Abs(L.Inner.DrawerLipH - 28f) < 0.01f &&
+                  Math.Abs(DrawerMotion.TravelPx - (L.FileDrawer.H - L.Inner.DrawerLipH)) < 0.01f,
+                $"the drawer travels exactly its own hidden depth ({DrawerMotion.TravelPx:F0}px): " +
+                "shut = fully behind the front, open = flush with the mouth");
+            Check(CheckpointView.DrawerRowCapacity() >= 7,
+                "the pulled drawer holds a whole floor folder (>= 7 file rows)");
             // the retired appearance check left its slot to the stamp tray: the right
             // column reads questions-above / stamps-below, with the tray hugging the panel
             Check(Mathf.Abs(L.StampAllow.W - L.StampDeny.W) < 0.01f &&
                   Mathf.Abs(L.StampAllow.H - L.StampDeny.H) < 0.01f &&
                   Mathf.Abs(L.StampAllow.Y - L.StampDeny.Y) < 0.01f &&
-                  Mathf.Abs(L.StampDeny.X - L.StampAllow.Right - 8f) < 0.01f &&
+                  Mathf.Abs(L.StampDeny.X - L.StampAllow.Right - 15f) < 0.01f &&   // the reference tray spacing
                   L.StampAllow.Y >= L.UtilityMap.Bottom &&
                   L.StampDeny.Right <= 1275f,
                 "the APPROVE/DECLINE blocks are one aligned row, 8px apart, under the map panel, inside the desk");
             Check(L.StampAllow.W >= 96f && L.StampAllow.H >= 96f,
                 "the stamp blocks keep a comfortable >=96px grab area");
-            Check(L.SpeechBubble.X >= 738f && L.SpeechBubble.Right <= L.Questions.X &&
+            Check(L.SpeechBubble.X >= 735f && L.SpeechBubble.Right <= L.Questions.X &&
                   L.SpeechBubble.Y >= L.Window.Y && L.SpeechBubble.Bottom <= L.Sill.Bottom,
                 "the speech bubble box stays beside the head, clear of the right column and the sill");
             Check(SpeechBubbleLayout.Height(L.Inner.BubbleMaxLines, L.Inner.BubbleLineH,
@@ -254,17 +346,17 @@ namespace FlowCheck
                 "the bubble's maximum text height fits inside its registered box");
             // hint/findings row: wireframe baseline y=72, findings right edge x=1264
             Check(Math.Abs(L.Findings.Right - 1264) < 0.01f, "findings right-aligned at x=1264");
-            Check(Math.Abs(L.Hint.X - 26) < 0.01f, "hint lives in the left slot of the strip under the top bar");
-            Check(L.Hint.Y >= 81 && L.Hint.Bottom <= 108 && L.Findings.Y >= 81 && L.Findings.Bottom <= 108 &&
-                  L.RunStats.Y >= 81 && L.RunStats.Bottom <= 108,
-                "hint/findings/run-stats live in the one row under the 81px top bar (84..105)");
+            Check(Math.Abs(L.Hint.X - 25) < 0.01f, "hint lives in the left slot of the strip under the top bar");
+            Check(L.Hint.Y >= 82 && L.Hint.Bottom <= 110 && L.Findings.Y >= 82 && L.Findings.Bottom <= 110 &&
+                  L.RunStats.Y >= 82 && L.RunStats.Bottom <= 110,
+                "hint/findings/run-stats live in the one strip under the kit board (84..108)");
 
             Console.WriteLine("== grid sanity: on screen, disjoint, contained ==");
             Rows.Clear();
             Add("banner", L.Banner, "B");
             Add("sanity meter", L.SanityMeter, "B");
-            Add("light meter", L.LightMeter, "B");
-            Add("track meter", L.TrackMeter, "B");
+            Add("light meter", L.LightMeter, "E");
+            Add("track meter", L.TrackMeter, "E");
             Add("clock", L.Clock, "B");
             Add("pause", L.Pause, "B");
             Add("run stats", L.RunStats, "B");
@@ -273,21 +365,24 @@ namespace FlowCheck
             Add("hint", L.Hint, "E");
             Add("room info", L.RoomInfo, "E");
             Add("prompt", L.Prompt, "E");
-            Add("records station", L.Station, "B");
+            Add("records station", L.Station, "C");
             Add("file drawer", L.FileDrawer, "C");
-            Add("id card", L.IdCard, "C");
+            Add("id card", L.IdCard, "P");   // P = paper layer: rides over desk furniture
             Add("window", L.Window, "C");
-            Add("sill", L.Sill, "C");
-            Add("speech bubble", L.SpeechBubble, "T");   // transient overlay beside the head
+                    Add("speech bubble", L.SpeechBubble, "T");   // transient overlay beside the head
+    Add("talk dock", L.TalkDock, "C");
+    Add("talk log", L.TalkLog, "T");
             Add("patrol button", L.PatrolBtn, "C");
             Add("end shift button", L.EndShiftBtn, "C");
             Add("questions panel", L.Questions, "C");
-            Add("log button", L.UtilityRecords, "C");
+            Add("log button", L.UtilityRecords, "P");
             Add("map button", L.UtilityMap, "C");
-            Add("rules button", L.UtilityNotes, "C");
-            Add("deny stamp", L.StampDeny, "C");
-            Add("allow stamp", L.StampAllow, "C");
+            Add("rules button", L.UtilityNotes, "P");
+            Add("deny stamp", L.StampDeny, "P");
+            Add("allow stamp", L.StampAllow, "P");
             Add("queue strip left", L.QueueStripL, "C");
+            Add("admin talk panel", L.AdminTalk, "A");      // A = the conversation owns the
+            Add("admin talk bar", L.AdminTalkBar, "A");     // column alone while it is open
             Add("queue strip right", L.QueueStripR, "C");
             Add("toast", L.Toast, "T");
             Add("confirm box", L.ConfirmBox, "T");
@@ -319,6 +414,36 @@ namespace FlowCheck
             AuditFrame(root.HUD.transform, "HudFrame");
         }
 
+        // Centre-Y of an element in its parent's centred space (+y up), pivot- and anchor-aware:
+        // the map's sheets and rows are anchored to different edges, so raw anchoredPosition
+        // values are not comparable — this is.
+        private static float CentreY(RectTransform rt)
+        {
+            // a full-screen parent reports sizeDelta (0,0) because it is anchored to stretch,
+            // so the reference height comes from the canvas: screen px / scaleFactor
+            float parentH = rt.parent != null ? ((RectTransform)rt.parent).sizeDelta.y : 720f;
+            if (parentH <= 0.5f)
+            {
+                var canvas = rt.GetComponentInParent<Canvas>();
+                var root = canvas != null ? canvas.rootCanvas : null;
+                float sf = root != null && root.scaleFactor > 0.01f ? root.scaleFactor : 1f;
+                parentH = Screen.height / sf;
+            }
+            // anchor reference point relative to the PARENT'S centre, then the element's own
+            // anchoredPosition (which its pivot is measured from) — Unity's RectTransform rule
+            float anchorFromCentre = ((rt.anchorMin.y + rt.anchorMax.y) / 2f - 0.5f) * parentH;
+            return anchorFromCentre + rt.anchoredPosition.y;
+        }
+
+        // True when a node carries no pointer/drag handler at all: the strongest form of "this
+        // is not an interactive target any more", and it cannot go stale when a class is deleted.
+        private static bool NoPointerHandler(GameObject go) =>
+            go.GetComponent<UnityEngine.UI.Button>() == null &&
+            go.GetComponent<UnityEngine.EventSystems.IPointerClickHandler>() == null &&
+            go.GetComponent<UnityEngine.EventSystems.IPointerDownHandler>() == null &&
+            go.GetComponent<UnityEngine.EventSystems.IBeginDragHandler>() == null &&
+            go.GetComponent<UnityEngine.EventSystems.IDragHandler>() == null;
+
         private static void CheckInside(string name, L.Region inner, L.Region outer)
         {
             Check(inner.X >= outer.X && inner.Y >= outer.Y && inner.Right <= outer.Right && inner.Bottom <= outer.Bottom,
@@ -348,6 +473,11 @@ namespace FlowCheck
         // ------------------------------------------------- papers pass (drag, pips, hints)
         private static string HintText(GameRoot root) =>
             FindDeep(root.HUD.transform, "objective").GetComponent<UnityEngine.UI.Text>().text;
+
+        // the red interaction strip: the moment-to-moment instruction (the grey objective
+        // strip no longer mirrors it — one instruction per band, owner UI report #2A)
+        private static string PromptText(GameRoot root) =>
+            FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>().text;
 
         private static float StampAlpha(GameRoot root, string stampName) =>
             FindDeep(root.Checkpoint.transform, stampName).GetComponent<UnityEngine.UI.Image>().color.a;
@@ -405,11 +535,12 @@ namespace FlowCheck
             var brt = bubble.GetComponent<RectTransform>();
             Check(Mathf.Abs(brt.anchoredPosition.x - L.SpeechBubble.X) < 0.5f &&
                   Mathf.Abs(-brt.anchoredPosition.y - L.SpeechBubble.Y) < 0.5f &&
-                  L.SpeechBubble.X == 740 && L.SpeechBubble.Y == 288,
-                  "the speech bubble box hangs beside the portrait's head (740,288)");
+                  L.SpeechBubble.X == 737 && L.SpeechBubble.Y == 297,
+                  "the speech bubble box hangs beside the portrait's head (737,297)");
             var bubbleInk = FindDeep(cp.transform, "bubbletext").GetComponent<UnityEngine.UI.Text>().text;
-            Check(bubbleInk.Contains("<color=#6f6d68>AT THE WINDOW</color>"),
-                  "the bubble line carries the student's speaker colour");
+            Check(!bubbleInk.Contains("AT THE WINDOW") && !bubbleInk.Contains("<color=") &&
+                  bubbleInk.Length > 0,
+                  "under the kit skin the bubble carries the spoken line alone (no tag, no markup)");
 
             // both papers are physical
             var idDrag = FindDeep(cp.transform, "idcard").GetComponent<DragPaper>();
@@ -438,15 +569,20 @@ namespace FlowCheck
             // (sprite, photo, rows) scales uniformly through DragPaper.BaseScale, so the
             // design proportions survive and zoom still reads 1x..1.8x of the resting size
             float cardRatio = CheckpointView.IdCardScale;
-            Check(cardRatio >= 0.80f && cardRatio <= 0.85f,
-                "the ID card's resting scale is 15-20% under the old default (got " + cardRatio + ")");
+            Check(cardRatio >= 0.55f && cardRatio <= 0.70f,
+                "the ID card's printed art rests at the concept size (scale " + cardRatio + ")");
             var idGo0 = FindDeep(cp.transform, "idcard");
-            Check(Mathf.Abs(idGo0.GetComponent<RectTransform>().localScale.x - cardRatio) < 0.01f &&
+            var cardArt = idGo0.Find("cardart");
+            Check(cardArt != null &&
+                  Mathf.Abs(cardArt.GetComponent<RectTransform>().localScale.x - cardRatio) < 0.01f &&
+                  Mathf.Abs(idGo0.GetComponent<RectTransform>().localScale.x - 1f) < 0.01f &&
                   Mathf.Abs(idDrag.Zoom - 1f) < 0.01f,
-                "the card rests at the smaller default while Zoom reads 1x");
-            Check(Mathf.Abs(idGo0.GetComponent<RectTransform>().rect.width - 304f) < 0.5f &&
-                  Mathf.Abs(idGo0.GetComponent<RectTransform>().rect.height - 209f) < 0.5f,
-                "the card rect keeps the designed 304x209 slot (aspect untouched, scale does the shrink)");
+                "the container rests at 1x while the art layer carries the concept scale");
+            Check(Mathf.Abs(idGo0.GetComponent<RectTransform>().rect.width - L.IdCard.W) < 0.5f &&
+                  Mathf.Abs(idGo0.GetComponent<RectTransform>().rect.height - L.IdCard.H) < 0.5f &&
+                  Mathf.Abs(cardArt.GetComponent<RectTransform>().rect.width - L.CardArtW) < 0.5f &&
+                  Mathf.Abs(cardArt.GetComponent<RectTransform>().rect.height - L.CardArtH) < 0.5f,
+                "the card footprint is the concept rect; the printed art keeps its 320x220 design space");
 
             // the scanner is gone: dropping the ID anywhere on the open desk is just
             // repositioning — no side effects
@@ -463,8 +599,8 @@ namespace FlowCheck
 
             // question panel: pips, asked-tags, hotkeys, budget-spent reason, scroll testimony
             var budget = FindDeep(cp.transform, "budget").GetComponent<UnityEngine.UI.Text>();
-            Check(budget.text.Contains("1 LEFT") && budget.text.Contains("●") && budget.text.Contains("○"),
-                  "budget pips show one question left after the first ask (got '" + budget.text + "')");
+            Check(budget.text == "1/2",
+                  "the reference counter reads remaining/budget after the first ask (got '" + budget.text + "')");
             var q0 = FindDeep(cp.transform, "q0");
             Check(q0.GetComponent<UnityEngine.UI.Button>().interactable == false &&
                   q0.GetComponentInChildren<UnityEngine.UI.Text>().text.Contains("ASKED"),
@@ -475,8 +611,8 @@ namespace FlowCheck
             var q1 = FindDeep(cp.transform, "q1");
             Check(q1.GetComponentInChildren<UnityEngine.UI.Text>().text.Contains("ASKED"),
                   "hotkey 2 asks the second question while the interview is open");
-            Check(budget.text.Contains("0 LEFT") && !budget.text.Contains("●"),
-                  "budget pips empty out (got '" + budget.text + "')");
+            Check(budget.text == "0/2",
+                  "the reference counter empties to 0/2 (got '" + budget.text + "')");
             UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Alpha3);
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
@@ -492,35 +628,68 @@ namespace FlowCheck
                   FindDeep(cp.transform, "query") == null &&
                   FindDeep(cp.transform, "station").GetComponent<UnityEngine.UI.InputField>() == null,
                   "the old registry terminal is gone: no FIND button, no text input");
-            var drawer = FindDeep(cp.transform, "filedrawer_border");
-            var zone = FindDeep(cp.transform, "drawerzone");
-            var zoneHover = zone.GetComponent<Hollowbrook.UI.HoverSense>();
+            // ---- the floor-files cabinet: a physical pull drawer, not a hover pop-up ----
+            var drawer = FindDeep(cp.transform, "filedrawer_border");   // the mouth: pinned to the grid
+            var body = FindDeep(cp.transform, "drawerbody");            // what actually slides
+            var front = FindDeep(cp.transform, "drawerfront");          // the worn front + handle
+            var shadow = FindDeep(cp.transform, "drawercavity");
+            var cabinet = FindDeep(cp.transform, "station");
+            var pull = cabinet.GetComponent<UnityEngine.UI.Button>();
+            Check(body != null && front != null && pull != null && drawer != null,
+                "DRAWER: the cabinet is one mouth + one sliding body + one front, and the front is the pull");
+            Check(FindDeep(cp.transform, "drawerzone") == null,
+                "DRAWER: the old hover-gated zone is gone — nothing pops open just because the cursor passed");
+            Check(FindDeep(cp.transform, "stationout").parent == cabinet,
+                "DRAWER: the registry readout is printed on the cabinet front — the pulled drawer can never cover it");
             Check(!FindDeep(cp.transform, "folder1").gameObject.activeSelf && !drawer.gameObject.activeSelf,
-                "DRAWER: floor files start HIDDEN inside the closed drawer (front label + handle only)");
-            zoneHover.OnPointerEnter(null);
-            Check(FindDeep(cp.transform, "folder1").gameObject.activeSelf,
-                "DRAWER: hovering the shared area opens it (tabs revealed)");
-            zoneHover.OnPointerEnter(null);
-            Check(FindDeep(cp.transform, "folder1").gameObject.activeSelf,
-                "DRAWER: re-entering (handle -> contents) never flickers it shut");
-            var tab1 = FindDeep(cp.transform, "folder1").GetComponent<UnityEngine.UI.Button>();
-            tab1.onClick.Invoke();
-            Check(!FindDeep(cp.transform, "folder1").gameObject.activeSelf,
-                "DRAWER: selecting a floor file closes the drawer AFTER the selection registers");
-            zoneHover.OnPointerEnter(null);
-            Check(drawer.gameObject.activeSelf && FindDeep(cp.transform, "filerow0") != null,
-                "DRAWER: re-opening shows the selected floor's files");
+                "DRAWER: floor files start HIDDEN inside the shut cabinet (front label + handle only)");
+            // start from a known state: whatever the preceding proofs left behind, push the
+            // drawer home and let the motion finish before measuring the shut geometry
+            cp.CloseFileDrawer(true);
+            DeskFrames(cp, 2);
+            float shutY = body.GetComponent<RectTransform>().anchoredPosition.y;
+            Check(Mathf.Abs(shutY - DrawerMotion.TravelPx) < 0.01f,
+                $"DRAWER: a shut body sits {DrawerMotion.TravelPx:F0}px ABOVE the mouth (desk y {-shutY:F0}), " +
+                "so the cabinet front is all that shows");
+            Check(cp.DrawerPull <= 0f && !cp.DrawerIsOpen, "DRAWER: born shut, with no motion running");
+
+            // the click is answered on the SAME call: no timer, no coroutine, no wind-up
+            pull.onClick.Invoke();
+            Check(cp.DrawerIsOpen && cp.DrawerPull > 0f && drawer.gameObject.activeSelf,
+                "DRAWER: one click on the cabinet front starts the pull immediately (no delay, no pop-in)");
+            float clickFrameOut = DrawerMotion.BodyOffset(cp.DrawerPull);
+            Check(clickFrameOut > 20f && body.GetComponent<RectTransform>().anchoredPosition.y < shutY - 20f,
+                // (anchoredPosition.y falls as the body travels down/out — PlaceTL stores desk y negated)
+                $"DRAWER: the click frame ALREADY has the body {clickFrameOut:F0}px out of the cabinet " +
+                "(the input is answered by the same frame that received it — no wind-up, no pop-in)");
+            Check(clickFrameOut < DrawerMotion.TravelPx * 0.5f,
+                "DRAWER: ...and it travels, rather than jumping straight to the end (a real pull)");
+            DeskFrames(cp, 2);   // two more 60 Hz frames — exactly what the player sees next
+            Check(DrawerMotion.BodyOffset(cp.DrawerPull) > clickFrameOut + 20f,
+                $"DRAWER: the next frames carry it further out ({DrawerMotion.BodyOffset(cp.DrawerPull):F0}px)");
+            Check(shadow.GetComponent<UnityEngine.UI.Image>().color.a > 0.05f,
+                $"DRAWER: the cavity behind the front lip darkens as the body comes out (a={shadow.GetComponent<UnityEngine.UI.Image>().color.a:F2})");
+            DeskFrames(cp, 12);
+            Check(Mathf.Abs(cp.DrawerPull - 1f) < 1e-4f && cp.DrawerIsOpen,
+                "DRAWER: fully out inside a fifth of a second, and it STAYS out (no bounce, no auto-close)");
+            Check(Mathf.Abs(body.GetComponent<RectTransform>().anchoredPosition.y) < 0.01f,
+                "DRAWER: the open body sits flush with the mouth — every file row is reachable");
+            Check(FindDeep(cp.transform, "folder1").gameObject.activeSelf &&
+                  FindDeep(cp.transform, "folder2").gameObject.activeSelf,
+                "DRAWER: the floor folders are only reachable once the drawer is out");
+            Check(FindDeep(cp.transform, "filerow0") != null, "DRAWER: the files came out with it");
+            var rowGroup = FindDeep(cp.transform, "filerow0").GetComponent<CanvasGroup>();
+            Check(rowGroup != null && Mathf.Abs(rowGroup.alpha - 1f) < 1e-3f && rowGroup.blocksRaycasts,
+                "DRAWER: a settled file is fully visible AND clickable");
             var headText = FindDeep(cp.transform, "drawerhead").GetComponent<UnityEngine.UI.Text>().text;
-            Check(headText.Contains("1ST FLOOR") && headText.Contains("7 FILES"),
-                  "the drawer head names the floor and counts its files (got '" + headText + "')");
-            zoneHover.OnPointerExit(null);
-            Check(!drawer.gameObject.activeSelf && !FindDeep(cp.transform, "folder1").gameObject.activeSelf,
-                "DRAWER: leaving the whole interaction area closes it");
-            zoneHover.OnPointerEnter(null);
+            Check(headText.Contains("ROOM 101") && headText.Contains("7 FILES"),
+                  "the drawer head names the room and counts its files (got '" + headText + "')");
+            Check(CheckpointView.DrawerRowCapacity() >= 7,
+                $"DRAWER: the pulled drawer holds a whole floor folder ({CheckpointView.DrawerRowCapacity()} rows)");
 
             // pull a file: same record-window path the old FIND search triggered
             var row0 = FindDeep(cp.transform, "filerow0");
-            string rowName = row0.Find("fname").GetComponent<UnityEngine.UI.Text>().text;
+            string rowName = row0.Find("pill/fname").GetComponent<UnityEngine.UI.Text>().text;
             row0.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Check(FindDeep(cp.transform, "record").gameObject.activeSelf,
                   "clicking a student file pulls it into the record window");
@@ -529,9 +698,11 @@ namespace FlowCheck
                   "the pulled record is the row that was clicked");
             Check(FindDeep(cp.transform, "stationout").GetComponent<UnityEngine.UI.Text>().text.Contains("FOUND:"),
                   "the station readout confirms the pulled file");
-            Check(row0.GetComponent<UnityEngine.UI.Image>().color !=
-                  FindDeep(cp.transform, "filerow1").GetComponent<UnityEngine.UI.Image>().color,
+            Check(row0.Find("pill").GetComponent<UnityEngine.UI.Image>().color !=
+                  FindDeep(cp.transform, "filerow1").Find("pill").GetComponent<UnityEngine.UI.Image>().color,
                   "the selected file row stays highlighted");
+            Check(cp.DrawerIsOpen,
+                  "DRAWER: taking a file leaves the drawer OUT — browsing several files never re-pulls it");
             var closeBtn = FindDeep(cp.transform, "closefile").GetComponent<UnityEngine.UI.Button>();
             closeBtn.onClick.Invoke();
             Check(!FindDeep(cp.transform, "record").gameObject.activeSelf, "the file's X closes the window");
@@ -539,9 +710,9 @@ namespace FlowCheck
             // the second floor folder: different files, and pulling one repopulates the sheet
             var tab2 = FindDeep(cp.transform, "folder2").GetComponent<UnityEngine.UI.Button>();
             tab2.onClick.Invoke();
-            zoneHover.OnPointerEnter(null);   // selecting closed the drawer; reach back in
+            Check(cp.DrawerIsOpen && cp.DrawerFloor == 2, "DRAWER: the other folder swaps the drawer's contents");
             var row2 = FindDeep(cp.transform, "filerow0");
-            string row2Name = row2.Find("fname").GetComponent<UnityEngine.UI.Text>().text;
+            string row2Name = row2.Find("pill/fname").GetComponent<UnityEngine.UI.Text>().text;
             Check(row2Name != rowName, "the second floor folder lists a different set of files");
             row2.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Check(FindDeep(cp.transform, "record").gameObject.activeSelf &&
@@ -549,14 +720,48 @@ namespace FlowCheck
                       .ToUpperInvariant().Contains(row2Name),
                   "pulling from the second folder reopens the record sheet");
 
+            // repeated input: one drawer, one animation, one set of files — never a pile-up
+            int rowsBefore = CountDeep(cp.transform, "filerow0");
+            int bodiesBefore = CountDeep(cp.transform, "drawerbody");
+            pull.onClick.Invoke();   // the open drawer's own toggle: pushes it back in
+            Check(!cp.DrawerIsOpen, "DRAWER: clicking the front again pushes the drawer back in");
+            Check(cp.DrawerPull > 0f, "DRAWER: ...and it starts moving on the click frame, not later");
+            pull.onClick.Invoke();   // yanked straight back out MID-TRAVEL: the motion reverses
+            pull.onClick.Invoke();   // and again — three toggles, still one drawer, one animation
+            pull.onClick.Invoke();   // (an even number, so it ends the way the player left it: out)
+            DeskFrames(cp, 16);
+            Check(CountDeep(cp.transform, "drawerbody") == bodiesBefore && bodiesBefore == 1 &&
+                  CountDeep(cp.transform, "filerow0") == rowsBefore && rowsBefore == 1,
+                "DRAWER: repeated clicks never build a second drawer or a second set of files");
+            Check(Mathf.Abs(cp.DrawerPull - 1f) < 1e-4f,
+                "DRAWER: after the click storm it settles fully open exactly once (no overlapping animation)");
+
+            // keyboard: TAB is the same act as clicking the cabinet front
+            PressDeskKey(cp, KeyCode.Tab);
+            Check(!cp.DrawerIsOpen, "DRAWER: TAB pushes the drawer shut");
+            DeskFrames(cp, 14);
+            Check(cp.DrawerPull <= 0f && !drawer.gameObject.activeSelf &&
+                  !FindDeep(cp.transform, "folder1").gameObject.activeSelf,
+                "DRAWER: closing reverses the motion and restores the shut cabinet (front + handle only)");
+            Check(Mathf.Abs(body.GetComponent<RectTransform>().anchoredPosition.y - shutY) < 0.01f,
+                "DRAWER: the body parks back exactly where it started — no drift across open/close cycles");
+            PressDeskKey(cp, KeyCode.Tab);
+            DeskFrames(cp, 14);
+            Check(cp.DrawerIsOpen && cp.DrawerFloor == 2,
+                "DRAWER: TAB pulls the same drawer back out on the floor it was last opened on");
+
             // empty folder edge: the drawer still opens, with an explicit NO FILES line
             cp.PopulateDrawer(RecordSearch.FloorLabel(3), null, new int[0]);
-            Check(drawer.gameObject.activeSelf && FindDeep(cp.transform, "nofiles") != null &&
+            Check(FindDeep(cp.transform, "nofiles") != null &&
                   FindDeep(cp.transform, "nofiles").GetComponent<UnityEngine.UI.Text>().text.Contains("NO FILES"),
                   "an empty folder shows a NO FILES state");
+            var tab1 = FindDeep(cp.transform, "folder1").GetComponent<UnityEngine.UI.Button>();
             tab1.onClick.Invoke();      // back to the real 1st-floor folder...
+            DeskFrames(cp, 2);
+            Check(FindDeep(cp.transform, "filerow0") != null, "DRAWER: ...and its files come back");
             tab1.onClick.Invoke();      // ...then shut the drawer: clean desk for the next checks
-            Check(!drawer.gameObject.activeSelf, "the drawer closes again after browsing");
+            DeskFrames(cp, 14);
+            Check(!drawer.gameObject.activeSelf && !cp.DrawerIsOpen, "the drawer closes again after browsing");
 
             // the slip: counter -> desk, stamp target, one stamp, pending until hand-back
             var slipGo = FindDeep(cp.transform, "slip");
@@ -565,8 +770,10 @@ namespace FlowCheck
             slipDrag.PlaceCenter(new Vector2(760f, 500f));
             slipDrag.EndDrag();
             Check(cp.PendingVerdict == Verdict.None, "an unstamped slip commits nothing");
-            Check(HintText(root).Contains("STAMP THE SLIP"),
-                  "hint matches state: both papers on the desk (got '" + HintText(root) + "')");
+            Check(PromptText(root).Contains("STAMP THE SLIP"),
+                  "prompt matches state: both papers on the desk (got '" + PromptText(root) + "')");
+            Check(!HintText(root).Contains("STAMP THE SLIP"),
+                  "the grey objective strip no longer duplicates the red prompt (got '" + HintText(root) + "')");
             Check(FindDeep(FindDeep(cp.transform, "offeredid").parent, "dim") == null,
                   "no full-desk dimmer blocks stamps or tools during the hand-over");
             HandBack(root, true, false);
@@ -579,8 +786,8 @@ namespace FlowCheck
                   "the stamp lands on the slip and records a pending verdict");
             Check(FindDeep(cp.transform, "stampoverlay").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
                   "the stamp mark persists on the slip (no fade-out before hand-back)");
-            Check(HintText(root).Contains("HAND BACK"),
-                  "hint matches state: stamped, awaiting hand-back (got '" + HintText(root) + "')");
+            Check(PromptText(root).Contains("HAND BACK"),
+                  "prompt matches state: stamped, awaiting hand-back (got '" + PromptText(root) + "')");
             var soRt = FindDeep(cp.transform, "stampoverlay").GetComponent<RectTransform>();
             Check(soRt.sizeDelta.x > 1f && soRt.sizeDelta.y > 1f,
                   "the stamp overlay has a real size after the drop (visible mark)");
@@ -605,7 +812,7 @@ namespace FlowCheck
             // flip + zoom on the held ID (desk is live here): the black spine is the handle
             var idGo = FindDeep(cp.transform, "idcard");
             var spine = FindDeep(cp.transform, "idstripe");
-            var spineBack = idGo.Find("idback").Find("idstripeback").gameObject;
+            var spineBack = FaceOf(idGo, "idback").Find("idstripeback").gameObject;
             var slipT = FindDeep(cp.transform, "slip").transform;
             Check(idGo.GetComponent<UnityEngine.UI.Button>() == null,
                   "the card BODY is not a flip target any more (clicking it only drags)");
@@ -616,27 +823,27 @@ namespace FlowCheck
                   spineBack.GetComponent<UnityEngine.UI.Image>().raycastTarget,
                   "the black spines (front + mirrored back) are the flip handles: Button, raycast, hand cursor");
             spine.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            Check(idGo.Find("idback").gameObject.activeSelf, "clicking the spine flips the ID to the back face");
+            Check(FaceOf(idGo, "idback").gameObject.activeSelf, "clicking the spine flips the ID to the back face");
             spineBack.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            Check(!idGo.Find("idback").gameObject.activeSelf, "the back face's own spine flips it home (reliable both ways)");
+            Check(!FaceOf(idGo, "idback").gameObject.activeSelf, "the back face's own spine flips it home (reliable both ways)");
 
             // decoupled papers: lift the SLIP last, then flip the ID — the slip must not ride along
             var slipDragC = slipT.GetComponent<DragPaper>();
             slipDragC.BeginDrag();
             slipDragC.EndDrag();      // a tap on the taken slip is the SLIP's own flip
-            Check(slipT.Find("slipback").gameObject.activeSelf, "tapping the taken slip turns the slip over by itself");
+            Check(FaceOf(slipT, "slipback").gameObject.activeSelf, "tapping the taken slip turns the slip over by itself");
             Check(FindDeep(cp.transform, "stampoverlay").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
                   "the stamp mark rides the slip's flip (it stays on the paper)");
             cp.FlipSlip();            // face-up again
-            Check(!slipT.Find("slipback").gameObject.activeSelf && slipT.Find("bg").gameObject.activeSelf,
+            Check(!FaceOf(slipT, "slipback").gameObject.activeSelf && FaceOf(slipT, "bg").gameObject.activeSelf,
                   "and flips the slip back");
             spine.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();   // the slip was touched last...
-            Check(idGo.Find("idback").gameObject.activeSelf,
+            Check(FaceOf(idGo, "idback").gameObject.activeSelf,
                   "...yet clicking the ID's spine flips the ID — never the last-touched paper");
-            Check(!slipT.Find("slipback").gameObject.activeSelf && slipT.Find("bg").gameObject.activeSelf,
+            Check(!FaceOf(slipT, "slipback").gameObject.activeSelf && FaceOf(slipT, "bg").gameObject.activeSelf,
                   "the slip stays exactly as it was: no mirroring, no hidden face");
             cp.FlipLastPaper();       // the F key routes to the last-touched paper — here the slip
-            Check(slipT.Find("slipback").gameObject.activeSelf, "F flips whichever paper was lifted last (here: the slip)");
+            Check(FaceOf(slipT, "slipback").gameObject.activeSelf, "F flips whichever paper was lifted last (here: the slip)");
             var idDragC = idGo.GetComponent<DragPaper>();
             idDragC.BeginDrag(); idDragC.EndDrag();   // retarget zoom to the ID (no move, no tap handler)
             // both papers deliberately STAY face-down here: the desk loop's fresh-visitor
@@ -661,11 +868,11 @@ namespace FlowCheck
             Check(xRt.anchorMin == Vector2.one && xRt.anchorMax == Vector2.one,
                   "the record's exit button is anchored top-right");
             cp.DebugZoom(9f);
-            Check(Mathf.Abs(idGo.localScale.x - 1.8f * cardRatio) < 0.01f &&
+            Check(Mathf.Abs(idGo.localScale.x - 1.8f) < 0.01f &&
                   Mathf.Abs(idGo.GetComponent<DragPaper>().Zoom - 1.8f) < 0.01f,
                 "zoom clamps at 1.8x of the card's resting scale");
             cp.DebugZoom(0.1f);
-            Check(Mathf.Abs(idGo.localScale.x - cardRatio) < 0.01f &&
+            Check(Mathf.Abs(idGo.localScale.x - 1f) < 0.01f &&
                   Mathf.Abs(idGo.GetComponent<DragPaper>().Zoom - 1f) < 0.01f,
                 "zoom clamps at the resting 1x (the smaller default card)");
             cp.DebugZoom(1f);
@@ -674,11 +881,11 @@ namespace FlowCheck
             UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Z);
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
-            Check(Mathf.Abs(idGo.localScale.x - 1.5f * cardRatio) < 0.01f, "Z toggles the last-touched paper to 1.5x");
+            Check(Mathf.Abs(idGo.localScale.x - 1.5f) < 0.01f, "Z toggles the last-touched paper to 1.5x");
             UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Z);
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
-            Check(Mathf.Abs(idGo.localScale.x - cardRatio) < 0.01f, "Z again returns it to the intended 1x size");
+            Check(Mathf.Abs(idGo.localScale.x - 1f) < 0.01f, "Z again returns it to the intended 1x size");
         }
 
         // ---------------------------------------------------- speech bubble proof
@@ -696,9 +903,10 @@ namespace FlowCheck
             var tail = FindDeep(cp.transform, "bubbletail").GetComponent<UnityEngine.UI.Image>();
             Check(bubbleRoot != null && bubbleRoot.gameObject.activeSelf,
                 "SB: the bubble is up while the visitor's greeting is showing");
-            Check(text.text.Contains("AT THE WINDOW"), "SB: the bubble speaks with the student's tag");
-            Check(text.text.StartsWith("<b><color="),
-                "SB: the speaker tag renders bold, in the speaker's own ink");
+            Check(!text.text.Contains("AT THE WINDOW") && text.text.Length > 0,
+                "SB: the reference bubble speaks the line alone — the tail points at the speaker");
+            Check(!text.text.StartsWith("<b><color="),
+                "SB: no speaker-tag markup rides in the kit bubble");
             Check(tail.sprite != null, "SB: the bubble carries its pointing tail");
             bool borderRaycast = false, otherRaycast = false;
             foreach (var img in bubbleRoot.gameObject.GetComponentsInChildren<UnityEngine.UI.Image>(true))
@@ -714,11 +922,12 @@ namespace FlowCheck
                 "SB: the bubble sits under the papers layer — a dragged paper rides over it");
             Check(L.Inner.BubbleTail.X < 0f && L.Inner.BubbleTail.Right > 0f,
                 "SB: the tail straddles the panel's left edge (seamless comics seam)");
-            Check(Mathf.Abs(panel.anchoredPosition.x - L.Inner.BubblePanelX) < 0.01f &&
+            Check(Mathf.Abs(panel.anchoredPosition.x + 48f) < 0.01f &&
                   Mathf.Abs(-panel.anchoredPosition.y) < 0.01f &&
-                  Mathf.Abs(panel.sizeDelta.x - L.Inner.BubblePanelW) < 0.01f,
-                "SB: the panel grows DOWN from the container top at full box width");
-            Check(L.SpeechBubble.X >= 738f &&
+                  Mathf.Abs(panel.anchoredPosition.x + panel.sizeDelta.x - 14f - L.Inner.BubblePanelW) < 0.01f,
+                "SB: the kit panel hangs its painted tail border OUTSIDE the box — the white " +
+                "panel grows down from the container top at exactly the full box width");
+            Check(L.SpeechBubble.X >= 735f &&
                   L.SpeechBubble.Y < L.Portrait.Y + L.Portrait.H / 2f + 40f &&
                   L.SpeechBubble.Bottom < L.Sill.Bottom,
                 "SB: the bubble hangs BESIDE the head — right of the face, at head height, above the sill");
@@ -808,8 +1017,9 @@ namespace FlowCheck
             // the live interview path: the answer pops the bubble beside the head
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.AskQuestion(QuestionId.Course);
-            Check(bubbleRoot.gameObject.activeSelf && text.text.Contains("AT THE WINDOW"),
-                "SB: the asked question's answer arrives in the bubble");
+            Check(bubbleRoot.gameObject.activeSelf && !text.text.Contains("AT THE WINDOW") &&
+                  text.text.Length > 0 && !text.text.Contains("Good evening"),
+                "SB: the asked question's answer arrives in the bubble (line alone, tag retired)");
             Check(!text.text.Contains("Your course?"),
                 "SB: the bubble carries the STUDENT's answer (the button shows the question asked)");
 
@@ -837,6 +1047,7 @@ namespace FlowCheck
 
             var desk = FindDeep(cp.transform, "DeskFrame");
             var slipT = FindDeep(cp.transform, "slip").GetComponent<RectTransform>();
+            var slipArt = slipT.Find("slipart").GetComponent<RectTransform>();
             var soRt = FindDeep(cp.transform, "stampoverlay").GetComponent<RectTransform>();
             Check(FindDeep(cp.transform, "stampbox") == null,
                 "SP: no printed target box — the drop point decides where the mark lands");
@@ -848,10 +1059,10 @@ namespace FlowCheck
             slipDrag0.Zoom = 1.5f;                // the Z-zoom path: the drop must map through the scale
             Check(Mathf.Abs(slipDrag0.Zoom - 1.5f) < 0.01f, "SP: the slip is zoomed to 1.5x for the drop");
             var want = InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null);
-            StampAtPoint(root, want, new Vector2(810f, 530f));   // centre of the 1.5x slip
+            StampAtPoint(root, want, new Vector2(797.5f, 522.5f));   // centre of the 1.5x slip
             Check(cp.SlipStamped && cp.PendingVerdict == want,
                 "SP: the drop stamps the slip and records the pending verdict (workflow preserved)");
-            Check(soRt.parent == slipT, "SP: the mark is a layer OF THE SLIP (it rides the paper)");
+            Check(soRt.parent == slipArt, "SP: the mark is a layer OF THE SLIP (it rides the paper)");
             var markImg = soRt.GetComponent<UnityEngine.UI.Image>();
             Check(markImg.sprite != null &&
                   markImg.sprite.name == (want == Verdict.Allow ? "stamp_allow" : "stamp_reject"),
@@ -862,12 +1073,13 @@ namespace FlowCheck
             float grow = soRt.sizeDelta.x / 45f - 1f;           // 45px = the previous size
             Check(grow > 0.30f && grow < 0.40f,
                 $"SP: the mark is {grow:P1} LARGER than the 45px baseline (target 30-40%)");
-            Check(soRt.sizeDelta.x <= slipT.rect.width * 0.33f,
-                $"SP: the mark covers {soRt.sizeDelta.x / slipT.rect.width:P0} of the slip's width — ink over paper, never a panel");
+            Check(soRt.sizeDelta.x <= slipArt.rect.width * 0.33f,
+                $"SP: the mark covers {soRt.sizeDelta.x / slipArt.rect.width:P0} of the slip's width — ink over paper, never a panel");
             var top = new Vector2(slipT.anchoredPosition.x, -slipT.anchoredPosition.y);
-            var local = StampPlacement.DeskToLocal(810f, 530f, top.x, top.y,
-                slipT.localScale.x, slipT.localEulerAngles.z);
-            local = StampPlacement.ClampToPrintable(local, slipT.rect.width, slipT.rect.height,
+            float slipScale = slipT.localScale.x * slipArt.localScale.x;   // zoom * printed scale
+            var local = StampPlacement.DeskToLocal(797.5f, 522.5f, top.x, top.y,
+                slipScale, slipT.localEulerAngles.z);
+            local = StampPlacement.ClampToPrintable(local, slipArt.rect.width, slipArt.rect.height,
                 CheckpointView.StampMarkSize, CheckpointView.StampMaxTilt, CheckpointView.StampEdgePad);
             float mx = soRt.anchoredPosition.x, my = -soRt.anchoredPosition.y;
             Check(Mathf.Abs(slipT.localScale.x - 1.5f) < 0.01f &&
@@ -875,23 +1087,25 @@ namespace FlowCheck
                 $"SP: the centre drop on the ZOOMED slip maps through its scale (got {mx:F1},{my:F1} want {local.X:F1},{local.Y:F1})");
             Check(Mathf.Abs(mx - 100f) < 12f && Mathf.Abs(my - 60f) < 12f,
                 $"SP: ...and lands in the slip's middle, not a fixed corner (got {mx:F1},{my:F1})");
-            Check(Mathf.Abs(slipT.localScale.x * soRt.localScale.x - 1.5f) < 0.01f,
-                "SP: the mark zooms WITH the slip (it inherits the paper's scale)");
+            Check(Mathf.Abs(slipT.localScale.x - 1.5f) < 0.01f &&
+                  Mathf.Abs(slipArt.localScale.x - L.SlipScale) < 0.01f &&
+                  Mathf.Abs(soRt.localScale.x - 1f) < 0.01f,
+                "SP: the mark zooms WITH the slip (it inherits the paper's scale chain)");
             float ang = Mathf.Abs(soRt.localEulerAngles.z);
             ang = Mathf.Min(ang, 360f - ang);
             float rad = ang * Mathf.Deg2Rad;
             float bound = soRt.sizeDelta.x * (Mathf.Cos(rad) + Mathf.Sin(rad)) / 2f;
-            Check(mx - bound >= -0.01f && mx + bound <= slipT.rect.width + 0.01f &&
-                  my - bound >= -0.01f && my + bound <= slipT.rect.height + 0.01f,
-                $"SP: the tilted mark stays fully inside the slip (bounds ±{bound:F1} in {slipT.rect.width}x{slipT.rect.height})");
+            Check(mx - bound >= -0.01f && mx + bound <= slipArt.rect.width + 0.01f &&
+                  my - bound >= -0.01f && my + bound <= slipArt.rect.height + 0.01f,
+                $"SP: the tilted mark stays fully inside the slip (bounds ±{bound:F1} in {slipArt.rect.width}x{slipArt.rect.height})");
 
             // the mark rides the paper: drag the stamped slip elsewhere
             Vector2 markBefore = new Vector2(soRt.anchoredPosition.x, soRt.anchoredPosition.y);
             float cA = Mathf.Cos(slipT.localEulerAngles.z * Mathf.Deg2Rad);
             float sA = Mathf.Sin(slipT.localEulerAngles.z * Mathf.Deg2Rad);
             float lx = markBefore.x, ly = -markBefore.y;
-            Vector2 deskBefore = new Vector2(top.x + (lx * cA + ly * sA) * slipT.localScale.x,
-                                             top.y + (-lx * sA + ly * cA) * slipT.localScale.x);
+            Vector2 deskBefore = new Vector2(top.x + (lx * cA + ly * sA) * slipScale,
+                                             top.y + (-lx * sA + ly * cA) * slipScale);
             var slipDrag = slipT.GetComponent<DragPaper>();
             slipDrag.BeginDrag();
             slipDrag.PlaceCenter(new Vector2(620f, 540f));
@@ -899,9 +1113,9 @@ namespace FlowCheck
             Check(Mathf.Abs(slipDrag.Zoom - 1.5f) < 0.01f,
                 "SP: lifting and dropping never loses the slip's zoom");
             var top2 = new Vector2(slipT.anchoredPosition.x, -slipT.anchoredPosition.y);
-            Vector2 deskAfter = new Vector2(top2.x + (lx * cA + ly * sA) * slipT.localScale.x,
-                                            top2.y + (-lx * sA + ly * cA) * slipT.localScale.x);
-            Check(soRt.parent == slipT &&
+            Vector2 deskAfter = new Vector2(top2.x + (lx * cA + ly * sA) * slipScale,
+                                            top2.y + (-lx * sA + ly * cA) * slipScale);
+            Check(soRt.parent == slipArt &&
                   Mathf.Abs(soRt.anchoredPosition.x - markBefore.x) < 0.01f &&
                   Mathf.Abs(soRt.anchoredPosition.y - markBefore.y) < 0.01f,
                 "SP: dragging the slip keeps the mark at the same spot ON THE PAPER");
@@ -983,104 +1197,107 @@ namespace FlowCheck
             return null;
         }
 
-        // --------------------------------------- face comparison (ID photo -> window face)
-        // The mechanic is informational and data-truthful: the cue follows VisitorData.
-        // PhotoMatches (window portrait vs the photo printed on the card — the very structs
-        // RosterFactory swaps for PhotoMismatch / PhotoSubtleMismatch), never a coin flip.
-        private static void FaceCompareProof(GameRoot root)
+        // --------------------------- the retired ID-photo / face matching mechanic
+        // The click-the-photo-then-click-the-face comparison is GONE: no click targets, no
+        // selection state, no cue, no prompts, no code left that could resurrect it. What must
+        // SURVIVE is everything the faces themselves are for — the window portrait and the ID
+        // photo still render the right sprites, still centred in their slots, because the
+        // anomaly system (PhotoMismatch / PhotoSubtleMismatch) is an EYE-CHECK: the player
+        // compares them with no help from the desk.
+        private static void FaceMatchRetiredProof(GameRoot root)
         {
-            Console.WriteLine("== face comparison: ID photo, then the face at the window ==");
+            Console.WriteLine("== ID-photo / face matching: removed from the desk ==");
             var cp = root.Checkpoint;
             int guard = 0;
             while (cp.CurrentVisitor == null && guard++ < 8) cp.AdvanceQueue(6f);
-            Check(cp.CurrentVisitor != null, "FC: a visitor is at the window for the face proof");
+            Check(cp.CurrentVisitor != null, "FM: a visitor is at the window for the removal proofs");
             if (cp.CurrentVisitor == null) return;
             cp.DebugTakeDocuments();
-            var photo = FindDeep(cp.transform, "idphoto");
-            var photoHit = FindDeep(cp.transform, "idphotohit");
-            var sel = photoHit != null ? photoHit.GetComponent<IdPhotoSelect>() : null;
-            var portrait = FindDeep(cp.transform, "visitor");
-            var portraitHit = FindDeep(cp.transform, "visitorhit");
-            var click = portraitHit != null ? portraitHit.GetComponent<ClickSense>() : null;
-            Check(sel != null && photoHit.GetComponent<UnityEngine.UI.Image>().raycastTarget &&
-                  !photo.GetComponent<UnityEngine.UI.Image>().raycastTarget,
-                "FC: the ID photograph has its own click-catcher; the letterboxed Image stays click-through");
-            Check(click != null && portraitHit.GetComponent<UnityEngine.UI.Image>().raycastTarget &&
-                  !portrait.GetComponent<UnityEngine.UI.Image>().raycastTarget,
-                "FC: the student at the window is clickable through a hitbox fitted to the displayed sprite");
-            // the hitboxes match the PIXELS, not the slot: preserveAspect letterboxes inside it
-            var pImg = photo.GetComponent<UnityEngine.UI.Image>();
-            var prRect = photo.GetComponent<RectTransform>().rect;
-            var wantBox = Hollowbrook.UI.UIFactory.Letterbox(prRect.width, prRect.height,
-                pImg.sprite.rect.width, pImg.sprite.rect.height);
-            var hitRt = photoHit.GetComponent<RectTransform>();
-            Check(Mathf.Abs(hitRt.sizeDelta.x - wantBox.W) < 0.01f &&
-                  Mathf.Abs(hitRt.sizeDelta.y - wantBox.H) < 0.01f &&
-                  Mathf.Abs(hitRt.anchoredPosition.x - wantBox.X) < 0.01f &&
-                  Mathf.Abs(-hitRt.anchoredPosition.y - wantBox.Y) < 0.01f,
-                $"FC: the photo hitbox is the letterboxed sprite rect ({wantBox.W:F0}x{wantBox.H:F0} in {prRect.width:F0}x{prRect.height:F0}), at any card zoom or position");
-            var vImg = portrait.GetComponent<UnityEngine.UI.Image>();
-            var vRect = portrait.GetComponent<RectTransform>().rect;
-            var wantV = Hollowbrook.UI.UIFactory.Letterbox(vRect.width, vRect.height,
-                vImg.sprite.rect.width, vImg.sprite.rect.height);
-            var vHitRt = portraitHit.GetComponent<RectTransform>();
-            Check(Mathf.Abs(vHitRt.sizeDelta.x - wantV.W) < 0.01f &&
-                  Mathf.Abs(vHitRt.sizeDelta.y - wantV.H) < 0.01f,
-                "FC: the student hitbox matches the displayed portrait, scaled or not");
-            var selBorder = FindDeep(cp.transform, "photosel").GetComponent<UnityEngine.UI.Image>();
-            var cueBorder = FindDeep(cp.transform, "facecue").GetComponent<UnityEngine.UI.Image>();
-            Check(selBorder.sprite != null && selBorder.sprite.name == "outline_frame" &&
-                  cueBorder.sprite != null && cueBorder.sprite.name == "outline_frame",
-                "FC: selection/cue inks are HOLLOW frames — they outline, never cover, the photo");
-            Check(Mathf.Abs(selBorder.color.a) < 0.01f && Mathf.Abs(cueBorder.color.a) < 0.01f,
-                "FC: born unselected, with no cue playing");
 
-            // wrong order first: the student click asks for the photo instead of guessing
-            cp.DebugClickWindowStudent();
-            Check(!cp.FacePhotoSelected && Mathf.Abs(cueBorder.color.a) < 0.01f,
-                "FC: clicking the student first compares nothing — it asks for the ID photo");
-            string toast = FindDeep(root.HUD.transform, "toast").GetComponent<UnityEngine.UI.Text>().text;
-            Check(toast.Contains("ID PHOTO first"),
-                "FC: ...with a one-line instruction (got '" + toast + "')");
+            // 1) nothing on the desk is a face-matching widget any more
+            string[] gone = { "idphotohit", "visitorhit", "photosel", "facecue" };
+            foreach (var n in gone)
+                Check(FindDeep(cp.transform, n) == null, "FM: '" + n + "' is gone from the desk");
+            var photoNode = FindDeep(cp.transform, "idphoto").gameObject;
+            var portraitNode = FindDeep(cp.transform, "visitor").gameObject;
+            Check(NoPointerHandler(photoNode) && NoPointerHandler(portraitNode),
+                "FM: no pointer handler of ANY kind survives on the photo or the portrait");
+            var photoImg = FindDeep(cp.transform, "idphoto").GetComponent<UnityEngine.UI.Image>();
+            var portraitImg = FindDeep(cp.transform, "visitor").GetComponent<UnityEngine.UI.Image>();
+            Check(!photoImg.raycastTarget && !portraitImg.raycastTarget,
+                "FM: the ID photo and the face at the window take NO clicks — they are printed ink and scenery");
+            Check(FindDeep(cp.transform, "idphoto").GetComponent<UnityEngine.UI.Button>() == null &&
+                  FindDeep(cp.transform, "visitor").GetComponent<UnityEngine.UI.Button>() == null,
+                "FM: neither face is a button, so neither can be a matching target");
 
-            // a clean click on the photo selects it (thin outline on the PHOTO, not the card)
-            sel.OnEndDrag(new UnityEngine.EventSystems.PointerEventData());
-            Check(cp.FacePhotoSelected && selBorder.color.a > 0.5f,
-                "FC: a clean click on the photograph selects it");
-            var photoRt = photo.GetComponent<RectTransform>();
-            var cardRt0 = FindDeep(cp.transform, "idcard").GetComponent<RectTransform>();
-            Check(selBorder.rectTransform.parent == photoRt && cardRt0 != photoRt &&
-                  selBorder.rectTransform.anchorMin == Vector2.zero &&
-                  selBorder.rectTransform.anchorMax == Vector2.one &&
-                  selBorder.rectTransform.offsetMin == Vector2.zero &&
-                  selBorder.rectTransform.offsetMax == Vector2.zero &&
-                  !selBorder.raycastTarget,
-                "FC: the hollow selection frame is stretched over the PHOTOGRAPH alone and eats no clicks");
-
-            // a real drag that STARTS on the photo still drags the card (forwarded past 6px)
+            // 2) the card is still one draggable object: the photo no longer eats the gesture
             var cardRt = FindDeep(cp.transform, "idcard").GetComponent<RectTransform>();
-            Vector2 before = cardRt.anchoredPosition;
-            sel.OnBeginDrag(new UnityEngine.EventSystems.PointerEventData());
-            sel.OnDrag(new UnityEngine.EventSystems.PointerEventData { delta = new Vector2(40f, 10f) });
-            sel.OnEndDrag(new UnityEngine.EventSystems.PointerEventData());
-            Check(Vector2.Distance(cardRt.anchoredPosition, before) > 5f && cp.FacePhotoSelected,
-                "FC: dragging from the photo still moves the card — and does not toggle the selection");
+            var cardDrag = FindDeep(cp.transform, "idcard").GetComponent<DragPaper>();
+            Check(FindDeep(cp.transform, "idcard").GetComponent<UnityEngine.UI.Image>().raycastTarget && cardDrag != null,
+                "FM: the card body still owns the pointer (dragging by the photo works again)");
+            Vector2 cardBefore = cardRt.anchoredPosition;
+            cardDrag.BeginDrag();
+            cardDrag.DragBy(new Vector2(40f, 10f));
+            cardDrag.EndDrag();
+            Check(Vector2.Distance(cardRt.anchoredPosition, cardBefore) > 5f,
+                "FM: a drag that starts on the photograph still moves the card");
 
-            // compare: the cue follows the run's own pairing truth, briefly, then clears
-            bool stampedBefore = cp.SlipStamped;
-            var pendBefore = cp.PendingVerdict;
-            bool want = cp.CurrentVisitor.PhotoMatches;
-            bool got = cp.DebugCompareFaces();
-            Check(got == want, $"FC: the comparison follows the pairing truth (PhotoMatches={want})");
-            Check(!cp.FacePhotoSelected, "FC: the comparison consumes the selection");
-            Check(cp.FaceCueCount == 1, "FC: exactly one cue played for one comparison (no pile-up)");
-            Check(cp.LastFaceCueMatch == want, "FC: the cue that played matches the pairing truth");
-            Check(Mathf.Abs(cueBorder.color.a) < 0.01f,
-                "FC: the cue clears itself when the pulse ends (brief, never lingering)");
-            Check(cp.SlipStamped == stampedBefore && cp.PendingVerdict == pendBefore,
-                "FC: the cue changes no verdict state — stamping stays the player's call");
+            // 3) no prompt, toast or note anywhere teaches the removed mechanic
+            string toast = FindDeep(root.HUD.transform, "toast").GetComponent<UnityEngine.UI.Text>().text;
+            string hint = FindDeep(root.HUD.transform, "objective").GetComponent<UnityEngine.UI.Text>().text;
+            var allText = new System.Text.StringBuilder();
+            CollectText(cp.transform, allText);
+            CollectText(root.HUD.transform, allText);
+            string desk = allText.ToString();
+            Check(!toast.Contains("ID PHOTO") && !hint.Contains("ID PHOTO") &&
+                  !desk.Contains("ID PHOTO first") && !desk.Contains("ID photo selected"),
+                "FM: no instruction to click the ID photo survives in any desk/HUD text");
+            Check(!desk.Contains("green frame") && !desk.Contains("second-opinion"),
+                "FM: no comparison-result wording survives (green/amber cue language is gone)");
 
-            // temporary face/stamp assets ship in the project's own override folder
+            // 4) the faces themselves still work — the eye-check the anomaly system relies on
+            var v = cp.CurrentVisitor;
+            Check(photoImg.sprite != null && portraitImg.sprite != null &&
+                  photoImg.sprite.name != "face_placeholder" && portraitImg.sprite.name != "face_placeholder",
+                "FM: the ID photo and the window portrait still render real faces");
+            var offeredImg = FindDeep(cp.transform, "photo").GetComponent<UnityEngine.UI.Image>();
+            Check(offeredImg.sprite != null && offeredImg.sprite.name != "face_placeholder" &&
+                  !offeredImg.raycastTarget,
+                "FM: the counter card's photo renders the same face — and is not clickable either");
+
+            var vWant = Hollowbrook.UI.UIFactory.Letterbox(L.Portrait.W, L.Portrait.H,
+                portraitImg.sprite.rect.width, portraitImg.sprite.rect.height);
+            var vRt = portraitImg.GetComponent<RectTransform>();
+            Check(Mathf.Abs(vRt.sizeDelta.x - vWant.W) < 0.5f && Mathf.Abs(vRt.sizeDelta.y - vWant.H) < 0.5f &&
+                  Mathf.Abs(vRt.anchoredPosition.x - vWant.X) < 0.5f,
+                $"FM: the portrait rect IS the letterbox of its sprite, centred in the window ({vWant.W:F0}x{vWant.H:F0})");
+            var pWant = Hollowbrook.UI.UIFactory.Letterbox(L.Inner.IdPhoto.W, L.Inner.IdPhoto.H,
+                photoImg.sprite.rect.width, photoImg.sprite.rect.height);
+            var pRt = photoImg.GetComponent<RectTransform>();
+            Check(Mathf.Abs(pRt.sizeDelta.x - pWant.W) < 0.5f && Mathf.Abs(pRt.sizeDelta.y - pWant.H) < 0.5f,
+                "FM: the ID photo rect IS the letterbox of its sprite inside the card slot");
+            Check(FaceArt.WindowSprite(v) != null && FaceArt.IdSprite(v) != null,
+                "FM: FaceArt still resolves both faces (the identity chain is untouched)");
+
+            // 5) no white boxes anywhere on the desk: a null-sprite Image would render uGUI white.
+            // Solid panels are sprite-less BY DESIGN, so the invariant is: every face-chain Image
+            // has a real sprite when visible, and every sprite-less overlay ink is transparent.
+            bool inkLeak = false;
+            foreach (var n in new[] { "stampoverlay" })
+            {
+                var t = FindDeep(cp.transform, n);
+                if (t == null) continue;
+                var im = t.GetComponent<UnityEngine.UI.Image>();
+                if (im != null && im.sprite == null && im.color.a > 0.01f) inkLeak = true;
+            }
+            Check(!inkLeak, "FM: sprite-less overlay inks stay fully transparent until they mean something");
+
+            // 6) the pairing TRUTH the removed cue used to show is still in the data, so
+            // anomaly detection, scoring and the fairness invariants never depended on the widget
+            Check(v.DisplayedFacesMatch == (!v.IsAnomaly || !v.Defects.Contains(DefectType.PhotoMismatch)),
+                "FM: DisplayedFacesMatch still reports the run's own pairing truth (data, not UI)");
+
+            // temporary face/stamp assets still ship in the project's own override folder
             string rootDir = RepoRoot();
             string artDir = rootDir == null ? null :
                 System.IO.Path.Combine(rootDir, "Assets/_Project/Resources/Art");
@@ -1091,50 +1308,241 @@ namespace FlowCheck
             for (int i = 1; i <= Hollowbrook.Logic.FaceAssets.StudentFaceCount && allFaces; i++)
                 allFaces &= System.IO.File.Exists(System.IO.Path.Combine(artDir,
                     Hollowbrook.Logic.FaceAssets.AnomalyKey(i - 1) + ".png"));   // paired variants
-            Check(allFaces, "FC: every temporary student/anomaly face asset ships under Resources/Art");
+            Check(allFaces, "FM: every temporary student/anomaly face asset still ships under Resources/Art");
             Check(artDir != null && System.IO.File.Exists(
                 System.IO.Path.Combine(artDir, "stamp_approval_temp.png")),
-                "FC: the temporary approval stamp asset ships under Resources/Art");
+                "FM: the temporary approval stamp asset still ships under Resources/Art");
             Check(cp.CurrentVisitor.FaceAssetIndex >= 0 || cp.CurrentVisitor.IsAdministrator,
-                "FC: visitors carry a stable face-asset index (admin excepted)");
+                "FM: visitors still carry a stable face-asset index (admin excepted)");
             int fidx = cp.CurrentVisitor.FaceAssetIndex;
             Check(fidx < 0 || Hollowbrook.Logic.FaceAssets.WindowKey(fidx, true) ==
                   Hollowbrook.Logic.FaceAssets.StudentKey(fidx) + "_anomaly",
-                "FC: the anomaly variant is paired with the same student as the normal portrait");
-            // no white boxes anywhere on the desk: a null-sprite Image would render uGUI white
-            // the bug class: a face slot (or any sprite-carrying slot) showing uGUI's default
-            // white texture. Solid panels are sprite-less BY DESIGN, so the invariant is: every
-            // face-chain Image has a real sprite when visible, and every sprite-less overlay ink
-            // (selection frame, cue frame, stamp mark pre-stamp) is fully transparent.
-            var offeredImg = FindDeep(cp.transform, "photo").GetComponent<UnityEngine.UI.Image>();
-            Check(pImg.sprite != null && vImg.sprite != null && offeredImg.sprite != null,
-                "FC: photo, window portrait and counter photo all carry real sprites (no white texture)");
-            var vWant = Hollowbrook.UI.UIFactory.Letterbox(L.Portrait.W, L.Portrait.H,
-                vImg.sprite.rect.width, vImg.sprite.rect.height);
-            var vRt = portrait.GetComponent<RectTransform>();
-            Check(Mathf.Abs(vRt.sizeDelta.x - vWant.W) < 0.5f && Mathf.Abs(vRt.sizeDelta.y - vWant.H) < 0.5f &&
-                  Mathf.Abs(vRt.anchoredPosition.x - vWant.X) < 0.5f,
-                $"FC: the portrait Image rect IS the letterbox of its sprite, centred in the window ({vWant.W:F0}x{vWant.H:F0})");
-            var pWant = Hollowbrook.UI.UIFactory.Letterbox(L.Inner.IdPhoto.W, L.Inner.IdPhoto.H,
-                pImg.sprite.rect.width, pImg.sprite.rect.height);
-            var pRt = photo.GetComponent<RectTransform>();
-            Check(Mathf.Abs(pRt.sizeDelta.x - pWant.W) < 0.5f && Mathf.Abs(pRt.sizeDelta.y - pWant.H) < 0.5f,
-                "FC: the ID photo Image rect IS the letterbox of its sprite inside the card slot");
-            bool inkLeak = false;
-            foreach (var n in new[] { "photosel", "facecue", "stampoverlay", "idphotohit", "visitorhit" })
+                "FM: the anomaly variant is still paired with the same student as the normal portrait");
+        }
+
+        // ------------------------------------------------- ground-floor plan (map overlay)
+        // The sheet is authored once in FloorPlan's design space and FITTED to the screen, so
+        // these proofs measure the real built rects: centred at the reference resolution, still
+        // centred and fully visible at other resolutions, every room on the plan, the sealed
+        // room unreachable, and the comfort rooms present without becoming patrol targets.
+        private static void MapProof(GameRoot root)
+        {
+            Console.WriteLine("== ground-floor map: hand-drawn plan, centred and data-driven ==");
+            var map = root.MapScreen;
+            Check(map != null, "MAP: the map view exists");
+            if (map == null) return;
+
+            Check(FloorPlan.LayoutIsSane(out string layoutProblem),
+                "MAP: the floor plan's rooms are all on the sheet and none overlap" +
+                (layoutProblem != null ? " (" + layoutProblem + ")" : ""));
+
+            int w0 = Screen.width, h0 = Screen.height;
+            Screen.width = 1280; Screen.height = 720;      // the reference resolution
+            root.OpenMap();
+            Check(root.State == AppViewState.Map && map.gameObject.activeSelf, "MAP: M opens the plan");
+
+            var sheet = map.Sheet;
+            var plan = map.PlanRoot;
+            Check(Mathf.Abs(sheet.anchoredPosition.x) < 0.01f && Mathf.Abs(sheet.anchoredPosition.y) < 0.01f,
+                $"MAP: the sheet is dead-centre of the screen ({sheet.anchoredPosition})");
+            Check(sheet.anchorMin == new Vector2(0.5f, 0.5f) && sheet.anchorMax == new Vector2(0.5f, 0.5f) &&
+                  sheet.pivot == new Vector2(0.5f, 0.5f),
+                "MAP: ...by construction (centre anchor + centre pivot), not by a hand-tuned offset");
+            Check(Mathf.Abs(sheet.sizeDelta.x - FloorPlan.DesignW * map.PaperScale) < 0.01f &&
+                  Mathf.Abs(sheet.sizeDelta.y - FloorPlan.DesignH * map.PaperScale) < 0.01f,
+                $"MAP: the sheet keeps the plan's {FloorPlan.DesignW:F0}x{FloorPlan.DesignH:F0} aspect " +
+                $"at its fitted scale ({map.PaperScale:F3})");
+            Check(sheet.sizeDelta.x <= 1280f + 0.01f && sheet.sizeDelta.y <= 720f + 0.01f,
+                $"MAP: the whole sheet is on screen ({sheet.sizeDelta.x:F0}x{sheet.sizeDelta.y:F0} in 1280x720)");
+            Check(Mathf.Abs(plan.anchoredPosition.x) < 0.01f,
+                "MAP: the plan is centred horizontally inside the sheet");
+            Check(Mathf.Abs(plan.anchoredPosition.y) < 40f,
+                $"MAP: the plan sits between the title band and the control band (y={plan.anchoredPosition.y:F1})");
+
+            // the title, the plan and the bottom controls are one centred stack
+            var title = map.Title;
+            Check(title != null && title.text == FloorPlan.Title &&
+                  title.text.Contains("HOLLOWBROOK COLLEGE") && title.text.Contains("GROUND FLOOR"),
+                "MAP: the sheet carries the HOLLOWBROOK COLLEGE — GROUND FLOOR title");
+            Check(title.font == UIFactory.HandFont, "MAP: the title is set in the handwritten plan face");
+            var closeRow = map.CloseRow;
+            Check(closeRow != null && Mathf.Abs(closeRow.anchoredPosition.x) < 0.01f,
+                "MAP: CLOSE is centred with the sheet");
+            var closeBtn = closeRow.GetComponent<UnityEngine.UI.Button>();
+            Check(closeBtn != null, "MAP: CLOSE is still a real button");
+            Check(closeBtn != null && closeBtn.targetGraphic != null && closeBtn.targetGraphic.raycastTarget,
+                "MAP: ...and its graphic actually takes the click (a raycast-off target is a dead button)");
+            bool everyBtnHasTarget = true;
+            foreach (var def in FloorPlan.Rooms)
             {
-                var t = FindDeep(cp.transform, n);
-                if (t == null) continue;
-                var im = t.GetComponent<UnityEngine.UI.Image>();
-                if (im != null && im.sprite == null && im.color.a > 0.01f) inkLeak = true;
+                var node = map.RoomNode(def.Key);
+                var b = node.GetComponent<UnityEngine.UI.Button>();
+                if (b == null) { if (!def.Sealed) everyBtnHasTarget = false; continue; }
+                if (b.targetGraphic == null || !b.targetGraphic.raycastTarget) everyBtnHasTarget = false;
             }
-            Check(!inkLeak, "FC: sprite-less overlay inks stay fully transparent until they mean something");
-            Check(pImg.sprite != null && pImg.sprite.name != "face_placeholder",
-                "FC: the ID photo shows a real face sprite once the visitor is presented");
-            int idx = cp.CurrentVisitor.FaceAssetIndex;
-            Check(Hollowbrook.Logic.FaceAssets.WindowKey(idx, false) ==
-                  Hollowbrook.Logic.FaceAssets.WindowKey(idx, false),
-                "FC: the same student always maps to the same face key (stable identity)");
+            Check(everyBtnHasTarget,
+                "MAP: every clickable room has a raycast-enabled target graphic (none of them can be a dead click)");
+            // centred space: +y up from the screen centre, whatever the element's own anchor is
+            // CLOSE is anchored to the screen's bottom edge with a centre pivot, so its
+            // anchoredPosition.y is measured UP from that edge: screen-centre space is
+            // y = -visibleH/2 + anchoredPosition.y
+            float sheetBottom = CentreY(sheet) - sheet.sizeDelta.y / 2f;
+            float closeCentre = -360f + closeRow.anchoredPosition.y;
+            float closeTop = closeCentre + closeRow.sizeDelta.y / 2f;
+            float closeBottom = closeCentre - closeRow.sizeDelta.y / 2f;
+            Check(closeTop <= sheetBottom - 2f && closeBottom >= -360f && closeTop <= 360f,
+                $"MAP: CLOSE hangs {sheetBottom - closeTop:F0}px under the sheet, fully on screen, never over the plan");
+
+            // ---- every room the reference drawing asks for, in the right place ----
+            var hall = FloorPlan.ForRoom(RoomId.Hallway);
+            var c1 = FloorPlan.ForRoom(RoomId.Classroom1);
+            var c2 = FloorPlan.ForRoom(RoomId.Classroom2);
+            var sec = FloorPlan.ForRoom(RoomId.Security);
+            Check(hall.HasValue && c1.HasValue && c2.HasValue && sec.HasValue,
+                "MAP: the hallway, both classrooms and the security room are all on the plan");
+            var hallNode = map.RoomNode("room_hallway");
+            var c1Node = map.RoomNode("room_classroom1");
+            var c2Node = map.RoomNode("room_classroom2");
+            var secNode = map.RoomNode("room_security");
+            var serverNode = map.RoomNode("room_server");
+            var crNorth = map.RoomNode("room_comfort_north");
+            var crSouth = map.RoomNode("room_comfort_south");
+            Check(hallNode != null && c1Node != null && c2Node != null && secNode != null &&
+                  serverNode != null && crNorth != null && crSouth != null,
+                "MAP: every room has its own node (label and hit area can never drift apart)");
+            Check(secNode.GetComponent<RectTransform>().anchoredPosition.x <
+                  hallNode.GetComponent<RectTransform>().anchoredPosition.x,
+                "MAP: the security checkpoint is on the LEFT");
+            // inside the plan container (centre anchor, centre pivot) anchoredPosition.y IS the
+            // offset from the plan's centre, y down — directly comparable between rooms
+            // Design y is DOWN, and Design() maps it to anchoredPosition.y = -y * scale, so a
+            // room drawn ABOVE the hallway has the LARGER anchored y inside the plan container.
+            float hallY = hallNode.GetComponent<RectTransform>().anchoredPosition.y;
+            float c1Y = c1Node.GetComponent<RectTransform>().anchoredPosition.y;
+            float c2Y = c2Node.GetComponent<RectTransform>().anchoredPosition.y;
+            Check(c1Y > hallY + 40f && c2Y < hallY - 40f,
+                $"MAP: Classroom 1 is drawn ABOVE the hallway and Classroom 2 BELOW it ({c1Y:F0} / {hallY:F0} / {c2Y:F0})");
+            Check(serverNode.GetComponent<RectTransform>().anchoredPosition.x >
+                  hallNode.GetComponent<RectTransform>().anchoredPosition.x,
+                "MAP: the server / identification room is on the RIGHT");
+            Check(hallNode.GetComponent<RectTransform>().sizeDelta.x >
+                  2.5f * c1Node.GetComponent<RectTransform>().sizeDelta.x / 2f,
+                "MAP: the hallway reads as the long central passage");
+            Check(c1Node.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("CLASSROOM 1") &&
+                  c1Node.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("Room 101") &&
+                  c2Node.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("CLASSROOM 2") &&
+                  c2Node.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("Room 202"),
+                "MAP: the classrooms keep their room numbers (101 above, 202 below)");
+            Check(crNorth.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("COMFORT ROOM") &&
+                  crSouth.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("COMFORT ROOM"),
+                "MAP: both comfort rooms are labelled on the plan");
+            Check(FloorPlan.ComfortRooms().Count == 2, "MAP: the comfort rooms live in the plan's data, not just its ink");
+            var crN = FloorPlan.ForKey("room_comfort_north").Value;
+            var crS = FloorPlan.ForKey("room_comfort_south").Value;
+            Check(!crN.Overlaps(hall.Value) && !crS.Overlaps(hall.Value) &&
+                  !crN.Overlaps(c1.Value) && !crS.Overlaps(c2.Value),
+                "MAP: the comfort rooms obstruct neither the hallway nor the classrooms");
+            Check(!crN.Room.HasValue && !crS.Room.HasValue && !crN.Sealed && !crS.Sealed,
+                "MAP: the comfort rooms are map-only — they are not patrol destinations");
+
+            // every drawn room sits inside the drawn plan, at its design-space size, and at the
+            // position the table asks for — the check that catches a mirrored or hand-nudged plan
+            bool inside = true, scaled = true, faithful = true;
+            foreach (var def in FloorPlan.Rooms)
+            {
+                var node = map.RoomNode(def.Key);
+                if (node == null) { inside = false; continue; }
+                var rt = node.GetComponent<RectTransform>();
+                var planRect = new Rect(-plan.sizeDelta.x / 2f, -plan.sizeDelta.y / 2f,
+                    plan.sizeDelta.x, plan.sizeDelta.y);
+                if (!planRect.Contains(rt.anchoredPosition)) inside = false;
+                if (Mathf.Abs(rt.sizeDelta.x - def.W * map.PlanScale) > 0.01f ||
+                    Mathf.Abs(rt.sizeDelta.y - def.H * map.PlanScale) > 0.01f) scaled = false;
+                float wantX = MapSheetLayout.ToAnchoredX(def.X, map.PlanScale);
+                float wantY = MapSheetLayout.ToAnchoredY(def.Y, map.PlanScale);
+                if (Mathf.Abs(rt.anchoredPosition.x - wantX) > 0.01f ||
+                    Mathf.Abs(rt.anchoredPosition.y - wantY) > 0.01f) faithful = false;
+            }
+            Check(inside, "MAP: every room is drawn inside the plan area (nothing clipped or overflowing)");
+            Check(scaled, "MAP: every room is sized from the design table by the ONE plan scale");
+            Check(faithful, "MAP: every room sits exactly where FloorPlan puts it (the drawing is faithful to the data)");
+            Check(MapSheetLayout.ToAnchoredY(c1.Value.Y, 1f) > MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f) &&
+                  MapSheetLayout.ToAnchoredY(c2.Value.Y, 1f) < MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f),
+                "MAP: the design-y flip is right way up — Room 101 above the corridor on screen, Room 202 below");
+
+            // ---- the sealed room stays sealed ----
+            Check(serverNode.GetComponent<UnityEngine.UI.Button>() == null &&
+                  !serverNode.GetComponent<UnityEngine.UI.Image>().raycastTarget,
+                "MAP: the sealed server / identification room has no button and eats no clicks");
+            Check(serverNode.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("SEALED"),
+                "MAP: ...and still says SEALED");
+            var sealImg = serverNode.GetComponent<UnityEngine.UI.Image>();
+            Check(sealImg.sprite != null && sealImg.sprite.name == "map_sealed" &&
+                  sealImg.color == Color.white &&
+                  serverNode.Find("label").GetComponent<UnityEngine.UI.Text>().color == UIFactory.AccentBright,
+                "MAP: the sealed room has its own barred red art and a red label (restricted reads at a glance)");
+            var serverDef = FloorPlan.ForKey("room_server").Value;
+            Check(serverDef.Sealed && !serverDef.Room.HasValue &&
+                  System.Array.IndexOf(RoomGraph.Roamable, RoomId.Security) < 0,
+                "MAP: the sealed room is not in the patrol graph, so it cannot be travelled to");
+
+            // ---- the patrol rooms keep their click ----
+            var c1Btn = c1Node.GetComponent<UnityEngine.UI.Button>();
+            var secBtn = secNode.GetComponent<UnityEngine.UI.Button>();
+            Check(c1Btn != null && secBtn != null &&
+                  hallNode.GetComponent<UnityEngine.UI.Button>() != null &&
+                  c2Node.GetComponent<UnityEngine.UI.Button>() != null,
+                "MAP: the hallway, both classrooms and the checkpoint are still clickable");
+            var crBtn = crNorth.GetComponent<UnityEngine.UI.Button>();
+            Check(crBtn != null, "MAP: a comfort room answers a click (with a line, not a dead nothing)");
+
+            // ---- you-are-here + the findings dots ----
+            var here = FindDeep(plan, "here");
+            Check(here != null && here.gameObject.activeSelf &&
+                  here.Find("lbl").GetComponent<UnityEngine.UI.Text>().text == "YOU",
+                "MAP: the position marker is on the plan and says YOU");
+            Check(FindDeep(plan, "dot_light") == null,
+                "MAP: no finding dots before anything has been discovered");
+
+            // ---- responsive: any window size keeps it centred, whole, and readable ----
+            var sizes = new[] { new Vector2(1920, 1080), new Vector2(1024, 768), new Vector2(800, 600),
+                                new Vector2(2560, 1080), new Vector2(1280, 600), new Vector2(3840, 2160) };
+            bool centred = true, fits = true, closeOk = true, readable = true, roomsScale = true;
+            foreach (var s in sizes)
+            {
+                Screen.width = (int)s.x; Screen.height = (int)s.y;
+                // re-run the guard for this window exactly as its Update would, then ask the
+                // SAME question the view asks: how much reference space is actually visible?
+                var guard = sheet.GetComponentInParent<CanvasScaler>()?.GetComponent<AspectMatchGuard>();
+                guard?.Apply();
+                var vis = UIFactory.VisibleReferenceSize(sheet);
+                map.Relayout();
+                if (Mathf.Abs(sheet.anchoredPosition.x) > 0.01f || Mathf.Abs(sheet.anchoredPosition.y) > 0.01f)
+                    centred = false;
+                float visibleW = vis.x, visibleH = vis.y;
+                if (sheet.sizeDelta.x > visibleW + 0.5f || sheet.sizeDelta.y > visibleH + 0.5f) fits = false;
+                float cCentre = -visibleH / 2f + closeRow.anchoredPosition.y;
+                float cTop = cCentre + closeRow.sizeDelta.y / 2f;
+                float cBottom = cCentre - closeRow.sizeDelta.y / 2f;
+                if (cTop > visibleH / 2f || cBottom < -visibleH / 2f ||
+                    cTop > CentreY(sheet) - sheet.sizeDelta.y / 2f - 2f) closeOk = false;
+                if (map.Title.fontSize < 12) readable = false;
+                if (Mathf.Abs(hallNode.GetComponent<RectTransform>().sizeDelta.x -
+                              FloorPlan.ForRoom(RoomId.Hallway).Value.W * map.PlanScale) > 0.01f)
+                    roomsScale = false;
+            }
+            Check(centred, "MAP: still dead-centre at 16:9, 4:3, 21:9, 32:9 and 2x/4k sizes");
+            Check(fits, "MAP: the sheet never exceeds the visible reference area (no clipping, no overflow)");
+            Check(closeOk, "MAP: CLOSE stays on screen and never overlaps the sheet at any size");
+            Check(readable, "MAP: the title stays readable when the plan has to shrink");
+            Check(roomsScale, "MAP: the rooms keep following the one plan scale at every size");
+
+            Screen.width = w0; Screen.height = h0;
+            (sheet.GetComponentInParent<CanvasScaler>()?.GetComponent<AspectMatchGuard>())?.Apply();
+            map.Relayout();
+            root.CloseMap();
+            Check(root.State == AppViewState.Checkpoint && !map.gameObject.activeSelf,
+                "MAP: closing returns exactly where the player was");
         }
 
         // drag a stamp from its tray and release it with its centre on a desk point —
@@ -1174,8 +1582,8 @@ namespace FlowCheck
             Check(cp.CurrentVisitor != null && FindDeep(desk, "idcard").gameObject.activeSelf &&
                   FindDeep(desk, "slip").gameObject.activeSelf,
                   "a fresh visitor arrives with both documents already on the desk (§6 automation)");
-            Check(!FindDeep(desk, "idcard").Find("idback").gameObject.activeSelf &&
-                  !FindDeep(desk, "slip").Find("slipback").gameObject.activeSelf,
+            Check(!FaceOf(FindDeep(desk, "idcard"), "idback").gameObject.activeSelf &&
+                  !FaceOf(FindDeep(desk, "slip"), "slipback").gameObject.activeSelf,
                   "the fresh visitor's papers are born FACE-UP (flip state never carries over)");
             Check(StampAlpha(root, "stamp_allow") > 0.9f, "stamps ink up as soon as the inspection is live (docs auto-placed)");
             int procBefore = root.Queue.ProcessedCount;
@@ -1187,11 +1595,11 @@ namespace FlowCheck
             Check(FindDeep(desk, "idcard").gameObject.activeSelf &&
                   FindDeep(desk, "slip").gameObject.activeSelf,
                   "AUTO-DOCS: ID and slip are already on the desk when the inspection begins");
-            Check(HintText(root).Contains("STAMP THE SLIP"),
-                  "AUTO-DOCS: the hint jumps straight to stamping (got '" + HintText(root) + "')");
+            Check(PromptText(root).Contains("STAMP THE SLIP"),
+                  "AUTO-DOCS: the prompt jumps straight to stamping (got '" + PromptText(root) + "')");
             var cardPos = FindDeep(desk, "idcard").GetComponent<RectTransform>().anchoredPosition;
             var slipPos = FindDeep(desk, "slip").GetComponent<RectTransform>().anchoredPosition;
-            Check(cardPos.y < 0 && slipPos.y < 0 && Mathf.Abs(slipPos.x - 750f) < 1f,
+            Check(cardPos.y < 0 && slipPos.y < 0 && Mathf.Abs(slipPos.x - (740f - L.CounterSlip.W * 0.5f)) < 1f,
                 $"AUTO-DOCS: both rest in their desk slots (card {cardPos.x:F0},{cardPos.y:F0}; slip {slipPos.x:F0},{slipPos.y:F0})");
             Check(FindDeep(desk, "sname") != null &&
                   FindDeep(desk, "sname").GetComponent<UnityEngine.UI.Text>().text.Length > 4,
@@ -1516,7 +1924,7 @@ namespace FlowCheck
             Check(cp.CurrentVisitor != null && cp.CurrentVisitor.VisitorIndex == pRoster[2].VisitorIndex,
                   "Q8: the same visitor is back at the window");
             string budgetText = FindDeep(cp.transform, "budget").GetComponent<UnityEngine.UI.Text>().text;
-            Check(budgetText.Contains("1 LEFT"), "Q8: the question budget was NOT refunded ('" + budgetText + "')");
+            Check(budgetText == "1/2", "Q8: the question budget was NOT refunded ('" + budgetText + "')");
             Check(root.Queue.WaitingCount == 1, "Q8: the waiting line was restored, not duplicated");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
@@ -1857,9 +2265,9 @@ namespace FlowCheck
             cp.DebugTakeDocuments();
             TakeSlip(root);
             var cornerWant = InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null);
-            StampAtPoint(root, cornerWant, new Vector2(672f, 448f));   // just inside the corner
+            StampAtPoint(root, cornerWant, new Vector2(690f, 460f));   // just inside the corner
             var soT = FindDeep(cp.transform, "stampoverlay").GetComponent<RectTransform>();
-            var slT = FindDeep(cp.transform, "slip").GetComponent<RectTransform>();
+            var slT = FindDeep(cp.transform, "slip").Find("slipart").GetComponent<RectTransform>();
             Check(cp.SlipStamped, "issue #5: a corner drop stamps the slip");
             float tlx = soT.anchoredPosition.x, tly = -soT.anchoredPosition.y;
             float cornerMargin = StampPlacement.TiltedHalfExtent(CheckpointView.StampMarkSize,
@@ -1889,7 +2297,7 @@ namespace FlowCheck
             UnityEngine.Input.KeysDown.Clear();
             Check(cp.SlipStamped, "issue #5: unpaused, the same key stamps the slip");
             var kbMark = FindDeep(cp.transform, "stampoverlay").GetComponent<RectTransform>();
-            var kbSlip = FindDeep(cp.transform, "slip").GetComponent<RectTransform>();
+            var kbSlip = FindDeep(cp.transform, "slip").Find("slipart").GetComponent<RectTransform>();
             var kbLocal = StampPlacement.ClampToPrintable(new StampPlacement.Point(
                 kbSlip.rect.width * 0.8f, kbSlip.rect.height * 0.68f),
                 kbSlip.rect.width, kbSlip.rect.height,
@@ -2183,6 +2591,76 @@ namespace FlowCheck
             if (swB != null) swB.Interact();   // leave the corridor lit, as W2 handed it over
             Check(rig.Beam == LightMode.Off, "W2b: no lighting change ever auto-activated the beam");
             CheckLightSync(root, "W2b dark corridor");
+
+            // ---- W2c: the beam answers the keypress ON THE ACTIVATION FRAME ----
+            // Owner report: "the beam still feels delayed when I switch it on during patrol".
+            // Root cause: the activation frame kept the displayed aim and the displayed cone
+            // geometry where the damping had left them, so a freshly lit beam pointed at the
+            // PREVIOUS aim (Vector3.right after a room entry) and swung round over ~15 frames,
+            // and an off->on mode change morphed its length/width instead of taking them at
+            // once. The lamp is invisible a moment before the press, so there is nothing to
+            // glide FROM: off->on snaps, a held lamp keeps its damping.
+            Console.WriteLine("== W2c beam appears instantly on activation (no wind-up) ==");
+            views.Player.PlaceInRoom(hall, new Vector3(0f, 0f, 0f));
+            SetBeam(root, rig, LightMode.Off);
+            AimAt(0f, 5f);                       // cursor straight up, beam out
+            WorldFrame(root);
+            float angleBefore = coneT.localEulerAngles.z;
+            PressKey(root, KeyCode.F);           // ONE frame: key down -> tick -> measure
+            Check(rig.Beam == LightMode.Sweep && coneT.gameObject.activeSelf &&
+                  maskGo.gameObject.activeSelf,
+                "W2c: F lights the sweep beam on the very frame it is pressed (layers live at once)");
+            Check(Mathf.Abs(coneT.localEulerAngles.z - 90f) < 0.5f,
+                $"W2c: ...already pointing AT THE CURSOR on that frame (got {coneT.localEulerAngles.z:F1}°, was {angleBefore:F1}°)");
+            Check(Mathf.Abs(rig.Dir.y - 1f) < 1e-3f && Mathf.Abs(rig.Dir.x) < 1e-3f,
+                "W2c: the logical cone agrees with the cursor too (gameplay never lags the art)");
+            Check(Mathf.Abs(coneT.localScale.x - cfg.sweepRange / 8f) < 0.01f,
+                $"W2c: the cone is the Sweep's full length immediately ({coneT.localScale.x:F3} vs {cfg.sweepRange / 8f:F3})");
+            Check(Mathf.Abs(maskGo.localScale.x - coneT.localScale.x * 1.06f) < 0.01f,
+                "W2c: the stencil hole matches that geometry on the same frame (no rim, no desync)");
+            // "follows the flashlight's current direction and position": the rendered cone must
+            // be exactly the logical aim's mid-point and angle — derived from the rig itself,
+            // so the proof holds wherever the player is standing
+            var expectedMid = rig.Origin + rig.Dir * (cfg.sweepRange * 0.5f);
+            float expectedAngle = Mathf.Atan2(rig.Dir.y, rig.Dir.x) * Mathf.Rad2Deg;
+            Check(Vector3.Distance(coneT.localPosition, expectedMid) < 0.02f &&
+                  Mathf.Abs(Mathf.DeltaAngle(coneT.localEulerAngles.z, expectedAngle)) < 0.5f &&
+                  coneT.localPosition == maskGo.localPosition &&
+                  coneT.localEulerAngles == maskGo.localEulerAngles,
+                $"W2c: cone and mask are both parked on the aim's mid-point and angle ({coneT.localPosition} @ {coneT.localEulerAngles.z:F1}°)");
+            Check(Mathf.Abs(coneT.GetComponent<SpriteRenderer>().color.a - 0.30f) < 1e-3f,
+                "W2c: full brightness on the activation frame — no fade-in to wait through");
+            // repeated activation/deactivation must behave identically every time, and a new
+            // activation must never inherit the previous aim
+            bool stable = true;
+            for (int cycle = 0; cycle < 5; cycle++)
+            {
+                SetBeam(root, rig, LightMode.Off);
+                bool up = cycle % 2 == 0;
+                AimAt(up ? 0f : 6f, up ? 6f : 1f);
+                PressKey(root, KeyCode.F);
+                var want = rig.Origin + rig.Dir * (cfg.sweepRange * 0.5f);
+                float wantAngle = Mathf.Atan2(rig.Dir.y, rig.Dir.x) * Mathf.Rad2Deg;
+                if (rig.Beam != LightMode.Sweep || !coneT.gameObject.activeSelf ||
+                    Vector3.Distance(coneT.localPosition, want) > 0.02f ||
+                    Mathf.Abs(Mathf.DeltaAngle(coneT.localEulerAngles.z, wantAngle)) > 0.5f ||
+                    Mathf.Abs(coneT.GetComponent<SpriteRenderer>().color.a - 0.30f) > 1e-3f)
+                    stable = false;
+            }
+            Check(stable,
+                "W2c: five on/off cycles in a row are all instant, fully lit, and aimed at the NEW cursor");
+            // a mode change while the lamp is ALREADY lit keeps its smooth morph (that glide is
+            // the intentional part) but still ends on the right geometry
+            PressKey(root, KeyCode.Q);
+            WorldFrames(root, 30);
+            Check(rig.Beam == LightMode.Focus &&
+                  Mathf.Abs(coneT.localScale.x - cfg.focusRange / 8f) < 0.01f &&
+                  Mathf.Abs(coneT.GetComponent<SpriteRenderer>().color.a - 0.42f) < 1e-3f,
+                "W2c: switching Sweep->Focus while lit still morphs, and lands on Focus geometry + tint");
+            SetBeam(root, rig, LightMode.Off);
+            Check(!coneT.gameObject.activeSelf && !maskGo.gameObject.activeSelf,
+                "W2c: and L still puts it out at once (controls unchanged)");
+            CheckLightSync(root, "W2c instant beam");
 
             // ---- W3: cursor aiming + true cone coverage in one world space
             Console.WriteLine("== W3 aiming and cone coverage ==");
@@ -2797,6 +3275,816 @@ namespace FlowCheck
             Console.WriteLine("== patrol world loop done ==");
         }
 
+        // ---------------------------------------------------- asset manifest <-> code sync
+        // The manifest (docs/asset-manifest.csv) is the naming contract the art/audio team works
+        // from, and every name in it is a live key: a file at Resources/Art/<key>.png or
+        // Resources/Audio/<key>.wav replaces the procedural placeholder with no code change. That
+        // only stays true while the list and the code agree, so this proof reads the CSV and
+        // checks it against ProceduralArt.AllKeys / ProceduralAudio.AllKeys / FaceAssets in both
+        // directions, plus that every key actually resolves (a typo'd case would fall back to the
+        // solid/placeholder and ship a white square).
+        private static void AssetManifestProof(GameRoot root)
+        {
+            Console.WriteLine("== asset manifest sync (docs/asset-manifest.csv <-> code) ==");
+            string rootDir = RepoRoot();
+            string csv = rootDir == null ? null :
+                System.IO.Path.Combine(rootDir, "docs", "asset-manifest.csv");
+            Check(csv != null && System.IO.File.Exists(csv), "AM: docs/asset-manifest.csv ships with the repo");
+            if (csv == null || !System.IO.File.Exists(csv)) return;
+
+            var artRows = new List<string>();
+            var audioRows = new List<string>();
+            var fontRows = new List<string>();
+            var shipped = new List<string>();
+            foreach (var raw in System.IO.File.ReadAllLines(csv))
+            {
+                var f = SplitCsv(raw);
+                if (f.Count < 6 || f[0] == "key") continue;
+                if (f[1] == "art") artRows.Add(f[0]);
+                else if (f[1] == "audio") audioRows.Add(f[0]);
+                else if (f[1] == "font") fontRows.Add(f[0]);
+                if (f[4] == "temp-shipped") shipped.Add(f[0] + "|" + f[1] + "|flat");
+                if (f[4] == "shipped-kit") shipped.Add(f[0] + "|" + f[1] + "|kit");
+            }
+            Check(artRows.Count > 110 && audioRows.Count >= 30 && fontRows.Count == 8,
+                $"AM: the manifest covers the whole pipeline ({artRows.Count} art, {audioRows.Count} audio, {fontRows.Count} font rows)");
+
+            // art rows == the painter's keys + the face pairs, exactly
+            var codeArt = new List<string>(Hollowbrook.Bootstrap.ProceduralArt.AllKeys);
+            for (int i = 1; i <= 14; i++)
+            {
+                codeArt.Add("student_face_" + i.ToString("D2"));
+                codeArt.Add("student_face_" + i.ToString("D2") + "_anomaly");
+            }
+            codeArt.Add(Hollowbrook.Logic.FaceAssets.AdminKey);
+            codeArt.Add(Hollowbrook.Logic.FaceAssets.AdminWindowKey);
+            codeArt.AddRange(SecurityKitKeys);   // the owner's SecurityRoom kit rows
+            Check(SameSet(artRows, codeArt, out string artDiff),
+                "AM: every art row is a real procedural key and every key has a row" +
+                (artDiff.Length > 0 ? " (diff: " + artDiff + ")" : ""));
+
+            // audio rows == the synth's keys, exactly
+            Check(SameSet(audioRows, new List<string>(Hollowbrook.Bootstrap.ProceduralAudio.AllKeys),
+                  out string audioDiff),
+                "AM: every audio row is a real synth key and every key has a row" +
+                (audioDiff.Length > 0 ? " (diff: " + audioDiff + ")" : ""));
+
+            // every art key resolves to its own sprite (a missing case would fall back to solid)
+            bool resolves = true;
+            string badKey = "";
+            foreach (var k in Hollowbrook.Bootstrap.ProceduralArt.AllKeys)
+            {
+                var sp = Hollowbrook.Bootstrap.ProceduralArt.Get(k);
+                if (sp == null || sp.name != k) { resolves = false; badKey = k; break; }
+            }
+            Check(resolves, "AM: every art key paints its own sprite (no fallback squares)" +
+                  (resolves ? "" : " — first broken key: " + badKey));
+
+            // every audio key resolves to its own clip
+            bool audioOk = true;
+            string badAudio = "";
+            foreach (var k in Hollowbrook.Bootstrap.ProceduralAudio.AllKeys)
+            {
+                var clip = Hollowbrook.Bootstrap.ProceduralAudio.Get(k);
+                if (clip == null || clip.name != k) { audioOk = false; badAudio = k; break; }
+            }
+            Check(audioOk, "AM: every audio key synthesises its own clip (no silent falls-through)" +
+                  (audioOk ? "" : " — first broken key: " + badAudio));
+
+            // rows claiming a shipped file must actually ship it
+            bool filesOk = true;
+            string missing = "";
+            foreach (var row in shipped)
+            {
+                var parts = row.Split('|');
+                string rel;
+                if (parts[1] == "art")
+                    rel = System.IO.Path.Combine(parts[2] == "kit"
+                        ? "Assets/_Project/Resources/Art/SecurityRoom" : "Assets/_Project/Resources/Art",
+                        parts[0] + ".png");
+                else
+                    rel = System.IO.Path.Combine("Assets/_Project/Resources/Fonts",
+                        System.IO.File.Exists(System.IO.Path.Combine(rootDir,
+                            "Assets/_Project/Resources/Fonts", parts[0] + ".otf"))
+                        ? parts[0] + ".otf" : parts[0] + ".ttf");
+                if (!System.IO.File.Exists(System.IO.Path.Combine(rootDir, rel)))
+                { filesOk = false; missing = rel; break; }
+            }
+            Check(filesOk, "AM: every row marked shipped (temp or kit) has its file in the repo" +
+                  (filesOk ? "" : " — missing: " + missing));
+
+            // the faces the fairness invariant leans on: paired, and the admin pair exists
+            Check(Hollowbrook.Logic.FaceAssets.WindowKey(3, true) ==
+                  Hollowbrook.Logic.FaceAssets.StudentKey(3) + "_anomaly" &&
+                  Hollowbrook.Logic.FaceAssets.AdminWindowKey == "admin_face_glitch",
+                "AM: anomaly and administrator face variants keep their pairing contract");
+        }
+
+        // quote-aware CSV split (the generator quotes any field containing a comma)
+        private static List<string> SplitCsv(string line)
+        {
+            var fields = new List<string>();
+            var cur = new System.Text.StringBuilder();
+            bool inQ = false;
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+                if (c == '"') { inQ = !inQ; continue; }
+                if (c == ',' && !inQ) { fields.Add(cur.ToString()); cur.Clear(); continue; }
+                cur.Append(c);
+            }
+            fields.Add(cur.ToString());
+            return fields;
+        }
+
+        private static bool SameSet(List<string> a, List<string> b, out string diff)
+        {
+            var sa = new HashSet<string>(a);
+            var sb = new HashSet<string>(b);
+            var d = new List<string>();
+            foreach (var x in a) if (!sb.Contains(x)) d.Add("+" + x);
+            foreach (var x in b) if (!sa.Contains(x)) d.Add("-" + x);
+            diff = string.Join(", ", d);
+            return d.Count == 0 && a.Count == b.Count;
+        }
+
+        // --------------------------------- Shift-5 administrator: the branching conversation
+        // Integration proof at the real desk: arrival intro hands over to the conversation, the
+        // panel borrows the question column, choices move only encounter state, the question
+        // budget and the stamps stay authoritative, silence and re-open cannot softlock, and the
+        // verdict still commits exactly once through the physical hand-back.
+        private static void AdminTalkProof(GameRoot root)
+        {
+            Console.WriteLine("== administrator encounter: branching conversation at the checkpoint ==");
+            var cp = root.Checkpoint;
+            cp.DebugPresentAdmin();
+            cp.DebugTakeDocuments();
+            var admin = cp.CurrentVisitor;
+            Check(admin != null && admin.IsAdministrator, "AT: the administrator is at the window");
+
+            // click through the arrival intro exactly like the player; its completion opens the talk
+            int guard = 0;
+            while (root.Dialogue != null && root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+            Check(cp.AdminTalkOpen, "AT: the arrival intro hands over to the conversation (hub open)");
+            var panel = FindDeep(cp.transform, "admintalk");
+            Check(panel != null && panel.gameObject.activeSelf, "AT: the conversation panel is on the desk");
+            Check(!FindDeep(cp.transform, "qpanel_border").gameObject.activeSelf &&
+                  !FindDeep(cp.transform, "map").gameObject.activeSelf,
+                "AT: while it talks, the question row and the inline map step aside");
+            Check(FindDeep(cp.transform, "opt_chal_name") != null &&
+                  FindDeep(cp.transform, "opt_chal_num") != null &&
+                  FindDeep(cp.transform, "opt_chal_face") != null &&
+                  FindDeep(cp.transform, "opt_defer") != null &&
+                  FindDeep(cp.transform, "opt_silence") != null &&
+                  FindDeep(cp.transform, "opt_end") != null,
+                "AT: the hub offers the three challenges, compliance, silence and the exit");
+            Check(FindDeep(cp.transform, "opt_ev_photo") == null &&
+                  FindDeep(cp.transform, "opt_ev_cabinet") == null,
+                "AT: the evidence branches stay shut while their clues are undiscovered");
+
+            // a challenge moves encounter state and NOTHING else
+            int budgetBefore = BudgetLeft(cp);
+            FindDeep(cp.transform, "opt_chal_name").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            guard = 0;
+            while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+            Check(root.Session.AdminTalk.Node == "chal_name" && root.Session.AdminTalk.Challenge == 1,
+                "AT: the challenge landed in the encounter state (node + tactic counter)");
+            Check(BudgetLeft(cp) == budgetBefore, "AT: a conversational response consumes no verification question");
+            Check(!cp.SlipStamped && cp.PendingVerdict == Verdict.None,
+                "AT: no verdict, breach or ending moved because of a dialogue choice");
+
+            // double-commit: the same button fired twice in one beat takes effect once
+            var twice = FindDeep(cp.transform, "opt_press_name").GetComponent<UnityEngine.UI.Button>();
+            twice.onClick.Invoke();
+            twice.onClick.Invoke();
+            Check(root.Session.AdminTalk.Node == "press_name" && root.Session.AdminTalk.Challenge == 2,
+                $"AT: firing one option twice commits it once (node={root.Session.AdminTalk.Node} chal={root.Session.AdminTalk.Challenge}: one challenge for the hub pick, one for the press — not three)");
+            guard = 0;
+            while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+
+            // verification questions still work mid-conversation, and the talk adapts to them
+            cp.AskQuestion(QuestionId.FirstClassroom);
+            Check(BudgetLeft(cp) == budgetBefore - 1, "AT: the real question system still owns its budget");
+            FindDeep(cp.transform, "opt_press_name_back").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            guard = 0;
+            while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+            Check(FindDeep(cp.transform, "opt_q_server") != null,
+                "AT: after the server-room question, its follow-up branch appears");
+            var qLine = FindDeep(cp.transform, "opt_q_server").Find("label")
+                .GetComponent<UnityEngine.UI.Text>().text;
+            Check(qLine.Contains("server room"), "AT: the follow-up names the actual answer's subject");
+
+            // silence: a pause, a beat, and always a way back
+            FindDeep(cp.transform, "opt_silence").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            guard = 0;
+            while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+            Check(root.Session.AdminTalk.Silence == 1 && root.Session.AdminTalk.Node == "silence",
+                "AT: silence is a counted beat, not a question and not a verdict");
+            FindDeep(cp.transform, "opt_silence_back").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            guard = 0;
+            while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+            Check(root.Session.AdminTalk.Node == AdminTalk.HubId, "AT: silence always returns to a usable hub");
+
+            // T steps out and back in without losing the thread
+            PressDeskKey(cp, KeyCode.T);
+            Check(!cp.AdminTalkOpen && FindDeep(cp.transform, "admintalkbar").gameObject.activeSelf &&
+                  FindDeep(cp.transform, "qpanel_border").gameObject.activeSelf,
+                "AT: stepping back restores the inspection column and leaves the re-open bar");
+            PressDeskKey(cp, KeyCode.T);
+            Check(cp.AdminTalkOpen && FindDeep(cp.transform, "opt_end") != null && !root.Dialogue.IsActive,
+                "AT: re-opening resumes the same node — options straight away, no replayed lines");
+
+            // interruption contract: the encounter survives pause and refuses to be walked away
+            // from mid-inspection, and neither resets the conversation nor the visitor
+            string talkBefore = root.Session.AdminTalk.Encode();
+            root.TogglePause(true);
+            PressDeskKey(cp, KeyCode.T);                    // gameplay keys stand down while paused
+            Check(root.Session.AdminTalk.Encode() == talkBefore && cp.AdminTalkOpen,
+                "AT: pause freezes the conversation (hotkeys included) and corrupts nothing");
+            root.TogglePause(false);
+            cp.GoPatrol();
+            Check(root.State == AppViewState.Checkpoint && root.Session.AdminTalk.Encode() == talkBefore,
+                "AT: walking away mid-inspection is refused — the administrator keeps the window");
+
+            // the conversation persists with the run save
+            root.PersistRun();
+            string saveText = System.IO.File.ReadAllText(System.IO.Path.Combine(
+                UnityEngine.Application.persistentDataPath, "hollowbrook_save.txt"));
+            Check(saveText.Contains("adminTalk=") && saveText.Contains("chal_name".Length > 0 ? "hub" : "hub"),
+                "AT: the encounter state rides the run save (adminTalk key)");
+
+            // stepping back for good hands the desk over; the stamps remain the only decision
+            FindDeep(cp.transform, "opt_end").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(root.State == AppViewState.Checkpoint,
+                "AT: completing the conversation awards nothing — the desk is simply handed back");
+            Check(root.Session.AdminTalk.Completed && !cp.AdminTalkOpen &&
+                  !FindDeep(cp.transform, "admintalkbar").gameObject.activeSelf &&
+                  FindDeep(cp.transform, "qpanel_border").gameObject.activeSelf &&
+                  FindDeep(cp.transform, "map").gameObject.activeSelf,
+                "AT: the exit completes the conversation and gives the desk back intact");
+
+            // the physical verdict, unchanged: stamp, hand back, exactly-once counters
+            StampSlip(root, Verdict.Reject);
+            HandBack(root, true, true);
+            Check(root.Session.AdminRejected && !root.Session.AdminAllowed,
+                $"AT: rejecting the administrator through the stamps updates the session once (rejected={root.Session.AdminRejected} allowed={root.Session.AdminAllowed} stamped={cp.SlipStamped} pending={cp.PendingVerdict} processed={root.Session.Processed})");
+            int processed = root.Session.Processed;
+            int breaches = root.Session.Breaches;
+            root.OnVerdictResolved(admin, InspectionRules.Apply(admin, Verdict.Reject, null));
+            Check(root.Session.Processed == processed && root.Session.Breaches == breaches &&
+                  root.Session.FalseRejections == root.Session.FalseRejections,
+                "AT: a duplicated verdict callback changes nothing (exactly-once guard)");
+            Check(QueueAbandoned(root), "AT: the rejected administrator closes the night's line safely");
+        }
+
+        private static int BudgetLeft(CheckpointView cp)
+        {
+            var t = FindDeep(cp.transform, "budget");
+            if (t == null) return -1;
+            string s = t.GetComponent<UnityEngine.UI.Text>().text;
+            int i = s.IndexOf('/');          // the reference counter reads "remaining/max"
+            if (i < 0) return -1;
+            int n;
+            return int.TryParse(s.Substring(0, i).Trim(), out n) ? n : -1;
+        }
+
+        private static bool QueueAbandoned(GameRoot root) =>
+            root.Queue != null && root.Queue.Active == null && root.Queue.WaitingCount == 0;
+
+        // --------------------------------------- the owner's SecurityRoom art kit, integrated
+        // The kit is a skin over the audited grid: these proofs check the files ship, the keys
+        // resolve to sprites named after themselves, the full-frame layers are click-through
+        // (so not one desk interaction moved), the bubble keeps its 9-slice tail, and the booth
+        // shutter follows the visitor.
+        // every sprite the SecurityRoom kit ships (proof-shared with the manifest sync)
+        internal static readonly string[] SecurityKitKeys =
+        {
+            "sec_background", "sec_background_open", "sec_background_close", "sec_light",
+            "sec_window_open", "sec_window_close", "sec_upper_panel", "sec_upper_panel_bg",
+            "sec_sanity_bar", "sec_pause_block", "sec_btn_pill", "sec_wide_pill", "sec_caption_bar",
+            "sec_stamp_circle_allow", "sec_stamp_circle_deny", "sec_icon_accept",
+            "sec_icon_decline", "sec_folder_tab1", "sec_folder_tab2", "sec_icon_patrol",
+            "sec_icon_endshift", "sec_qpanel", "sec_arrow_right", "sec_cabinet1",
+            "sec_cabinet2", "sec_stamp", "sec_rules_paper", "sec_rules_dark",
+            "sec_log_paper", "sec_log_dark", "sec_log_rules", "sec_bubble",
+        };
+
+        private static int Idx(Transform t) => t != null ? t.GetSiblingIndex() : -1;
+
+        private static void SecurityKitProof(GameRoot root)
+        {
+            Console.WriteLine("== SecurityRoom art kit: shipped, resolved, click-through ==");
+            var cp = root.Checkpoint;
+            string rootDir = RepoRoot();
+            string kitDir = rootDir == null ? null :
+                System.IO.Path.Combine(rootDir, "Assets/_Project/Resources/Art/SecurityRoom");
+            string[] keys = SecurityKitKeys;
+            bool shipped = true, resolves = true;
+            string missing = "";
+            foreach (var k in keys)
+            {
+                if (kitDir == null || !System.IO.File.Exists(System.IO.Path.Combine(kitDir, k + ".png")))
+                { shipped = false; missing = k; break; }
+                var sp = Hollowbrook.Bootstrap.ProceduralArt.Get(k);
+                if (sp == null || sp.name != k) { resolves = false; missing = k; break; }
+            }
+            Check(shipped, "KIT: all " + keys.Length + " kit sprites ship under Resources/Art/SecurityRoom" +
+                  (shipped ? "" : " (missing " + missing + ")"));
+            Check(resolves, "KIT: every kit key resolves to a sprite named after itself (drop-in wiring works)");
+
+            // the full-frame layers must never eat a click: every desk interaction is unchanged
+            bool clickThrough = true;
+            foreach (var n in new[] { "sec_base", "sec_light",
+                                      "sec_window_top", "sec_window_glass", "sec_window_base",
+                                      "sec_upper_bg",
+                                      "sec_upper", "sec_sanity_bar", "sec_pause_block",
+                                      "sec_tray_allow", "sec_tray_deny",
+                                      "sec_captionbar_a", "sec_captionbar_d" })
+            {
+                var t = FindDeep(cp.transform, n);
+                Check(t != null, "KIT: layer " + n + " exists (proof is not a silent no-op)");
+                if (t == null) continue;
+                var im = t.GetComponent<UnityEngine.UI.Image>();
+                if (im != null && im.raycastTarget) clickThrough = false;
+            }
+            Check(clickThrough, "KIT: every kit layer is click-through — the audited interactions own the pointer");
+
+            // the booth shutter follows the visitor (open glass / closed blinds) — all three
+            // bands swap together: hood and base keep their painted heights, glass stretches
+            var win = FindDeep(cp.transform, "sec_window_glass");
+            if (win != null)
+            {
+                var wimg = win.GetComponent<UnityEngine.UI.Image>();
+                bool visitor = cp.CurrentVisitor != null;
+                string state = visitor ? "open" : "close";
+                Check(wimg.sprite.name == "sec_window_" + state + "_glass",
+                      $"KIT: the shutter glass matches the window state ({state})");
+                bool bandsSynced = true;
+                foreach (var band in new[] { "sec_window_top", "sec_window_base" })
+                {
+                    var bi = FindDeep(cp.transform, band).GetComponent<UnityEngine.UI.Image>();
+                    if (bi.sprite == null || bi.sprite.name != "sec_window_" + state + "_" +
+                        (band == "sec_window_top" ? "top" : "base")) bandsSynced = false;
+                }
+                Check(bandsSynced, "KIT: hood and counter bands swap with the glass (no mixed shutter)");
+            }
+
+            // the live sanity meter wears the kit's WHITE pill: track bed retires, inks flip
+            // dark, the stage caption hides. Regression cover: the HUD is built AFTER the desk,
+            // so the tint lands lazily on the first RefreshHud — and SetSanity repainting on
+            // every sanity event must keep it (a one-shot tint used to be clobbered).
+            if (root.HUD != null)
+            {
+                var sanityBox = FindDeep(root.HUD.transform, "sanitybg_border");
+                var trackImg = sanityBox != null ? sanityBox.Find("track")?.GetComponent<UnityEngine.UI.Image>() : null;
+                var fillImg = sanityBox != null ? sanityBox.Find("track/fill")?.GetComponent<UnityEngine.UI.Image>() : null;
+                var valTxt = sanityBox != null ? sanityBox.Find("val")?.GetComponent<UnityEngine.UI.Text>() : null;
+                var capTxt = sanityBox != null ? sanityBox.Find("cap")?.GetComponent<UnityEngine.UI.Text>() : null;
+                var stageTxt = sanityBox != null ? sanityBox.Find("stage")?.GetComponent<UnityEngine.UI.Text>() : null;
+                Check(sanityBox != null && trackImg != null && fillImg != null &&
+                      valTxt != null && capTxt != null && stageTxt != null,
+                    "KIT: the HUD sanity widget is reachable for the pill proof");
+                if (trackImg != null)
+                    Check(trackImg.color.a > 0.9f && trackImg.color.r < 0.2f,
+                        "KIT: the sanity track is a dark recessed bed inside the kit pill");
+                if (valTxt != null && capTxt != null)
+                    Check(valTxt.color == UIFactory.NsInk && capTxt.color == UIFactory.NsInk,
+                        "KIT: sanity caption + value flipped to dark ink on the white pill");
+                if (stageTxt != null)
+                    Check(stageTxt.color.a == 0f, "KIT: the stage caption hides under the kit pill");
+                if (fillImg != null && root.Session != null)
+                {
+                    var st = SanityModel.StageFor(root.Session.Sanity);
+                    bool alarm = st == SanityStage.Breaking || st == SanityStage.Shaken;
+                    bool fillOk = alarm
+                        ? fillImg.color == (st == SanityStage.Breaking
+                            ? UIFactory.AccentBright : new Color(0.75f, 0.45f, 0.2f))
+                        : fillImg.color.r > 0.8f && fillImg.color.g > 0.8f && fillImg.color.b > 0.7f;
+                    Check(fillOk, $"KIT: the sanity fill reads paper-white on the dark bed for stage {st} (alarm colors kept)");
+                }
+            }
+
+            // the bubble wears the kit's 9-slice speech box, tail intact, single raycast target
+            var bubble = FindDeep(cp.transform, "bubble_border").GetComponent<UnityEngine.UI.Image>();
+            Check(bubble.sprite != null && bubble.sprite.name == "sec_bubble" &&
+                  bubble.type == UnityEngine.UI.Image.Type.Sliced && bubble.sprite.border.x > 100f,
+                $"KIT: the speech bubble is the kit box, sliced so its tail never stretches (border x={bubble.sprite.border.x:F0})");
+            // the slice must be a REAL border in reference units: border px / pixelsPerUnit.
+            // Regression: at the default UI PPU the 430px tail drew as a 4-unit sliver (and the
+            // preview renderer, fed raw texture pixels, drew nothing at all).
+            float borderUnits = bubble.sprite.border.x / bubble.sprite.pixelsPerUnit;
+            Check(borderUnits >= 20f,
+                $"KIT: the bubble's tail slice is {borderUnits:F0} reference units wide (pixelsPerUnit {bubble.sprite.pixelsPerUnit:F0})");
+
+            // the tray circles sit under the stamps, in the re-baselined tray rects
+            var allow = FindDeep(cp.transform, "stamp_allow");
+            var circA = FindDeep(cp.transform, "sec_tray_allow");
+            var circD = FindDeep(cp.transform, "sec_tray_deny");
+            var deny = FindDeep(cp.transform, "stamp_deny");
+            // draw order, not sibling adjacency: the stamps are draggable and SetAsLastSibling
+            // on every lift, so the circles only have to stay UNDER them, not next to them
+            Check(circA != null && circD != null && allow != null && deny != null &&
+                  circA.GetSiblingIndex() < allow.GetSiblingIndex() &&
+                  circD.GetSiblingIndex() < deny.GetSiblingIndex(),
+                "KIT: the tray circles draw under their stamps (allow and deny)");
+            Check(FindDeep(cp.transform, "sec_captionbar_a") != null &&
+                  FindDeep(cp.transform, "sec_captionbar_d") != null,
+                "KIT: the stamp captions ride the kit's caption bars");
+
+            // fonts: kit families first, bundled open-licence faces as fallback — never null
+            Check(UIFactory.UiFont != null && UIFactory.UiFontBold != null &&
+                  UIFactory.TypeFont != null && UIFactory.HandFont != null,
+                "KIT: every text role resolves a font (kit family or bundled fallback)");
+        }
+
+        // ------------------------------------------------------- desk helpers
+        // The desk view runs its own Update in the editor; headlessly nothing ticks unless the
+        // harness does it, exactly like WorldFrame does for the patrol. These drive the same
+        // per-frame paths (queue clock, bubble cooldown, drawer motion, hotkeys) so an
+        // animation's real timing is what gets asserted — never a synthetic jump to the end.
+        private static void DeskFrame(CheckpointView cp, float dt = 1f / 60f)
+        {
+            Time.deltaTime = dt;
+            Time.unscaledDeltaTime = dt;
+            cp.TickDrawer(dt);
+            Input.KeysDown.Clear();     // edge-triggered keys last exactly one frame
+        }
+
+        private static void DeskFrames(CheckpointView cp, int n, float dt = 1f / 60f)
+        {
+            for (int i = 0; i < n; i++) DeskFrame(cp, dt);
+        }
+
+        private static void PressDeskKey(CheckpointView cp, KeyCode k)
+        {
+            Input.KeysDown.Add(k);
+            cp.TickHotkeys();
+            DeskFrame(cp);
+        }
+
+
+        // ---------------------------------------------------- opt-in screen dump (JSON)
+        // Walks the REAL built desk hierarchy and records every visible Image/Text as a rect
+        // in the 1280x720 desk-grid space (top-left origin, y down), with sprite key, 9-slice
+        // border, tint, cumulative alpha, rotation and full type metrics. Tools/Preview/
+        // render_screen.py turns one dump into pixel screenshots at ANY resolution: the desk
+        // is laid out in reference units, so one dump serves every breakpoint. Rect maths is
+        // Unity's own: anchor ref point = lerp(anchorMin,anchorMax,pivot), size = sizeDelta +
+        // anchor span, pivot hangs off anchoredPosition.
+        private struct DumpRot { public float Cx, Cy, Rad, Deg; }
+
+        // state selects WHICH moment of the night gets dumped, so every screen the owner
+        // reported can be looked at: the intro dialogue, the empty booth, the occupied desk
+        // and the occupied desk at low sanity (the meter's legibility states).
+        private static void DumpScreen(string path, string state = "occupied")
+        {
+            MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore());
+            var root = GameRoot.Instance;
+            root.Config.queueArrivalMinSeconds = 3f;
+            root.Config.queueArrivalMaxSeconds = 5f;
+            root.Config.queueBusyHurryMultiplier = 1f;
+            var newGame = root.MainMenu.transform.Find("buttons").Find("NEW GAME");
+            newGame.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            CheckpointSceneBootstrap.Build(root);
+            if (state == "intro")
+            {
+                // the night card + the intro dialogue, exactly as the shift opens
+                var sb0 = new System.Text.StringBuilder();
+                sb0.Append("{\"refw\":1280,\"refh\":720,\"nodes\":[");
+                bool f0 = true;
+                if (root.Loading != null)
+                    WalkScreen(root.Loading.transform as RectTransform, 0f, 0f, 1280f, 720f,
+                               new List<DumpRot>(), sb0, ref f0, 1f, 1f);
+                if (root.Dialogue != null)
+                    WalkScreen(root.Dialogue.transform as RectTransform, 0f, 0f, 1280f, 720f,
+                               new List<DumpRot>(), sb0, ref f0, 1f, 1f);
+                sb0.Append("]}");
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path)) ?? ".");
+                System.IO.File.WriteAllText(path, sb0.ToString());
+                Console.WriteLine("wrote " + path + " (intro)");
+                return;
+            }
+            int adv = 0;
+            while (root.Dialogue != null && root.Dialogue.IsActive && adv++ < 64)
+                root.Dialogue.Advance();
+            ClickStickyNote(root);
+            var cp = root.Checkpoint;
+            if (!cp.gameObject.activeInHierarchy) { Console.WriteLine("desk not live — aborting dump"); return; }
+            if (state == "empty")
+            {
+                // the booth AFTER a verdict: papers handed back, visitor gone, shutter shut.
+                // The stub coroutine pump never runs AfterStamp, so the harness lands the
+                // same beat the editor reaches through the post-stamp coroutine.
+                cp.DebugTakeDocuments();
+                cp.StampSlipByKey(Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+                cp.HandBackByKey();
+                cp.SetVisitorVisible(false);
+                DeskFrames(cp, 6);
+                var sb1 = new System.Text.StringBuilder();
+                sb1.Append("{\"refw\":1280,\"refh\":720,\"nodes\":[");
+                bool f1 = true;
+                var frame0 = FindDeep(cp.transform, "DeskFrame");
+                if (frame0 != null)
+                    WalkScreen(frame0.GetComponent<RectTransform>(), 0f, 0f, 1280f, 720f,
+                               new List<DumpRot>(), sb1, ref f1, 1f, 1f);
+                var hud0 = root.HUD != null ? FindDeep(root.HUD.transform, "HudFrame") : null;
+                if (hud0 != null)
+                    WalkScreen(hud0.GetComponent<RectTransform>(), 0f, 0f, 1280f, 720f,
+                               new List<DumpRot>(), sb1, ref f1, 1f, 1f);
+                sb1.Append("]}");
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path)) ?? ".");
+                System.IO.File.WriteAllText(path, sb1.ToString());
+                Console.WriteLine("wrote " + path + " (empty)");
+                return;
+            }
+            int guard = 0;
+            while (cp.CurrentVisitor == null && guard++ < 8) cp.AdvanceQueue(6f);
+            // take the offered ID the way a tap does: card docks, papers reveal
+            var offered = FindDeep(cp.transform, "offeredid");
+            var offerDrag = offered != null ? offered.GetComponent<DragPaper>() : null;
+            if (offerDrag != null && offerDrag.OnTapped != null) offerDrag.OnTapped.Invoke(new Vector2(560f, 580f));
+            // pull the floor-files drawer open (the concept art shows it open)
+            var station = FindDeep(cp.transform, "station");
+            if (station != null) station.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            if (state == "occ45" || state == "occ25")
+            {
+                float v = state == "occ45" ? 45f : 25f;
+                if (root.HUD != null) root.HUD.SetSanity(v);   // before the walk: the dump is pixels
+            }
+            DeskFrames(cp, 12);
+
+            var frame = FindDeep(cp.transform, "DeskFrame");
+            if (frame == null) { Console.WriteLine("no DeskFrame — aborting dump"); return; }
+            var sb = new System.Text.StringBuilder();
+            sb.Append("{\"refw\":1280,\"refh\":720,\"nodes\":[");
+            bool first = true;
+            WalkScreen(frame.GetComponent<RectTransform>(), 0f, 0f, 1280f, 720f,
+                       new List<DumpRot>(), sb, ref first, 1f, 1f);
+            // the HUD canvas rides over the desk: sanity track/fill/value, hints, toasts
+            var hud = root.HUD != null ? FindDeep(root.HUD.transform, "HudFrame") : null;
+            if (hud != null)
+                WalkScreen(hud.GetComponent<RectTransform>(), 0f, 0f, 1280f, 720f,
+                           new List<DumpRot>(), sb, ref first, 1f, 1f);
+            sb.Append("]}");
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path)) ?? ".");
+            System.IO.File.WriteAllText(path, sb.ToString());
+            Console.WriteLine("wrote " + path + " (" + state + ")");
+        }
+
+        // cs = the product of the ancestors' localScale: a node's own sizeDelta and
+        // anchoredPosition live in its parent's LOCAL units, so they draw multiplied by it
+        // (the scaled card/slip art layers keep their design space this way).
+        // Headless sprite export: every PROCEDURAL sprite the bootstrap paints (vignette,
+        // desk wash, faces, papers...) as raw RGBA, so the preview renderer can show the
+        // same pixels the editor would instead of a flat stand-in colour.
+        private static void DumpSprites(string dir)
+        {
+            System.IO.Directory.CreateDirectory(dir);
+            var manifest = new System.Text.StringBuilder("{");
+            bool first = true;
+            foreach (var key in Hollowbrook.Bootstrap.ProceduralArt.CachedKeys)
+            {
+                if (!Hollowbrook.Bootstrap.ProceduralArt.TryGet(key, out var sp)) continue;
+                var tex = sp != null ? sp.texture : null;
+                var px = tex != null ? tex.GetPixels() : null;
+                if (px == null || tex.width < 1 || tex.height < 1) continue;
+                var raw = new byte[px.Length * 4];
+                for (int i = 0; i < px.Length; i++)
+                {
+                    raw[i * 4] = (byte)(px[i].r * 255f);
+                    raw[i * 4 + 1] = (byte)(px[i].g * 255f);
+                    raw[i * 4 + 2] = (byte)(px[i].b * 255f);
+                    raw[i * 4 + 3] = (byte)(px[i].a * 255f);
+                }
+                System.IO.File.WriteAllBytes(System.IO.Path.Combine(dir, key + ".rgba"), raw);
+                if (!first) manifest.Append(',');
+                first = false;
+                manifest.Append('"').Append(key).Append("\":{\"w\":").Append(tex.width)
+                        .Append(",\"h\":").Append(tex.height).Append('}');
+            }
+            manifest.Append('}');
+            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "manifest.json"), manifest.ToString());
+            Console.WriteLine("wrote procedural sprites to " + dir);
+        }
+
+        private static void WalkScreen(RectTransform rt, float px, float py, float pw, float ph,
+            List<DumpRot> rots, System.Text.StringBuilder sb, ref bool first, float alpha, float cs)
+        {
+            if (rt == null || !rt.gameObject.activeInHierarchy) return;
+            float u = cs * rt.localScale.x;
+            float ax = Mathf.Lerp(rt.anchorMin.x, rt.anchorMax.x, rt.pivot.x) * pw;
+            float ayTop = ph - Mathf.Lerp(rt.anchorMin.y, rt.anchorMax.y, rt.pivot.y) * ph;
+            float sx = rt.sizeDelta.x * u + (rt.anchorMax.x - rt.anchorMin.x) * pw;
+            float sy = rt.sizeDelta.y * u + (rt.anchorMax.y - rt.anchorMin.y) * ph;
+            // a node's OWN localScale squeezes its size and its children, but NOT its own
+            // anchoredPosition — Unity applies the scale around the pivot, after placement
+            float pivotX = px + ax + rt.anchoredPosition.x * cs;
+            float pivotY = py + ayTop - rt.anchoredPosition.y * cs;
+            float x = pivotX - rt.pivot.x * sx;
+            float y = pivotY - (1f - rt.pivot.y) * sy;
+            float cx = x + sx * 0.5f, cy = y + sy * 0.5f;
+            float ang = rt.localEulerAngles.z;
+            foreach (var r in rots)
+            {
+                float dx = cx - r.Cx, dy = cy - r.Cy;
+                float c = Mathf.Cos(r.Rad), s2 = Mathf.Sin(r.Rad);
+                cx = r.Cx + c * dx + s2 * dy;
+                cy = r.Cy - s2 * dx + c * dy;
+                ang += r.Deg;
+            }
+            var cg = rt.GetComponent<CanvasGroup>();
+            if (cg != null) alpha *= cg.alpha;
+            var img = rt.GetComponent<UnityEngine.UI.Image>();
+            var txt = rt.GetComponent<UnityEngine.UI.Text>();
+            // a disabled graphic draws nothing (uGUI): the input's placeholder hides while
+            // ink exists, exactly as the editor shows it
+            bool visual = (img != null && img.enabled && img.color.a > 0.004f && alpha > 0.004f) ||
+                          (txt != null && txt.enabled && txt.text.Length > 0 && txt.color.a > 0.004f && alpha > 0.004f);
+            bool pushed = false;
+            if (visual)
+            {
+                if (!first) sb.Append(',');
+                first = false;
+                sb.Append("{\"n\":").Append(Json(rt.name));
+                sb.Append(",\"x\":").Append((cx - sx * 0.5f).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                sb.Append(",\"y\":").Append((cy - sy * 0.5f).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                sb.Append(",\"w\":").Append(sx.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                sb.Append(",\"h\":").Append(sy.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                sb.Append(",\"a\":").Append(ang.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                sb.Append(",\"al\":").Append(alpha.ToString("F3", System.Globalization.CultureInfo.InvariantCulture));
+                if (img != null)
+                {
+                    var c = img.color;
+                    sb.Append(",\"img\":{\"s\":").Append(Json(img.sprite != null ? img.sprite.name : ""));
+                    sb.Append(",\"t\":").Append((int)img.type);
+                    sb.Append(",\"pa\":").Append(img.preserveAspect ? 1 : 0);
+                    if (img.sprite != null && img.sprite.border.sqrMagnitude > 0f)
+                    {
+                        var b = img.sprite.border;
+                        sb.Append(",\"b\":[").Append(b.x.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)).Append(',')
+                          .Append(b.y.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)).Append(',')
+                          .Append(b.z.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)).Append(',')
+                          .Append(b.w.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)).Append(']');
+                        // uGUI converts slice borders through pixelsPerUnit; the renderer
+                        // needs the same number to honour them in reference units
+                        sb.Append(",\"pu\":").Append(img.sprite.pixelsPerUnit.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                    }
+                    sb.Append(",\"c\":[").Append(((int)(c.r * 255f))).Append(',').Append(((int)(c.g * 255f))).Append(',')
+                      .Append(((int)(c.b * 255f))).Append(',').Append(c.a.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)).Append("]}");
+                }
+                if (txt != null)
+                {
+                    var c = txt.color;
+                    sb.Append(",\"txt\":{\"t\":").Append(Json(txt.text));
+                    sb.Append(",\"f\":").Append(Json(txt.font != null ? txt.font.name : ""));
+                    sb.Append(",\"s\":").Append(txt.fontSize);
+                    sb.Append(",\"st\":").Append((int)txt.fontStyle);
+                    // a condensed label (localScale.x < 1) draws its glyphs squeezed: the
+                    // renderer needs the node's own scale to set the true pixel size
+                    sb.Append(",\"sc\":").Append(rt.localScale.x.ToString("F3", System.Globalization.CultureInfo.InvariantCulture));
+                    sb.Append(",\"al\":").Append((int)txt.alignment);
+                    sb.Append(",\"w\":").Append((int)txt.horizontalOverflow);
+                    sb.Append(",\"c\":[").Append(((int)(c.r * 255f))).Append(',').Append(((int)(c.g * 255f))).Append(',')
+                      .Append(((int)(c.b * 255f))).Append(',').Append(c.a.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)).Append("]}");
+                }
+                var inp = rt.GetComponent<UnityEngine.UI.InputField>();
+                if (inp != null)
+                    sb.Append(",\"inp\":{\"f\":").Append(inp.isFocused ? 1 : 0).Append('}');
+                sb.Append('}');
+            }
+            if (Mathf.Abs(ang - (rots.Count > 0 ? 0f : 0f)) > 0.01f && rt.localEulerAngles.z != 0f)
+            {
+                rots.Add(new DumpRot { Cx = cx, Cy = cy, Rad = rt.localEulerAngles.z * Mathf.Deg2Rad, Deg = rt.localEulerAngles.z });
+                pushed = true;
+            }
+            for (int i = 0; i < rt.childCount; i++)
+                WalkScreen(rt.GetChild(i).GetComponent<RectTransform>(), x, y, sx, sy, rots, sb, ref first, alpha, u);
+            if (pushed) rots.RemoveAt(rots.Count - 1);
+        }
+
+        private static string Json(string s)
+        {
+            var sb = new System.Text.StringBuilder("\"");
+            foreach (var ch in s)
+            {
+                if (ch == '"' || ch == '\\') sb.Append('\\').Append(ch);
+                else if (ch == '\n') sb.Append("\\n");
+                else if (ch == '\r') sb.Append("\\r");
+                else if (ch == '\t') sb.Append("\\t");
+                else if (ch < 0x20) sb.Append(' ');
+                else sb.Append(ch);
+            }
+            return sb.Append('"').ToString();
+        }
+
+        // ---------------------------------------------------- opt-in visual dump (SVG)
+        // Walks the REAL built desk hierarchy and draws it, so the drawer's travel, the front
+        // lip, the shadow and the emerging files can be seen instead of trusted. Coordinates are
+        // the same top-left desk-grid space CheckpointLayout places everything in.
+        private static void DumpDrawer(string dir)
+        {
+            System.IO.Directory.CreateDirectory(dir);
+            MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore());
+            var root = GameRoot.Instance;
+            root.Config.queueArrivalMinSeconds = 3f;
+            root.Config.queueArrivalMaxSeconds = 5f;
+            root.Config.queueBusyHurryMultiplier = 1f;
+            // the real path: NEW GAME queues BeginShift, THEN the checkpoint scene boots and
+            // runs the queued action — skipping the click leaves the run in MainMenu
+            var newGame = root.MainMenu.transform.Find("buttons").Find("NEW GAME");
+            newGame.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            CheckpointSceneBootstrap.Build(root);
+            int adv = 0;
+            while (root.Dialogue != null && root.Dialogue.IsActive && adv++ < 64)
+                root.Dialogue.Advance();
+            Console.WriteLine("state after intro: " + root.State + " (advanced " + adv + ")");
+            ClickStickyNote(root);      // the shift starts; the desk becomes the live screen
+            var cp = root.Checkpoint;
+            if (!cp.gameObject.activeInHierarchy) { Console.WriteLine("desk not live — aborting dump"); return; }
+            int guard = 0;
+            while (cp.CurrentVisitor == null && guard++ < 8) cp.AdvanceQueue(6f);
+
+            var frameRt = FindDeep(cp.transform, "DeskFrame").GetComponent<RectTransform>();
+            string[] names = { "station", "filedrawer_border", "drawerbody", "drawerfront",
+                               "handle", "drawerhead", "filerow0", "filerow3", "filerow6",
+                               "drawercavity", "folder1", "folder2", "stationout", "record" };
+            var frames = new[] { new { Tag = "0_shut", Frames = 0, Open = false },
+                                 new { Tag = "1_click_frame", Frames = -1, Open = true },
+                                 new { Tag = "2_2frames", Frames = 2, Open = true },
+                                 new { Tag = "3_5frames", Frames = 3, Open = true },
+                                 new { Tag = "4_open", Frames = 20, Open = true } };
+            bool opened = false;
+            foreach (var f in frames)
+            {
+                if (f.Open && !opened)
+                {
+                    FindDeep(cp.transform, "station").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+                    opened = true;
+                }
+                if (f.Frames > 0) DeskFrames(cp, f.Frames);
+                if (f.Tag == "4_open")
+                {
+                    var firstRow = FindDeep(cp.transform, "filerow0");
+                    if (firstRow != null) firstRow.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+                }
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"420\" height=\"560\" " +
+                              "viewBox=\"0 0 420 560\" font-family=\"sans-serif\">");
+                sb.AppendLine("<rect width=\"420\" height=\"560\" fill=\"#0b0b0d\"/>");
+                sb.AppendLine($"<text x=\"10\" y=\"18\" fill=\"#8a8a92\" font-size=\"12\">" +
+                              $"{f.Tag}  pull={cp.DrawerPull:F3}  open={cp.DrawerIsOpen}</text>");
+                // desk-grid (x right, y down) -> svg, cropped to the left column and shifted up
+                const float ox = 20f, oy = -90f;
+                foreach (var n in names)
+                {
+                    var t = FindDeep(cp.transform, n);
+                    if (t == null) continue;
+                    var rt = t.GetComponent<RectTransform>();
+                    var img = t.GetComponent<UnityEngine.UI.Image>();
+                    var txt = t.GetComponent<UnityEngine.UI.Text>();
+                    // Every drawer element is placed through PlaceTL (top-left anchor AND
+                    // pivot), so its desk-grid rect is the parent chain's offsets plus its own
+                    // anchoredPosition, and sizeDelta IS its size. Same maths as CheckpointLayout.
+                    float px = 0f, py = 0f;
+                    for (var p2 = rt.parent as RectTransform; p2 != null && p2 != frameRt;
+                         p2 = p2.parent as RectTransform)
+                    {
+                        px += p2.anchoredPosition.x;
+                        py += p2.anchoredPosition.y;
+                    }
+                    float w = rt.sizeDelta.x, h = rt.sizeDelta.y;
+                    float x = px + rt.anchoredPosition.x + ox;
+                    float y = -(py + rt.anchoredPosition.y) + oy;
+                    if (!t.gameObject.activeInHierarchy)
+                    {
+                        sb.AppendLine($"<rect x=\"{x:F1}\" y=\"{y:F1}\" width=\"{w:F1}\" height=\"{h:F1}\" " +
+                                      $"fill=\"none\" stroke=\"#33333a\" stroke-dasharray=\"3 3\"/>");
+                        sb.AppendLine($"<text x=\"{x + 3:F1}\" y=\"{y + 11:F1}\" fill=\"#4a4a55\" " +
+                                      $"font-size=\"9\">{n} (hidden)</text>");
+                        continue;
+                    }
+                    var c = img != null ? img.color : (txt != null ? txt.color : Color.white);
+                    string hex = $"#{(int)(Mathf.Clamp01(c.r) * 255):x2}" +
+                                 $"{(int)(Mathf.Clamp01(c.g) * 255):x2}{(int)(Mathf.Clamp01(c.b) * 255):x2}";
+                    float a = Mathf.Clamp01(c.a);
+                    var cg = t.GetComponent<CanvasGroup>();
+                    if (cg != null) a *= cg.alpha;
+                    sb.AppendLine($"<rect x=\"{x:F1}\" y=\"{y:F1}\" width=\"{w:F1}\" height=\"{h:F1}\" " +
+                                  $"fill=\"{hex}\" fill-opacity=\"{a:F2}\" stroke=\"#6a6a72\" stroke-width=\"0.6\"/>");
+                    if (txt != null && txt.text.Length > 0)
+                        sb.AppendLine($"<text x=\"{x + 3:F1}\" y=\"{y + 11:F1}\" fill=\"#d8d8dc\" " +
+                                      $"font-size=\"8\">{System.Security.SecurityElement.Escape(txt.text)}</text>");
+                    else
+                        sb.AppendLine($"<text x=\"{x + 2:F1}\" y=\"{y - 2:F1}\" fill=\"#7a7a84\" " +
+                                      $"font-size=\"8\">{n}</text>");
+                }
+                sb.AppendLine("</svg>");
+                string path = System.IO.Path.Combine(dir, "drawer_" + f.Tag + ".svg");
+                System.IO.File.WriteAllText(path, sb.ToString());
+                Console.WriteLine("wrote " + path);
+            }
+        }
+
         // ------------------------------------------------------- world helpers
         private static void WorldFrame(GameRoot root, float dt = 1f / 60f)
         {
@@ -2839,6 +4127,149 @@ namespace FlowCheck
             if (room == null) return null;
             foreach (var it in room.Interactables) if (it is T t) return t;
             return null;
+        }
+
+        // ------------------------------------------------- window talk dock (typed dialogue)
+        // The dialogue text box is a functional input: typed lines route into the real
+        // interaction loop (verification questions spend the QuestionSystem budget, the
+        // rest gets an in-character answer), every exchange lands in the transcript sheet
+        // and the bubble, and the loading/disabled/error states are observable widgets.
+        private static void TalkDockProof(GameRoot root)
+        {
+            Console.WriteLine("== window talk dock: the typed dialogue box ==");
+            // a fresh shift so this proof owns its visitor and its question budget
+            MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore());
+            root.MainMenu.transform.Find("buttons").Find("NEW GAME")
+                .GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            CheckpointSceneBootstrap.Build(root);
+            for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++)
+                root.Dialogue.Advance();
+            ClickStickyNote(root);
+            var cp = root.Checkpoint;
+            var dock = FindDeep(cp.transform, "talkdock");
+            var log = FindDeep(cp.transform, "talklog_border");   // the sheet OUTER (show/hide lives there)
+            var input = FindDeep(cp.transform, "talkinput").GetComponent<UnityEngine.UI.InputField>();
+            var send = FindDeep(cp.transform, "talksend");
+            Check(dock != null && dock.gameObject.activeSelf, "TD: the talk dock is on the desk and visible");
+            Check(input != null, "TD: the dialogue text box exists as a real InputField");
+            Check(input.lineType == UnityEngine.UI.InputField.LineType.MultiLineSubmit,
+                  "TD: Enter sends, Shift+Enter breaks the line (MultiLineSubmit)");
+            Check(input.characterLimit == SpokenChat.MaxChars, "TD: the box caps the typed line");
+            var ph = input.placeholder as UnityEngine.UI.Text;
+            Check(ph != null && ph.text.Contains("SPEAK THROUGH THE GLASS"),
+                  "TD: the placeholder invites speech at the window");
+            Check(input.interactable && cp.CurrentVisitor != null,
+                  "TD: the box is live while a visitor stands at the window");
+            Check(log != null && !log.gameObject.activeSelf, "TD: the transcript sheet starts collapsed");
+
+            // empty sends are refused: nothing enters the transcript, the text stays put
+            input.ActivateInputField();
+            Check(UIFactory.TypingInField(), "TD: focus registers as typing (gameplay keys stand down)");
+            input.SimulateTyping("   ");
+            input.SimulateEnter(false);
+            Check(cp.Transcript.Count == 0 && input.text == "   ",
+                  "TD: an empty send is refused and the typed text stays");
+            input.text = "";
+
+            // Shift+Enter breaks the line without sending
+            input.SimulateTyping("good evening");
+            input.SimulateEnter(true);
+            Check(input.text == "good evening\n" && cp.Transcript.Count == 0,
+                  "TD: Shift+Enter breaks the line and sends nothing");
+
+            // Enter sends: loading state, duplicate guard, commit, transcript, bubble
+            input.SimulateEnter(false);
+            var sendTxt = send.GetComponentInChildren<UnityEngine.UI.Text>();
+            Check(sendTxt.text == "…" && !input.interactable,
+                  "TD: a send in flight shows the loading state and locks the box");
+            cp.SubmitTalk();
+            cp.TickTalk(0.1f);
+            Check(sendTxt.text == "…", "TD: a duplicate send inside the beat changes nothing");
+            cp.TickTalk(0.3f);
+            Check(input.text == "", "TD: success clears the box");
+            Check(cp.Transcript.Count == 2 && cp.Transcript.Entries[0].FromPlayer
+                  && !cp.Transcript.Entries[1].FromPlayer,
+                  "TD: the exchange lands in the transcript (you, then the visitor)");
+            Check(cp.Transcript.Entries[0].Text == "good evening",
+                  "TD: the submitted message is stored as spoken");
+            Check(log.gameObject.activeSelf, "TD: the sheet breathes open after a reply");
+            var row0 = FindDeep(cp.transform, "trow0").GetComponent<UnityEngine.UI.Text>();
+            var row1 = FindDeep(cp.transform, "trow1").GetComponent<UnityEngine.UI.Text>();
+            Check(row0.text.StartsWith("YOU — good evening"), "TD: the sheet shows the submitted message");
+            Check(row1.text.StartsWith("VISITOR — ") && row1.text.Length > "VISITOR — ".Length,
+                  "TD: the sheet shows the visitor's reply");
+            var bubble = FindDeep(cp.transform, "bubbletext").GetComponent<UnityEngine.UI.Text>();
+            Check(!bubble.text.Contains("AT THE WINDOW") && bubble.text.Length > 0,
+                  "TD: the visitor's reply also speaks in the window bubble");
+
+            // typed verification questions spend the REAL budget (cap 2, no repeats)
+            int left = BudgetLeft(cp);
+            input.text = "what is your course?";
+            input.SimulateEnter(false); cp.TickTalk(0.3f);
+            Check(BudgetLeft(cp) == left - 1,
+                  "TD: a typed course question spends one verification question");
+            input.text = "what is your course?";
+            input.SimulateEnter(false); cp.TickTalk(0.3f);
+            Check(BudgetLeft(cp) == left - 1,
+                  "TD: repeating it refunds nothing (no-repeats holds for typed speech)");
+            Check(cp.Transcript.Entries[cp.Transcript.Count - 1].Who == "DESK",
+                  "TD: the refusal is logged as the desk, not ventriloquised by the visitor");
+            input.text = "are you a regular student or a transferee?";
+            input.SimulateEnter(false); cp.TickTalk(0.3f);
+            Check(BudgetLeft(cp) == left - 2,
+                  "TD: the second typed question spends the last of the budget");
+            input.text = "what classroom is your first class in?";
+            input.SimulateEnter(false); cp.TickTalk(0.3f);
+            Check(BudgetLeft(cp) == left - 2,
+                  "TD: the two-question cap holds for typed questions too");
+
+            // the sheet breathes: auto-collapse, pin via LOG, unpin
+            cp.TickTalk(5f);
+            Check(!log.gameObject.activeSelf, "TD: the sheet collapses on its own after a while");
+            FindDeep(cp.transform, "talklogtoggle").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(log.gameObject.activeSelf, "TD: LOG pins the sheet open");
+            cp.TickTalk(30f);
+            Check(log.gameObject.activeSelf, "TD: a pinned sheet stays open");
+            FindDeep(cp.transform, "talklogtoggle").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(!log.gameObject.activeSelf, "TD: LOG closes it again");
+
+            // the keyboard belongs to the sentence being typed
+            input.ActivateInputField();
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.A);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            Check(cp.PendingVerdict == Verdict.None, "TD: typing an 'A' never stamps the slip");
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Escape);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            Check(!input.isFocused, "TD: Escape leaves the box");
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.V);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            Check(input.isFocused, "TD: V puts the caret back in the box");
+            cp.BlurTalk();
+
+            // error path: the window closes mid-thought — the typed text survives
+            input.text = "wait, one more thing";
+            input.SimulateEnter(false);
+            Check(!input.interactable, "TD: the box locks during the send beat");
+            cp.DebugClearVisitor();
+            cp.TickTalk(0.3f);
+            Check(input.text == "wait, one more thing",
+                  "TD: a closed window keeps the typed text (failed send)");
+            Check(!input.interactable, "TD: with nobody at the window the box is disabled, not fake-live");
+            ph = input.placeholder as UnityEngine.UI.Text;
+            Check(ph.text.Contains("NO ONE AT THE WINDOW"),
+                  "TD: the placeholder explains the dead state");
+        }
+
+        // the printed faces live on each paper's scaled art layer (cardart / slipart)
+        private static Transform FaceOf(Transform paper, string name)
+        {
+            var art = paper.Find("cardart");
+            if (art == null) art = paper.Find("slipart");
+            if (art == null) art = paper;
+            return art.Find(name);
         }
 
         private static int CountDeep(Transform t, string name)

@@ -18,13 +18,18 @@ namespace Hollowbrook.Checkpoint
     {
         /// <summary>The ID card's resting display scale (~18% under the old default).
         /// Zoom (1..1.8) rides on top of it — see DragPaper.BaseScale.</summary>
-        internal const float IdCardScale = 0.82f;
+        internal const float IdCardScale = 0.625f;   // 320x220 design art -> 200x137 desk rect
+        /// <summary>True once the SecurityRoom kit skin applied: paper-ink labels flip dark.</summary>
+        private bool _kitOn;
+        /// <summary>True once the HUD's live sanity meter got its kit tint (HUD is built after the desk).</summary>
+        private bool _kitSanityApplied;
         private const string BulletinShort = "⚠ DISTRICT BULLETIN — NEW RULE IN EFFECT · SEE RULES NOTE";
 
         private GameRoot _gameRoot;
         private RectTransform _root;
         private RectTransform _desk;
         private DeskLayoutAudit _audit;
+
 
         public VisitorData CurrentVisitor => _current;
 
@@ -39,6 +44,7 @@ namespace Hollowbrook.Checkpoint
         private bool _flowActive;
 
         private Text _topLeft, _topClock;
+        private string _lastClockText = "";
         private Text _runStats;      // endless/challenge: score · streak · timer
         private Text _mutationStrip; // challenge bulletin
         private GameObject _stickyRoot;
@@ -56,17 +62,8 @@ namespace Hollowbrook.Checkpoint
         private Button[] _questionButtons = new Button[4];
         private readonly string[] _qLabels = new string[4];
         private Text _budgetLabel;
+        private Text _qEmpty;   // deliberate empty state for the questions panel
         private Text _stationOut;
-        // floor-files cabinet: folder tabs, the drawer and what it currently shows
-        private readonly Button[] _folderTabs = new Button[2];
-        private readonly Image[] _folderTabInks = new Image[2];
-        private GameObject _drawerGo;
-        private Text _drawerHead;
-        private RectTransform _drawerRows;
-        private readonly List<Image> _fileRowInks = new List<Image>();
-        private readonly List<int> _fileRowCanon = new List<int>();
-        private int _openFloor = -1;          // -1 = drawer closed
-        private int _selectedCanon = -1;      // canon index of the pulled file
         private GameObject _slipGo;
         private GameObject _papersLayer;
         private Text _slipName, _slipId, _slipReason;
@@ -116,7 +113,8 @@ namespace Hollowbrook.Checkpoint
             _audit = _desk.gameObject.AddComponent<DeskLayoutAudit>();
 
             BuildTopBar();
-            BuildLeftColumn();
+            BuildFileCabinet();    // floor-files station + the physical pull drawer...
+            BuildLeftColumn();     // ...then the papers that ride above it
             BuildWindowArea();
             BuildOfferedId();
             BuildCenterColumn();
@@ -125,9 +123,11 @@ namespace Hollowbrook.Checkpoint
             BuildPapersLayer();      // papers live above window/bubble/tools...
             BuildStampTray();        // ...and below the stamp tray; overlays top everything
             BuildStands();
+            BuildTalkDock();         // the typed window-talk box + its transcript sheet
             BuildOverlays();
             BuildStickyNote();
-            BuildFaceCompare();    // photo/portrait click targets + their quiet cues
+            BuildAdminTalk();    // the Shift-5 conversation panel + its re-open bar
+            ApplyKitSkin();      // the owner's SecurityRoom art, over the audited grid
 
             _subscriptions.Add(_gameRoot.Bus.Subscribe(EventIds.RunTimerTick, e => OnRunTimerTick(e.Value)));
             _subscriptions.Add(_gameRoot.Bus.Subscribe(EventIds.MutationChanged,
@@ -172,7 +172,18 @@ namespace Hollowbrook.Checkpoint
             _notesRoot.SetActive(false);
             _recordsRoot.SetActive(false);
             HideBubbleNow();   // leaving the desk never carries a line (or a timer) along
-            ResetFaceCompare();  // ...nor a half-finished face comparison
+            BlurTalk();        // ...nor the caret: the text box lets the keyboard go
+            CloseFileDrawer(true);   // ...nor an open drawer: the cabinet is shut on return
+            // ...nor a half-spoken conversation: the panel goes dark, the state stays in the
+            // session, and ResumeRun puts the re-open bar back if the administrator still waits
+            if (_talkOpen)
+            {
+                if (_talkPause != null) { StopCoroutine(_talkPause); _talkPause = null; }
+                _talkOpen = false;
+                _talkCommitting = false;
+                if (_talkPanel != null) _talkPanel.SetActive(false);
+                SetTalkColumn(false);
+            }
         }
 
         public void BeginRun(ShiftDef shift)
@@ -379,10 +390,21 @@ namespace Hollowbrook.Checkpoint
         // Both faces of one paper back to their born state: back hidden, front shown. The
         // stamp mark is left exactly as it is — it is a layer of the slip and is cleared
         // (alpha + sprite) by the hand-over reset, never by a flip.
+        // The printed faces live on the paper's scaled art layer (cardart / slipart); the
+        // container only carries the pointer surface and the desk rect.
+        private static Transform FaceRoot(GameObject paper)
+        {
+            if (paper == null) return null;
+            var art = paper.transform.Find("cardart");
+            if (art == null) art = paper.transform.Find("slipart");
+            return art != null ? art : paper.transform;
+        }
+
         private static void FaceUp(GameObject paper)
         {
-            if (paper == null) return;
-            foreach (Transform ch in paper.transform)
+            var root = FaceRoot(paper);
+            if (root == null) return;
+            foreach (Transform ch in root)
             {
                 if (ch.name == "stampoverlay") continue;
                 ch.gameObject.SetActive(!ch.name.EndsWith("back"));
@@ -392,13 +414,14 @@ namespace Hollowbrook.Checkpoint
         private void FlipPaper(GameObject paper)
         {
             if (paper == null || !paper.activeSelf) return;
+            var root = FaceRoot(paper);
             Transform bt = null;
-            foreach (Transform ch in paper.transform)
+            foreach (Transform ch in root)
                 if (ch.name.EndsWith("back")) { bt = ch; break; }
             if (bt == null) return;
             bool on = !bt.gameObject.activeSelf;
             bt.gameObject.SetActive(on);
-            foreach (Transform ch in paper.transform)
+            foreach (Transform ch in root)
             {
                 if (ch == bt || ch.name == "stampoverlay") continue;   // the stamp mark stays on the slip
                 ch.gameObject.SetActive(!on);
@@ -428,8 +451,12 @@ namespace Hollowbrook.Checkpoint
         private void Update()
         {
             if (_gameRoot == null || !gameObject.activeInHierarchy) return;
+            TickClockText();                  // the header clock follows the model every frame
             AdvanceQueue(Time.deltaTime);
             TickBubble(Time.unscaledDeltaTime);   // the 2 s bubble cooldown (frozen while paused)
+            TickTalk(Time.unscaledDeltaTime);     // the talk dock's send beat + log breathing
+            TickDrawer(Time.unscaledDeltaTime);   // the floor-files drawer's pull/slide
+            TickKitLight(Time.unscaledDeltaTime); // the booth lamp's slow breath
             TickHotkeys();
         }
 
@@ -437,6 +464,16 @@ namespace Hollowbrook.Checkpoint
         // (stub MonoBehaviours never get Update calls).
         internal void TickHotkeys()
         {
+            // While the talk dock's text box holds the caret the keyboard belongs to the
+            // sentence being typed: no gameplay key may fire (an "f" must not flip a paper,
+            // an "a" must not stamp). Escape leaves the box instead of pausing the shift.
+            if (UIFactory.TypingInField())
+            {
+                if (Input.GetKeyDown(KeyCode.Escape)) BlurTalk();
+                return;
+            }
+            // V puts the caret in the window-talk box (the click does the same in-editor)
+            if (Input.GetKeyDown(KeyCode.V)) FocusTalk();
             // Escape belongs to an open overlay sheet (Options/Controls/Credits) first —
             // without this guard Esc over the pause menu would close Options AND unpause.
             if (Input.GetKeyDown(KeyCode.Escape) && !_gameRoot.BlockingOverlayOpen && InputGate.TryEscape())
@@ -446,6 +483,12 @@ namespace Hollowbrook.Checkpoint
                 (_gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive) ||
                 _gameRoot.State != AppViewState.Checkpoint) return;
             if (Input.GetKeyDown(KeyCode.M) && InputGate.TryM()) _gameRoot.OpenMap();
+            // TAB pulls the floor-files drawer open / pushes it shut (same act as clicking
+            // the cabinet front); with a floor already open it re-opens that floor's files
+            if (Input.GetKeyDown(KeyCode.Tab)) ToggleDrawerByKey();
+            // T speaks with the administrator (or steps back out of the conversation); it is
+            // inert unless the administrator is actually at the window
+            if (Input.GetKeyDown(KeyCode.T)) ToggleAdminTalkByKey();
             // 1-4 ask the four questions while the interview is open (labels say so)
             for (int k = 0; k < 4; k++)
                 if (Input.GetKeyDown((KeyCode)(KeyCode.Alpha1 + k))) AskByHotkey(k);
@@ -498,11 +541,21 @@ namespace Hollowbrook.Checkpoint
 
         private void RefreshHud()
         {
-            if (_gameRoot == null || _gameRoot.Session == null) return;
+            if (_gameRoot == null) return;
+            // Bootstrap builds the desk BEFORE the HUD, so ApplyKitSkin could not tint the
+            // live sanity meter at Init — land it lazily on the first refresh where the HUD exists.
+            if (_kitOn && !_kitSanityApplied && _gameRoot.HUD != null)
+            {
+                _gameRoot.HUD.ApplyKitSanity(true);
+                _kitSanityApplied = true;
+            }
+            if (_gameRoot.Session == null) return;
             RefreshTopBar();
             RefreshHandoverPrompt();
             RefreshDecisionButtons();
             RefreshStands();
+            RefreshAdminTalk();
+            RefreshTalkDock();
         }
 
         private void OnEnable()

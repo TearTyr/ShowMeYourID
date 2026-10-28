@@ -1,0 +1,163 @@
+key,type,category,priority,status,format,spec,used_by,notes
+custodian_0,art,character,P0,procedural,PNG,"PNG RGBA 96x224 px @64 ppu, the guard: walk frame A",PlayerController,2-frame walk is enough; add _2/_3 later without renaming
+custodian_1,art,character,P0,procedural,PNG,"PNG RGBA 96x224 px @64 ppu, walk frame B",PlayerController,
+desk_bg,art,ui-bg,P0,procedural,PNG,"PNG 640x360 px @100 ppu (stretched), radial lamp wash behind the booth",CheckpointView,
+folder_tab,art,desk-doc,P0,procedural,PNG,"PNG RGBA 304x26 px @100 ppu, manila tab with poking-up strip on top",CheckpointView drawer (1ST/2ND floor tabs),
+hall_depth,art,world-bg,P0,procedural,PNG,"PNG RGBA, ALPHA-ONLY black radial falloff (see HallwayDarkness.DepthAt), native px = shroud world size x10",hallway limited visibility,must stay alpha-graded or the pool breaks
+hallway_bg,art,world-bg,P0,procedural,PNG,"PNG 1536x640 px @64 ppu (=24x10 world units), side-view corridor, doors/lockers baked OR as separate props",ViewManager hallway,final art may split baked props into layers; keep the same canvas size
+id_card_frame,art,desk-doc,P0,procedural,PNG,PNG RGBA 320x220 px @100 ppu (prints 1:1 in the desk grid); photo slot + 6 text rows are drawn ON TOP by code — deliver the blank card art only,"CheckpointView (ID card, offered card)",hollow frame with black spine area left dark
+lamp_glow,art,fx,P0,procedural,PNG,"PNG RGBA 128x128 px, radial warm glow (peek lamp + mask)",PeekLight,
+light_cone,art,fx,P0,procedural,PNG,"PNG RGBA 512x288 px @64 ppu, the beam wedge: hot at the lamp, gone at the reach, feathered shoulders (BeamProfile bakes it)",FlashlightRig cone + stencil mask,mask alpha-cutoff 0.05 depends on the feather — keep the falloff
+paper_flat,art,desk-doc,P0,procedural,PNG,"PNG RGBA 760x480 px @100 ppu, plain aged sheet for the RULES NOTE / TONIGHT'S LOG overlays",CheckpointView overlays,
+prop_door,art,world-prop,P0,procedural,PNG,"PNG RGBA 160x384 px @64 ppu (2.5x6 units), classroom door, stands on the floor line",RoomBuilder doors,drawn standing: centre = floor + h/2
+prop_door_security,art,world-prop,P0,procedural,PNG,"PNG RGBA 160x384 px @64 ppu, booth/security door with plate",RoomBuilder security door + office door,
+prop_lightswitch,art,world-prop,P0,procedural,PNG,"PNG RGBA 32x48 px @64 ppu, wall switch plate",every room's wall switch (E),new key this pass; was an anonymous quad
+prop_lockers,art,world-prop,P0,procedural,PNG,"PNG RGBA 288x336 px @64 ppu, locker bank",hallway,
+prop_server_door,art,world-prop,P0,procedural,PNG,"PNG RGBA 208x384 px @64 ppu, SEALED server/ID room door: chains + padlock baked",hallway east end,the scratch marks are story — keep them
+record_sheet,art,desk-doc,P0,procedural,PNG,"PNG RGBA 320x290 px @100 ppu; FORM 11-C layout, header band + ruled rows left blank for code-drawn text",CheckpointView (student record / admin memo),
+rough_panel_dark,art,functional,P0,code-drawn,PNG,256x192 dark rough panel — the drawer body/front skin,CheckpointView drawer,replaceable if you want a wood-grain drawer: same key
+sec_background,art,kit,P0,shipped-kit,PNG,"full-frame 2880x1620 layer: booth base, lamp cone baked, no window",CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_background_close,art,kit,P0,shipped-kit,PNG,full-frame layer: booth with the shutter CLOSED (night card backdrop),CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_background_open,art,kit,P0,shipped-kit,PNG,full-frame layer: booth with the shutter OPEN (loading/summary backdrops),CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_btn_pill,art,kit,P0,shipped-kit,PNG,sliced pill: question / overlay-close button skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_bubble,art,kit,P0,shipped-kit,PNG,"speech box, 9-sliced (left tail + rough edge preserved): bubble + dialogue panel skin",CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_cabinet1,art,kit,P0,shipped-kit,PNG,cropped cabinet face: FLOOR FILES station skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_cabinet2,art,kit,P0,shipped-kit,PNG,cropped drawer unit: file-drawer body skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_caption_bar,art,kit,P0,shipped-kit,PNG,sliced bar: stamp caption furniture,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_folder_tab1,art,kit,P0,shipped-kit,PNG,sliced folder: 1st-floor tab art,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_folder_tab2,art,kit,P0,shipped-kit,PNG,sliced folder: 2nd-floor tab art,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_icon_accept,art,kit,P0,shipped-kit,PNG,sliced check disc badge for the APPROVE stamp handle,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_icon_decline,art,kit,P0,shipped-kit,PNG,sliced cross disc badge for the DECLINE stamp handle,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_icon_endshift,art,kit,P0,shipped-kit,PNG,sliced moon icon for the end-shift button,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_icon_patrol,art,kit,P0,shipped-kit,PNG,sliced footprint icon for the patrol button,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_light,art,kit,P0,shipped-kit,PNG,full-frame layer: hanging lamp cone only (slow breath layer),CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_pause_block,art,kit,P0,shipped-kit,PNG,"sliced widget: pause block furniture, placed at L.Pause",CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_qpanel,art,kit,P0,shipped-kit,PNG,cropped panel: question column skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_sanity_bar,art,kit,P0,shipped-kit,PNG,"sliced widget: sanity bar furniture, placed at L.SanityMeter",CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_stamp,art,kit,P0,shipped-kit,PNG,cropped hand stamp: the draggable verdict stamp body,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_stamp_circle_allow,art,kit,P0,shipped-kit,PNG,sliced tray card + check disc under the APPROVE stamp,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_stamp_circle_deny,art,kit,P0,shipped-kit,PNG,sliced tray card + cross disc under the DECLINE stamp,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_upper_panel,art,kit,P0,shipped-kit,PNG,full-frame layer: header board with cut-outs for sanity bar + pause,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_upper_panel_bg,art,kit,P0,shipped-kit,PNG,full-frame layer: header board without the widget cut-outs,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_wide_pill,art,kit,P0,shipped-kit,PNG,sliced pill: patrol / end-shift button skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_window_close,art,kit,P0,shipped-kit,PNG,full-frame layer: window frame + closed blinds,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_window_open,art,kit,P0,shipped-kit,PNG,full-frame layer: window frame + open glass; opening matches the Portrait rect,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+security_bg,art,world-bg,P0,procedural,PNG,"PNG 1280x720 px @100 ppu, the checkpoint booth interior behind the desk UI",SecurityRoomView / booth,
+stamp_allow,art,desk-doc,P0,temp-shipped,PNG,"PNG RGBA square ~150 px @100 ppu, APPROVE rubber stamp mark, transparent outside the ink",CheckpointView stamp tray + slip mark,"shipped as stamp_approval_temp.png via alias; final ink replaces the file, alias can go"
+stamp_reject,art,desk-doc,P0,procedural,PNG,"PNG RGBA square ~150 px @100 ppu, DENY rubber stamp mark",CheckpointView stamp tray + slip mark,"pair of stamp_allow: same weight, same tilt language"
+student_face_01,art,face,P0,temp-shipped,PNG,"PNG RGBA 512x640 (4:5) bust, flat front light, neutral — same crop for every student; code letterboxes it into the card slot, the window and the counter card",canon student 1 of 14 (Content.TotalStudents),temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations
+student_face_01_anomaly,art,face,P0,temp-shipped,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 1,FaceAssets.AnomalyKey — window shows this when the run says anomaly/distorted
+student_face_02,art,face,P0,temp-shipped,PNG,"PNG RGBA 512x640 (4:5) bust, flat front light, neutral — same crop for every student; code letterboxes it into the card slot, the window and the counter card",canon student 2 of 14 (Content.TotalStudents),temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations
+student_face_02_anomaly,art,face,P0,temp-shipped,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 2,FaceAssets.AnomalyKey — window shows this when the run says anomaly/distorted
+student_face_03,art,face,P0,temp-shipped,PNG,"PNG RGBA 512x640 (4:5) bust, flat front light, neutral — same crop for every student; code letterboxes it into the card slot, the window and the counter card",canon student 3 of 14 (Content.TotalStudents),temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations
+student_face_03_anomaly,art,face,P0,temp-shipped,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 3,FaceAssets.AnomalyKey — window shows this when the run says anomaly/distorted
+student_face_04,art,face,P0,temp-shipped,PNG,"PNG RGBA 512x640 (4:5) bust, flat front light, neutral — same crop for every student; code letterboxes it into the card slot, the window and the counter card",canon student 4 of 14 (Content.TotalStudents),temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations
+student_face_04_anomaly,art,face,P0,temp-shipped,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 4,FaceAssets.AnomalyKey — window shows this when the run says anomaly/distorted
+student_face_05,art,face,P0,temp-shipped,PNG,"PNG RGBA 512x640 (4:5) bust, flat front light, neutral — same crop for every student; code letterboxes it into the card slot, the window and the counter card",canon student 5 of 14 (Content.TotalStudents),temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations
+student_face_05_anomaly,art,face,P0,temp-shipped,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 5,FaceAssets.AnomalyKey — window shows this when the run says anomaly/distorted
+student_face_06,art,face,P0,temp-shipped,PNG,"PNG RGBA 512x640 (4:5) bust, flat front light, neutral — same crop for every student; code letterboxes it into the card slot, the window and the counter card",canon student 6 of 14 (Content.TotalStudents),temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations
+student_face_06_anomaly,art,face,P0,temp-shipped,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 6,FaceAssets.AnomalyKey — window shows this when the run says anomaly/distorted
+student_face_07,art,face,P0,missing,PNG,"PNG RGBA 512x640 (4:5) bust, flat front light, neutral — same crop for every student; code letterboxes it into the card slot, the window and the counter card",canon student 7 of 14 (Content.TotalStudents),temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations
+student_face_07_anomaly,art,face,P0,missing,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 7,FaceAssets.AnomalyKey — window shows this when the run says anomaly/distorted
+student_face_08,art,face,P0,missing,PNG,"PNG RGBA 512x640 (4:5) bust, flat front light, neutral — same crop for every student; code letterboxes it into the card slot, the window and the counter card",canon student 8 of 14 (Content.TotalStudents),temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations
+student_face_08_anomaly,art,face,P0,missing,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 8,FaceAssets.AnomalyKey — window shows this when the run says anomaly/distorted
+anomaly_blink,art,character,P1,procedural,PNG,"PNG RGBA 128x336 px @64 ppu, silhouette: only moves unobserved",WanderingAnomaly,reads as a silhouette under the darkness overlay (order 40)
+anomaly_coverhug,art,character,P1,procedural,PNG,"PNG RGBA 128x336 px @64 ppu, ceiling hugger",WanderingAnomaly,
+anomaly_slide,art,character,P1,procedural,PNG,"PNG RGBA 128x336 px @64 ppu, lateral glider",WanderingAnomaly,
+anomaly_sprint,art,character,P1,procedural,PNG,"PNG RGBA 128x336 px @64 ppu, telegraph-then-burst runner",WanderingAnomaly,
+bubble_tail,art,desk-doc,P1,procedural,PNG,"PNG RGBA 48x40 px @100 ppu, comic-bubble tail pointing left",CheckpointView speech bubble,
+circle_paper,art,functional,P1,code-drawn,PNG,110 px flat paper circle (ID back seal),CheckpointView ID back,
+classroom1_bg,art,world-bg,P1,procedural,PNG,"PNG 1152x640 px @64 ppu, Room 101 side view",ViewManager classroom 1 / peek,
+classroom2_bg,art,world-bg,P1,procedural,PNG,"PNG 1152x640 px @64 ppu, Room 202 side view (night window glow)",ViewManager classroom 2 / peek,
+clipboard,art,desk-doc,P1,procedural,PNG,PNG RGBA 370x490 px @100 ppu,reserve (overlay variant),
+hood_figure,art,character,P1,procedural,PNG,"PNG RGBA 24x48 px @100 ppu, waiting-line silhouette for the queue stands",CheckpointView stands,
+note_paper,art,desk-doc,P1,procedural,PNG,"PNG RGBA 390x300 px @100 ppu, sticky/notice paper",reserve (overlay variant),
+prop_chalkboard,art,world-prop,P1,procedural,PNG,"PNG RGBA 384x224 px @64 ppu, half-erased board (clue #2)",classroom 1 clue 'chalkboard',GDD interaction list
+prop_desk,art,world-prop,P1,procedural,PNG,"PNG RGBA 208x128 px @64 ppu, teacher's desk (clue #3)",classroom 1,
+prop_lightfixture,art,world-prop,P1,procedural,PNG,"PNG RGBA 208x40 px @64 ppu, ceiling light strip (flicker clue #1)",hallway clue 'light',
+prop_window,art,world-prop,P1,procedural,PNG,"PNG RGBA 224x300 px @64 ppu, classroom window with night glass (clue #5)",classroom 2 clue 'window',GDD: Window
+sec_arrow_right,art,kit,P1,shipped-kit,PNG,cropped chevron: the asked-mark on question rows,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+student_face_09,art,face,P1,missing,PNG,"PNG RGBA 512x640 (4:5) bust, flat front light, neutral — same crop for every student; code letterboxes it into the card slot, the window and the counter card",canon student 9 of 14 (Content.TotalStudents),temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations
+student_face_09_anomaly,art,face,P1,missing,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 9,FaceAssets.AnomalyKey — window shows this when the run says anomaly/distorted
+student_face_10,art,face,P1,missing,PNG,"PNG RGBA 512x640 (4:5) bust, flat front light, neutral — same crop for every student; code letterboxes it into the card slot, the window and the counter card",canon student 10 of 14 (Content.TotalStudents),temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations
+student_face_10_anomaly,art,face,P1,missing,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 10,FaceAssets.AnomalyKey — window shows this when the run says anomaly/distorted
+student_face_11,art,face,P1,missing,PNG,"PNG RGBA 512x640 (4:5) bust, flat front light, neutral — same crop for every student; code letterboxes it into the card slot, the window and the counter card",canon student 11 of 14 (Content.TotalStudents),temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations
+student_face_11_anomaly,art,face,P1,missing,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 11,FaceAssets.AnomalyKey — window shows this when the run says anomaly/distorted
+student_face_12,art,face,P1,missing,PNG,"PNG RGBA 512x640 (4:5) bust, flat front light, neutral — same crop for every student; code letterboxes it into the card slot, the window and the counter card",canon student 12 of 14 (Content.TotalStudents),temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations
+student_face_12_anomaly,art,face,P1,missing,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 12,FaceAssets.AnomalyKey — window shows this when the run says anomaly/distorted
+student_face_13,art,face,P1,missing,PNG,"PNG RGBA 512x640 (4:5) bust, flat front light, neutral — same crop for every student; code letterboxes it into the card slot, the window and the counter card",canon student 13 of 14 (Content.TotalStudents),temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations
+student_face_13_anomaly,art,face,P1,missing,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 13,FaceAssets.AnomalyKey — window shows this when the run says anomaly/distorted
+student_face_14,art,face,P1,missing,PNG,"PNG RGBA 512x640 (4:5) bust, flat front light, neutral — same crop for every student; code letterboxes it into the card slot, the window and the counter card",canon student 14 of 14 (Content.TotalStudents),temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations
+student_face_14_anomaly,art,face,P1,missing,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 14,FaceAssets.AnomalyKey — window shows this when the run says anomaly/distorted
+map_paper,art,map,P2,procedural,PNG,"PNG RGBA 940x440 px @100 ppu, aged/stained/folded sheet with red district stamp; ROOM OUTLINES ARE DRAWN BY CODE ON TOP — deliver blank paper only",MapView sheet,owner's hand-drawn reference can replace this file 1:1
+map_room,art,map,P2,procedural,PNG,"PNG RGBA 160x120 px @100 ppu, wobbly double-stroked room outline, transparent centre (stretched per room)",MapView rooms,
+map_sealed,art,map,P2,procedural,PNG,"PNG RGBA 160x120 px @100 ppu, red hatch + chain + padlock outline",MapView sealed room,
+prop_cabinet,art,world-prop,P2,procedural,PNG,"PNG RGBA 160x272 px @64 ppu, filing cabinet (clue #9)",classroom 2 clue 'cabinet',GDD: Cabinet
+prop_clock,art,world-prop,P2,procedural,PNG,"PNG RGBA 112x112 px @64 ppu, wall clock stopped at 1:47 (clue #10)",hallway clue 'clock',GDD: Clock
+prop_lostid,art,world-prop,P2,procedural,PNG,"PNG RGBA 56x36 px @64 ppu, lost student ID on the shelf (clue #7)",classroom 1 clue 'lostid',GDD: Student ID
+prop_noticeboard,art,world-prop,P2,procedural,PNG,"PNG RGBA 208x160 px @64 ppu, notice board with torn corner (clue #6)",hallway clue 'board',GDD: Notice Board
+prop_photoframe,art,world-prop,P2,procedural,PNG,"PNG RGBA 144x108 px @64 ppu, framed old school photo (clue #8)",hallway clue 'photo',GDD: Photo
+sec_log_dark,art,kit,P2,shipped-kit,PNG,cropped dark paper: TL tool-button skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_log_paper,art,kit,P2,shipped-kit,PNG,cropped tilted paper: TONIGHT'S LOG overlay skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_rules_dark,art,kit,P2,shipped-kit,PNG,cropped dark paper: RN tool-button skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+sec_rules_paper,art,kit,P2,shipped-kit,PNG,cropped tilted paper: RULES NOTE overlay skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+token,art,world-prop,P2,procedural,PNG,"PNG RGBA 28x28 px @64 ppu, pocket-watch token left by a repelled anomaly",anomaly repel reward,
+admin_face,art,face,P3,missing,PNG,"PNG RGBA 512x640, district administrator: formal coat, briefcase, smile that arrives late — badge photo",Night-5 administrator ID badge,FaceAssets.AdminKey (new this pass)
+admin_face_glitch,art,face,P3,missing,PNG,"PNG RGBA 512x640, same administrator, a half-second wrong (the window tell)",Night-5 administrator at the window,FaceAssets.AdminWindowKey (new this pass)
+camera_frame,art,reserve,P3,procedural,PNG,"PNG RGBA 252x150, viewfinder corners",reserve (retired scanner),keep unshipped unless the scanner returns
+circle_dark,art,functional,P3,code-drawn,PNG,110 px flat dark circle,reserve,
+cursor_hand,art,functional,P3,code-drawn,PNG,24 px hand cursor,HoverCursor,
+face_placeholder,art,face,P3,code-drawn,PNG,PNG RGBA 168x208 px @100 ppu (only ever shown if a face asset is missing),CheckpointView window/card fallback,functional fallback — do not retire
+flash,art,fx,P3,procedural,PNG,PNG RGBA 256x256 white radial,scare flash,
+icon_check,art,functional,P3,code-drawn,PNG,square check icon,reserve,
+icon_x,art,functional,P3,code-drawn,PNG,square cross icon,reserve,
+map_door,art,map,P3,procedural,PNG,"PNG RGBA 24x20 px @100 ppu, doorway gap with an open leaf",MapView doorways,
+menu_bg,art,ui-bg,P3,procedural,PNG,"PNG 1280x720 px @100 ppu, main-menu corridor with the pale eye-glint",MainMenuView,
+noise_overlay,art,fx,P3,procedural,PNG,PNG RGBA 256x256 tileable grain,desk grain / glitch flash,
+rough_circle,art,functional,P3,code-drawn,PNG,"110 px rough ink circle (map YOU marker, seals)","MapView, ID back seal",
+rough_panel,art,functional,P3,code-drawn,PNG,256x192 rough paper panel,reserve,
+school_facade,art,ui-bg,P3,procedural,PNG,"PNG RGBA 440x296 px @100 ppu, the college seen through the window glass",CheckpointView window,
+sec_log_rules,art,kit,P3,shipped-kit,PNG,cropped pair of papers: reserve composite,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
+solid_white,art,functional,P3,code-drawn,PNG,"4x4 flat quad, 1x1 world unit — every placeholder/meter is built from it","world quads, HUD, map dots",do NOT ship a file for this key
+vignette,art,fx,P3,procedural,PNG,"PNG RGBA 512x384, edge darkening",desk + menu wash,
+window_frame,art,reserve,P3,procedural,PNG,PNG RGBA 470x316 flat frame,reserve,
+music_checkpoint,audio,music,P0,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","2-4 min loop, the desk: quiet room tone, pencil, clock",AudioDirector.PlayMusic(context) -> music_<context>,the longest-running bed in the game
+music_hallway,audio,music,P0,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","2-3 min loop, patrol corridor",AudioDirector.PlayMusic(context) -> music_<context>,
+sfx_bell,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,"distant school bell, one strike, dead room",ProceduralAudio / AudioDirector.PlaySfx,
+sfx_click,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,dry UI tick,ProceduralAudio / AudioDirector.PlaySfx,
+sfx_door,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,"room door open/close, hinge + latch",ProceduralAudio / AudioDirector.PlaySfx,
+sfx_footstep,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,single guard footstep on lino (queue line uses it too),ProceduralAudio / AudioDirector.PlaySfx,
+sfx_knock,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,"window knock, 3 beats, wood + glass",ProceduralAudio / AudioDirector.PlaySfx,
+sfx_paper,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,paper slide / flip / drop — the desk's voice,ProceduralAudio / AudioDirector.PlaySfx,fired ~10x per inspection
+sfx_scan_error,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,refusal buzz (hand-back without a verdict),ProceduralAudio / AudioDirector.PlaySfx,
+sfx_stamp_allow,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,"APPROVE thud: heavy stamp, soft rebound",ProceduralAudio / AudioDirector.PlaySfx,
+sfx_stamp_reject,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,"DENY thud: lower, drier",ProceduralAudio / AudioDirector.PlaySfx,
+sfx_ui_close,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,sheet/drawer close,ProceduralAudio / AudioDirector.PlaySfx,most-used sfx in the game
+sfx_ui_open,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,sheet/drawer open: short paper+wood,ProceduralAudio / AudioDirector.PlaySfx,
+music_anomaly,audio,music,P1,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","loop while an encounter is live, cuts back to the room bed on resolve",AudioDirector.PlayMusic(context) -> music_<context>,
+music_classroom,audio,music,P1,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","2-3 min loop, Room 101",AudioDirector.PlayMusic(context) -> music_<context>,
+music_darkroom,audio,music,P1,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","2-3 min loop, Room 202 / security office",AudioDirector.PlayMusic(context) -> music_<context>,
+sfx_flicker,audio,sfx,P1,procedural,WAV 44.1 kHz 16-bit MONO,fluorescent flicker buzz,ProceduralAudio / AudioDirector.PlaySfx,
+sfx_glitch,audio,sfx,P1,procedural,WAV 44.1 kHz 16-bit MONO,"digital stutter, 0.12 s",ProceduralAudio / AudioDirector.PlaySfx,anomaly tell
+sfx_heartbeat,audio,sfx,P1,procedural,WAV 44.1 kHz 16-bit MONO,single low heartbeat,ProceduralAudio / AudioDirector.PlaySfx,sanity stages
+sfx_intercom,audio,sfx,P1,procedural,WAV 44.1 kHz 16-bit MONO,intercom chirp + room tone,ProceduralAudio / AudioDirector.PlaySfx,queue pressure warnings
+sfx_scan_ok,audio,sfx,P1,procedural,WAV 44.1 kHz 16-bit MONO,positive chime (reserve path),ProceduralAudio / AudioDirector.PlaySfx,
+sfx_static,audio,sfx,P1,procedural,WAV 44.1 kHz 16-bit MONO,radio static burst,ProceduralAudio / AudioDirector.PlaySfx,
+music_investigation,audio,music,P2,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","loop, clue-chain tension",AudioDirector.PlayMusic(context) -> music_<context>,"context exists in code, not yet played — hook it or retire it"
+sfx_alarm,audio,sfx,P2,procedural,WAV 44.1 kHz 16-bit MONO,muffled alarm behind walls,ProceduralAudio / AudioDirector.PlaySfx,
+sfx_pickup,audio,sfx,P2,procedural,WAV 44.1 kHz 16-bit MONO,token pickup: watch tick + chime,ProceduralAudio / AudioDirector.PlaySfx,
+sfx_scare,audio,sfx,P2,procedural,WAV 44.1 kHz 16-bit MONO,full scare hit,ProceduralAudio / AudioDirector.PlaySfx,"once per run, ideally"
+sfx_stinger,audio,sfx,P2,procedural,WAV 44.1 kHz 16-bit MONO,short horror sting,ProceduralAudio / AudioDirector.PlaySfx,
+music_end_lose,audio,music,P3,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","ending stinger, 20-40 s, non-loop",AudioDirector.PlayMusic(context) -> music_<context>,
+music_end_secret,audio,music,P3,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","secret ending stinger, 20-40 s, non-loop",AudioDirector.PlayMusic(context) -> music_<context>,
+music_end_win,audio,music,P3,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","ending stinger, 20-40 s, non-loop",AudioDirector.PlayMusic(context) -> music_<context>,
+music_final,audio,music,P3,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless",administrator encounter bed,AudioDirector.PlayMusic(context) -> music_<context>,
+music_menu,audio,music,P3,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","60-90 s loop, main menu dread",AudioDirector.PlayMusic(context) -> music_<context>,
+BarlowCondensed-Regular,font,type,P0,temp-shipped,TTF,"TTF, open licence (OFL) — fallback UI body face",UIFactory.UiFont fallback,
+BarlowCondensed-SemiBold,font,type,P0,temp-shipped,TTF,"TTF, OFL — fallback UI emphasis",UIFactory.UiFontBold fallback,
+kit_bahnschrift_bold,font,type,P0,shipped-kit,TTF,"OTF, owner-supplied — UI emphasis (UiFontBold, fallback BarlowCondensed-SemiBold)",UIFactory.UiFontBold,
+kit_bahnschrift_regular,font,type,P0,shipped-kit,TTF,"OTF, owner-supplied — UI body face (UiFont, fallback BarlowCondensed)",UIFactory.UiFont,
+SpecialElite-Regular,font,type,P1,temp-shipped,TTF,"TTF, OFL — fallback typewriter documents",UIFactory.TypeFont fallback,
+kit_chiller,font,type,P1,shipped-kit,TTF,"TTF, owner-supplied — horror display face (TypeFont, fallback SpecialElite)",UIFactory.TypeFont,
+CaveatBrush-Regular,font,type,P2,temp-shipped,TTF,"TTF, OFL — handwritten map + notes",UIFactory.HandFont,the map title/labels use this
+kit_bahnschrift_semibold_condensed,font,type,P3,shipped-kit,TTF,"OTF, owner-supplied — reserve weight",reserve,
