@@ -100,17 +100,6 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region PatrolBtn = new Region(450, 655, 180, 40);
         public static readonly Region EndShiftBtn = new Region(650, 655, 180, 40);
 
-        // ---- the window talk dock (dialogue panel: history + the typed text box) ----
-        // A slim always-visible strip in the free bottom margin under the patrol/end-shift
-        // row: the text box the window conversation runs through. It claims no concept-art
-        // furniture (the strip sits in empty desk margin) and never covers a control:
-        // y 692..718 is below every button's bottom edge (691).
-        public static readonly Region TalkDock = new Region(440, 696, 420, 22);
-        // the transcript sheet: expands UP over the paper spread while open (pinned by the
-        // LOG button or breathing open for a few seconds after each reply), collapsed by
-        // default so the idle desk stays exactly as the concept art paints it.
-        public static readonly Region TalkLog = new Region(440, 462, 420, 226);
-
         // ---- right column ---------------------------------------------------
         public static readonly Region Questions = new Region(950, 105, 305, 215);
         public static readonly Region UtilityRecords = new Region(80, 555, 160, 165);   // tonight's log paper prop
@@ -151,7 +140,10 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region ConfirmBox = new Region(430, 305, 420, 110);
         // the reading sheet for the rules note / tonight's log: centred over the desk with
         // room for crest, hand title, the hand-written block AND the printed live text
-        public static readonly Region PaperOverlay = new Region(240, 60, 800, 600);
+        // the reading sheet: the kit's photographed paper at its OWN aspect (789x879),
+        // centred — the art carries crest, title, the hand-written block and the baked
+        // tilt, so nothing is re-typeset or rotated over it
+        public static readonly Region PaperOverlay = new Region(362, 24, 556, 620);
         public static readonly Region FullDesk = new Region(0, 0, 1280, 720);
 
         // ---- checkpoint queue (Phase 9 additions to the approved grid) -------
@@ -225,6 +217,9 @@ namespace Hollowbrook.Checkpoint
             public const float BubblePadTop = 6f, BubblePadBottom = 6f,
                                BubbleTagH = 14f, BubbleLineH = 14f;
             public const int BubbleCharsPerLine = 24, BubbleMaxLines = 3;
+            // the kit bubble carries no speaker tag, so its registered 72px box holds one
+            // more wrapped line than the tagged no-kit bubble (4x14 + pads = 68 <= 72)
+            public const int BubbleMaxLinesKit = 4;
             public static readonly Region BubbleTail = new Region(-34, 26, 44, 36);
             public static readonly Region NoteHead = new Region(10, 6, 260, 18);
             public static readonly Region NoteBody = new Region(10, 28, 260, 74);
@@ -234,12 +229,14 @@ namespace Hollowbrook.Checkpoint
             // fully inside the paper by StampPlacement — no printed target box.
             public static readonly Region SlipReason = new Region(8, 52, 184, 56);
 
-            // questions panel (buttons on the wireframe grid: x=980, y=118, step 42)
-            public static readonly Region QHead = new Region(15, 25, 150, 25);   // pre-squeeze width
-            public static readonly Region QBudget = new Region(238, 25, 44, 25);
-            public const float QBtnX = 15f, QBtnY0 = 60f, QBtnStep = 37f, QBtnW = 275f, QBtnH = 28f;
-            public static readonly Region QHint = new Region(16, 199, 277, 14);
-            public static readonly Region QTestimony = new Region(12, 218, 285, 40);
+            // questions panel (panel-local): the header strip, then ONE content box the
+            // choice column is divided from (LayoutQuestions). The box stops above the
+            // kit panel's painted bottom border (measured at local y=198 on the 305x215
+            // rect), so no choice can ever land on — or through — the panel frame.
+            public static readonly Region QHead = new Region(16, 14, 150, 24);
+            public static readonly Region QBudget = new Region(234, 14, 48, 24);
+            public const float QBtnX = 16f, QBtnW = 266f;
+            public const float QContentY0 = 44f, QContentY1 = 193f, QBtnGap = 7f;
 
             // confirmation popup
             public static readonly Region ConfirmText = new Region(20, 12, 380, 40);
@@ -248,18 +245,13 @@ namespace Hollowbrook.Checkpoint
 
             // verdict banner
 
-            // paper overlays (rules note / tonight's log): one centred reading sheet,
-            // top to bottom — kit crest, hand title, the hand-written static block
-            // (rules lines, or the log checklist with its boxes), then the printed
-            // live body in its own masked column, and the close pill under it
-            public static readonly Region PaperCrest = new Region(345, 14, 110, 113);
-            public static readonly Region PaperHead = new Region(60, 132, 680, 46);
-            public static readonly Region PaperHand = new Region(70, 180, 660, 170);
-            public const float PaperCheckX = 70f, PaperCheckY0 = 196f, PaperCheckStep = 44f,
-                               PaperCheckW = 420f, PaperCheckH = 32f,
-                               PaperCheckBoxX = 640f, PaperCheckBoxS = 34f;
-            public static readonly Region PaperBody = new Region(70, 356, 660, 182);
-            public static readonly Region PaperClose = new Region(330, 548, 140, 38);
+            // paper overlays (rules note / tonight's log): the photographed sheet owns
+            // the printed ink; the LIVE typed body rides on an addendum slip pinned over
+            // the sheet's blank bottom band (the paper keeps its aspect and its art),
+            // and the close pill sits on the sheet's blank top-right corner
+            public static readonly Region PaperSlip = new Region(405, 596, 470, 116);
+            public static readonly Region PaperSlipBody = new Region(14, 10, 442, 96);
+            public static readonly Region PaperClose = new Region(688, 42, 140, 36);
 
             // waiting-line strips (panel-local slots: 4 silhouettes each, 56px step)
             public const float QueueSlotW = 44f, QueueSlotH = 52f, QueueSlotStep = 56f;
@@ -270,17 +262,6 @@ namespace Hollowbrook.Checkpoint
             // day banner: night label on top, queue readout underneath
             public static readonly Region BannerTop = new Region(0, 0, 700, 30);   // pre-squeeze width
             public static readonly Region BannerQueue = new Region(0, 18, 380, 16);
-
-            // window talk dock (dock-local): LOG toggle · the text box · SEND
-            public static readonly Region TalkLogToggle = new Region(0, 0, 28, 22);
-            public static readonly Region TalkInput = new Region(32, 0, 330, 22);
-            public static readonly Region TalkSend = new Region(366, 0, 54, 22);
-            // transcript sheet (sheet-local): header, eight rows, footer hint
-            public static readonly Region TalkLogHead = new Region(8, 4, 404, 16);
-            public const float TalkLogRowX = 8f, TalkLogRowY0 = 24f, TalkLogRowStep = 22f,
-                               TalkLogRowW = 404f, TalkLogRowH = 20f;
-            public const int TalkLogRows = 8;
-            public static readonly Region TalkLogHint = new Region(8, 202, 404, 18);
 
             // sticky note (shift-start gate)
             public static readonly Region StickyTitle = new Region(30, 48, 440, 40);

@@ -155,15 +155,30 @@ namespace Hollowbrook.Checkpoint
             if (_bubbleShownGen == _bubble.Generation) return;   // same line already rendered
             _bubbleShownGen = _bubble.Generation;
 
-            string display = SpeechBubbleLayout.Fit(_bubble.Text,
-                L.Inner.BubbleCharsPerLine, L.Inner.BubbleMaxLines, out int lines);
+            // Fit the WHOLE line into the bubble: start at the reference type size and,
+            // only when the wrapped line count would overflow the bubble's line budget,
+            // trade a point of type for a wider character budget (the bubble's sliced
+            // borders keep the paper proportions either way). Truncation is the last
+            // resort, never the first answer to a long reply.
+            int maxLines = _kitOn ? L.Inner.BubbleMaxLinesKit : L.Inner.BubbleMaxLines;
+            int budget = L.Inner.BubbleCharsPerLine;
+            int size = 13;
+            float lineH = L.Inner.BubbleLineH;
+            string display = SpeechBubbleLayout.Fit(_bubble.Text, budget, maxLines, out int lines);
+            for (int pass = 0; pass < 3 &&
+                 SpeechBubbleLayout.CountLines(_bubble.Text, budget) > maxLines; pass++)
+            {
+                budget += 5; size -= 1; lineH -= 1f;
+                display = SpeechBubbleLayout.Fit(_bubble.Text, budget, maxLines, out lines);
+            }
+            UIFactory.SetBaseFontSize(_bubbleText, size);
             // the kit bubble is the reference bubble: the spoken line alone, no speaker
             // tag — the tail already points at who is talking
             _bubbleText.text = _kitOn ? display :
                 "<b><color=" + SpeakerColor(_bubble.Who) + ">" + _bubble.Who + "</color></b>\n" + display;
             float tagH = _kitOn ? 0f : L.Inner.BubbleTagH;
             float h = Mathf.Clamp(
-                SpeechBubbleLayout.Height(lines, L.Inner.BubbleLineH, tagH,
+                SpeechBubbleLayout.Height(lines, lineH, tagH,
                     L.Inner.BubblePadTop, L.Inner.BubblePadBottom),
                 56f, L.SpeechBubble.H);
             // the kit bubble's sliced left border (48u) carries the painted tail: the panel

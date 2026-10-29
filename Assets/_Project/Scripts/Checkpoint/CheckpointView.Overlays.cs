@@ -21,92 +21,50 @@ namespace Hollowbrook.Checkpoint
             // the verdict banner retired: post-decision feedback is the stamp mark, the
             // sound and the subject walking off — never text
 
-            _notesRoot = BuildPaperOverlay("OverlayRules", "NIGHT SECURITY RULES",
-                RulesHandLines, false, L.TiltRules, out _notesText);
-            _recordsRoot = BuildPaperOverlay("OverlayLog", "NIGHT SECURITY LOG",
-                LogHandLines, true, L.TiltLog, out _recordsText);
+            _notesRoot = BuildPaperOverlay("OverlayRules", "sec_rules_paper", out _notesText);
+            _recordsRoot = BuildPaperOverlay("OverlayLog", "sec_log_paper", out _recordsText);
 
             // the yes/no confirm popup retired with the button verdicts: stamping IS confirming
         }
 
-        // The kit's prop sheets are PHOTOGRAPHED documents: crest, hand title and hand
-        // rules baked into the paper at prop size, tilt included. Stretching them across
-        // the reading sheet printed the live text on top of that baked ink (dark type on
-        // dark handwriting, the crest swallowing whole words) and slid the baked tilt
-        // under straight type — which is exactly why both documents read as broken.
-        // The reading sheet is therefore rebuilt from plain distressed paper in the same
-        // language: the kit crest cropped out of the prop, the hand face for the title
-        // and the static block (rules lines / the log checklist with its boxes), and the
-        // printed live body in its own masked column. The desk props keep the photographed
-        // art; nothing of their content is lost, and every line here is readable.
-        private static readonly string[] RulesHandLines =
-        {
-            "MONITOR STUDENTS AND SCHOOL PREMISES.",
-            "REPORT SUSPICIOUS ACTIVITIES.",
-            "PREVENT UNAUTHORIZED ENTRY.",
-            "RECORD ALL ANOMALIES IN THE LOGBOOK.",
-            "REPORT STUDENT VIOLATIONS TO THE ADMINISTRATION.",
-            "NOTE: STAY ALERT AND REPORT ALL INCIDENTS IMMEDIATELY.",
-        };
-        private static readonly string[] LogHandLines =
-        {
-            "STUDENT ACTIVITIES",
-            "RULE VIOLATIONS",
-            "INCIDENTS REPORTED",
-        };
-
-        private GameObject BuildPaperOverlay(string goName, string title, string[] handLines,
-            bool checklist, float tilt, out Text body)
+        // The reading sheet IS the owner's photographed document: sec_rules_paper /
+        // sec_log_paper carry the crest, the hand title, the hand-written rules block (or
+        // the log checklist with its boxes) AND the paper's tilt, printed at prop size.
+        // Re-typesetting any of that over the photo double-printed the ink (the earlier
+        // plain-sheet pass) and stretching the photo over a wide sheet dragged the baked
+        // tilt under straight type. So: the paper is shown at its own aspect, untouched,
+        // and the LIVE body — the per-night briefing / tonight's entries, which no photo
+        // can carry — rides on a typed addendum slip pinned over the sheet's blank bottom
+        // band, exactly where a clipped typed page would sit on a photographed document.
+        // Nothing of either document's content is lost; nothing is stretched or re-inked.
+        private GameObject BuildPaperOverlay(string goName, string kitKey, out Text body)
         {
             var goRt = UIFactory.NewUI(_desk, goName);
             var go = goRt.gameObject;
             L.Place(goRt, L.FullDesk);
-            UIFactory.Dimmer(goRt, "dim", 0.6f);
-            var panel = UIFactory.Img(goRt, "paper", ProceduralArt.Get("paper_flat"));
+            UIFactory.Dimmer(goRt, "dim", 0.66f);
+            // the photographed paper, centred at its own proportions (preserveAspect keeps
+            // the 789x879 export undistorted whatever the sheet rect rounds to); no extra
+            // rotation — the print already lies at its angle
+            var panel = UIFactory.Img(goRt, "paper", ProceduralArt.Get(kitKey));
             L.Place(panel.rectTransform, L.PaperOverlay);
+            panel.preserveAspect = true;
             panel.raycastTarget = false;
-            // the documents lie on the desk, they are not pinned to the grid: the whole
-            // sheet (type included) carries the concept's tilt as one transform
-            panel.rectTransform.localEulerAngles = new Vector3(0f, 0f, tilt);
-            var crest = UIFactory.Img(panel.rectTransform, "crest",
-                CropCrest(goName == "OverlayRules" ? "sec_rules_paper" : "sec_log_paper"));
-            crest.raycastTarget = false;
-            L.Place(crest.rectTransform, L.Inner.PaperCrest);
-            var head = UIFactory.Label(panel.rectTransform, "title", title, 34,
-                UIFactory.NsInk, TextAnchor.MiddleCenter);
-            head.font = UIFactory.HandFont;
-            head.raycastTarget = false;
-            L.Place(head.rectTransform, L.Inner.PaperHead);
-            if (checklist)
-            {
-                // the prop's checklist, rebuilt as live type: three hand lines, each with
-                // its printed box — same words, same squares, readable at sheet size
-                for (int i = 0; i < LogHandLines.Length; i++)
-                {
-                    float y = L.Inner.PaperCheckY0 + i * L.Inner.PaperCheckStep;
-                    var row = UIFactory.Label(panel.rectTransform, "chk" + i, LogHandLines[i], 22,
-                        UIFactory.NsInk, TextAnchor.MiddleLeft);
-                    row.font = UIFactory.HandFont;
-                    row.raycastTarget = false;
-                    UIFactory.PlaceTL(row.rectTransform, L.Inner.PaperCheckX, y,
-                        L.Inner.PaperCheckW, L.Inner.PaperCheckH);
-                    var box = UIFactory.BorderedPanel(panel.rectTransform, "chkbox" + i,
-                        new Color(0.87f, 0.86f, 0.83f), UIFactory.NsInk, 2);
-                    UIFactory.PlaceTL(box, L.Inner.PaperCheckBoxX, y - 1f,
-                        L.Inner.PaperCheckBoxS, L.Inner.PaperCheckBoxS);
-                }
-            }
-            else if (handLines != null && handLines.Length > 0)
-            {
-                var hand = UIFactory.Label(panel.rectTransform, "hand",
-                    string.Join("\n", handLines), 21, UIFactory.NsInk, TextAnchor.UpperLeft);
-                hand.font = UIFactory.HandFont;
-                hand.lineSpacing = 0.95f;
-                hand.raycastTarget = false;
-                L.Place(hand.rectTransform, L.Inner.PaperHand);
-            }
-            body = Body(panel.rectTransform, "body", L.Inner.PaperBody, 15, true);
-            var close = GridButton(panel.rectTransform, "close", "CLOSE [X]",
+            // the typed addendum slip: distressed stock, a breath of tilt, over the sheet's
+            // blank bottom band — the live body scrolls inside its own masked column
+            var slip = UIFactory.Img(goRt, "slip", ProceduralArt.Get("paper_flat"), Color.white);
+            L.Place(slip.rectTransform, L.Inner.PaperSlip);
+            slip.raycastTarget = false;
+            slip.rectTransform.localEulerAngles = new Vector3(0f, 0f, -1.5f);
+            var slipEdge = UIFactory.Img(slip.rectTransform, "slipedge",
+                ProceduralArt.Get("solid_white"), new Color(0f, 0f, 0f, 0.35f));
+            UIFactory.PlaceTL(slipEdge.rectTransform, 2f, L.Inner.PaperSlip.H - 3f,
+                L.Inner.PaperSlip.W - 4f, 3f);
+            slipEdge.raycastTarget = false;
+            body = Body(slip.rectTransform, "body", L.Inner.PaperSlipBody, 13, true);
+            // the close pill keeps its wording and its click; it sits on the sheet's blank
+            // top-right corner so the document's printed face stays clear
+            var close = GridButton(goRt, "close", "CLOSE [X]",
                 () => go.SetActive(false), L.Inner.PaperClose, 14);
             L.Place(close.GetComponent<RectTransform>(), L.Inner.PaperClose);
             SkinButton(close, "sec_btn_pill");
@@ -122,26 +80,6 @@ namespace Hollowbrook.Checkpoint
         {
             if (which == "rules") { RefreshNotes(); ToggleOverlay(_notesRoot); }
             else if (which == "log") { RefreshRecords(); ToggleOverlay(_recordsRoot); }
-        }
-
-        // The crest sits top-centre of both prop sheets (measured off the 789x879 kit
-        // exports). Cropping it out of the prop keeps the owner's ink on the reading
-        // sheet without dragging the baked handwriting along.
-        private static Sprite _crestSprite;
-        private static Sprite CropCrest(string kitKey)
-        {
-            if (_crestSprite != null) return _crestSprite;
-            var src = ProceduralArt.Get(kitKey);
-            var tex = src != null ? src.texture : null;
-            if (tex == null || tex.width < 64 || tex.height < 64) return null;
-            float x = Mathf.Floor(tex.width * (295f / 789f));
-            float y = Mathf.Floor(tex.height * (70f / 879f));
-            float w = Mathf.Ceil(tex.width * (125f / 789f));
-            float h = Mathf.Ceil(tex.height * (132f / 879f));
-            _crestSprite = Sprite.Create(tex, new Rect(x, tex.height - y - h, w, h),
-                new Vector2(0.5f, 0.5f), src.pixelsPerUnit);
-            _crestSprite.name = "sec_crest_cropped";
-            return _crestSprite;
         }
 
         private Text Body(RectTransform parent, string name, L.Region r, int size, bool scroll)

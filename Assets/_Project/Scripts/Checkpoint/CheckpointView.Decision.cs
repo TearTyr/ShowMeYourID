@@ -38,7 +38,8 @@ namespace Hollowbrook.Checkpoint
             _qEmpty = UIFactory.Label(qPanel, "qempty", "NO VISITOR AT THE WINDOW", 12,
                 UIFactory.NsMid, TextAnchor.MiddleCenter);
             _qEmpty.font = UIFactory.UiFont;
-            L.Place(_qEmpty.rectTransform, new L.Region(16, 104, 277, 20));
+            L.Place(_qEmpty.rectTransform, new L.Region(L.Inner.QBtnX,
+                (L.Inner.QContentY0 + L.Inner.QContentY1) * 0.5f - 10f, L.Inner.QBtnW, 20));
             _qEmpty.gameObject.SetActive(false);
 
             string[] qs =
@@ -51,19 +52,21 @@ namespace Hollowbrook.Checkpoint
             {
                 int qi = i;
                 var b = UIFactory.StandardButton(qPanel, "q" + i, qs[i], () => AskQuestion(qids[qi]),
-                    (int)L.Inner.QBtnW, (int)L.Inner.QBtnH);
-                L.Place(b.GetComponent<RectTransform>(),
-                    new L.Region(L.Inner.QBtnX, L.Inner.QBtnY0 + i * L.Inner.QBtnStep,
-                        L.Inner.QBtnW, L.Inner.QBtnH));
+                    (int)L.Inner.QBtnW, 28);
+                // the row rect comes from the shared column layout below, never from a
+                // per-button screen coordinate: heading, counter and choices are one panel
+                LayoutQuestionRow(b.GetComponent<RectTransform>(), i, 4);
                 // 14 u is the size at which the longest row PLUS its asked-state suffix
                 // ("… ✓ ASKED") still reads on one line inside the pill; RefreshQuestionsPanel
-                // keeps a best-fit window under it so no state ever wraps mid-word or clips
+                // keeps a best-fit window under it, and a wrapped long row stays inside the
+                // pill instead of clipping (wrap on, best-fit shrinks before it overflows)
                 SizeLabel(b, 14);
                 var bt = b.GetComponentInChildren<UnityEngine.UI.Text>();
                 if (bt != null)
                 {
                     bt.font = UIFactory.UiFont; bt.color = UIFactory.NsChalk;
-                    bt.verticalOverflow = VerticalWrapMode.Overflow;   // never clip a line
+                    bt.horizontalOverflow = HorizontalWrapMode.Wrap;
+                    bt.verticalOverflow = VerticalWrapMode.Truncate;
                 }
                 _questionButtons[i] = b;
                 _qLabels[i] = qs[i];
@@ -71,6 +74,30 @@ namespace Hollowbrook.Checkpoint
             }
             // answers live in the speech log now; no testimony box, no hint line
 
+        }
+
+        // The choice column is ONE parent-driven layout: the panel's content box (between
+        // the header strip and the kit frame's painted bottom border) is divided evenly
+        // between the visible choices, each row centred in its slot with a uniform gap.
+        // Fewer visible choices get taller rows instead of leaving the panel half empty;
+        // four rows land clear of the frame in every question/asked state.
+        private void LayoutQuestionRow(RectTransform rt, int index, int visible)
+        {
+            int n = Mathf.Max(1, visible);
+            float avail = L.Inner.QContentY1 - L.Inner.QContentY0;
+            float step = avail / n;
+            float h = Mathf.Clamp(step - L.Inner.QBtnGap, 22f, 40f);
+            float y = L.Inner.QContentY0 + index * step + (step - h) * 0.5f;
+            L.Place(rt, new L.Region(L.Inner.QBtnX, y, L.Inner.QBtnW, h));
+        }
+
+        /// <summary>Re-runs the column layout for the number of choices on screen (the
+        /// panel shows all four while an inspection is live, none otherwise).</summary>
+        private void LayoutQuestions(int visible)
+        {
+            for (int i = 0; i < _questionButtons.Length; i++)
+                if (_questionButtons[i] != null)
+                    LayoutQuestionRow(_questionButtons[i].GetComponent<RectTransform>(), i, visible);
         }
 
         private void BuildToolsRow()
@@ -193,6 +220,7 @@ namespace Hollowbrook.Checkpoint
                     t.resizeTextMaxSize = t.fontSize;
                     t.resizeTextMinSize = Mathf.Max(9, t.fontSize - 3);
                 }
+                LayoutQuestionRow(_questionButtons[i].GetComponent<RectTransform>(), i, 4);
                 RefreshQuestionArrow(i, asked);   // the kit's arrow is the asked-mark
             }
         }
@@ -201,10 +229,12 @@ namespace Hollowbrook.Checkpoint
         {
             BuildStamp("stamp_allow", "APPROVE", new Color(0.42f, 0.58f, 0.42f), L.StampAllow, Verdict.Allow, 0, 20);
             BuildStamp("stamp_deny", "DECLINE", new Color(0.58f, 0.28f, 0.28f), L.StampDeny, Verdict.Reject, 1, 20);
-            var la = UIFactory.Label(_desk, "slblA", "A — STAMP THE SLIP", 11, UIFactory.NsMid, TextAnchor.MiddleCenter);
+            // the tray's identification strip: verdict word + hotkey letter (the kit skin
+            // restyles these into caption bars with the check/cross discs)
+            var la = UIFactory.Label(_desk, "slblA", "APPROVE (A)", 11, UIFactory.NsMid, TextAnchor.MiddleCenter);
             L.Place(la.rectTransform, L.StampLabelAllow);
             la.font = UIFactory.UiFont;
-            var ld = UIFactory.Label(_desk, "slblD", "D — STAMP THE SLIP", 11, UIFactory.NsMid, TextAnchor.MiddleCenter);
+            var ld = UIFactory.Label(_desk, "slblD", "DECLINE (D)", 11, UIFactory.NsMid, TextAnchor.MiddleCenter);
             L.Place(ld.rectTransform, L.StampLabelDeny);
             ld.font = UIFactory.UiFont;
         }
@@ -214,9 +244,9 @@ namespace Hollowbrook.Checkpoint
             var dim = new Color(tint.r, tint.g, tint.b, 0.35f);   // born dim; RefreshStamps wakes them
             var panel = UIFactory.Panel(_desk, goName, dim);
             Reg(goName, panel.rectTransform, region);
-            var t = UIFactory.Label(panel.rectTransform, "label", label, fontSize,
-                UIFactory.Ink, TextAnchor.MiddleCenter);
-            UIFactory.AnchorsFull(t.rectTransform);
+            // NO word over the artwork: the stamp illustration stays clean ink. The
+            // verdict's name lives on the caption bar under the tray (slblA / slblD),
+            // which carries the check/cross disc and the hotkey letter.
             var drag = panel.gameObject.AddComponent<DragPaper>();
             drag.Init(_desk, 0f);
             drag.ReturnsHome = true;                 // stamps live in the tray
@@ -346,6 +376,7 @@ namespace Hollowbrook.Checkpoint
             {
                 _questionButtons[i].gameObject.SetActive(atWindow);   // compact row, no gate
                 if (i == 0 && _qEmpty != null) _qEmpty.gameObject.SetActive(!atWindow);
+                if (i == 0) LayoutQuestions(atWindow ? _questionButtons.Length : 0);
                 UIFactory.SetButtonEnabled(_questionButtons[i],
                     atWindow && !_budget.HasAsked(QuestionSystem.All[i]) && _budget.Remaining > 0);
             }

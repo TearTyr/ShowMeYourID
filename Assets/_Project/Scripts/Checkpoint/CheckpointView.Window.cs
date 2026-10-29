@@ -262,9 +262,8 @@ namespace Hollowbrook.Checkpoint
             if (_recordGo != null) _recordGo.SetActive(false);
             FaceUp(_idCardGo);          // flip state never carries across visitors: both
             FaceUp(_slipGo);            // papers are born face-up on a fresh desk
-            CloseFileDrawer();          // drawer shut, station readout cleared
-            _selectedCanon = -1;        // no file highlighted on a fresh desk
-            ResetTalkDock();            // ...and the window conversation starts empty
+            CloseFileDrawer();          // drawer shut, no file highlighted on a fresh desk
+            _selectedCanon = -1;
             _stampRng = new GameRng((_gameRoot.Session != null ? _gameRoot.Session.Seed : 1) ^ (v.VisitorIndex * 131 + 7));
             SetPaperHeld(_idCardGo, true);
             SetPaperHeld(_slipGo, true);

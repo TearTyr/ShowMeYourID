@@ -63,7 +63,6 @@ namespace Hollowbrook.Checkpoint
         private readonly string[] _qLabels = new string[4];
         private Text _budgetLabel;
         private Text _qEmpty;   // deliberate empty state for the questions panel
-        private Text _stationOut;
         private GameObject _slipGo;
         private GameObject _papersLayer;
         private Text _slipName, _slipId, _slipReason;
@@ -123,7 +122,6 @@ namespace Hollowbrook.Checkpoint
             BuildPapersLayer();      // papers live above window/bubble/tools...
             BuildStampTray();        // ...and below the stamp tray; overlays top everything
             BuildStands();
-            BuildTalkDock();         // the typed window-talk box + its transcript sheet
             BuildOverlays();
             BuildStickyNote();
             BuildAdminTalk();    // the Shift-5 conversation panel + its re-open bar
@@ -172,7 +170,6 @@ namespace Hollowbrook.Checkpoint
             _notesRoot.SetActive(false);
             _recordsRoot.SetActive(false);
             HideBubbleNow();   // leaving the desk never carries a line (or a timer) along
-            BlurTalk();        // ...nor the caret: the text box lets the keyboard go
             CloseFileDrawer(true);   // ...nor an open drawer: the cabinet is shut on return
             // ...nor a half-spoken conversation: the panel goes dark, the state stays in the
             // session, and ResumeRun puts the re-open bar back if the administrator still waits
@@ -454,7 +451,6 @@ namespace Hollowbrook.Checkpoint
             TickClockText();                  // the header clock follows the model every frame
             AdvanceQueue(Time.deltaTime);
             TickBubble(Time.unscaledDeltaTime);   // the 2 s bubble cooldown (frozen while paused)
-            TickTalk(Time.unscaledDeltaTime);     // the talk dock's send beat + log breathing
             TickDrawer(Time.unscaledDeltaTime);   // the floor-files drawer's pull/slide
             TickKitLight(Time.unscaledDeltaTime); // the booth lamp's slow breath
             TickHotkeys();
@@ -464,16 +460,11 @@ namespace Hollowbrook.Checkpoint
         // (stub MonoBehaviours never get Update calls).
         internal void TickHotkeys()
         {
-            // While the talk dock's text box holds the caret the keyboard belongs to the
-            // sentence being typed: no gameplay key may fire (an "f" must not flip a paper,
-            // an "a" must not stamp). Escape leaves the box instead of pausing the shift.
-            if (UIFactory.TypingInField())
-            {
-                if (Input.GetKeyDown(KeyCode.Escape)) BlurTalk();
-                return;
-            }
-            // V puts the caret in the window-talk box (the click does the same in-editor)
-            if (Input.GetKeyDown(KeyCode.V)) FocusTalk();
+            // While any text field holds the caret the keyboard belongs to the sentence
+            // being typed: no gameplay key may fire (an "f" must not flip a paper, an "a"
+            // must not stamp). The desk itself keeps no typed input any more — the
+            // Questions panel is the only student-interaction interface.
+            if (UIFactory.TypingInField()) return;
             // Escape belongs to an open overlay sheet (Options/Controls/Credits) first —
             // without this guard Esc over the pause menu would close Options AND unpause.
             if (Input.GetKeyDown(KeyCode.Escape) && !_gameRoot.BlockingOverlayOpen && InputGate.TryEscape())
@@ -555,7 +546,6 @@ namespace Hollowbrook.Checkpoint
             RefreshDecisionButtons();
             RefreshStands();
             RefreshAdminTalk();
-            RefreshTalkDock();
         }
 
         private void OnEnable()

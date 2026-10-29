@@ -40,11 +40,24 @@ namespace Hollowbrook.Checkpoint
         private static readonly Color CavityInk = new Color(0.020f, 0.020f, 0.022f);
         private static readonly Color HandleIdle = new Color(0.42f, 0.41f, 0.38f);
         private static readonly Color HandleLit = new Color(0.72f, 0.68f, 0.58f);
+        // shut cabinet face (station-local): the front spans the carcass between the
+        // folder-tab shelf and the bottom rail, leaving the caption and tabs their room
+        private const float CabFrontX = 20f, CabFrontY = 44f, CabFrontW = 265f, CabFrontH = 102f;
+        private static readonly Color CabFaceInk = new Color(0.80f, 0.78f, 0.72f);
+        private static readonly Color CabFaceLit = new Color(0.90f, 0.88f, 0.82f);
+        private static readonly Color CabGripInk = new Color(0.16f, 0.16f, 0.17f);
+        private static readonly Color CabGripLit = new Color(0.32f, 0.32f, 0.34f);
+        private static readonly Color CabTagInk = new Color(0.28f, 0.27f, 0.25f);
 
         private readonly Button[] _folderTabs = new Button[2];
         private readonly Image[] _folderTabInks = new Image[2];
         private Image _stationInk;          // the cabinet front (also the pull's click target)
         private Image _drawerHandle;        // brightens on hover so the pull reads as a handle
+        // the shut cabinet's own drawer front: face, grip, tag, recess shadow — one group
+        // that fades out as the real drawer pulls (the pulled body carries its own bracket)
+        private CanvasGroup _cabFront;
+        private Image _cabFace, _cabGrip;
+        private Text _cabTag;
         private GameObject _drawerBox;      // the mouth slot: registered on the grid, never moves
         private RectTransform _drawerBody;  // the sliding drawer
         private RectTransform _drawerFront; // the worn front panel + handle (rides out a little)
@@ -98,6 +111,41 @@ namespace Hollowbrook.Checkpoint
                 _folderTabs[f - 1] = tab;
                 _folderTabInks[f - 1] = tab.targetGraphic as Image;
             }
+            // The shut cabinet face: a worn drawer front seated in a shadowed recess, with
+            // a grip slot and a small OPEN tag — the closed station reads as a physical
+            // drawer you pull, never as an empty frame. One CanvasGroup fades the whole
+            // front out as the drawer body takes over (ApplyDrawerPull), so the shut face
+            // and the pulled drawer can never paint at once.
+            var frontRt = UIFactory.NewUI(station.rectTransform, "cabfront");
+            UIFactory.PlaceTL(frontRt, CabFrontX, CabFrontY, CabFrontW, CabFrontH);
+            _cabFront = frontRt.gameObject.AddComponent<CanvasGroup>();
+            _cabFront.blocksRaycasts = false;   // the station's pull button owns every click
+            // recess shadow above the front: the face sits IN the carcass, not on it
+            var recess = UIFactory.Img(frontRt, "cabrecess", ProceduralArt.Get("solid_white"),
+                new Color(0f, 0f, 0f, 0.55f));
+            UIFactory.PlaceTL(recess.rectTransform, 2f, -5f, CabFrontW - 4f, 7f);
+            recess.raycastTarget = false;
+            // the worn front panel (kit paper language: light face, dark grip)
+            _cabFace = UIFactory.Img(frontRt, "cabface", ProceduralArt.Get("rough_panel_dark"),
+                CabFaceInk);
+            UIFactory.AnchorsFull(_cabFace.rectTransform);
+            _cabFace.raycastTarget = false;
+            // grip slot, centred — the hand closes here
+            _cabGrip = UIFactory.Panel(frontRt, "cabgrip", CabGripInk);
+            UIFactory.PlaceTL(_cabGrip.rectTransform, (CabFrontW - 76f) * 0.5f, 45f, 76f, 11f);
+            _cabGrip.raycastTarget = false;
+            // small interaction tag beside the grip: the only instruction on the cabinet
+            _cabTag = UIFactory.Label(frontRt, "cabtag", "OPEN ▾", 9, CabTagInk,
+                TextAnchor.MiddleRight);
+            _cabTag.font = UIFactory.UiFontBold;
+            UIFactory.PlaceTL(_cabTag.rectTransform, CabFrontW - 92f, 44f, 82f, 13f);
+            _cabTag.raycastTarget = false;
+            // contact shadow under the front: depth against the carcass
+            var shade = UIFactory.Img(frontRt, "cabshade", ProceduralArt.Get("solid_white"),
+                new Color(0f, 0f, 0f, 0.40f));
+            UIFactory.PlaceTL(shade.rectTransform, 4f, CabFrontH, CabFrontW - 8f, 5f);
+            shade.raycastTarget = false;
+
             // the pull: one Button on the cabinet front (no colour tint of its own — the
             // handle brightens instead, so the front never flashes), plus the hand cursor and
             // a hover sense so the handle reads as "grip me" before the drawer ever moves.
@@ -160,15 +208,9 @@ namespace Hollowbrook.Checkpoint
             L.Place(grip.rectTransform, L.Inner.DrawerFrontLabel);
             grip.gameObject.SetActive(false);   // the reference bracket is handle-only
 
-            // The station readout lives ON the drawer front, beside the handle: the pulled drawer
-            // covers the bottom of the cabinet front, so a readout printed there would be hidden
-            // exactly while the player is using it. On the front it rides out with the drawer and
-            // stays readable shut or open ("FOUND: ...", "NO RECORD — SEE ATTACHED MEMO").
-            _stationOut = UIFactory.Label(station.rectTransform, "stationout", "", 10,
-                UIFactory.NsMid, TextAnchor.MiddleRight);
-            _stationOut.font = UIFactory.UiFont;
-            _stationOut.raycastTarget = false;
-            L.Place(_stationOut.rectTransform, new L.Region(22.5f, 136, 260, 18));
+            // No status line under the cabinet: pulling a file IS its own feedback (the
+            // record sheet rises over the drawer with a paper sound), and the one refusal
+            // the registry can give rides the HUD toast like every other desk refusal.
 
             _drawerOpen = false;
             _drawerPull = 0f;
@@ -290,6 +332,10 @@ namespace Hollowbrook.Checkpoint
                 c.a = DrawerMotion.CavityShadeAt(pull);
                 _cavityShade.color = c;
             }
+
+            // the shut cabinet face leaves as the drawer arrives: one float, two states,
+            // never both painted at once
+            if (_cabFront != null) _cabFront.alpha = 1f - pull;
 
             // visibility LAST: the transforms above are the parked state when shut, so a
             // hidden drawer is never left mid-travel and a shown one is never a frame behind
@@ -430,7 +476,6 @@ namespace Hollowbrook.Checkpoint
             _drawerOpen = false;
             SetDrawerTabs(false);
             RefreshFolderTabs();
-            if (_stationOut != null) _stationOut.text = "";
             if (immediate)
             {
                 _drawerPull = 0f;
@@ -566,7 +611,11 @@ namespace Hollowbrook.Checkpoint
             if (canonIdx < 0 || canonIdx >= canon.Count || canon[canonIdx] == null) return;
             if (_current != null && _current.IsAdministrator)
             {
-                if (_stationOut != null) _stationOut.text = "NO RECORD — SEE ATTACHED MEMO";
+                // the registry holds no badge during the administrator's visit: the memo
+                // already on the desk is the record, and the desk says so the way every
+                // other refusal is said — a HUD toast, no permanent status text
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
+                    "NO RECORD — SEE ATTACHED MEMO"));
                 return;
             }
             var v = canon[canonIdx];
@@ -579,7 +628,6 @@ namespace Hollowbrook.Checkpoint
                 _recordGo.transform.SetAsLastSibling();   // the pulled file rises above the drawer
             }
             RefreshFileRows();
-            if (_stationOut != null) _stationOut.text = "FOUND: " + v.FullName.ToUpperInvariant();
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.4f);
         }
 

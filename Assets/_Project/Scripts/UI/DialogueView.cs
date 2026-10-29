@@ -38,27 +38,36 @@ namespace Hollowbrook.UI
             _dim = UIFactory.Dimmer(transform, "dim", 0.35f);
             _dim.raycastTarget = true;
 
-            var panelRt = UIFactory.BorderedPanel(transform, "panel", new Color(0.06f, 0.06f, 0.07f, 0.98f), UIFactory.Border, 2);
-            UIFactory.Anchor(panelRt, new Vector2(0.5f, 0f), new Vector2(1000, 170), new Vector2(0, 118));
-            // The intro panel stays the DARK cinematic box: the kit's white paper speech bubble
-            // (sec_bubble) is the DESK bubble's skin only. Sliced onto this 1000x170 panel its
-            // torn white centre tile painted a large irregular white shape across the narration
-            // (owner UI report #1) — and white paper under white ink hid the text outright.
+            // Pre-gameplay narration rides the kit's CAPTION BAR (sec_caption_bar): the torn
+            // white bar at its own proportions — the panel rect carries the bar's 325:90
+            // aspect, so the art scales uniformly and is never stretched — with dark ink
+            // inside the torn edges. The desk speech bubble (sec_bubble) stays the desk
+            // bubble's skin only: narration and student dialogue are two UI contexts.
+            var panelRt = UIFactory.NewUI(transform, "panel_border");
+            UIFactory.Anchor(panelRt, new Vector2(0.5f, 0f), new Vector2(940, 220), new Vector2(0, 202));
+            var bar = panelRt.gameObject.AddComponent<Image>();
+            var barSprite = ProceduralArt.Get("sec_caption_bar");
+            if (barSprite != null) { bar.sprite = barSprite; bar.color = Color.white; }
+            else bar.color = new Color(0.92f, 0.92f, 0.90f);   // no kit: plain paper stock
+            bar.raycastTarget = false;
 
             _portrait = UIFactory.Img(panelRt, "portrait", ProceduralArt.Get("face_placeholder"));
             UIFactory.Anchor(_portrait.rectTransform, new Vector2(0, 0.5f), new Vector2(104, 128), new Vector2(-430, 0));
             _portrait.gameObject.SetActive(false);
 
-            _speaker = UIFactory.Label(panelRt, "speaker", "", 16, UIFactory.AccentBright, TextAnchor.MiddleLeft);
-            UIFactory.Anchor(_speaker.rectTransform, new Vector2(0, 1), new Vector2(900, 26), new Vector2(476, -20));
+            // dark ink on the white bar; the speaker line in the desk's restrained red
+            _speaker = UIFactory.Label(panelRt, "speaker", "", 16,
+                new Color(0.55f, 0.12f, 0.14f), TextAnchor.MiddleLeft);
+            UIFactory.Anchor(_speaker.rectTransform, new Vector2(0, 1), new Vector2(800, 26), new Vector2(472, -43));
 
-            _text = UIFactory.Label(panelRt, "text", "", 18, UIFactory.Ink);
+            _text = UIFactory.Label(panelRt, "text", "", 18, UIFactory.NsInk);
             var trt = _text.rectTransform;
             trt.anchorMin = new Vector2(0, 0); trt.anchorMax = new Vector2(1, 1);
-            trt.offsetMin = new Vector2(26, 16); trt.offsetMax = new Vector2(-26, -40);
+            trt.offsetMin = new Vector2(72, 40); trt.offsetMax = new Vector2(-72, -64);
 
-            _continue = UIFactory.Label(panelRt, "cont", "▼", 16, UIFactory.InkDim, TextAnchor.MiddleRight);
-            UIFactory.Anchor(_continue.rectTransform, new Vector2(1, 0), new Vector2(40, 24), new Vector2(-40, 22));
+            _continue = UIFactory.Label(panelRt, "cont", "▼", 16,
+                new Color(0.20f, 0.20f, 0.20f), TextAnchor.MiddleRight);
+            UIFactory.Anchor(_continue.rectTransform, new Vector2(1, 0), new Vector2(40, 24), new Vector2(-84, 38));
             _continue.gameObject.SetActive(false);
 
             var clickCatcher = panelRt.gameObject.AddComponent<Button>();

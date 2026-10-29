@@ -1232,3 +1232,63 @@ real answer, silence beats, T out-and-back without replay, save carries `adminTa
 walk-away contracts, stamp/hand-back still the decision, exactly-once counters, line abandoned);
 frozen suite 663/663; verify.sh compile+audit clean (104 scripts, 18,400 lines). Unity Play Mode,
 the Windows build and the audio/visual feel remain NOT RUN in this environment (no editor).
+
+---
+
+## 2026-10-29 — Registry drawer, questions containment, kit paper & caption assets, dock retirement, clean stamps
+
+Owner UI pass over the inspection desk (six coordinated fixes, one shared root-cause theme: the
+kit skin painted furniture the layout constants never measured, and two interfaces re-typeset
+content the photographed kit art already carries).
+
+1. **Floor Files drawer** (`CheckpointView.FileDrawer.cs`, `CheckpointLayout.cs`): the shut
+   cabinet showed only the dark `sec_cabinet1` void — the mouth (and with it the front + handle)
+   stayed `SetActive(false)` until pulled, so nothing read as a drawer. The cabinet face now
+   carries a worn drawer front (`cabfront` group: recess shadow, light face, grip slot,
+   `OPEN ▾` tag, contact shadow) that fades out on the same `pull` float that drives the body
+   (`ApplyDrawerPull`), so shut face and pulled drawer can never paint at once; hover brightens
+   face + grip through the existing `HoverSense`. The permanent `stationout` readout
+   ("FOUND: …") is retired with its label — the pulled sheet + paper sfx IS the feedback, and the
+   one registry refusal (administrator) rides the HUD toast like every other desk refusal.
+2. **Questions panel** (`CheckpointView.Decision.cs`, `CheckpointLayout.cs`): the 4th pill crossed
+   the kit panel's PAINTED bottom border (measured at local y≈198 of the 305x215 rect) because the
+   rows sat on the old wireframe grid (y0 60, step 37, h 28 → bottom 199) and the pill's right
+   edge crossed the painted right border (290 > 287). The column is now one parent-driven layout
+   (`LayoutQuestionRow`/`LayoutQuestions`): header + counter in the top strip, the content box
+   (44..193) divided evenly between the visible choices, uniform gap, wrap-on labels with the
+   existing best-fit floor — every state stays inside the frame.
+3. **Dialogue vs narration assets** (`DialogueView.cs`, `CheckpointView.Speech.cs`): pre-gameplay
+   narration now rides `sec_caption_bar` — the torn bar at its own 325:90 proportions (uniform
+   scale, dark ink inside the torn edges, speaker line in the desk red) instead of the dark box;
+   the desk bubble keeps `sec_bubble` (9-slice, kit tail) and long answers now trade type size for
+   line budget (13→10 px, 24→39 chars, kit 4 lines / tagged 3) before the designed ellipsis, so
+   real content lines fit whole inside the visible bubble.
+4. **Rules & log papers** (`CheckpointView.Overlays.cs`, `CheckpointLayout.cs`): the reading sheet
+   IS the photographed document now — `sec_rules_paper` / `sec_log_paper` centred at their own
+   aspect, no re-typeset crest/title/handwriting/checklist (that ink is printed on the art), no
+   extra tilt (the print carries its own). The LIVE body (per-night briefing / tonight's entries)
+   rides a typed addendum slip pinned over the sheet's blank bottom band — the rules paper's
+   printed ink ends at y≈801/879, so the slip starts under it (596) and hangs off the sheet edge
+   like a clipped page; the CLOSE [X] pill keeps its wording and click on the sheet's blank
+   top-right corner. Desk props unchanged.
+5. **Bottom message box retired** (`CheckpointView.TalkDock.cs` deleted; `CheckpointView.cs`,
+   `Window.cs`, `Interview.cs`, `CheckpointLayout.cs`, `Tools/FlowCheck`): the typed talk dock,
+   its LOG toggle, placeholder well, SEND button and transcript sheet are gone with their
+   handlers (`SubmitTalk`/`TickTalk`/`SyncTalkDock`/`ResetTalkDock`/`BlurTalk`/`FocusTalk`) and
+   grid regions; the Questions panel remains the only student-interaction interface, answers
+   still arrive in `sec_bubble`, refusals still toast. `SpokenChat`/`WindowTranscript` stay as
+   pure, tested logic. The dock's proof and overlap-matrix row left FlowCheck with it.
+6. **Stamp artwork cleaned** (`CheckpointView.Decision.cs`): the full-anchor APPROVE / DECLINE
+   labels over the two stamp illustrations are removed at their source; identification lives on
+   the caption bars under the tray (`APPROVE (A)` / `DECLINE (D)`, kit-skinned to the caption-bar
+   pills with the check/cross discs). Drag-stamp, A/D hotkeys, mark-on-slip and verdict flow
+   untouched.
+
+**Verification:** verify.sh compile + static audit clean (107 scripts, ~19.8k lines); FlowCheck
+full chain OK / 0 BAD (drawer proofs re-aimed at the gripped shut face + readout retirement,
+questions content-box proof replaces the wireframe-grid proof, talk-dock proof retired, admin
+refusal now proved through the HUD toast); LogicTests 27,775/27,775. Rendered through
+Tools/Preview at 1280x720 and 1024x768: closed + open + record drawer states, questions live /
+asked / empty, bubble short + long lines, rules + log sheets, intro caption bar, post-verdict
+desk — all contained, no overlap, no clipped ink. Unity Play Mode and the Windows build remain
+NOT RUN in this environment (no editor).

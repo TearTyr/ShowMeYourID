@@ -143,7 +143,6 @@ namespace FlowCheck
 
             IssueOneProofs(root);
             AdminTalkProof(root);
-            TalkDockProof(root);
             TeardownProof();
 
             Console.WriteLine(_failures == 0 ? "== FLOW CHAIN COMPLETE ==" : "== " + _failures + " CHECK(S) FAILED ==");
@@ -192,7 +191,7 @@ namespace FlowCheck
             {
                 "DeskFrame", "topbar", "daybanner_border", "clock", "pause", "runstats", "mutationbg",
                 "record", "station", "folder1", "folder2", "filedrawer_border", "closefile", "idcard",
-                "drawerbody", "drawerfront", "drawercavity", "drawerhead", "stationout",
+                "drawerbody", "drawerfront", "drawercavity", "drawerhead", "cabfront",
                 "windowframe", "glass", "facade", "visitor", "glitch", "sill",
                 "speechbubble", "bubble_border", "bubble", "bubbletext", "bubbletail",
                 "offeredid", "patrol", "endshift",
@@ -304,12 +303,14 @@ namespace FlowCheck
             ExpectRegion("MAP", L.UtilityMap, 955, 330, 290, 170);
             ExpectRegion("RN", L.UtilityNotes, 240, 570, 160, 150);
             ExpectRegion("sticky note", L.StickyNote, 390, 200, 500, 320);
-            // question buttons: wireframe x=980, y=118, 272x38, step 42 (panel-local grid)
-            Check(Math.Abs(L.Inner.QBtnX - 15) < 0.01f && Math.Abs(L.Inner.QBtnY0 - 60) < 0.01f &&
-                  Math.Abs(L.Inner.QBtnStep - 37) < 0.01f && Math.Abs(L.Inner.QBtnW - 275) < 0.01f &&
-                  Math.Abs(L.Inner.QBtnH - 28) < 0.01f &&
-                  L.Inner.QBtnY0 + 4 * L.Inner.QBtnStep <= L.Questions.H + 0.01f,
-                "question buttons == the reference panel grid (15,60 + i*37, 275x28), 4 fit");
+            // question buttons: one content box inside the kit panel's painted frame
+            // (local y 9..198 on the 305x215 rect); four evenly divided rows, each fully
+            // inside the box — the column layout (LayoutQuestions) places them from these
+            Check(Math.Abs(L.Inner.QBtnX - 16) < 0.01f && Math.Abs(L.Inner.QBtnW - 266) < 0.01f &&
+                  L.Inner.QContentY0 >= 40f && L.Inner.QContentY1 <= 195f &&
+                  L.Inner.QContentY0 < L.Inner.QContentY1 &&
+                  (L.Inner.QContentY1 - L.Inner.QContentY0) / 4f >= 22f,
+                "question rows divide the panel content box, clear of the painted frame");
             // folder tabs: station-local grid; file rows: drawer-body grid, starting under the
             // 52px front lip and the 18px header — a whole floor folder (7 files) fits
             Check(Math.Abs(L.Inner.FolderTabX - (L.Station.W - L.Inner.FolderTabW) / 2f) < 0.01f &&
@@ -371,8 +372,6 @@ namespace FlowCheck
             Add("id card", L.IdCard, "P");   // P = paper layer: rides over desk furniture
             Add("window", L.Window, "C");
                     Add("speech bubble", L.SpeechBubble, "T");   // transient overlay beside the head
-    Add("talk dock", L.TalkDock, "C");
-    Add("talk log", L.TalkLog, "T");
             Add("patrol button", L.PatrolBtn, "C");
             Add("end shift button", L.EndShiftBtn, "C");
             Add("questions panel", L.Questions, "C");
@@ -640,8 +639,12 @@ namespace FlowCheck
                 "DRAWER: the cabinet is one mouth + one sliding body + one front, and the front is the pull");
             Check(FindDeep(cp.transform, "drawerzone") == null,
                 "DRAWER: the old hover-gated zone is gone — nothing pops open just because the cursor passed");
-            Check(FindDeep(cp.transform, "stationout").parent == cabinet,
-                "DRAWER: the registry readout is printed on the cabinet front — the pulled drawer can never cover it");
+            Check(FindDeep(cp.transform, "stationout") == null,
+                "DRAWER: no permanent status text under the cabinet — the pulled sheet IS the feedback");
+            var cabFront = FindDeep(cp.transform, "cabfront");
+            Check(cabFront != null && cabFront.parent == cabinet && cabFront.Find("cabgrip") != null &&
+                  cabFront.Find("cabtag") != null,
+                "DRAWER: the shut cabinet wears a gripped, tagged drawer front — the pull reads before it moves");
             Check(!FindDeep(cp.transform, "folder1").gameObject.activeSelf && !drawer.gameObject.activeSelf,
                 "DRAWER: floor files start HIDDEN inside the shut cabinet (front label + handle only)");
             // start from a known state: whatever the preceding proofs left behind, push the
@@ -697,8 +700,9 @@ namespace FlowCheck
             Check(FindDeep(cp.transform, "rname").GetComponent<UnityEngine.UI.Text>().text
                       .ToUpperInvariant().Contains(rowName),
                   "the pulled record is the row that was clicked");
-            Check(FindDeep(cp.transform, "stationout").GetComponent<UnityEngine.UI.Text>().text.Contains("FOUND:"),
-                  "the station readout confirms the pulled file");
+            Check(Mathf.Approximately(
+                      FindDeep(cp.transform, "cabfront").GetComponent<CanvasGroup>().alpha, 0f),
+                  "the shut cabinet face yields to the pulled drawer — never two fronts at once");
             Check(row0.Find("pill").GetComponent<UnityEngine.UI.Image>().color !=
                   FindDeep(cp.transform, "filerow1").Find("pill").GetComponent<UnityEngine.UI.Image>().color,
                   "the selected file row stays highlighted");
@@ -2346,9 +2350,11 @@ namespace FlowCheck
             adminTab.onClick.Invoke();
             var adminRow = FindDeep(cp.transform, "filerow0");
             if (adminRow != null) adminRow.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            var memoToast = FindDeep(root.HUD.transform, "toast");
             Check(rec.gameObject.activeSelf &&
-                  FindDeep(cp.transform, "stationout").GetComponent<UnityEngine.UI.Text>().text.Contains("ATTACHED MEMO"),
-                "issue #4: pulling student files can't replace the memo (NO RECORD — see memo)");
+                  memoToast.gameObject.activeSelf &&
+                  memoToast.GetComponent<UnityEngine.UI.Text>().text.Contains("ATTACHED MEMO"),
+                "issue #4: pulling student files can't replace the memo (the refusal toasts)");
             adminTab.onClick.Invoke();   // tidy: shut the drawer again
         }
 
@@ -3752,6 +3758,21 @@ namespace FlowCheck
         // state selects WHICH moment of the night gets dumped, so every screen the owner
         // reported can be looked at: the intro dialogue, the empty booth, the occupied desk
         // and the occupied desk at low sanity (the meter's legibility states).
+        private static Transform FaceOf(Transform paper, string name)
+        {
+            var art = paper.Find("cardart");
+            if (art == null) art = paper.Find("slipart");
+            if (art == null) art = paper;
+            return art.Find(name);
+        }
+
+        private static int CountDeep(Transform t, string name)
+        {
+            int n = t.name == name ? 1 : 0;
+            for (int i = 0; i < t.childCount; i++) n += CountDeep(t.GetChild(i), name);
+            return n;
+        }
+
         private static void DumpScreen(string path, string state = "occupied")
         {
             MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore());
@@ -3860,15 +3881,11 @@ namespace FlowCheck
             // then a long window line in the bubble (three wrapped lines)
             if (state == "talk")
             {
-                cp.TalkInput.text = "good evening. which course are you enrolled in?";
-                cp.SubmitTalk();
-                // DeskFrame only steps the drawer: step the dock's send beat too, past the
-                // 0.25 s processing window so the exchange commits and the sheet opens
-                for (int i = 0; i < 20; i++) { cp.TickTalk(1f / 60f); DeskFrame(cp); }
-                cp.DebugSay("Night class. I transfer in from the east campus this term — " +
-                            "third year of the nursing programme, officer, and the late list " +
-                            "has my name on it again.");
-                for (int i = 0; i < 2; i++) { cp.TickTalk(1f / 60f); cp.TickBubble(1f / 60f); DeskFrame(cp); }
+                // the window conversation now runs through the Questions panel; the dump
+                // shows the student's side of it — a long answer in the kit bubble
+                cp.DebugSay("Custodian. I'm the district administrator. I'll be taking " +
+                            "control of this facility tonight.");
+                for (int i = 0; i < 2; i++) { cp.TickBubble(1f / 60f); DeskFrame(cp); }
             }
 
             var frame = FindDeep(cp.transform, "DeskFrame");
@@ -4078,7 +4095,7 @@ namespace FlowCheck
             var frameRt = FindDeep(cp.transform, "DeskFrame").GetComponent<RectTransform>();
             string[] names = { "station", "filedrawer_border", "drawerbody", "drawerfront",
                                "handle", "drawerhead", "filerow0", "filerow3", "filerow6",
-                               "drawercavity", "folder1", "folder2", "stationout", "record" };
+                               "drawercavity", "folder1", "folder2", "cabfront", "record" };
             var frames = new[] { new { Tag = "0_shut", Frames = 0, Open = false },
                                  new { Tag = "1_click_frame", Frames = -1, Open = true },
                                  new { Tag = "2_2frames", Frames = 2, Open = true },
@@ -4205,153 +4222,6 @@ namespace FlowCheck
         // interaction loop (verification questions spend the QuestionSystem budget, the
         // rest gets an in-character answer), every exchange lands in the transcript sheet
         // and the bubble, and the loading/disabled/error states are observable widgets.
-        private static void TalkDockProof(GameRoot root)
-        {
-            Console.WriteLine("== window talk dock: the typed dialogue box ==");
-            // a fresh shift so this proof owns its visitor and its question budget
-            MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore());
-            root.MainMenu.transform.Find("buttons").Find("NEW GAME")
-                .GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            CheckpointSceneBootstrap.Build(root);
-            for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++)
-                root.Dialogue.Advance();
-            ClickStickyNote(root);
-            var cp = root.Checkpoint;
-            var dock = FindDeep(cp.transform, "talkdock");
-            var log = FindDeep(cp.transform, "talklog_border");   // the sheet OUTER (show/hide lives there)
-            var input = FindDeep(cp.transform, "talkinput").GetComponent<UnityEngine.UI.InputField>();
-            var send = FindDeep(cp.transform, "talksend");
-            Check(dock != null && dock.gameObject.activeSelf, "TD: the talk dock is on the desk and visible");
-            Check(input != null, "TD: the dialogue text box exists as a real InputField");
-            Check(input.lineType == UnityEngine.UI.InputField.LineType.MultiLineSubmit,
-                  "TD: Enter sends, Shift+Enter breaks the line (MultiLineSubmit)");
-            Check(input.characterLimit == SpokenChat.MaxChars, "TD: the box caps the typed line");
-            var ph = input.placeholder as UnityEngine.UI.Text;
-            Check(ph != null && ph.text.Contains("SPEAK THROUGH THE GLASS"),
-                  "TD: the placeholder invites speech at the window");
-            Check(input.interactable && cp.CurrentVisitor != null,
-                  "TD: the box is live while a visitor stands at the window");
-            Check(log != null && !log.gameObject.activeSelf, "TD: the transcript sheet starts collapsed");
-
-            // empty sends are refused: nothing enters the transcript, the text stays put
-            input.ActivateInputField();
-            Check(UIFactory.TypingInField(), "TD: focus registers as typing (gameplay keys stand down)");
-            input.SimulateTyping("   ");
-            input.SimulateEnter(false);
-            Check(cp.Transcript.Count == 0 && input.text == "   ",
-                  "TD: an empty send is refused and the typed text stays");
-            input.text = "";
-
-            // Shift+Enter breaks the line without sending
-            input.SimulateTyping("good evening");
-            input.SimulateEnter(true);
-            Check(input.text == "good evening\n" && cp.Transcript.Count == 0,
-                  "TD: Shift+Enter breaks the line and sends nothing");
-
-            // Enter sends: loading state, duplicate guard, commit, transcript, bubble
-            input.SimulateEnter(false);
-            var sendTxt = send.GetComponentInChildren<UnityEngine.UI.Text>();
-            Check(sendTxt.text == "…" && !input.interactable,
-                  "TD: a send in flight shows the loading state and locks the box");
-            cp.SubmitTalk();
-            cp.TickTalk(0.1f);
-            Check(sendTxt.text == "…", "TD: a duplicate send inside the beat changes nothing");
-            cp.TickTalk(0.3f);
-            Check(input.text == "", "TD: success clears the box");
-            Check(cp.Transcript.Count == 2 && cp.Transcript.Entries[0].FromPlayer
-                  && !cp.Transcript.Entries[1].FromPlayer,
-                  "TD: the exchange lands in the transcript (you, then the visitor)");
-            Check(cp.Transcript.Entries[0].Text == "good evening",
-                  "TD: the submitted message is stored as spoken");
-            Check(log.gameObject.activeSelf, "TD: the sheet breathes open after a reply");
-            var row0 = FindDeep(cp.transform, "trow0").GetComponent<UnityEngine.UI.Text>();
-            var row1 = FindDeep(cp.transform, "trow1").GetComponent<UnityEngine.UI.Text>();
-            Check(row0.text.StartsWith("YOU — good evening"), "TD: the sheet shows the submitted message");
-            Check(row1.text.StartsWith("VISITOR — ") && row1.text.Length > "VISITOR — ".Length,
-                  "TD: the sheet shows the visitor's reply");
-            var bubble = FindDeep(cp.transform, "bubbletext").GetComponent<UnityEngine.UI.Text>();
-            Check(!bubble.text.Contains("AT THE WINDOW") && bubble.text.Length > 0,
-                  "TD: the visitor's reply also speaks in the window bubble");
-
-            // typed verification questions spend the REAL budget (cap 2, no repeats)
-            int left = BudgetLeft(cp);
-            input.text = "what is your course?";
-            input.SimulateEnter(false); cp.TickTalk(0.3f);
-            Check(BudgetLeft(cp) == left - 1,
-                  "TD: a typed course question spends one verification question");
-            input.text = "what is your course?";
-            input.SimulateEnter(false); cp.TickTalk(0.3f);
-            Check(BudgetLeft(cp) == left - 1,
-                  "TD: repeating it refunds nothing (no-repeats holds for typed speech)");
-            Check(cp.Transcript.Entries[cp.Transcript.Count - 1].Who == "DESK",
-                  "TD: the refusal is logged as the desk, not ventriloquised by the visitor");
-            input.text = "are you a regular student or a transferee?";
-            input.SimulateEnter(false); cp.TickTalk(0.3f);
-            Check(BudgetLeft(cp) == left - 2,
-                  "TD: the second typed question spends the last of the budget");
-            input.text = "what classroom is your first class in?";
-            input.SimulateEnter(false); cp.TickTalk(0.3f);
-            Check(BudgetLeft(cp) == left - 2,
-                  "TD: the two-question cap holds for typed questions too");
-
-            // the sheet breathes: auto-collapse, pin via LOG, unpin
-            cp.TickTalk(5f);
-            Check(!log.gameObject.activeSelf, "TD: the sheet collapses on its own after a while");
-            FindDeep(cp.transform, "talklogtoggle").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            Check(log.gameObject.activeSelf, "TD: LOG pins the sheet open");
-            cp.TickTalk(30f);
-            Check(log.gameObject.activeSelf, "TD: a pinned sheet stays open");
-            FindDeep(cp.transform, "talklogtoggle").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            Check(!log.gameObject.activeSelf, "TD: LOG closes it again");
-
-            // the keyboard belongs to the sentence being typed
-            input.ActivateInputField();
-            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.A);
-            cp.TickHotkeys();
-            UnityEngine.Input.KeysDown.Clear();
-            Check(cp.PendingVerdict == Verdict.None, "TD: typing an 'A' never stamps the slip");
-            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Escape);
-            cp.TickHotkeys();
-            UnityEngine.Input.KeysDown.Clear();
-            Check(!input.isFocused, "TD: Escape leaves the box");
-            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.V);
-            cp.TickHotkeys();
-            UnityEngine.Input.KeysDown.Clear();
-            Check(input.isFocused, "TD: V puts the caret back in the box");
-            cp.BlurTalk();
-
-            // error path: the window closes mid-thought — the typed text survives
-            input.text = "wait, one more thing";
-            input.SimulateEnter(false);
-            Check(!input.interactable, "TD: the box locks during the send beat");
-            cp.DebugClearVisitor();
-            cp.TickTalk(0.3f);
-            Check(input.text == "wait, one more thing",
-                  "TD: a closed window keeps the typed text (failed send)");
-            Check(!input.interactable, "TD: with nobody at the window the box is disabled, not fake-live");
-            ph = input.placeholder as UnityEngine.UI.Text;
-            Check(ph.text.Contains("NO ONE AT THE WINDOW"),
-                  "TD: the placeholder explains the dead state");
-        }
-
-        // the printed faces live on each paper's scaled art layer (cardart / slipart)
-        private static Transform FaceOf(Transform paper, string name)
-        {
-            var art = paper.Find("cardart");
-            if (art == null) art = paper.Find("slipart");
-            if (art == null) art = paper;
-            return art.Find(name);
-        }
-
-        private static int CountDeep(Transform t, string name)
-        {
-            int n = t.name == name ? 1 : 0;
-            for (int i = 0; i < t.childCount; i++) n += CountDeep(t.GetChild(i), name);
-            return n;
-        }
-
-        // charge the battery back up (lit room, beam off) so long Focus scenarios never
-        // die mid-assertion; keeps the room lit on exit.
         private static void TopUpBattery(GameRoot root, FlashlightRig rig)
         {
             if (rig.Beam != LightMode.Off) PressKey(root, KeyCode.L);
