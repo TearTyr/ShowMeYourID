@@ -40,9 +40,12 @@ namespace Hollowbrook.Logic
     }
 
     /// <summary>HOLLOWBROOK COLLEGE — GROUND FLOOR: the single source of truth for the map's
-    /// layout, rebuilt to match the hand-drawn reference plan (security checkpoint on the
-    /// left, one long central hallway, Classroom 1 above it, Classroom 2 below it, the sealed
-    /// server / identification room on the right, and the two comfort rooms off the east end).
+    /// layout, rebuilt to match the owner's hand-drawn reference plan: one long central
+    /// hallway; BOTH classrooms (101 west of 202) along its north wall; the security
+    /// checkpoint at the south-west, under the hallway's west end; the sealed server /
+    /// identification room capping the east end with the two comfort rooms north and south
+    /// of it; and the reference's stair hatch ("2ND FLOOR??") under the corridor's
+    /// east-centre long wall.
     ///
     /// Everything is expressed in a fixed DESIGN SPACE with the origin at the sheet's centre,
     /// y down. MapView scales that space uniformly to whatever the screen can show, so the
@@ -60,59 +63,87 @@ namespace Hollowbrook.Logic
             new FloorRoom
             {
                 Key = "room_hallway", Label = "MAIN HALLWAY",
-                X = 20f, Y = 0f, W = 580f, H = 76f, Room = RoomId.Hallway,
+                X = 10f, Y = 0f, W = 600f, H = 70f, Room = RoomId.Hallway,
             },
             new FloorRoom
             {
+                // the reference's south-west corner: the checkpoint hangs under the
+                // hallway's west end, its door in its own north wall
                 Key = "room_security", Label = "SECURITY ROOM\nSecurity Checkpoint",
-                X = -365f, Y = 0f, W = 190f, H = 140f, Room = RoomId.Security,
-                DoorX = -270f, DoorY = 0f,
+                X = -380f, Y = 110f, W = 170f, H = 120f, Room = RoomId.Security,
+                DoorX = -295f, DoorY = 110f,   // its own east wall, into the return
             },
             new FloorRoom
             {
+                // both classrooms on the NORTH wall, 101 west of 202, exactly as the
+                // reference draws them; each door in its own south wall
                 Key = "room_classroom1", Label = "CLASSROOM 1\nRoom 101",
-                X = -152f, Y = -126f, W = 236f, H = 128f, Room = RoomId.Classroom1,
-                DoorX = -152f, DoorY = -62f,
+                X = -160f, Y = -115f, W = 210f, H = 120f, Room = RoomId.Classroom1,
+                DoorX = -160f, DoorY = -55f,
             },
             new FloorRoom
             {
                 Key = "room_classroom2", Label = "CLASSROOM 2\nRoom 202",
-                X = -152f, Y = 126f, W = 236f, H = 128f, Room = RoomId.Classroom2,
-                DoorX = -152f, DoorY = 62f,
+                X = 70f, Y = -115f, W = 210f, H = 120f, Room = RoomId.Classroom2,
+                DoorX = 70f, DoorY = -55f,
             },
             new FloorRoom
             {
-                // the sealed room sits ON the hallway's east end: the corridor runs to it and
+                // the sealed room caps the hallway's east end: the corridor runs to it and
                 // stops, which is exactly what the chain and the scratch marks say
-                Key = "room_server", Label = "SERVER /\nIDENTIFICATION ROOM\n— SEALED —",
-                X = 392f, Y = 0f, W = 156f, H = 136f, Room = null, Sealed = true,
-                DoorX = 314f, DoorY = 0f,      // its own west wall, where the corridor ends
+                Key = "room_server", Label = "SERVER / \nIDENTIFICATION ROOM\n— SEALED —",
+                X = 390f, Y = 0f, W = 150f, H = 130f, Room = null, Sealed = true,
+                DoorX = 315f, DoorY = 0f,      // its own west wall, where the corridor ends
             },
             new FloorRoom
             {
-                // the comfort rooms hang off the corridor's east end, north and south of the
-                // sealed room, so nothing is parked in front of the hallway or the classrooms
+                // the comfort rooms hang off the east end north and south of the sealed
+                // room (the reference's small north room), off a short chalk return
                 Key = "room_comfort_north", Label = "COMFORT ROOM\nCR-1",
-                X = 385f, Y = -148f, W = 170f, H = 78f, Room = null, Comfort = true,
-                DoorX = 300f, DoorY = -148f,   // on the room's own west wall (X - W/2 = 300)
+                X = 390f, Y = -115f, W = 150f, H = 70f, Room = null, Comfort = true,
+                DoorX = 315f, DoorY = -115f,   // on the room's own west wall (X - W/2 = 315)
             },
             new FloorRoom
             {
                 Key = "room_comfort_south", Label = "COMFORT ROOM\nCR-2",
-                X = 385f, Y = 148f, W = 170f, H = 78f, Room = null, Comfort = true,
-                DoorX = 300f, DoorY = 148f,    // on the room's own west wall (X - W/2 = 300)
+                X = 390f, Y = 115f, W = 150f, H = 70f, Room = null, Comfort = true,
+                DoorX = 315f, DoorY = 115f,    // on the room's own west wall
             },
         };
 
         /// <summary>Corridor stubs drawn as thin chalk runs between a room and the hallway
         /// (design-space segments, x0,y0 -> x1,y1). Purely decorative: they show that every
-        /// room hangs off the one central passage, including the comfort rooms at the east
-        /// end, which sit off a short return rather than blocking the corridor.</summary>
+        /// room hangs off the one central passage — the classrooms and the checkpoint
+        /// straight into its long walls, the comfort rooms round an elbow return at the
+        /// east end rather than blocking the corridor.</summary>
         public static readonly float[][] Corridors =
         {
-            new[] { 310f, -148f, 300f, -148f },  // hallway east end -> CR-1 doorway
-            new[] { 310f, 148f, 300f, 148f },    // hallway east end -> CR-2 doorway
+            new[] { -295f, 110f, -270f, 110f },  // checkpoint door -> the west return
+            new[] { -270f, 110f, -270f, 35f },   // return -> hallway south wall
+            new[] { -160f, -55f, -160f, -35f },  // classroom 1 door -> hallway north wall
+            new[] { 70f, -55f, 70f, -35f },      // classroom 2 door -> hallway north wall
+            new[] { 310f, 0f, 315f, 0f },        // hallway east end -> the sealed plate
+            new[] { 315f, -115f, 300f, -115f },  // CR-1 door -> the return
+            new[] { 300f, -115f, 300f, -35f },   // return -> hallway north wall
+            new[] { 315f, 115f, 300f, 115f },    // CR-2 door -> the return
+            new[] { 300f, 115f, 300f, 35f },     // return -> hallway south wall
         };
+
+        /// <summary>The reference's stair hatch: short chalk ticks under the corridor's
+        /// east-centre long wall, with the custodian's scratch beside it. Decoration only —
+        /// no room, no door, no mechanic; the patrol graph never learned about stairs.</summary>
+        public static readonly float[][] StairsRuns =
+        {
+            new[] { 180f, 35f, 180f, 53f },
+            new[] { 192f, 35f, 192f, 53f },
+            new[] { 204f, 35f, 204f, 53f },
+            new[] { 216f, 35f, 216f, 53f },
+            new[] { 228f, 35f, 228f, 53f },
+            new[] { 240f, 35f, 240f, 53f },
+            new[] { 254f, 68f, 242f, 56f },     // the scratch's little arrow at the hatch
+        };
+        public const string StairsNote = "2ND FLOOR??";
+        public const float StairsNoteX = 292f, StairsNoteY = 82f;
 
         /// <summary>Every room that is part of the patrol graph must be on the plan — the
         /// proof that the map and RoomGraph never drift apart.</summary>

@@ -128,16 +128,24 @@ namespace Hollowbrook.Checkpoint
                 var cab = ProceduralArt.Get("sec_cabinet1");
                 if (cab != null) { _stationInk.sprite = cab; _stationInk.color = Color.white; }
             }
+            // The kit exports two DIFFERENT tab shapes (tab1 = knob + folder body,
+            // tab2 = a bare edge strip): stretched into the one shared tab rect they read
+            // as two misaligned folders. One folder shape for both rows, with the open/idle
+            // tint carrying the state, keeps the cabinet face symmetric and centred.
             for (int i = 0; i < _folderTabInks.Length; i++)
             {
-                var tab = ProceduralArt.Get(i == 0 ? "sec_folder_tab1" : "sec_folder_tab2");
+                var tab = ProceduralArt.Get("sec_folder_tab1");
                 if (tab != null && _folderTabInks[i] != null) _folderTabInks[i].sprite = tab;
             }
             if (_drawerBody != null)
             {
                 var bodyInk = _drawerBody.GetComponent<Image>();
                 var cab2 = ProceduralArt.Get("sec_cabinet2");
-                if (bodyInk != null && cab2 != null) { bodyInk.sprite = cab2; bodyInk.color = Color.white; }
+                // the export carries its pulled-front bracket painted under the sheet; the
+                // desk draws that front as its own moving panel, so the painted one would
+                // land across the last file row. Crop to the sheet: rows keep the body.
+                var sheet = DrawerSheetSprite(cab2);
+                if (bodyInk != null && sheet != null) { bodyInk.sprite = sheet; bodyInk.color = Color.white; }
             }
             // the reference sheet reads dark ink on light paper: head, front bracket and
             // handle flip from the procedural night inks to the kit's paper language
@@ -272,6 +280,24 @@ namespace Hollowbrook.Checkpoint
             img.sprite = sp;
             img.type = Image.Type.Simple;
             img.color = Color.white;
+        }
+
+        // The drawer sheet export (sec_cabinet2) is the paper sheet PLUS the pulled-front
+        // bracket painted under it (~the bottom 14% of the export). The desk's own front
+        // panel is that bracket, so the stretched sheet must stop at the paper: cropping
+        // the export keeps all seven file rows on clean sheet instead of on a handle.
+        private static Sprite _drawerSheet;
+        private static Sprite DrawerSheetSprite(Sprite src)
+        {
+            if (_drawerSheet != null) return _drawerSheet;
+            var tex = src != null ? src.texture : null;
+            if (tex == null || tex.height < 16) return src;
+            float sheetH = Mathf.Floor(tex.height * 0.855f);   // measured: bracket starts ~86% down
+            _drawerSheet = Sprite.Create(tex,
+                new Rect(0f, tex.height - sheetH, tex.width, sheetH),
+                new Vector2(0.5f, 0.5f), src.pixelsPerUnit);
+            _drawerSheet.name = src.name + "_sheet";
+            return _drawerSheet;
         }
 
         // Button = border Image on the row + "bg" child + label. The kit pill replaces the bg,

@@ -22,9 +22,15 @@ namespace Hollowbrook.Checkpoint
         {
             // The student file: a draggable window, opened only by pulling it from the
             // floor-files drawer.
-            var rec = UIFactory.Img(_desk, "record", ProceduralArt.Get("record_sheet"));
-            rec.raycastTarget = true;   // the file window must grab the pointer to drag
+            var recGo = UIFactory.NewUI(_desk, "record");
+            var rec = recGo.gameObject.AddComponent<Hollowbrook.UI.HotRectImage>();
+            rec.sprite = ProceduralArt.Get("record_sheet");
+            rec.raycastTarget = true;   // the file window grabs the pointer — by its header
             L.Place(rec.rectTransform, new L.Region(16, 168, 320, 290));
+            // Dragged by the header band only: an open file lies OVER the pulled drawer, so
+            // the sheet's body stays click-through and the rows, tabs and cabinet under the
+            // paper keep working while you read (the X button keeps its own raycast).
+            rec.HotRectTopLeft = new Rect(0f, 0f, 320f, 30f);
             rec.gameObject.AddComponent<RectMask2D>();   // rows can never spill off the sheet
             _recHeader = UIFactory.Label(rec.rectTransform, "header", "STUDENT RECORD — FORM 11-C", 12,
                 new Color(0.9f, 0.9f, 0.88f), TextAnchor.MiddleCenter);

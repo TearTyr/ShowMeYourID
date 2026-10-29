@@ -57,7 +57,21 @@ def parse_floor_plan(path):
     for nums in re.findall(r"new\[\]\s*\{([^}]+)\}", cbody):
         vals = [float(v.strip().rstrip("f")) for v in nums.split(",")]
         corridors.append(vals)
-    return dw, dh, title, rooms, corridors
+
+    # the reference's stair hatch + scratch note (decoration, same chalk as the runs)
+    stairs = []
+    if "StairsRuns" in src:
+        sbody = src[src.index("StairsRuns ="):]
+        sbody = sbody[:sbody.index("        };")]
+        for nums in re.findall(r"new\[\]\s*\{([^}]+)\}", sbody):
+            vals = [float(v.strip().rstrip("f")) for v in nums.split(",")]
+            stairs.append(vals)
+    note = ""
+    m = re.search(r'StairsNote\s*=\s*"([^"]+)"', src)
+    if m: note = m.group(1)
+    nx = float(re.search(r"StairsNoteX\s*=\s*([0-9.]+)f", src).group(1)) if "StairsNoteX" in src else 0.0
+    ny = float(re.search(r"StairsNoteY\s*=\s*([0-9.]+)f", src).group(1)) if "StairsNoteY" in src else 0.0
+    return dw, dh, title, rooms, corridors, stairs, note, nx, ny
 
 
 # --------------------------------------- parse the sheet constants (pure layout module)
@@ -131,7 +145,8 @@ RED_BRIGHT = "#e6383d"
 PAPER = "#1d1b18"
 
 
-def render(screen_w, screen_h, dw, dh, title, rooms, corridors, C, out_path):
+def render(screen_w, screen_h, dw, dh, title, rooms, corridors, C, out_path,
+           stairs=(), note="", note_x=0.0, note_y=0.0):
     L = layout(screen_w, screen_h, dw, dh, C)
     vx, vy = L["visible"]
     ps = L["plan_scale"]
@@ -233,6 +248,16 @@ def render(screen_w, screen_h, dw, dh, title, rooms, corridors, C, out_path):
             s.append(f'<rect x="{dx-dw2:.1f}" y="{dy-dh2:.1f}" width="{dw2*2:.1f}" height="{dh2*2:.1f}" '
                      f'fill="{PAPER}" stroke="{col}" stroke-width="1.6"/>')
 
+    # ---- stair hatch + the custodian's scratch (reference decoration) ----
+    for (x0, y0, x1, y1) in stairs:
+        a, b = plan_pt(x0, y0), plan_pt(x1, y1)
+        s.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" '
+                 f'stroke="{INK}" stroke-width="{max(1.5, 2*ps):.1f}" opacity="0.5"/>')
+    if note:
+        nxp, nyp = plan_pt(note_x, note_y)
+        s.append(f'<text x="{nxp:.1f}" y="{nyp:.1f}" fill="{INK_FAINT}" '
+                 f'font-size="{max(9, round(13*L["plan_text"]))}" font-family="cursive,serif">{note}</text>')
+
     # ---- YOU marker on the checkpoint ----
     sec = next(q for q in rooms if q["room"] == "Security")
     hx, hy = plan_pt(sec["x"], sec["y"])
@@ -281,7 +306,7 @@ def render(screen_w, screen_h, dw, dh, title, rooms, corridors, C, out_path):
 def main():
     outdir = sys.argv[1] if len(sys.argv) > 1 else "/tmp/map_preview"
     os.makedirs(outdir, exist_ok=True)
-    dw, dh, title, rooms, corridors = parse_floor_plan(PLAN_CS)
+    dw, dh, title, rooms, corridors, stairs, note, nx, ny = parse_floor_plan(PLAN_CS)
     C = parse_sheet_constants(SHEET_CS)
     C.update(parse_type_sizes(MAP_CS))
     print(f"parsed FloorPlan: {dw:.0f}x{dh:.0f}, {len(rooms)} rooms, {len(corridors)} corridor runs")
@@ -292,7 +317,8 @@ def main():
     for (w, h) in [(1280, 720), (1920, 1080), (1024, 768), (800, 600), (2560, 1080),
                    (1280, 600), (3840, 2160)]:
         info = render(w, h, dw, dh, title, rooms, corridors, C,
-                      os.path.join(outdir, f"map_{w}x{h}.svg"))
+                      os.path.join(outdir, f"map_{w}x{h}.svg"),
+                      stairs, note, nx, ny)
         x0, y0, x1, y1 = info["sheet_edges"]
         vx, vy = info["visible"]
         ox, oy = (vx + 80) / 2, (vy + 80) / 2      # same svg frame the renderer uses

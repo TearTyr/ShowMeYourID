@@ -220,6 +220,9 @@ namespace UnityEngine.UI
         public int fillOrigin = 0;
         public Sprite overrideSprite { get; set; }
         public void SetNativeSize() { }
+        // uGUI asks every Graphic under the pointer whether the hit counts; the real
+        // Image tests the sprite rect, HotRectImage narrows that to one local band
+        public virtual bool IsRaycastLocationValid(Vector2 screenPoint, Camera eventCamera) => raycastTarget;
         public enum Type { Simple = 0, Sliced = 1, Filled = 2, Tiled = 3 }
         public enum FillMethod { Horizontal, Vertical, Radial90, Radial180, Radial360 }
     }
@@ -241,6 +244,9 @@ namespace UnityEngine.UI
         public VerticalWrapMode verticalOverflow = VerticalWrapMode.Truncate;
         public float lineSpacing = 1f;
         public bool supportRichText = true;
+        public bool resizeTextForBestFit = false;
+        public int resizeTextMinSize = 11;
+        public int resizeTextMaxSize = 100;
         public int preferredWidth => 0;
         public int preferredHeight => 0;
     }

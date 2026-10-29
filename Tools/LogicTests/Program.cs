@@ -1537,10 +1537,17 @@ namespace Hollowbrook.LogicTests
             // the reference drawing's spatial relationships
             Check(sec.Value.Right <= hall.Value.Left + 0.01f,
                 $"the security checkpoint is on the LEFT (its right edge {sec.Value.Right} <= the hallway's {hall.Value.Left})");
-            Check(c1.Value.Bottom <= hall.Value.Top + 0.01f,
-                $"Classroom 1 is ABOVE the hallway ({c1.Value.Bottom} <= {hall.Value.Top})");
-            Check(c2.Value.Top >= hall.Value.Bottom - 0.01f,
-                $"Classroom 2 is BELOW the hallway ({c2.Value.Top} >= {hall.Value.Bottom})");
+            Check(c1.Value.Bottom <= hall.Value.Top + 0.01f && c2.Value.Bottom <= hall.Value.Top + 0.01f,
+                $"BOTH classrooms are ABOVE the hallway, as the reference plan draws them " +
+                $"({c1.Value.Bottom} / {c2.Value.Bottom} <= {hall.Value.Top})");
+            Check(c1.Value.Right <= c2.Value.Left + 0.01f,
+                $"Room 101 sits WEST of Room 202 along the north wall ({c1.Value.Right} <= {c2.Value.Left})");
+            Check(sec.Value.Top >= hall.Value.Bottom - 0.01f && sec.Value.X < hall.Value.X,
+                $"the security checkpoint hangs BELOW the hallway's west end ({sec.Value.Top} >= {hall.Value.Bottom})");
+            var crN = FloorPlan.ForKey("room_comfort_north").Value;
+            var crS = FloorPlan.ForKey("room_comfort_south").Value;
+            Check(crN.Left >= hall.Value.Right - 0.01f && crS.Left >= hall.Value.Right - 0.01f,
+                "the comfort rooms hang off the EAST end, clear of the corridor");
             Check(server.Value.Left >= hall.Value.Right - 0.01f,
                 $"the sealed room is on the RIGHT ({server.Value.Left} >= {hall.Value.Right})");
             Check(hall.Value.W > 2.5f * Math.Max(hall.Value.H, 1f) &&

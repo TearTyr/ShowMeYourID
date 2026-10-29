@@ -59,6 +59,7 @@ namespace Hollowbrook.Checkpoint
 
         private int _openFloor = -1;          // -1 = no folder selected
         private int _selectedCanon = -1;      // canon index of the pulled file
+        private bool _recordFromFile;         // the sheet on the desk came out of the drawer
         private bool _drawerOpen;             // the requested state (one drawer, one target)
         private float _drawerPull;            // 0 = shut inside the cabinet, 1 = fully out
         private bool _drawerSteppedThisFrame; // the click already moved it: TickDrawer must not
@@ -167,7 +168,7 @@ namespace Hollowbrook.Checkpoint
                 UIFactory.NsMid, TextAnchor.MiddleRight);
             _stationOut.font = UIFactory.UiFont;
             _stationOut.raycastTarget = false;
-            L.Place(_stationOut.rectTransform, new L.Region(25, 136, 260, 18));
+            L.Place(_stationOut.rectTransform, new L.Region(22.5f, 136, 260, 18));
 
             _drawerOpen = false;
             _drawerPull = 0f;
@@ -349,7 +350,19 @@ namespace Hollowbrook.Checkpoint
         {
             if (floor < 1) floor = 1;
             if (_drawerOpen && _openFloor == floor) { CloseDrawer(); return; }
+            // switching classrooms retires the sheet the previous classroom pulled: a record
+            // on the desk always belongs to the folder it came out of, so the list and the
+            // sheet can never disagree about which room you are browsing
+            bool floorChanged = _openFloor != floor;
             _openFloor = floor;
+            // only a sheet the drawer itself pulled retires with its folder — the admin's
+            // District Roster Memo rides the same window and is never "stale"
+            if (floorChanged && _recordFromFile && _recordGo != null && _recordGo.activeSelf)
+            {
+                _recordGo.SetActive(false);
+                _selectedCanon = -1;
+                _recordFromFile = false;
+            }
             PopulateFloor(floor);
             _drawerOpen = true;
             SetDrawerTabs(true);
@@ -413,6 +426,7 @@ namespace Hollowbrook.Checkpoint
         {
             _openFloor = -1;
             _selectedCanon = -1;
+            _recordFromFile = false;
             _drawerOpen = false;
             SetDrawerTabs(false);
             RefreshFolderTabs();
@@ -467,7 +481,10 @@ namespace Hollowbrook.Checkpoint
                 UIFactory.PlaceTL(pillRt, 0f, 0f, L.Inner.FileRowPillW, L.Inner.FileRowH);
                 var bg = pillRt.gameObject.AddComponent<Image>();
                 bg.color = canonIdx == _selectedCanon ? FileRowSel : FileRowIdle;
-                bg.raycastTarget = false;
+                // the pill IS the row's click and hover surface (the Button's targetGraphic):
+                // with the raycast off here no pointer event ever reached the row in play —
+                // the drawer listed files nobody could pull
+                bg.raycastTarget = true;
                 var edge = UIFactory.Panel(pillRt, "edge", new Color(0.55f, 0.49f, 0.33f));
                 edge.rectTransform.anchorMin = new Vector2(0, 0);   // manila left edge: a file
                 edge.rectTransform.anchorMax = new Vector2(0, 1);   // folder peeking from the row
@@ -485,7 +502,9 @@ namespace Hollowbrook.Checkpoint
                 UIFactory.PlaceTL(idl.rectTransform, L.Inner.FileRowIdX, 0,
                     L.Inner.FileRowIdW, L.Inner.FileRowH);
                 idl.font = UIFactory.UiFont;
-                idl.raycastTarget = false;
+                // the registry number is part of the visible row, so it is part of the row's
+                // hit area: clicking the id pulls the same file as clicking the name pill
+                idl.raycastTarget = true;
                 var btn = rowRt.gameObject.AddComponent<Button>();
                 btn.targetGraphic = bg;   // the pill is the row's click and hover surface
                 btn.transition = Selectable.Transition.ColorTint;
@@ -552,6 +571,7 @@ namespace Hollowbrook.Checkpoint
             }
             var v = canon[canonIdx];
             _selectedCanon = canonIdx;
+            _recordFromFile = true;
             FillRecordSheet(v);
             if (_recordGo != null)
             {

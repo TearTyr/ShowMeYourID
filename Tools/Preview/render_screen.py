@@ -22,6 +22,15 @@ REFW, REFH = 1280.0, 720.0
 
 PROC = os.path.join(ROOT, 'preview', 'procsprites')   # headless-exported procedural art
 
+# Runtime-cropped kit sprites: the game crops these out of the owner's exports with
+# Sprite.Create (CheckpointView.Overlays.CropCrest / KitSkin.DrawerSheetSprite). The
+# headless stubs carry no pixel buffer, so the preview mirrors the SAME crop rects
+# (top-left pixels off the 789x879 / 712x722 exports) to show what the editor resolves.
+RUNTIME_CROPS = {
+    'sec_crest_cropped': ('sec_rules_paper', (295, 70, 125, 132)),
+    'sec_cabinet2_sheet': ('sec_cabinet2', (0, 0, 712, 617)),
+}
+
 _sprite_idx = None
 def sprite_path(name):
     global _sprite_idx
@@ -37,6 +46,16 @@ def sprite_path(name):
             for f in os.listdir(PROC):
                 if f.endswith('.png'):
                     _sprite_idx.setdefault(f[:-4], os.path.join(PROC, f))
+        # materialise the mirrored runtime crops beside the exported sprites
+        for crop_name, (src_name, box) in RUNTIME_CROPS.items():
+            src = _sprite_idx.get(src_name)
+            if not src:
+                continue
+            dst = os.path.join(PROC, crop_name + '.png')
+            if not os.path.exists(dst):
+                x, y, w, h = box
+                Image.open(src).convert('RGBA').crop((x, y, x + w, y + h)).save(dst)
+            _sprite_idx.setdefault(crop_name, dst)
     return _sprite_idx.get(name)
 
 _font_cache = {}
@@ -133,10 +152,47 @@ def draw_text_node(node, w, h, ppu):
     if abs(sc - 1.0) > 1e-3 and sc > 0.01:
         w = w / sc
     px = max(6, int(round(t['s'] * ppu)))
-    f = font_obj(t['f'], px)
+    raw = TAG_RE.sub('', t['t'])
+    if t.get('bf'):
+        # uGUI best-fit: the LARGEST size in [min, min(base, max)] whose wrapped lines fit
+        # the box; if even the minimum cannot fit, the minimum wins (vertical overflow
+        # then saves the glyphs instead of clipping them)
+        lo = max(6, int(t.get('bn', 11)))
+        hi = min(int(round(t['s'])), int(t.get('bx', t['s'])))
+
+        def wrapped_lines(f2):
+            n = 0
+            for para in raw.split('\n'):
+                if t['w'] == 0:
+                    cur = ''
+                    cnt = 1
+                    for word in para.split(' '):
+                        trial = (cur + ' ' + word).strip()
+                        if cur and f2.getlength(trial) > w - 2:
+                            cnt += 1
+                            cur = word
+                        else:
+                            cur = trial
+                    n += cnt
+                else:
+                    n += 1
+            return n
+
+        f = font_obj(t['f'], px)
+        for size in range(hi, lo - 1, -1):
+            spx = max(6, int(round(size * ppu)))
+            f2 = font_obj(t['f'], spx)
+            asc2, desc2 = f2.getmetrics()
+            if (asc2 + desc2) * t.get('ls', 1.0) * wrapped_lines(f2) <= h:
+                px, f = spx, f2
+                break
+        else:
+            spx = max(6, int(round(lo * ppu)))
+            px, f = spx, font_obj(t['f'], spx)
+    else:
+        f = font_obj(t['f'], px)
     bold = t['st'] in (1, 3)
     color = tuple(t['c'][:3]) + (int(255 * t['c'][3] * node.get('al', 1)),)
-    raw = TAG_RE.sub('', t['t'])
     pad = 4
     surf = Image.new('RGBA', (max(1, int(w) + pad * 2), max(1, int(h) + pad * 2)))
     d = ImageDraw.Draw(surf)
@@ -232,7 +288,15 @@ def render(dump, W, H, out_path):
             ring = Image.new('RGBA', (iw + 2, ih + 2), (0, 0, 0, 0))
             rd = ImageDraw.Draw(ring)
             rd.rectangle((0, 0, iw + 1, ih + 1), outline=(178, 34, 40, 235))
-            surf = Image.alpha_composite(ring, surf) if surf else ring
+            if surf is None:
+                surf = ring
+            else:
+                # text surfaces carry padding around the box; centre the ring on it
+                base = Image.new('RGBA', surf.size, (0, 0, 0, 0))
+                base.alpha_composite(ring, ((surf.size[0] - iw - 2) // 2,
+                                            (surf.size[1] - ih - 2) // 2))
+                base.alpha_composite(surf)
+                surf = base
             sw0, sh0 = surf.size
         ang = node.get('a', 0.0)
         if abs(ang) > 0.01:

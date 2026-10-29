@@ -55,9 +55,16 @@ namespace Hollowbrook.Checkpoint
                 L.Place(b.GetComponent<RectTransform>(),
                     new L.Region(L.Inner.QBtnX, L.Inner.QBtnY0 + i * L.Inner.QBtnStep,
                         L.Inner.QBtnW, L.Inner.QBtnH));
-                SizeLabel(b, 16);
+                // 14 u is the size at which the longest row PLUS its asked-state suffix
+                // ("… ✓ ASKED") still reads on one line inside the pill; RefreshQuestionsPanel
+                // keeps a best-fit window under it so no state ever wraps mid-word or clips
+                SizeLabel(b, 14);
                 var bt = b.GetComponentInChildren<UnityEngine.UI.Text>();
-                if (bt != null) { bt.font = UIFactory.UiFont; bt.color = UIFactory.NsChalk; }
+                if (bt != null)
+                {
+                    bt.font = UIFactory.UiFont; bt.color = UIFactory.NsChalk;
+                    bt.verticalOverflow = VerticalWrapMode.Overflow;   // never clip a line
+                }
                 _questionButtons[i] = b;
                 _qLabels[i] = qs[i];
                 b.gameObject.SetActive(false);
@@ -95,15 +102,20 @@ namespace Hollowbrook.Checkpoint
                 UIFactory.NsInk, TextAnchor.MiddleLeft);
             L.Place(mf.rectTransform, new L.Region(14, 42, 90, 14));
             mf.font = UIFactory.UiFont;
-            // hand-drawn room boxes (map-local): two classrooms, the hall, the comfort rooms,
-            // the sealed server room in red — same rooms, same order as the full plan
+            // hand-drawn room boxes (map-local): the reference plan's composition in
+            // miniature — both classrooms along the north wall, the hall between them and
+            // the security room, the checkpoint south-west, the comfort rooms north and
+            // south of the sealed server room at the east end. Same rooms, same order as
+            // the full plan, so the two can never disagree.
             float[][] boxes =
             {
-                new float[] { 78, 62, 62, 34 },  new float[] { 148, 62, 62, 34 },
-                new float[] { 112, 100, 74, 30 }, new float[] { 24, 108, 46, 26 },
-                new float[] { 222, 78, 52, 52 },
+                new float[] { 66, 56, 58, 28 },   new float[] { 132, 56, 58, 28 },
+                new float[] { 52, 92, 138, 20 },  new float[] { 18, 118, 50, 24 },
+                new float[] { 214, 56, 40, 20 },  new float[] { 214, 118, 40, 20 },
+                new float[] { 214, 84, 52, 26 },
             };
-            string[] tags = { "ROOM 101", "ROOM 202", "MAIN HALL", "CR-1/2", "SERVER — SEALED" };
+            string[] tags = { "ROOM 101", "ROOM 202", "MAIN HALL", "SECURITY",
+                              "CR-1", "CR-2", "SERVER — SEALED" };
             for (int i = 0; i < boxes.Length; i++)
             {
                 bool sealedRoom = i == boxes.Length - 1;
@@ -172,6 +184,15 @@ namespace Hollowbrook.Checkpoint
                 var t = _questionButtons[i].GetComponentInChildren<Text>();
                 if (t != null) t.text = asked ? _qLabels[i] + "  ✓ ASKED" : _qLabels[i];
                 if (t != null) t.color = _kitOn ? UIFactory.NsInk : UIFactory.NsChalk;
+                // one shared fit rule for every row: the asked suffix makes a row longer, so
+                // the label best-fits DOWN (never up) inside its fixed box — the four rows
+                // keep identical rects in every state, and no word ever wraps or clips
+                if (t != null)
+                {
+                    t.resizeTextForBestFit = true;
+                    t.resizeTextMaxSize = t.fontSize;
+                    t.resizeTextMinSize = Mathf.Max(9, t.fontSize - 3);
+                }
                 RefreshQuestionArrow(i, asked);   // the kit's arrow is the asked-mark
             }
         }

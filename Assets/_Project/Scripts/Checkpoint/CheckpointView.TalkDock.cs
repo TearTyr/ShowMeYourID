@@ -56,6 +56,10 @@ namespace Hollowbrook.Checkpoint
             var log = UIFactory.BorderedPanel(_desk, "talklog", new Color(0.055f, 0.055f, 0.06f, 0.96f),
                 UIFactory.Border, 2);
             Reg("talklog", log, L.TalkLog);
+            // the sheet is READ-ONLY desk paper: it opens over the document spread while a
+            // conversation runs, so every pixel of it is click-through — the papers, the
+            // dock and everything under the sheet keep taking the pointer through it
+            foreach (var img in log.gameObject.GetComponentsInChildren<Image>(true)) img.raycastTarget = false;
             _logRoot = log.gameObject;
             _logHead = UIFactory.Label(log, "loghead", "WINDOW LOG", 11, UIFactory.AccentBright,
                 TextAnchor.MiddleLeft);

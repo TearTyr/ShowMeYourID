@@ -18,7 +18,7 @@ namespace Hollowbrook.Checkpoint
     {
         /// <summary>The ID card's resting display scale (~18% under the old default).
         /// Zoom (1..1.8) rides on top of it — see DragPaper.BaseScale.</summary>
-        internal const float IdCardScale = 0.625f;   // 320x220 design art -> 200x137 desk rect
+        internal const float IdCardScale = L.IdScale;   // 320x220 design art -> 220x151 desk rect
         /// <summary>True once the SecurityRoom kit skin applied: paper-ink labels flip dark.</summary>
         private bool _kitOn;
         /// <summary>True once the HUD's live sanity meter got its kit tint (HUD is built after the desk).</summary>

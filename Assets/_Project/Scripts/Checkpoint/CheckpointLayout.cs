@@ -15,7 +15,12 @@ namespace Hollowbrook.Checkpoint
         public const float TiltCard = -2f, TiltSlip = -2f, TiltLog = -4f, TiltRules = 3f;
         // The printed card / slip art keeps its design space inside a scaled art layer.
         public const float CardArtW = 320f, CardArtH = 220f, SlipArtW = 200f, SlipArtH = 120f;
-        public const float SlipScale = 0.75f;
+        // Desk footprint of the two held papers = art design space x these scales, and the
+        // container rect IS the drawn rect (one number drives art and interaction area, so
+        // they can never drift). Raised ~10% over the old 0.625 / 0.75 display: the documents
+        // read easier at arm's length while keeping their proportions and desk slots.
+        public const float IdScale = 0.6875f;
+        public const float SlipScale = 0.825f;
 
         public const float RefW = 1280f;
         public const float RefH = 720f;
@@ -60,15 +65,16 @@ namespace Hollowbrook.Checkpoint
         // 202px tall: it stops clear of the waiting-line strip at y=482 (bottom 516).
         public static readonly Region FileDrawer = new Region(55, 255, 275, 290);
         // default slot for the held ID card; the card is draggable, so this is where it
-        // rests, not where it stays (see DragPaper). The card is drawn slightly smaller
-        // than the slot rect: DragPaper.BaseScale 0.82 (~18% under the old 1x display)
-        public static readonly Region IdCard = new Region(462, 533, 182, 122);   // rests on the counter, in front of the bases
-        // the offered ID during the hand-over step: same card size, centred over the window
+        // rests, not where it stays (see DragPaper). The container IS the drawn card:
+        // CardArt x IdScale, so the pointer surface and the ink can never disagree.
+        public static readonly Region IdCard = new Region(450, 500, CardArtW * IdScale, CardArtH * IdScale);
+        // the offered ID during the hand-over step: same card, centred over the window
         // counter edge: the student slides the ID here on arrival (root is scaled 0.6,
-        // so the drawn card rests on the sill at ~192x132)
+        // so the drawn card rests on the sill at ~132x99)
         public static readonly Region OfferedId = new Region(405, 208, 320, 220);  // rests on the counter, in front of the glass
-        // the paper slip rides beside it on the counter
-        public static readonly Region CounterSlip = new Region(665, 530, 155, 90);  // beside the card, clear of the stamps
+        // the paper slip rides beside it on the counter — container == drawn slip
+        // (SlipArt x SlipScale), clear of the stamps and the button row
+        public static readonly Region CounterSlip = new Region(678, 505, SlipArtW * SlipScale, SlipArtH * SlipScale);
 
         // ---- centre column --------------------------------------------------
         public static readonly Region Window = new Region(375, 160, 520, 330);
@@ -143,7 +149,9 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region Toast = new Region(280, 94, 720, 30);
         public static readonly Region Prompt = new Region(450, 62, 440, 20);         // hand-over guidance strip
         public static readonly Region ConfirmBox = new Region(430, 305, 420, 110);
-        public static readonly Region PaperOverlay = new Region(260, 120, 760, 480);
+        // the reading sheet for the rules note / tonight's log: centred over the desk with
+        // room for crest, hand title, the hand-written block AND the printed live text
+        public static readonly Region PaperOverlay = new Region(240, 60, 800, 600);
         public static readonly Region FullDesk = new Region(0, 0, 1280, 720);
 
         // ---- checkpoint queue (Phase 9 additions to the approved grid) -------
@@ -172,9 +180,10 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region TrackCap = new Region(6, 4, 60, 14);
             public static readonly Region TrackTrack = new Region(6, 20, 108, 12);
 
-            // floor-files station (panel-local): caption and the two folder tabs
-            public static readonly Region StationCap = new Region(25, 15, 260, 20);
-            public const float FolderTabX = 50f, FolderTabY0 = 40f, FolderTabStep = 35f,
+            // floor-files station (panel-local): caption and the two folder tabs — all
+            // centred in the cabinet width so the front reads as one symmetric face
+            public static readonly Region StationCap = new Region(22.5f, 15, 260, 20);
+            public const float FolderTabX = 37.5f, FolderTabY0 = 40f, FolderTabStep = 35f,
                                FolderTabW = 230f, FolderTabH = 34f;
             // floor-files drawer (body-local): the drawer front lip covers the top of the
             // mouth while shut, the header rides just under it, and the file rows start below
@@ -239,10 +248,18 @@ namespace Hollowbrook.Checkpoint
 
             // verdict banner
 
-            // paper overlays (rules note / tonight's log)
-            public static readonly Region PaperHead = new Region(30, 22, 700, 32);
-            public static readonly Region PaperBody = new Region(40, 62, 680, 344);
-            public static readonly Region PaperClose = new Region(310, 416, 140, 38);
+            // paper overlays (rules note / tonight's log): one centred reading sheet,
+            // top to bottom — kit crest, hand title, the hand-written static block
+            // (rules lines, or the log checklist with its boxes), then the printed
+            // live body in its own masked column, and the close pill under it
+            public static readonly Region PaperCrest = new Region(345, 14, 110, 113);
+            public static readonly Region PaperHead = new Region(60, 132, 680, 46);
+            public static readonly Region PaperHand = new Region(70, 180, 660, 170);
+            public const float PaperCheckX = 70f, PaperCheckY0 = 196f, PaperCheckStep = 44f,
+                               PaperCheckW = 420f, PaperCheckH = 32f,
+                               PaperCheckBoxX = 640f, PaperCheckBoxS = 34f;
+            public static readonly Region PaperBody = new Region(70, 356, 660, 182);
+            public static readonly Region PaperClose = new Region(330, 548, 140, 38);
 
             // waiting-line strips (panel-local slots: 4 silhouettes each, 56px step)
             public const float QueueSlotW = 44f, QueueSlotH = 52f, QueueSlotStep = 56f;

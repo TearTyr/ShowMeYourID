@@ -203,9 +203,6 @@ namespace Hollowbrook.UI
         // vertical. The sealed room's is tinted red and turned — a barred plate, not a way in.
         private void BuildDoors()
         {
-            var hall = FloorPlan.ForRoom(RoomId.Hallway);
-            float hallTop = hall.HasValue ? hall.Value.Top : -38f;
-            float hallBottom = hall.HasValue ? hall.Value.Bottom : 38f;
             int i = 0;
             foreach (var def in FloorPlan.Rooms)
             {
@@ -216,32 +213,44 @@ namespace Hollowbrook.UI
                 ink.sprite = ProceduralArt.Get("map_door");
                 ink.color = def.Sealed ? new Color(0.78f, 0.26f, 0.27f) : new Color(0.85f, 0.82f, 0.74f);
                 ink.raycastTarget = false;
-                if (def.Sealed) rt.localEulerAngles = new Vector3(0f, 0f, 90f);
+                // the sealed plate keeps its wall orientation (vertical in its west wall);
+                // the red tint and the chain art are what say "no way in"
                 _doors.Add(new DoorEntry
                 {
                     X = def.DoorX.Value,
                     Y = dy,
-                    // a door whose y lies inside the corridor's band sits in one of its LONG walls
-                Horizontal = dy > hallTop + 1f && dy < hallBottom - 1f,
+                    // a door in the room's own TOP or BOTTOM wall is a leaf in a long wall;
+                    // one in a side wall stands vertical. (The old hallway-band test called
+                    // every classroom door vertical although they sit in their south walls.)
+                    Horizontal = Mathf.Abs(dy - def.Top) < 0.01f ||
+                                 Mathf.Abs(dy - def.Bottom) < 0.01f,
                     Rt = rt,
                 });
             }
         }
 
-        // The chalk runs that connect a room to the corridor (FloorPlan.Corridors).
+        // The chalk runs that connect a room to the corridor (FloorPlan.Corridors), plus
+        // the reference's stair hatch under the east-centre long wall and the custodian's
+        // "2ND FLOOR??" scratch beside it — decoration, exactly like the reference's.
+        private Text _stairsNote;
         private void BuildCorridors()
         {
             int i = 0;
-            foreach (var run in FloorPlan.Corridors)
-            {
-                if (run == null || run.Length < 4) continue;
-                var rt = UIFactory.NewUI(_plan, "corridor" + i++);
-                var ink = rt.gameObject.AddComponent<Image>();
-                ink.sprite = ProceduralArt.Get("solid_white");
-                ink.color = new Color(0.76f, 0.72f, 0.64f, 0.55f);
-                ink.raycastTarget = false;
-                _runs.Add(new RunEntry { X0 = run[0], Y0 = run[1], X1 = run[2], Y1 = run[3], Rt = rt });
-            }
+            foreach (var run in FloorPlan.Corridors) AddRun(run, ref i);
+            foreach (var run in FloorPlan.StairsRuns) AddRun(run, ref i);
+            _stairsNote = HandLabel(_plan, "stairsnote", FloorPlan.StairsNote, 13,
+                new Color(0.78f, 0.74f, 0.66f, 0.75f));
+        }
+
+        private void AddRun(float[] run, ref int i)
+        {
+            if (run == null || run.Length < 4) return;
+            var rt = UIFactory.NewUI(_plan, "corridor" + i++);
+            var ink = rt.gameObject.AddComponent<Image>();
+            ink.sprite = ProceduralArt.Get("solid_white");
+            ink.color = new Color(0.76f, 0.72f, 0.64f, 0.55f);
+            ink.raycastTarget = false;
+            _runs.Add(new RunEntry { X0 = run[0], Y0 = run[1], X1 = run[2], Y1 = run[3], Rt = rt });
         }
 
         private void OnRoomClicked(FloorRoom def)
@@ -343,6 +352,13 @@ namespace Hollowbrook.UI
                 UIFactory.Anchor(d.Rt, new Vector2(0.5f, 0.5f), size, Design(d.X, d.Y));
             }
             foreach (var r in _runs) PlaceRun(r);
+            if (_stairsNote != null)
+            {
+                UIFactory.Anchor(_stairsNote.rectTransform, new Vector2(0.5f, 0.5f),
+                    new Vector2(150f, 26f) * _planScale,
+                    Design(FloorPlan.StairsNoteX, FloorPlan.StairsNoteY));
+                _stairsNote.fontSize = ScaledSize(13, _planTextScale);
+            }
 
             UIFactory.Anchor(_hereLabel.rectTransform, new Vector2(0.5f, 0f),
                 new Vector2(70f, 18f) * _planScale, new Vector2(0f, -MarkerSize.y * _planScale * 0.5f - 3f));

@@ -291,7 +291,7 @@ namespace FlowCheck
             ExpectRegion("pause", L.Pause, 1119, 22, 125, 38);
             ExpectRegion("records station", L.Station, 40, 85, 305, 160);
             ExpectRegion("file drawer", L.FileDrawer, 55, 255, 275, 290);
-            ExpectRegion("id card", L.IdCard, 462, 533, 182, 122);
+            ExpectRegion("id card", L.IdCard, 450, 500, 220, 151.25f);
             ExpectRegion("window frame", L.Window, 375, 160, 520, 330);
             ExpectRegion("glass", L.Glass, 430, 200, 415, 235);
             ExpectRegion("portrait", L.Portrait, 530, 205, 200, 230);
@@ -312,10 +312,11 @@ namespace FlowCheck
                 "question buttons == the reference panel grid (15,60 + i*37, 275x28), 4 fit");
             // folder tabs: station-local grid; file rows: drawer-body grid, starting under the
             // 52px front lip and the 18px header — a whole floor folder (7 files) fits
-            Check(Math.Abs(L.Inner.FolderTabX - 50) < 0.01f && Math.Abs(L.Inner.FolderTabY0 - 40) < 0.01f &&
+            Check(Math.Abs(L.Inner.FolderTabX - (L.Station.W - L.Inner.FolderTabW) / 2f) < 0.01f &&
+                  Math.Abs(L.Inner.FolderTabY0 - 40) < 0.01f &&
                   Math.Abs(L.Inner.FolderTabStep - 35) < 0.01f && Math.Abs(L.Inner.FolderTabW - 230) < 0.01f &&
                   Math.Abs(L.Inner.FolderTabH - 34) < 0.01f,
-                "folder tabs == the reference cabinet grid (50,40 + i*35, 230x34): tab + folder body");
+                "folder tabs == the centred cabinet grid ((W-230)/2,40 + i*35, 230x34): one symmetric face");
             Check(Math.Abs(L.Inner.FileRowX - 15) < 0.01f && Math.Abs(L.Inner.FileRowY0 - 50) < 0.01f &&
                   Math.Abs(L.Inner.FileRowStep - 27) < 0.01f && Math.Abs(L.Inner.FileRowW - 250) < 0.01f &&
                   L.Inner.FileRowY0 + 6 * L.Inner.FileRowStep + L.Inner.FileRowH <= L.Inner.DrawerBodyH + 0.01f,
@@ -1420,8 +1421,22 @@ namespace FlowCheck
             float hallY = hallNode.GetComponent<RectTransform>().anchoredPosition.y;
             float c1Y = c1Node.GetComponent<RectTransform>().anchoredPosition.y;
             float c2Y = c2Node.GetComponent<RectTransform>().anchoredPosition.y;
-            Check(c1Y > hallY + 40f && c2Y < hallY - 40f,
-                $"MAP: Classroom 1 is drawn ABOVE the hallway and Classroom 2 BELOW it ({c1Y:F0} / {hallY:F0} / {c2Y:F0})");
+            Check(c1Y > hallY + 40f && c2Y > hallY + 40f,
+                $"MAP: BOTH classrooms are drawn ABOVE the hallway, as the reference plan has them ({c1Y:F0} / {c2Y:F0} vs hall {hallY:F0})");
+            float c1X = c1Node.GetComponent<RectTransform>().anchoredPosition.x;
+            float c2X = c2Node.GetComponent<RectTransform>().anchoredPosition.x;
+            float secY = secNode.GetComponent<RectTransform>().anchoredPosition.y;
+            float secX = secNode.GetComponent<RectTransform>().anchoredPosition.x;
+            float hallX = hallNode.GetComponent<RectTransform>().anchoredPosition.x;
+            Check(c1X < c2X - 40f,
+                $"MAP: Room 101 sits WEST of Room 202 along the north wall ({c1X:F0} / {c2X:F0})");
+            Check(secY < hallY - 40f && secX < hallX,
+                $"MAP: the checkpoint hangs BELOW the hallway's west end ({secX:F0},{secY:F0})");
+            float crNY = crNorth.GetComponent<RectTransform>().anchoredPosition.y;
+            float crSY = crSouth.GetComponent<RectTransform>().anchoredPosition.y;
+            float crNX = crNorth.GetComponent<RectTransform>().anchoredPosition.x;
+            Check(crNY > hallY + 20f && crSY < hallY - 20f && crNX > hallX,
+                "MAP: the comfort rooms hang off the east end, north and south of the sealed room");
             Check(serverNode.GetComponent<RectTransform>().anchoredPosition.x >
                   hallNode.GetComponent<RectTransform>().anchoredPosition.x,
                 "MAP: the server / identification room is on the RIGHT");
@@ -1432,7 +1447,7 @@ namespace FlowCheck
                   c1Node.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("Room 101") &&
                   c2Node.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("CLASSROOM 2") &&
                   c2Node.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("Room 202"),
-                "MAP: the classrooms keep their room numbers (101 above, 202 below)");
+                "MAP: the classrooms keep their room numbers (101 west, 202 east, both north)");
             Check(crNorth.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("COMFORT ROOM") &&
                   crSouth.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("COMFORT ROOM"),
                 "MAP: both comfort rooms are labelled on the plan");
@@ -1467,8 +1482,9 @@ namespace FlowCheck
             Check(scaled, "MAP: every room is sized from the design table by the ONE plan scale");
             Check(faithful, "MAP: every room sits exactly where FloorPlan puts it (the drawing is faithful to the data)");
             Check(MapSheetLayout.ToAnchoredY(c1.Value.Y, 1f) > MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f) &&
-                  MapSheetLayout.ToAnchoredY(c2.Value.Y, 1f) < MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f),
-                "MAP: the design-y flip is right way up — Room 101 above the corridor on screen, Room 202 below");
+                  MapSheetLayout.ToAnchoredY(c2.Value.Y, 1f) > MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f) &&
+                  MapSheetLayout.ToAnchoredY(sec.Value.Y, 1f) < MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f),
+                "MAP: the design-y flip is right way up — both classrooms above the corridor on screen, the checkpoint below");
 
             // ---- the sealed room stays sealed ----
             Check(serverNode.GetComponent<UnityEngine.UI.Button>() == null &&
@@ -3812,16 +3828,66 @@ namespace FlowCheck
                 if (root.HUD != null) root.HUD.SetSanity(v);   // before the walk: the dump is pixels
             }
             DeskFrames(cp, 12);
+            // reading-sheet and map dumps open the real view the way its own click does
+            if (state == "rules" || state == "log")
+                cp.DebugOpenOverlay(state);
+            // floor-files dumps: the pulled drawer with a folder open, and the pulled
+            // record sheet over it — the two states a player browsing the registry sees
+            if (state == "files" || state == "record")
+            {
+                // the occupied setup already pulls the cabinet once (floor 1): asking for
+                // the same floor again would shut it, so only steer when it is elsewhere
+                if (!cp.DrawerIsOpen || cp.DrawerFloor != 1) cp.OpenFolder(1);
+                DeskFrames(cp, 14);
+                if (state == "record")
+                {
+                    int idx = -1;
+                    foreach (var f in Hollowbrook.Logic.RecordSearch.BuildFloorFolders(root.Roster.Canon))
+                        if (f.Floor == 1 && f.Indices.Count > 2) { idx = f.Indices[2]; break; }
+                    if (idx >= 0) cp.OpenCanonFile(idx);
+                    DeskFrames(cp, 3);
+                }
+            }
+            // asked/disabled question rows: two of the budget's questions spent
+            if (state == "asked")
+            {
+                cp.AskByHotkey(0);
+                DeskFrames(cp, 3);
+                cp.AskByHotkey(2);
+                DeskFrames(cp, 8);
+            }
+            // the talk dock mid-conversation: a typed exchange in the transcript sheet,
+            // then a long window line in the bubble (three wrapped lines)
+            if (state == "talk")
+            {
+                cp.TalkInput.text = "good evening. which course are you enrolled in?";
+                cp.SubmitTalk();
+                // DeskFrame only steps the drawer: step the dock's send beat too, past the
+                // 0.25 s processing window so the exchange commits and the sheet opens
+                for (int i = 0; i < 20; i++) { cp.TickTalk(1f / 60f); DeskFrame(cp); }
+                cp.DebugSay("Night class. I transfer in from the east campus this term — " +
+                            "third year of the nursing programme, officer, and the late list " +
+                            "has my name on it again.");
+                for (int i = 0; i < 2; i++) { cp.TickTalk(1f / 60f); cp.TickBubble(1f / 60f); DeskFrame(cp); }
+            }
 
             var frame = FindDeep(cp.transform, "DeskFrame");
             if (frame == null) { Console.WriteLine("no DeskFrame — aborting dump"); return; }
+            var walkRoot = frame.GetComponent<RectTransform>();
+            if (state == "map")
+            {
+                root.OpenMap();
+                var mapT = root.MapScreen != null ? root.MapScreen.transform as RectTransform : null;
+                if (mapT == null) { Console.WriteLine("no map view — aborting dump"); return; }
+                walkRoot = mapT;
+            }
             var sb = new System.Text.StringBuilder();
             sb.Append("{\"refw\":1280,\"refh\":720,\"nodes\":[");
             bool first = true;
-            WalkScreen(frame.GetComponent<RectTransform>(), 0f, 0f, 1280f, 720f,
+            WalkScreen(walkRoot, 0f, 0f, 1280f, 720f,
                        new List<DumpRot>(), sb, ref first, 1f, 1f);
             // the HUD canvas rides over the desk: sanity track/fill/value, hints, toasts
-            var hud = root.HUD != null ? FindDeep(root.HUD.transform, "HudFrame") : null;
+            var hud = root.HUD != null && state != "map" ? FindDeep(root.HUD.transform, "HudFrame") : null;
             if (hud != null)
                 WalkScreen(hud.GetComponent<RectTransform>(), 0f, 0f, 1280f, 720f,
                            new List<DumpRot>(), sb, ref first, 1f, 1f);
@@ -3944,6 +4010,11 @@ namespace FlowCheck
                     sb.Append(",\"sc\":").Append(rt.localScale.x.ToString("F3", System.Globalization.CultureInfo.InvariantCulture));
                     sb.Append(",\"al\":").Append((int)txt.alignment);
                     sb.Append(",\"w\":").Append((int)txt.horizontalOverflow);
+                    // best-fit window: the renderer shrinks like uGUI does, so a fitted row
+                    // reads in the preview exactly as it will in the editor
+                    sb.Append(",\"bf\":").Append(txt.resizeTextForBestFit ? 1 : 0);
+                    sb.Append(",\"bn\":").Append(txt.resizeTextMinSize);
+                    sb.Append(",\"bx\":").Append(txt.resizeTextMaxSize);
                     sb.Append(",\"c\":[").Append(((int)(c.r * 255f))).Append(',').Append(((int)(c.g * 255f))).Append(',')
                       .Append(((int)(c.b * 255f))).Append(',').Append(c.a.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)).Append("]}");
                 }
