@@ -86,8 +86,9 @@ namespace Hollowbrook.Checkpoint
         // the speech bubble: a transient overlay box beside the visitor's head (the
         // portrait's right edge is x=715), tail pointing at the face. The registered
         // region is the bubble's FULL box; the panel inside grows down from its top
-        // edge with the line count (SpeechBubbleLayout), so short lines stay compact.
-        public static readonly Region SpeechBubble = new Region(737, 297, 182, 72);  // clear of face hitbox AND questions
+        // edge with the line count (SpeechBubbleLayout), so short lines stay compact. 132 tall
+        // holds six lines of the kit bubble's 15pt text without ever truncating a clue.
+        public static readonly Region SpeechBubble = new Region(737, 297, 182, 132);  // clear of face hitbox AND questions
         // booth dressing from the night-shift mockup: hood bands over the frame, the under-frame
         // glow and the two counter bases the window sits on
         public static readonly Region Hood1 = new Region(395, 160, 485, 25);
@@ -96,8 +97,6 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region Base2 = new Region(350, 468, 580, 22);
         // stamp block captions (the .slbl strip under each APPROVE / DECLINE block)
         public static readonly Region Base3 = new Region(347, 609, 591, 22);
-        public static readonly Region StampLabelAllow = new Region(900, 655, 140, 40);
-        public static readonly Region StampLabelDeny = new Region(1055, 655, 140, 40);
         public static readonly Region PatrolBtn = new Region(450, 655, 180, 40);
         public static readonly Region EndShiftBtn = new Region(650, 655, 180, 40);
 
@@ -218,9 +217,16 @@ namespace Hollowbrook.Checkpoint
             public const float BubblePadTop = 6f, BubblePadBottom = 6f,
                                BubbleTagH = 14f, BubbleLineH = 14f;
             public const int BubbleCharsPerLine = 24, BubbleMaxLines = 3;
-            // the kit bubble carries no speaker tag, so its registered 72px box holds one
-            // more wrapped line than the tagged no-kit bubble (4x14 + pads = 68 <= 72)
-            public const int BubbleMaxLinesKit = 4;
+            // the kit bubble carries no speaker tag and is read at a glance, so it uses bigger
+            // type than the no-kit bubble. Its art is a sliced sprite: a 48u painted-tail border
+            // on the left, 14u on the other sides, and the white sits 6u inside the outer edge
+            // (jagged ink), so the text keeps a clear inset inside that white (never on the ink)
+            public const int BubbleFontKit = 15, BubbleCharsPerLineKit = 21;
+            public const float BubbleLineHKit = 18f;
+            public const float BubbleKitTailW = 48f, BubbleKitEdgeW = 14f, BubbleKitWhiteMargin = 6f;
+            public const float BubbleKitInsetX = 10f, BubbleKitInsetY = 12f;
+            // the sec_bubble master's pixels per layout unit (ProceduralArt.FilePpus) — 480px tail = 48u
+            public const float BubbleKitArtPxPerUnit = 10f;
             public static readonly Region BubbleTail = new Region(-34, 26, 44, 36);
             public static readonly Region NoteHead = new Region(10, 6, 260, 18);
             public static readonly Region NoteBody = new Region(10, 28, 260, 74);

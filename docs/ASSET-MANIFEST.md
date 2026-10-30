@@ -61,13 +61,12 @@ desk-grid units, and the desk grid is fixed at 1280×720 reference, so **deliver
 ## 3. Patrol world (`world-bg`, `world-prop`, `character`)
 
 Backgrounds @ **WorldPpu = 64** (px ÷ 64 = world units): `hallway_bg` 1536×640, `classroom1_bg` /
-`classroom2_bg` 1152×640, `security_bg` 1280×720 (@100), plus the alpha-only `hall_depth`
+`classroom2_bg` 1152×640 (@100), plus the alpha-only `hall_depth`
 (the darkness pool — keep its graded alpha or limited visibility breaks).
 
 Props stand on the floor line and size themselves from their own pixels-per-unit, so any
 resolution of art just works: `prop_door`, `prop_door_security`, `prop_server_door` (chains +
-padlock baked — the scratch marks are story), `prop_lightswitch` (new key this pass; was an
-anonymous quad), `prop_lockers`, and the design-doc interaction objects, each now actually drawn
+padlock baked — the scratch marks are story), `prop_lockers`, and the design-doc interaction objects, each now actually drawn
 in its room: `prop_lightfixture` (flicker clue), `prop_noticeboard`, `prop_photoframe`,
 `prop_clock` (stopped at 1:47), `prop_chalkboard`, `prop_desk`, `prop_lostid`, `prop_window`,
 `prop_cabinet`, plus the repel `token`.

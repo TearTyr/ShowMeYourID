@@ -117,7 +117,7 @@ namespace Hollowbrook.World
 
         // ---- illumination queries (the ONLY place beam + ambient are combined) ----
 
-        /// <summary>True when the room's wall-switch lights are on (real ambient state).</summary>
+        /// <summary>True when the room's ambient light is on (scripted flicker only — real ambient state).</summary>
         public bool RoomLit => Current != null && Current.Light != null && Current.Light.Lit;
 
         /// <summary>The current room's ambient darkness as one alpha — the level a light's

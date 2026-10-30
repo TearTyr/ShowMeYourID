@@ -37,6 +37,19 @@ namespace Hollowbrook.Core
         [Tooltip("Missing-student incidents allowed per shift.")][Range(0, 5)]
         public int missingStudentLimit = 1;
 
+        [Header("Sanity")]
+        [Tooltip("Students who unsettle the custodian: while one of these is at the window, sanity drains an extra amount per second (progressively, for as long as they stand there). Match the name exactly as it reads on their ID. Empty = nobody is scary.")]
+        public ScaryStudent[] scaryStudents = new ScaryStudent[0];
+
+        [System.Serializable]
+        public class ScaryStudent
+        {
+            [Tooltip("Full name as on the student's ID, e.g. Carlo Mendoza.")]
+            public string fullName = "";
+            [Tooltip("Extra sanity lost per second while they are at the window (before the drain stacks).")][Range(0f, 2f)]
+            public float extraDrainPerSecond = 0.3f;
+        }
+
         [Header("Exploration")]
         public float walkSpeed = 3.4f;
         public float runSpeed = 6.0f;

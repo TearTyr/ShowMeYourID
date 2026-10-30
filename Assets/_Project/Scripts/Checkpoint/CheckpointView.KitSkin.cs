@@ -172,8 +172,6 @@ namespace Hollowbrook.Checkpoint
             }
             SkinStamp("stamp_allow", "sec_icon_accept");
             SkinStamp("stamp_deny", "sec_icon_decline");
-            CaptionBar("slblA", "sec_captionbar_a");
-            CaptionBar("slblD", "sec_captionbar_d");
 
             // ---- speech bubble: the kit bubble (tail included) as a 9-slice panel skin ----
             var bubbleOuter = FindImage(_desk, "bubble_border");
@@ -185,6 +183,14 @@ namespace Hollowbrook.Checkpoint
                     bubbleOuter.sprite = kit;
                     bubbleOuter.type = Image.Type.Sliced;
                     bubbleOuter.color = Color.white;
+                    // uGUI draws a sliced border as border / (spritePPU / canvasReferencePPU): with
+                    // the master authored at PPU 10 on the default 100 canvas that is 10x too big,
+                    // the borders swallow the panel and the white shrinks to a sliver far smaller
+                    // than the text. Pin the multiplier so the borders are the 48u/14u the layout
+                    // is built on, whatever the canvas reference is.
+                    if (bubbleOuter.pixelsPerUnit > 0f)
+                        bubbleOuter.pixelsPerUnitMultiplier =
+                            L.Inner.BubbleKitArtPxPerUnit / bubbleOuter.pixelsPerUnit;
                 }
             }
             var bubbleInner = FindImage(_desk, "bubble");
@@ -194,8 +200,10 @@ namespace Hollowbrook.Checkpoint
             if (_bubbleText != null)
             {
                 // the kit tail lives inside the sliced left border: give the text room for it
-                L.Place(_bubbleText.rectTransform,
-                    new L.Region(56f, L.Inner.BubblePadTop, 166f, 60f));
+                L.Place(_bubbleText.rectTransform, new L.Region(
+                    L.Inner.BubbleKitTailW + L.Inner.BubbleKitInsetX, L.Inner.BubbleKitInsetY,
+                    L.Inner.BubblePanelW + L.Inner.BubbleKitEdgeW - L.Inner.BubbleKitWhiteMargin
+                        - 2f * L.Inner.BubbleKitInsetX, 60f));
             }
         }
 
@@ -398,34 +406,6 @@ namespace Hollowbrook.Checkpoint
             icon.raycastTarget = false;
             UIFactory.Anchor(icon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(26f, 26f),
                 new Vector2(0f, 40f));
-        }
-
-        private void CaptionBar(string labelName, string goName)
-        {
-            var lbl = FindTransform(_desk, labelName);
-            if (lbl == null) return;
-            var sp = ProceduralArt.Get("sec_caption_bar");
-            if (sp == null) return;
-            var bar = UIFactory.Img(_desk, goName, sp);
-            bar.raycastTarget = false;
-            L.Place(bar.rectTransform, labelName == "slblA" ? L.StampLabelAllow : L.StampLabelDeny);
-            bar.rectTransform.SetSiblingIndex(lbl.GetSiblingIndex());
-            var t = lbl.GetComponent<Text>();
-            if (t != null)
-            {
-                t.color = UIFactory.NsInk;
-                t.text = labelName == "slblA" ? "APPROVE" : "DECLINE";
-            }
-            // the reference pill carries the verdict disc beside the word: the same
-            // check/cross icon the stamp head wears, small, left of the centred label
-            var icon = UIFactory.Img(bar.transform, "capicon",
-                ProceduralArt.Get(labelName == "slblA" ? "sec_icon_accept" : "sec_icon_decline"));
-            if (icon != null)
-            {
-                icon.raycastTarget = false;
-                UIFactory.Anchor(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(22f, 22f),
-                    new Vector2(14f, 0f));
-            }
         }
 
         private static Image FindImage(Transform root, string name)

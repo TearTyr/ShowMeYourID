@@ -218,7 +218,7 @@ namespace Hollowbrook.Bootstrap
         // The "no photo yet / asset failed" portrait: a designed placeholder in the photo's own
         // language (paper-gray backdrop, muted silhouette bust, thin frame) so a missing or
         // not-yet-assigned sprite can NEVER render as uGUI's default white rectangle. Created
-        // once; CheckpointView/SecurityRoomView/DialogueView build their portrait Images with it.
+        // once; CheckpointView/DialogueView build their portrait Images with it.
         private static Sprite MakeFacePlaceholder(int w, int h)
         {
             var c = new Canvas2D(w, h);

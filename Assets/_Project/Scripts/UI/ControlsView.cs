@@ -23,34 +23,34 @@ namespace Hollowbrook.UI
             string body =
                 "CHECKPOINT (mouse)\n" +
                 "   The ID + slip are ON YOUR DESK when the student steps up — drag to arrange,\n" +
-                "   papers KEEP their size while you scroll; Z zooms the paper you touched last.\n" +
-                                "   Flip: click the ID's BLACK SPINE (the card body only drags); F flips the paper you\n" +
-                "   touched last — the slip flips on its own and never rides along with the ID.\n" +
+                "   papers KEEP their size while you scroll. CLICK the ID to inspect it up close,\n" +
+                "   then click anywhere off it to put it back. The slip only drags.\n" +
+                "   Flip the ID: click its BLACK SPINE (the card body only drags) or press F.\n" +
                 "   Floor files: click the cabinet front (or TAB) to PULL THE DRAWER OUT, pick a floor\n" +
                 "   folder, then click a file to pull it onto the desk — mismatches are clues.\n" +
                 "   The face at the window vs the ID photo is YOUR eye-check: this desk has no\n" +
                 "   face-match widget, nothing to click and nothing that scores it for you.\n" +
-                "   Answers arrive in the speech bubble beside the head (2 s after the line ends;\n" +
-                "   hover the bubble to keep a line on screen while you read it).\n" +
-                "   Stamp the slip (drag, or A / D) — the mark lands WHERE you drop the stamp, always\n" +
-                "   fully on the paper — then hand back BOTH papers (H). TAB pulls the file drawer.\n" +
+                "   Answers arrive in the speech bubble beside the head and stay up until the\n" +
+                "   next line (or until the student leaves).\n" +
+                "   Stamp the slip (drag a stamp onto it) — the mark lands WHERE you drop the stamp, always\n" +
+                "   fully on the paper — then drag the ID back to the window. TAB pulls the file drawer.\n" +
                 "   At most 2 questions per visitor. Decisions are permanent.\n" +
                 "   NIGHT 5: when the district administrator arrives, T (or the bar beside the\n" +
                 "   stamps) opens THE CONVERSATION — challenge, comply, raise what you have\n" +
                 "   found, or say nothing. Words are evidence only: the stamp still decides.\n\n" +
                 "EXPLORATION\n" +
-                "   Rooms are entered DARK and your beam starts OFF — every door you go through\n" +
-                "   puts it out again. The wall switch (E) lights the room itself. Classroom peeks\n" +
-                "   start dark too: the peek lamp is OFF until you press F (mouse never lights it).\n" +
+                "   Rooms are entered DARK and your flashlight starts OFF — every door you go\n" +
+                "   through puts it out again. The flashlight is your only light. Classroom peeks\n" +
+                "   start dark too: the flashlight is OFF until you press F (mouse never lights it).\n" +
                 "   A / D  or  ← / →     walk left / right\n" +
                 "   SHIFT                run\n" +
-                "   E                    interact (doors, clues, light switches)\n" +
-                "   F                    flashlight toggle — sweep beam on patrol, the lamp on peeks\n" +
+                "   E                    interact (doors, clues)\n" +
+                "   F                    flashlight on / off — sweep beam on patrol, the cursor light on peeks\n" +
                 "   Q                    focus beam (toggle — tight, exposes & repels; on peeks it\n" +
-                "                        tightens the lamp without lighting it)\n" +
+                "                        tightens the flashlight without turning it on)\n" +
                 "   L                    beam off\n" +
-                "   M                    map          ESC   pause\n" +
-                "   The HUD reads both lights: LIGHTS (room) and BEAM / LAMP (handheld).\n\n" +
+                "   M                    map (at the security desk only)     ESC   pause\n" +
+                "   The HUD reads the flashlight state (FLASHLIGHT: OFF / SWEEP / FOCUS).\n\n" +
                 "SECURITY ROOM (School scene prototype, mouse)\n" +
                 "   Click the door panel to admit or deny late night students.\n" +
                 "   Click the marked spots to check the rooms for anomalies.\n\n" +

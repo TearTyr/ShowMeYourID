@@ -97,6 +97,7 @@ namespace Hollowbrook.Logic
             if (o.Correct)
             {
                 CorrectDecisions++;
+                RefillPending += SanityModel.RefillOnCorrect;   // paid out gradually, see TakeRefill
                 Streak++;
                 if (Streak > BestStreak) BestStreak = Streak;
                 if (o.WasAnomaly) AnomaliesRejected++;
@@ -104,30 +105,46 @@ namespace Hollowbrook.Logic
             else
             {
                 Streak = 0;
+                Stacks.Add();   // a wrong call costs no sanity itself — it speeds up the drain for a while
                 Warnings++;
                 if (Warnings % 3 == 0) { Fines++; Score = System.Math.Max(0, Score - 100); }
             }
             if (o.FalseRejection)
             {
                 FalseRejections++;
-                ApplySanity(-6f); // mistakes are disturbing events (§4.3)
             }
             if (o.AnomalyBreach)
             {
                 Breaches++;
-                ApplySanity(-8f);
                 if (o.WasAdministrator) AdminAllowed = true;
             }
             if (o.WasAdministrator && o.Verdict == Verdict.Reject)
             {
-                AdminRejected = true;
-                ApplySanity(+10f);
+                AdminRejected = true;   // a correct call, so it already queued its refill
             }
         }
 
+        /// <summary>The drain stacks wrong decisions put up (see SanityStacks). Transient: a
+        /// stack lasts at most half a minute, so it is not saved.</summary>
+        public SanityStacks Stacks = new SanityStacks();
+        /// <summary>Sanity a correct decision has earned that has not been handed over yet.</summary>
+        public float RefillPending;
+
+        /// <summary>Hand over up to <see cref="SanityModel.RefillPerSecond"/> x dt of the pending
+        /// refill and return how much to add to sanity this tick.</summary>
+        public float TakeRefill(float dt)
+        {
+            if (RefillPending <= 0f || dt <= 0f) return 0f;
+            float give = System.Math.Min(RefillPending, SanityModel.RefillPerSecond * dt);
+            RefillPending -= give;
+            return give;
+        }
+
+        /// <summary>Change sanity. Every LOSS is scaled by the mode and by the current drain stacks;
+        /// gains are not.</summary>
         public void ApplySanity(float delta)
         {
-            if (delta < 0) delta *= SanityModel.DrainMultiplier(Mode);
+            if (delta < 0) delta *= SanityModel.DrainMultiplier(Mode) * Stacks.Multiplier;
             Sanity = SanityModel.Clamp(Sanity + delta);
         }
 

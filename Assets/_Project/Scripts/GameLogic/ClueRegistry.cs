@@ -9,7 +9,7 @@ namespace Hollowbrook.Logic
             return new List<ClueDef>
             {
                 new ClueDef { Order = 1, Key = "light", Display = "Flickering Light", Room = RoomId.Hallway,
-                    InspectText = "The hallway lights stutter in a slow rhythm — three dark beats, then a bright one. A maintenance log is taped beneath the switch: “Zone 3 flicker since the server room was sealed. District says ignore it.”",
+                    InspectText = "The hallway lights stutter in a slow rhythm — three dark beats, then a bright one. A maintenance log is taped beneath the fixture: “Zone 3 flicker since the server room was sealed. District says ignore it.”",
                     ChainHint = "Someone scratched an arrow under the log, pointing into Classroom 1.",
                     SanityDelta = -2f, IsScare = false },
                 new ClueDef { Order = 2, Key = "chalkboard", Display = "Chalkboard", Room = RoomId.Classroom1,
