@@ -20,8 +20,8 @@ namespace Hollowbrook.UI
     // Rooms come from the same FloorPlan table the proofs read: the security checkpoint on the
     // left, the long central hallway, Classroom 1 above it, Classroom 2 below it, the sealed
     // server / identification room on the right, and the two comfort rooms off the corridor's
-    // east end. Sealed stays sealed (no Button at all); patrol rooms keep their TravelViaMap
-    // click; the comfort rooms are on the plan for orientation and say so when clicked.
+    // east end. The plan is a REFERENCE only: no room takes a click, so the map can never move
+    // the player — you get into a room by walking the hallway and peeking in from its door.
     public class MapView : MonoBehaviour, IScreenView
     {
         // The sheet's composition, sizes and type scales all live in MapSheetLayout (pure,
@@ -153,8 +153,7 @@ namespace Hollowbrook.UI
         }
 
         // One node per FloorPlan room. The label is a child of the room node, so the ink and its
-        // clickable area can never drift apart; every room but the sealed one gets a Button, and
-        // the sealed room gets none at all (its locked behaviour is intentional).
+        // label can never drift apart. Rooms are drawings: no Button, no raycast, no hover.
         private void BuildRooms()
         {
             foreach (var def in FloorPlan.Rooms)
@@ -162,7 +161,7 @@ namespace Hollowbrook.UI
                 var rt = UIFactory.NewUI(_plan, def.Key);
                 var ink = rt.gameObject.AddComponent<Image>();
                 ink.sprite = ProceduralArt.Get(def.Sealed ? "map_sealed" : "map_room");
-                ink.raycastTarget = !def.Sealed;      // sealed: nothing to click, nothing to raycast
+                ink.raycastTarget = false;            // reference only: nothing to click
 
                 int size = RoomLabelSize(def);
                 var label = UIFactory.Label(rt, "label", def.Label, size,
@@ -174,20 +173,6 @@ namespace Hollowbrook.UI
                 UIFactory.RememberBaseSize(label, size);
 
                 _rooms.Add(new RoomEntry { Def = def, Rt = rt, Label = label });
-
-                if (def.Sealed) continue;             // SEALED: no Button, no travel, no hover
-                var btn = rt.gameObject.AddComponent<Button>();
-                btn.targetGraphic = ink;
-                btn.transition = Selectable.Transition.ColorTint;
-                var colors = btn.colors;
-                colors.normalColor = Color.white;
-                colors.highlightedColor = new Color(1.22f, 1.20f, 1.14f);   // subtle brighten on hover
-                colors.pressedColor = new Color(1.42f, 1.40f, 1.32f);
-                colors.fadeDuration = 0.10f;
-                btn.colors = colors;
-                var captured = def;
-                btn.onClick.AddListener(() => OnRoomClicked(captured));
-                rt.gameObject.AddComponent<HoverCursor>();
             }
         }
 
@@ -251,22 +236,6 @@ namespace Hollowbrook.UI
             ink.color = new Color(0.76f, 0.72f, 0.64f, 0.55f);
             ink.raycastTarget = false;
             _runs.Add(new RunEntry { X0 = run[0], Y0 = run[1], X1 = run[2], Y1 = run[3], Rt = rt });
-        }
-
-        private void OnRoomClicked(FloorRoom def)
-        {
-            if (def.Comfort || !def.Room.HasValue)
-            {
-                // the comfort rooms are on the plan for orientation only: no findings are filed
-                // there and the patrol graph does not include them, so they say so instead of
-                // pretending to be a destination (no new mechanics, and no dead click either)
-                _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.35f);
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    "COMFORT ROOMS — nothing filed there. The findings are in the hallway and the classrooms."));
-                return;
-            }
-            _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.5f);
-            _gameRoot.TravelViaMap(def.Room.Value);
         }
 
         private static Text HandLabel(RectTransform parent, string name, string text, int size, Color color)
@@ -424,7 +393,7 @@ namespace Hollowbrook.UI
 
             bool exploring = _gameRoot.State == AppViewState.Exploration;
             _hint.text = exploring
-                ? "Click a room to move there. Red dots are findings you have discovered."
+                ? "Reference only — walk the hallway and look into the rooms from their doors. Red dots are findings."
                 : "From the checkpoint the map is reference only — use PATROL HALLWAY to investigate.";
             _hint.fontSize = ScaledSize(HintSize, _chromeTextScale);
         }

@@ -91,7 +91,7 @@ namespace Hollowbrook.World
             _worldPoint = Vector3.zero;
             if (_gameRoot != null)
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    "LAMP OFF — press F to light the room."));
+                    "FLASHLIGHT OFF — press F to turn it on."));
         }
 
         /// <summary>Stop revealing. The hallway presentation is restored by ViewManager.</summary>
@@ -122,7 +122,7 @@ namespace Hollowbrook.World
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.LightModeChanged, Lit));  // HUD sync
             if (!quiet)
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    on ? "LAMP: FOCUS — a tight circle for details." : "LAMP: WIDE — the whole sweep."));
+                    on ? "FLASHLIGHT: FOCUS — a tight circle for details." : "FLASHLIGHT: WIDE — the whole sweep."));
         }
 
         // Mask and glow are children, so one root scale reshapes the whole lamp; focus also
@@ -150,7 +150,7 @@ namespace Hollowbrook.World
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.LightModeChanged, on));   // HUD sync
             if (!quiet)
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    on ? "LAMP: ON" : "LAMP: OFF"));
+                    on ? "FLASHLIGHT: ON" : "FLASHLIGHT: OFF"));
         }
 
         /// <summary>F is the ONLY lamp switch — the same deliberate toggle the handheld

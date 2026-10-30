@@ -11,7 +11,7 @@ namespace Hollowbrook.Core
         public const string VerdictStamped = "visitor.verdict";    // Data: InspectionRules.Outcome
 
         public const string RoomEntered = "room.entered";          // Data: RoomId
-        public const string LightModeChanged = "light.mode";       // Data: bool — room lights on/off (wall switch)
+        public const string LightModeChanged = "light.mode";       // Data: bool — room lights on/off (scripted flicker) or the peek flashlight on/off
         public const string ClueDiscovered = "clue.discovered";    // Data: ClueDiscoveryResult
         public const string InteractionPrompt = "interact.prompt"; // Text: prompt or ""
 

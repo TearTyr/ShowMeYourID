@@ -693,13 +693,6 @@ namespace Hollowbrook.Core
             SetState(_preMapState == AppViewState.Map ? AppViewState.Checkpoint : _preMapState);
         }
 
-        public void TravelViaMap(RoomId room)
-        {
-            CloseMap();
-            if (room == RoomId.Security) ReturnToCheckpoint();
-            else EnterExploration(room);
-        }
-
         // ---- shift / run completion ----
 
         public void FinishShift()

@@ -11,7 +11,6 @@ light_cone,art,fx,P0,procedural,PNG,"PNG RGBA 512x288 px @64 ppu, the beam wedge
 paper_flat,art,desk-doc,P0,procedural,PNG,"PNG RGBA 760x480 px @100 ppu, plain aged sheet for the RULES NOTE / TONIGHT'S LOG overlays",CheckpointView overlays,
 prop_door,art,world-prop,P0,procedural,PNG,"PNG RGBA 160x384 px @64 ppu (2.5x6 units), classroom door, stands on the floor line",RoomBuilder doors,drawn standing: centre = floor + h/2
 prop_door_security,art,world-prop,P0,procedural,PNG,"PNG RGBA 160x384 px @64 ppu, booth/security door with plate",RoomBuilder security door + office door,
-prop_lightswitch,art,world-prop,P0,procedural,PNG,"PNG RGBA 32x48 px @64 ppu, wall switch plate",every room's wall switch (E),new key this pass; was an anonymous quad
 prop_lockers,art,world-prop,P0,procedural,PNG,"PNG RGBA 288x336 px @64 ppu, locker bank",hallway,
 prop_server_door,art,world-prop,P0,procedural,PNG,"PNG RGBA 208x384 px @64 ppu, SEALED server/ID room door: chains + padlock baked",hallway east end,the scratch marks are story — keep them
 record_sheet,art,desk-doc,P0,procedural,PNG,"PNG RGBA 320x290 px @100 ppu; FORM 11-C layout, header band + ruled rows left blank for code-drawn text",CheckpointView (student record / admin memo),

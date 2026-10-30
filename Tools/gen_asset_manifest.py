@@ -43,7 +43,6 @@ ART = [
     ("prop_door",            "world-prop", "P0", "procedural", "PNG RGBA 160x384 px @64 ppu (2.5x6 units), classroom door, stands on the floor line", "RoomBuilder doors", "drawn standing: centre = floor + h/2"),
     ("prop_door_security",   "world-prop", "P0", "procedural", "PNG RGBA 160x384 px @64 ppu, booth/security door with plate", "RoomBuilder security door + office door", ""),
     ("prop_server_door",     "world-prop", "P0", "procedural", "PNG RGBA 208x384 px @64 ppu, SEALED server/ID room door: chains + padlock baked", "hallway east end", "the scratch marks are story — keep them"),
-    ("prop_lightswitch",     "world-prop", "P0", "procedural", "PNG RGBA 32x48 px @64 ppu, wall switch plate", "every room's wall switch (E)", "new key this pass; was an anonymous quad"),
     ("prop_lockers",         "world-prop", "P0", "procedural", "PNG RGBA 288x336 px @64 ppu, locker bank", "hallway", ""),
     ("prop_lightfixture",    "world-prop", "P1", "procedural", "PNG RGBA 208x40 px @64 ppu, ceiling light strip (flicker clue #1)", "hallway clue 'light'", ""),
     ("prop_noticeboard",     "world-prop", "P2", "procedural", "PNG RGBA 208x160 px @64 ppu, notice board with torn corner (clue #6)", "hallway clue 'board'", "GDD: Notice Board"),

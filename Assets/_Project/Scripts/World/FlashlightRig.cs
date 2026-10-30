@@ -174,7 +174,7 @@ namespace Hollowbrook.World
             if (!quiet)
             {
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    on ? "BEAM: " + (m == LightMode.Focus ? "FOCUS" : "SWEEP") : "BEAM: OFF"));
+                    on ? "FLASHLIGHT: " + (m == LightMode.Focus ? "FOCUS" : "SWEEP") : "FLASHLIGHT: OFF"));
             }
             PublishBattery();
         }
