@@ -295,7 +295,7 @@ namespace FlowCheck
             ExpectRegion("glass", L.Glass, 430, 200, 415, 235);
             ExpectRegion("portrait", L.Portrait, 530, 205, 200, 230);
             ExpectRegion("sill", L.Sill, 375, 450, 520, 18);
-            ExpectRegion("speech bubble", L.SpeechBubble, 737, 297, 182, 72);
+            ExpectRegion("speech bubble", L.SpeechBubble, 737, 297, 182, 132);
             ExpectRegion("patrol button", L.PatrolBtn, 450, 655, 180, 40);
             ExpectRegion("end shift", L.EndShiftBtn, 650, 655, 180, 40);
             ExpectRegion("questions", L.Questions, 950, 105, 305, 215);
@@ -895,9 +895,8 @@ namespace FlowCheck
 
         // ---------------------------------------------------- speech bubble proof
         // The student's voice lives in a comic bubble beside the portrait's head:
-        // visible while the line is up, removed exactly 2 s after the dialogue ends,
-        // re-shown (with a RESTARTED countdown) when a new line arrives mid-cooldown —
-        // one clock, generation-guarded, so no stale timer can hide a newer dialogue.
+        // visible while the line is up and STAYING up until the next line replaces it or the
+        // desk clears it — no timer, so a clue can never vanish before it is read.
         private static void BubbleProof(GameRoot root)
         {
             Console.WriteLine("== speech bubble beside the student's head ==");
@@ -913,16 +912,13 @@ namespace FlowCheck
             Check(!text.text.StartsWith("<b><color="),
                 "SB: no speaker-tag markup rides in the kit bubble");
             Check(tail.sprite != null, "SB: the bubble carries its pointing tail");
-            bool borderRaycast = false, otherRaycast = false;
+            bool anyRaycast = false;
             foreach (var img in bubbleRoot.gameObject.GetComponentsInChildren<UnityEngine.UI.Image>(true))
-            {
-                if (!img.raycastTarget) continue;
-                if (img.gameObject.name == "bubble_border") borderRaycast = true; else otherRaycast = true;
-            }
+                if (img.raycastTarget) anyRaycast = true;
             foreach (var t in bubbleRoot.gameObject.GetComponentsInChildren<UnityEngine.UI.Text>(true))
-                if (t.raycastTarget) otherRaycast = true;
-            Check(borderRaycast && !otherRaycast,
-                "SB: exactly one raycast target — the bubble panel, for hover-to-read; text/fill stay click-through");
+                if (t.raycastTarget) anyRaycast = true;
+            Check(!anyRaycast,
+                "SB: the bubble is entirely click-through — a click or drag over it reaches the desk below");
             Check(bubbleRoot.GetSiblingIndex() < FindDeep(cp.transform, "PapersLayer").GetSiblingIndex(),
                 "SB: the bubble sits under the papers layer — a dragged paper rides over it");
             Check(L.Inner.BubbleTail.X < 0f && L.Inner.BubbleTail.Right > 0f,
@@ -940,69 +936,48 @@ namespace FlowCheck
             Check(h0 >= 56f && h0 <= L.SpeechBubble.H + 0.01f,
                 "SB: the panel wraps to the line count inside its box (h=" + h0 + ")");
 
-            // the 2-second cooldown starts when the dialogue ENDS (the line is instant here)
-            cp.TickBubble(1.9f);
+            // no timer: the line is still up long after it was spoken
             Check(bubbleRoot.gameObject.activeSelf && cp.BubbleClock.Visible,
-                "SB: still up 1.9 s after the line — no premature hide while it is showing");
-            cp.TickBubble(0.2f);
-            Check(!cp.BubbleClock.Visible && !bubbleRoot.gameObject.activeSelf,
-                "SB: removed exactly 2 s after the dialogue ended");
-            cp.TickBubble(5f);
-            Check(!bubbleRoot.gameObject.activeSelf, "SB: ticks after the hide change nothing");
+                "SB: the line is up and stays up — nothing ticks it away");
 
-            // hover-to-read through the REAL wiring: pointer enter suspends the countdown
-            var hover = FindDeep(cp.transform, "bubble_border").GetComponent<Hollowbrook.UI.HoverSense>();
-            Check(hover != null, "SB: the bubble panel carries the hover sensor");
-            if (hover != null)
-            {
-                cp.DebugSay("Hold still — the player is reading this line.");
-                cp.TickBubble(1.5f);
-                hover.OnPointerEnter(null);
-                Check(cp.BubbleClock.Hovering && bubbleRoot.gameObject.activeSelf,
-                    "SB: the cursor entering the bubble registers as a hover");
-                cp.TickBubble(12f);
-                Check(bubbleRoot.gameObject.activeSelf && cp.BubbleClock.Visible,
-                    "SB: the bubble stays up while hovered, long past the 2 s cooldown");
-                hover.OnPointerExit(null);
-                Check(!cp.BubbleClock.Hovering && cp.BubbleClock.SecondsSinceLine < 0.01f &&
-                      bubbleRoot.gameObject.activeSelf,
-                    "SB: leaving restarts the 2 s cooldown (dialogue over) — bubble still up at leave");
-                cp.TickBubble(1.9f);
-                Check(bubbleRoot.gameObject.activeSelf, "SB: still up 1.9 s after the cursor left");
-                cp.TickBubble(0.2f);
-                Check(!bubbleRoot.gameObject.activeSelf, "SB: gone 2 s after the cursor left");
-                // hover while the line is fresh: leaving must not start the countdown early
-                cp.DebugSay("Talking line — do not start the clock yet.");
-                hover.OnPointerEnter(null);
-                hover.OnPointerExit(null);
-                Check(cp.BubbleClock.SecondsSinceLine < 0.01f,
-                    "SB: leaving while the dialogue still runs keeps the countdown unstarted");
-                cp.TickBubble(1.9f);
-                Check(bubbleRoot.gameObject.activeSelf,
-                    "SB: ...so the bubble waits for the dialogue to end before counting");
-                cp.TickBubble(0.2f);
-                Check(!bubbleRoot.gameObject.activeSelf, "SB: ...then hides 2 s after that");
-                // a hidden bubble cannot be hovered (it stops raycasting when inactive)
-                hover.OnPointerEnter(null);
-                Check(!cp.BubbleClock.Hovering && !bubbleRoot.gameObject.activeSelf,
-                    "SB: an enter while the bubble is hidden is ignored — it can never suspend a countdown");
-            }
-
-            // a new line during the cooldown cancels the pending hide and shows normally
+            // a new line replaces the old one and shows normally
             cp.DebugSay("One more thing — the intercom crackles.");
-            Check(bubbleRoot.gameObject.activeSelf, "SB: a fresh line brings the bubble back");
+            Check(bubbleRoot.gameObject.activeSelf, "SB: a fresh line keeps the bubble up");
             int gen1 = cp.BubbleClock.Generation;
-            cp.TickBubble(1.5f);
-            cp.DebugSay("Second line, mid-cooldown.");
-            Check(bubbleRoot.gameObject.activeSelf && cp.BubbleClock.SecondsSinceLine < 0.01f,
-                "SB: a new line mid-cooldown RESTARTS the countdown (pending hide cancelled)");
-            Check(cp.BubbleClock.Generation == gen1 + 1,
-                "SB: every line advances the generation — a stale timer could never hide it");
+            cp.DebugSay("Second line, replacing the first.");
+            Check(bubbleRoot.gameObject.activeSelf && cp.BubbleClock.Generation == gen1 + 1,
+                "SB: every line advances the generation");
             Check(text.text.Contains("Second line"), "SB: the bubble shows the NEW line, not the old one");
-            cp.TickBubble(1.9f);
-            Check(bubbleRoot.gameObject.activeSelf, "SB: the newer dialogue survives past the OLD timer's 2 s");
-            cp.TickBubble(0.2f);
-            Check(!bubbleRoot.gameObject.activeSelf, "SB: ...and hides 2 s after the LAST line");
+
+            // the white interior is where the text lives: the kit panel's sliced borders are
+            // pinned to the 48u tail / 14u edge the layout is built on, and the text sits
+            // inside the white with a clear inset (never on the jagged ink)
+            var bubbleImg = FindDeep(cp.transform, "bubble_border").GetComponent<UnityEngine.UI.Image>();
+            float multiplied = bubbleImg.pixelsPerUnit * bubbleImg.pixelsPerUnitMultiplier;
+            Check(Mathf.Abs(multiplied - L.Inner.BubbleKitArtPxPerUnit) < 0.01f,
+                "SB: the kit bubble's borders are pinned to " + L.Inner.BubbleKitArtPxPerUnit +
+                " art px per unit whatever the canvas reference PPU is (got " + multiplied + ")");
+            var textRt = text.rectTransform;
+            float whiteLeft = L.Inner.BubbleKitTailW;
+            float whiteRight = panel.sizeDelta.x - L.Inner.BubbleKitWhiteMargin;
+            float tl = textRt.anchoredPosition.x, tr = tl + textRt.sizeDelta.x;
+            Check(tl >= whiteLeft + L.Inner.BubbleKitInsetX - 0.01f &&
+                  tr <= whiteRight - L.Inner.BubbleKitInsetX + 0.01f,
+                "SB: the text column sits inside the bubble's white with a clear inset (" +
+                tl + ".." + tr + " inside " + whiteLeft + ".." + whiteRight + ")");
+            Check(text.fontSize >= 15, "SB: the bubble type is large enough to read at a glance");
+
+            // the longest lines the game can actually put in the bubble are shown in full
+            foreach (var line in new[] {
+                Hollowbrook.Logic.Content.AdminLines[0],
+                "“My first stop is your server room.”  [echoing, as if reading]" })
+            {
+                cp.DebugSay(line);
+                Check(!text.text.EndsWith("…") && text.text == line,
+                    "SB: the longest real line (" + line.Length + " chars) is shown in full — nothing is cut off");
+                Check(panel.sizeDelta.y > 56f && panel.sizeDelta.y <= L.SpeechBubble.H + 0.01f,
+                    "SB: the panel grows to the wrapped line count (h=" + panel.sizeDelta.y + ")");
+            }
 
             // a long line is wrapped and capped inside the bubble box, never spilling
             cp.DebugSay("Tonight the hallway smells of chalk and old rain, and every face in " +
@@ -1028,10 +1003,10 @@ namespace FlowCheck
             Check(!text.text.Contains("Your course?"),
                 "SB: the bubble carries the STUDENT's answer (the button shows the question asked)");
 
-            // leaving the desk cleans the bubble (and its countdown) up
+            // leaving the desk cleans the bubble up
             cp.HideBubbleNow();
             Check(!bubbleRoot.gameObject.activeSelf && !cp.BubbleClock.Visible,
-                "SB: the room-change cleanup hides the bubble instantly — no timer survives");
+                "SB: the room-change cleanup hides the bubble instantly");
         }
 
         // ------------------------------------- stamp placement (Papers, Please style)
@@ -2308,27 +2283,21 @@ namespace FlowCheck
             slip.BeginDrag(); slip.PlaceCenter(new Vector2(760f, 500f)); slip.EndDrag();
             root.TogglePause(true);
             UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.A);
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.D);
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
-            Check(!cp.SlipStamped, "issue #5: a paused desk never stamps from hotkeys");
+            Check(!cp.SlipStamped, "issue #5: a paused desk never stamps");
             root.TogglePause(false);
             UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.A);
             cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.D);
+            cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
-            Check(cp.SlipStamped, "issue #5: unpaused, the same key stamps the slip");
-            var kbMark = FindDeep(cp.transform, "stampoverlay").GetComponent<RectTransform>();
-            var kbSlip = FindDeep(cp.transform, "slip").Find("slipart").GetComponent<RectTransform>();
-            var kbLocal = StampPlacement.ClampToPrintable(new StampPlacement.Point(
-                kbSlip.rect.width * 0.8f, kbSlip.rect.height * 0.68f),
-                kbSlip.rect.width, kbSlip.rect.height,
-                CheckpointView.StampMarkSize, CheckpointView.StampMaxTilt, CheckpointView.StampEdgePad);
-            Check(kbMark.parent == kbSlip &&
-                  Mathf.Abs(kbMark.anchoredPosition.x - kbLocal.X) < 0.5f &&
-                  Mathf.Abs(-kbMark.anchoredPosition.y - kbLocal.Y) < 0.5f,
-                "issue #5: the keyboard stamp lands on the corner default spot, fully on the paper");
-            Check(Mathf.Abs(kbMark.anchoredPosition.x - tlx) +
-                  Mathf.Abs(kbMark.anchoredPosition.y + tly) > 20f,
-                "issue #5: keyboard default and corner drop are DIFFERENT spots (no single fixed position)");
+            Check(!cp.SlipStamped, "issue #5: unpaused, A and D do NOT stamp — a verdict is only ever a dragged stamp");
+            Check(FindDeep(cp.transform, "slblA") == null && FindDeep(cp.transform, "slblD") == null,
+                "issue #5: no APPROVE (A) / DECLINE (D) caption bars sit under the stamps");
+            StampSlip(root, Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            Check(cp.SlipStamped, "issue #5: dragging a stamp onto the slip still stamps it");
 
             root.TogglePause(true);
             root.OpenSettings();
@@ -3620,8 +3589,7 @@ namespace FlowCheck
                                       "sec_window_top", "sec_window_glass", "sec_window_base",
                                       "sec_upper_bg",
                                       "sec_upper", "sec_sanity_bar", "sec_pause_block",
-                                      "sec_tray_allow", "sec_tray_deny",
-                                      "sec_captionbar_a", "sec_captionbar_d" })
+                                      "sec_tray_allow", "sec_tray_deny" })
             {
                 var t = FindDeep(cp.transform, n);
                 Check(t != null, "KIT: layer " + n + " exists (proof is not a silent no-op)");
@@ -3709,9 +3677,9 @@ namespace FlowCheck
                   circA.GetSiblingIndex() < allow.GetSiblingIndex() &&
                   circD.GetSiblingIndex() < deny.GetSiblingIndex(),
                 "KIT: the tray circles draw under their stamps (allow and deny)");
-            Check(FindDeep(cp.transform, "sec_captionbar_a") != null &&
-                  FindDeep(cp.transform, "sec_captionbar_d") != null,
-                "KIT: the stamp captions ride the kit's caption bars");
+            Check(FindDeep(cp.transform, "sec_captionbar_a") == null &&
+                  FindDeep(cp.transform, "sec_captionbar_d") == null,
+                "KIT: the APPROVE / DECLINE caption bars are gone from the tray");
 
             // fonts: kit families first, bundled open-licence faces as fallback — never null
             Check(UIFactory.UiFont != null && UIFactory.UiFontBold != null &&
@@ -3813,7 +3781,8 @@ namespace FlowCheck
                 // The stub coroutine pump never runs AfterStamp, so the harness lands the
                 // same beat the editor reaches through the post-stamp coroutine.
                 cp.DebugTakeDocuments();
-                cp.StampSlipByKey(Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+                TakeSlip(root);
+                StampSlip(root, Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
                 cp.HandBackByKey();
                 cp.SetVisitorVisible(false);
                 DeskFrames(cp, 6);
@@ -3885,7 +3854,7 @@ namespace FlowCheck
                 // shows the student's side of it — a long answer in the kit bubble
                 cp.DebugSay("Custodian. I'm the district administrator. I'll be taking " +
                             "control of this facility tonight.");
-                for (int i = 0; i < 2; i++) { cp.TickBubble(1f / 60f); DeskFrame(cp); }
+                for (int i = 0; i < 2; i++) DeskFrame(cp);
             }
 
             var frame = FindDeep(cp.transform, "DeskFrame");

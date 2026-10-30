@@ -366,7 +366,7 @@ namespace Hollowbrook.Checkpoint
             _visitorPortrait.gameObject.SetActive(on);
             _visitorShown = on;
             RefreshWindowLayer(on);       // the booth shutter follows the visitor
-            if (!on) _bubble.HideNow();   // an empty window carries no line — and no timer
+            if (!on) _bubble.HideNow();   // an empty window carries no line
             SyncBubble();
             _glitchOverlay.gameObject.SetActive(on && _glitchOverlay.color.a > 0f);
         }
