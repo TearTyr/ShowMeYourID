@@ -427,6 +427,7 @@ namespace UnityEngine.EventSystems
         public Vector2 position = Vector2.zero;
         public Vector2 delta = Vector2.zero;
         public int pointerId = -1;
+        public bool dragging;
     }
 
     public interface IPointerEnterHandler { void OnPointerEnter(PointerEventData eventData); }

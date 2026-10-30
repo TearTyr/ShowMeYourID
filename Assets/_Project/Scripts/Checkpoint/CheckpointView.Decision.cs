@@ -248,7 +248,7 @@ namespace Hollowbrook.Checkpoint
 
         // Papers, Please stamping: the mark lands WHERE the player released the stamp on
         // the slip. The drop centre (desk space) is converted into the slip's own space —
-        // position, zoom scale and resting tilt included — then clamped so the whole
+        // position, scale and resting tilt included — then clamped so the whole
         // tilted mark stays inside the printable area: a drop near a corner stamps near
         // that corner, a drop in the middle stamps the middle, nothing ever hangs off the
         // paper. It records a PENDING verdict: nothing is scored until hand-back.
@@ -257,7 +257,7 @@ namespace Hollowbrook.Checkpoint
             if (_slipGo == null || !_slipGo.activeSelf || !_slipTaken || _current == null || _verdictLocked) return;
             var srt = _slipGo.GetComponent<RectTransform>();
             // the written slip lives on its scaled art layer: placement maths runs in the
-            // art's 200x120 design space, converted through the container's zoom+tilt
+            // art's 200x120 design space, converted through the container's scale+tilt
             var artT = _slipGo.transform.Find("slipart");
             var art = artT != null ? artT.GetComponent<RectTransform>() : srt;
             var ss = art.rect.size;
@@ -281,7 +281,7 @@ namespace Hollowbrook.Checkpoint
 
         // The mark becomes a layer of the slip AT THE DROPPED SPOT (localCentre is in the
         // slip's own space, already clamped inside the printable area), so it moves, flips
-        // and zooms with the paper and can never overhang the edge. Rotation is seeded per
+        // and scales with the paper and can never overhang the edge. Rotation is seeded per
         // inspection; the clamp budget (StampMaxTilt) covers the tilt's corners.
         //
         // 60px on the 200x120 slip: +33.3% over the 45px mark (this pass's readability request)

@@ -141,9 +141,8 @@ namespace Hollowbrook.Checkpoint
             if (_papersLayer != null) _slipGo.transform.SetParent(_papersLayer.transform, false);
             var slipDrag = _slipGo.AddComponent<DragPaper>();
             slipDrag.Init(_desk, 1.2f);
-            // the slip is ONLY draggable: it never flips, never zooms, and is not the paper
-            // F / Z act on (_lastPaper stays on the ID). A tap on the counter slip takes it.
-            slipDrag.Zoomable = false;
+            // the slip is ONLY draggable: never flips, never inspects (Inspectable stays off).
+            // A tap on the counter slip takes it.
             slipDrag.OnTapped = c => { if (!_slipTaken) TakeSlipAt(new Vector2(740f, 560f)); };
             slipDrag.OnDropped = c => SlipDropped(c);
             _slipGo.SetActive(false);
@@ -238,9 +237,9 @@ namespace Hollowbrook.Checkpoint
         {
             _slipTaken = false; _slipStamped = false; _pendingVerdict = Verdict.None;
             _backId = false;
-            // a fresh desk per student: zoom resets, the old file closes, the query clears
+            // a fresh desk per student: an inspected card goes back, the old file closes, the query clears
             var idp = _idCardGo != null ? _idCardGo.GetComponent<DragPaper>() : null;
-            if (idp != null) idp.Zoom = 1f;
+            if (idp != null) idp.EndInspect();
             if (_recordGo != null) _recordGo.SetActive(false);
             FaceUp(_idCardGo);          // flip state never carries across visitors: the ID
                                         // is born face-up on a fresh desk (the slip has no back)
@@ -250,7 +249,6 @@ namespace Hollowbrook.Checkpoint
             SetPaperHeld(_idCardGo, true);
             SetPaperHeld(_slipGo, true);
             if (_stampOverlay != null) { var c = _stampOverlay.color; c.a = 0f; _stampOverlay.color = c; }
-            _lastPaper = _idCardGo;
             OfferAtCounter();          // fills + activates the counter card...
             OfferSlipAtCounter();      // ...and the slip (FillSlip lives here)
             // §6 automation: the papers are ALREADY on the desk when the student steps up —
