@@ -62,7 +62,7 @@ namespace Hollowbrook.Checkpoint
             _patrolBtn = GridButton(_desk, "patrol", "PATROL HALLWAY  ▸", GoPatrol, L.PatrolBtn, 12);
             Reg("patrol", _patrolBtn, L.PatrolBtn);
             _endShiftBtn = GridButton(_desk, "endshift", "END SHIFT — CLOCK OUT",
-                () => _gameRoot.FinishShift(), L.EndShiftBtn, 11);
+                () => _gameRoot.RequestEndShift(), L.EndShiftBtn, 11);
             Reg("endshift", _endShiftBtn, L.EndShiftBtn);
             UIFactory.SetButtonEnabled(_patrolBtn, false);
             UIFactory.SetButtonEnabled(_endShiftBtn, false);
