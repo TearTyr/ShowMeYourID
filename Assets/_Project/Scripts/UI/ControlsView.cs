@@ -23,8 +23,8 @@ namespace Hollowbrook.UI
             string body =
                 "CHECKPOINT (mouse)\n" +
                 "   The ID + slip are ON YOUR DESK when the student steps up — drag to arrange,\n" +
-                "   papers KEEP their size while you scroll; Z zooms the ID. The slip only drags —\n" +
-                "   it never flips or zooms.\n" +
+                "   papers KEEP their size while you scroll. CLICK the ID to inspect it up close,\n" +
+                "   then click anywhere off it to put it back. The slip only drags.\n" +
                 "   Flip the ID: click its BLACK SPINE (the card body only drags) or press F.\n" +
                 "   Floor files: click the cabinet front (or TAB) to PULL THE DRAWER OUT, pick a floor\n" +
                 "   folder, then click a file to pull it onto the desk — mismatches are clues.\n" +

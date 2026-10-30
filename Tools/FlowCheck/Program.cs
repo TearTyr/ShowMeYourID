@@ -566,8 +566,8 @@ namespace FlowCheck
             idDrag.EndDrag();
 
             // task 5: the ID card's DEFAULT display is slightly smaller — the whole card
-            // (sprite, photo, rows) scales uniformly through DragPaper.BaseScale, so the
-            // design proportions survive and zoom still reads 1x..1.8x of the resting size
+            // (sprite, photo, rows) scales uniformly through its art layer, so the design
+            // proportions survive and the inspect view enlarges it from the resting size
             float cardRatio = CheckpointView.IdCardScale;
             Check(cardRatio >= 0.55f && cardRatio <= 0.70f,
                 "the ID card's printed art rests at the concept size (scale " + cardRatio + ")");
@@ -576,7 +576,7 @@ namespace FlowCheck
             Check(cardArt != null &&
                   Mathf.Abs(cardArt.GetComponent<RectTransform>().localScale.x - cardRatio) < 0.01f &&
                   Mathf.Abs(idGo0.GetComponent<RectTransform>().localScale.x - 1f) < 0.01f &&
-                  Mathf.Abs(idDrag.Zoom - 1f) < 0.01f,
+                  !idDrag.Inspecting,
                 "the container rests at 1x while the art layer carries the concept scale");
             Check(Mathf.Abs(idGo0.GetComponent<RectTransform>().rect.width - L.IdCard.W) < 0.5f &&
                   Mathf.Abs(idGo0.GetComponent<RectTransform>().rect.height - L.IdCard.H) < 0.5f &&
@@ -848,8 +848,6 @@ namespace FlowCheck
                 "F flips the ID even when the slip was touched last");
             Check(FaceOf(slipT, "slipback") == null && FaceOf(slipT, "bg").gameObject.activeSelf,
                 "...and never touches the slip");
-            var idDragC = idGo.GetComponent<DragPaper>();
-            idDragC.BeginDrag(); idDragC.EndDrag();   // retarget zoom to the ID (no move, no tap handler)
             // the ID deliberately STAYS face-down here: the desk loop's fresh-visitor
             // check proves the hand-over reset turns it face-up (flip never carries over)
             // task 1: stacking — right-column panels below papers, stamps above papers
@@ -871,25 +869,46 @@ namespace FlowCheck
             var xRt = FindDeep(cp.transform, "closefile").GetComponent<RectTransform>();
             Check(xRt.anchorMin == Vector2.one && xRt.anchorMax == Vector2.one,
                   "the record's exit button is anchored top-right");
-            cp.DebugZoom(9f);
-            Check(Mathf.Abs(idGo.localScale.x - 1.8f) < 0.01f &&
-                  Mathf.Abs(idGo.GetComponent<DragPaper>().Zoom - 1.8f) < 0.01f,
-                "zoom clamps at 1.8x of the card's resting scale");
-            cp.DebugZoom(0.1f);
-            Check(Mathf.Abs(idGo.localScale.x - 1f) < 0.01f &&
-                  Mathf.Abs(idGo.GetComponent<DragPaper>().Zoom - 1f) < 0.01f,
-                "zoom clamps at the resting 1x (the smaller default card)");
-            cp.DebugZoom(1f);
-            // the ONLY remaining zoom input is the deliberate Z toggle (the scroll wheel
-            // no longer resizes papers — there is no scroll listener on the desk at all)
+            // ---- click-to-inspect: the ID is read by clicking it, there is no zoom key or wheel ----
+            var idDragI = idGo.GetComponent<DragPaper>();
+            var idRtI = idGo.GetComponent<RectTransform>();
+            var deskRt = FindDeep(cp.transform, "DeskFrame").GetComponent<RectTransform>();
+            Check(idDragI.Inspectable, "INSPECT: the ID card is inspectable");
+            var restPos = idRtI.anchoredPosition;
+            float restScale = idRtI.localScale.x, restTilt = idRtI.localEulerAngles.z;
+            Check(Mathf.Abs(Mathf.DeltaAngle(restTilt, 0f)) > 0.1f,
+                "INSPECT: the ID rests tilted on the table (" + restTilt + " deg)");
             UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Z);
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
-            Check(Mathf.Abs(idGo.localScale.x - 1.5f) < 0.01f, "Z toggles the last-touched paper to 1.5x");
-            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Z);
-            cp.TickHotkeys();
-            UnityEngine.Input.KeysDown.Clear();
-            Check(Mathf.Abs(idGo.localScale.x - 1f) < 0.01f, "Z again returns it to the intended 1x size");
+            Check(Mathf.Abs(idRtI.localScale.x - restScale) < 0.01f && !idDragI.Inspecting,
+                "INSPECT: Z does nothing any more — the zoom key is gone");
+            idDragI.Tap();      // exactly what a still click on the card body does
+            Check(idDragI.Inspecting && Mathf.Abs(idRtI.localScale.x - restScale * idDragI.InspectScale) < 0.01f,
+                "INSPECT: a click lifts the ID, enlarged to " + idDragI.InspectScale + "x");
+            Check(Mathf.Abs(Mathf.DeltaAngle(idRtI.localEulerAngles.z, 0f)) < 0.01f,
+                "INSPECT: ...and straight, so every line can be read");
+            float centreX = idRtI.anchoredPosition.x + idRtI.rect.width * idRtI.localScale.x / 2f;
+            Check(Mathf.Abs(centreX - deskRt.rect.width / 2f) < 1f,
+                "INSPECT: ...centred on the desk");
+            var catcher = FindDeep(cp.transform, "inspectcatcher_idcard");
+            Check(catcher != null && catcher.gameObject.activeSelf &&
+                  catcher.GetSiblingIndex() < idGo.GetSiblingIndex(),
+                "INSPECT: a dimmer sits right under the card and takes the click-away");
+            idDragI.BeginDrag();
+            Check(!idDragI.Dragging, "INSPECT: an inspected card cannot be dragged — click off it first");
+            catcher.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();     // click anywhere off the card
+            Check(!idDragI.Inspecting && Mathf.Abs(idRtI.localScale.x - restScale) < 0.01f &&
+                  Mathf.Abs(Mathf.DeltaAngle(idRtI.localEulerAngles.z, restTilt)) < 0.01f &&
+                  (idRtI.anchoredPosition - restPos).magnitude < 0.01f && !catcher.gameObject.activeSelf,
+                "INSPECT: clicking off returns the ID to its tilted spot on the table, dimmer gone");
+            // the slip is read where it lies: tapping it never inspects it
+            var slipDragI = slipT.GetComponent<DragPaper>();
+            Check(!slipDragI.Inspectable, "INSPECT: the slip is not inspectable");
+            slipDragI.Tap();
+            slipDragI.Inspect();
+            Check(!slipDragI.Inspecting && Mathf.Abs(slipT.localScale.x - 1f) < 0.01f,
+                "INSPECT: tapping or asking the slip to inspect does nothing — it stays 1x");
         }
 
         // ---------------------------------------------------- speech bubble proof
@@ -1035,9 +1054,8 @@ namespace FlowCheck
             cp.DebugTakeDocuments();
             TakeSlip(root);                       // slip centred at (760,500): top-left (660,440)
             var slipDrag0 = slipT.GetComponent<DragPaper>();
-            slipDrag0.Zoom = 1.5f;                // the slip refuses zoom: no input can resize it
-            Check(!slipDrag0.Zoomable && Mathf.Abs(slipT.localScale.x - 1f) < 0.01f,
-                "SP: the slip is not zoomable — a zoom request leaves it at 1x");
+            Check(!slipDrag0.Inspectable && Mathf.Abs(slipT.localScale.x - 1f) < 0.01f,
+                "SP: the slip is not inspectable — it rests at 1x and is only ever dragged");
             // scaffolding only: scale the rect directly so the drop maths still proves it maps
             // through ANY scale chain (nothing in the game scales the slip any more)
             slipT.localScale = new Vector3(1.5f, 1.5f, 1f);

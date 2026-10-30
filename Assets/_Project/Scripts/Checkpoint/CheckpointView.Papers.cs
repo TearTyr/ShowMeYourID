@@ -145,7 +145,10 @@ namespace Hollowbrook.Checkpoint
                         idDrag.Init(_desk, 0.8f);
             // the card body is deliberately NOT a button: it drags, it does not flip.
             // The flip belongs to the black spine alone (see SpineHandle above).
-            idDrag.OnLift = () => _lastPaper = _idCardGo;
+            // a click on the card lifts it into the inspect view (the spine still flips it);
+            // clicking anywhere off it puts it back, tilted, where it lay
+            idDrag.Inspectable = true;
+            idDrag.OnTapped = c => idDrag.Inspect();
             idDrag.OnDropped = center =>
             {
                 if (InWindowZone(center)) HandBackId();   // hand the ID back to the student

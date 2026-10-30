@@ -16,8 +16,8 @@ namespace Hollowbrook.Checkpoint
     // CheckpointLayout grid — see desk_layout_wireframe.svg for the approved design.
     public partial class CheckpointView : MonoBehaviour, IScreenView
     {
-        /// <summary>The ID card's resting display scale (~18% under the old default).
-        /// Zoom (1..1.8) rides on top of it — see DragPaper.BaseScale.</summary>
+        /// <summary>The ID card's resting display scale (~18% under the old default). The inspect
+        /// view (DragPaper.Inspect) enlarges it from there.</summary>
         internal const float IdCardScale = L.IdScale;   // 320x220 design art -> 220x151 desk rect
         /// <summary>True once the SecurityRoom kit skin applied: paper-ink labels flip dark.</summary>
         private bool _kitOn;
@@ -70,7 +70,6 @@ namespace Hollowbrook.Checkpoint
         private Verdict _pendingVerdict = Verdict.None;
         private GameRng _stampRng = new GameRng(1);
         private Coroutine _punch;
-        private GameObject _lastPaper;
         internal Verdict PendingVerdict => _pendingVerdict;
         internal bool SlipStamped => _slipStamped;
         private bool _documentsTaken;      // the ID is in your hand: papers, scan and stamps unlock
@@ -337,7 +336,7 @@ namespace Hollowbrook.Checkpoint
 
         // The tap/debug docking: the card's top-left lands on its slot corner. (Centring
         // the SLOT RECT would drift now that the card draws smaller than the rect —
-        // DragPaper.BaseScale 0.82.)
+        // IdCardScale 0.82.)
         private void DockIdToSlot()
         {
             var drag = _idCardGo != null ? _idCardGo.GetComponent<DragPaper>() : null;
@@ -425,25 +424,6 @@ namespace Hollowbrook.Checkpoint
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.35f);
         }
 
-        // Deliberate zoom of the paper you touched last: Z toggles between 1x and 1.5x
-        // (DragPaper clamps 1..1.8). The scroll wheel is NOT a zoom input — the ID and
-        // the slip keep their intended, consistent size while the player scrolls
-        // (audit task 1: the wheel used to resize whichever paper was touched last).
-        internal void DebugZoom(float z)
-        {
-            var paper = _lastPaper != null ? _lastPaper : _idCardGo;
-            var dp = paper != null ? paper.GetComponent<DragPaper>() : null;
-            if (dp != null) dp.Zoom = z;
-        }
-
-        internal void ToggleZoomLastPaper()
-        {
-            var paper = _lastPaper != null ? _lastPaper : _idCardGo;
-            if (paper == null || !paper.activeSelf) return;
-            var dp = paper.GetComponent<DragPaper>();
-            if (dp != null) dp.Zoom = dp.Zoom > 1.25f ? 1f : 1.5f;
-        }
-
         private void Update()
         {
             if (_gameRoot == null || !gameObject.activeInHierarchy) return;
@@ -484,8 +464,6 @@ namespace Hollowbrook.Checkpoint
             // F flips the ID (its spine does too). Verdicts and the hand-back have NO key: a
             // stamp is dragged onto the slip and the ID is dragged back to the window by hand.
             if (Input.GetKeyDown(KeyCode.F)) FlipLastPaper();
-            // Z is the ONLY paper zoom input: a deliberate toggle (never the scroll wheel)
-            if (Input.GetKeyDown(KeyCode.Z)) ToggleZoomLastPaper();
         }
 
         // Everything on the desk that mirrors run state, refreshed after any change:
