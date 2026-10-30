@@ -57,12 +57,11 @@ namespace Hollowbrook.Checkpoint
         // ---- left column ----------------------------------------------------
         // records station slot: below the hint row, above the chat column
         public static readonly Region Station = new Region(40, 85, 305, 160);   // FLOOR FILES registry
-        // the floor-files drawer: the cabinet MOUTH, a fixed grid rect under the station.
-        // It never moves (the layout audit pins it); the drawer body inside it slides out on
-        // a fast ease-out — see CheckpointView.FileDrawer + DrawerMotion. Same left-column
+        // the STUDENT RECORDS panel: a fixed grid rect under the station that opens when the
+        // folder icon is clicked — see CheckpointView.RecordsFolder. Same left-column
         // width, in the free gap between the station (bottom 259) and the queue strip
         // (top 482). The pulled record sheet (home 16,168 320x290) lands on top of it — the
-        // mouth is built before the papers layer, so a pulled file always covers the drawer.
+        // panel is built before the papers layer, so a pulled file always covers it.
         // 202px tall: it stops clear of the waiting-line strip at y=482 (bottom 516).
         public static readonly Region FileDrawer = new Region(55, 255, 275, 290);
         // default slot for the held ID card; the card is draggable, so this is where it
@@ -172,24 +171,19 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region TrackCap = new Region(6, 4, 60, 14);
             public static readonly Region TrackTrack = new Region(6, 20, 108, 12);
 
-            // floor-files station (panel-local): caption and the two folder tabs — all
-            // centred in the cabinet width so the front reads as one symmetric face
+            // records station (panel-local): caption, the folder icon (closed) and the three
+            // cohort tabs (open) — all centred in the station width so it reads as one face
             public static readonly Region StationCap = new Region(22.5f, 15, 260, 20);
             public const float FolderTabX = 37.5f, FolderTabY0 = 40f, FolderTabStep = 35f,
                                FolderTabW = 230f, FolderTabH = 34f;
-            // floor-files drawer (body-local): the drawer front lip covers the top of the
-            // mouth while shut, the header rides just under it, and the file rows start below
-            // both — 7 rows fit the pulled drawer (see DrawerRowCapacity)
-            public const float DrawerFrontH = 25f;                           // the pulled front bracket
-            public const float DrawerLipH = 28f;                   // the mask the body slides behind
-            public const float DrawerBodyH = 255f;                 // the row sheet inside the mouth
-            public const float DrawerHeadH = 18f;
-            public const float DrawerFrontTravelRatio = 0.06f;     // the front rides out a little
-            public static readonly Region DrawerHead = new Region(15, 30, 245, DrawerHeadH);
-            public static readonly Region DrawerHandle = new Region(30, 9, 80, 7);
-            public static readonly Region DrawerFrontLabel = new Region(0, 6, 266, 14);
-            // front-local, beside the handle: the registry readout rides out with the drawer
-            public static readonly Region DrawerFrontOut = new Region(170, 10, 90, 14);
+            // the folder icon fills the station under the caption; its label sits on the body
+            public static readonly Region RecordsIcon = new Region(37.5f, 48f, 230f, 99f);
+            public static readonly Region RecordsIconLabel = new Region(14f, 40f, 202f, 40f);
+            // records panel (panel-local): the header rides at the top and the file rows start
+            // below it — 7 rows fit (see RecordsRowCapacity)
+            public const float RecordsPanelH = 255f;               // the row sheet inside the panel
+            public const float RecordsHeadH = 18f;
+            public static readonly Region RecordsHead = new Region(15, 30, 245, RecordsHeadH);
             public const float FileRowX = 15f, FileRowY0 = 50f, FileRowStep = 27f,
                                FileRowW = 250f, FileRowH = 22f;
             public const float FileRowPillW = 160f;                // the dark name pill on the sheet
