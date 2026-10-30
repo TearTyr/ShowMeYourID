@@ -64,21 +64,19 @@ namespace Hollowbrook.Horror
             if (_acc < 0.5f) return;
             float dt = _acc; _acc = 0f;
 
-            float before = _gameRoot.Session.Sanity;
-            if (inSecurity)
-            {
-                float rate = _gameRoot.Session.Mode == GameMode.Normal
-                    ? SanityModel.SecurityRoomRecoveryPerSecond
-                    : SanityModel.SecurityRoomRecoveryPerSecond * 0.4f;
-                _gameRoot.Session.ApplySanity(rate * dt);
-            }
+            var session = _gameRoot.Session;
+            float before = session.Sanity;
+            session.Stacks.Tick(dt);                       // a wrong call's extra drain wears off
+            float refill = session.TakeRefill(dt);         // a correct call's refill, handed over gradually
+            if (refill > 0f) session.ApplySanity(refill);
+            if (inSecurity) TickDesk(session, dt);
             else if (_gameRoot.Views != null && _gameRoot.Views.Current != null)
             {
                 var light = _gameRoot.Views.Current.Light;
                 // sanity reads the room's REAL ambient state; the handheld beam does not
                 // substitute for room light here (separation of concerns).
                 if (light != null && !light.Lit)
-                    _gameRoot.Session.ApplySanity(-SanityModel.DarknessDrainPerSecond * dt);
+                    session.ApplySanity(-SanityModel.DarknessDrainPerSecond * dt);
             }
 
             if (!Mathf.Approximately(before, _gameRoot.Session.Sanity))
@@ -100,6 +98,33 @@ namespace Hollowbrook.Horror
                     _gameRoot.Audio.PlaySfx("sfx_heartbeat", stage == SanityStage.Breaking ? 0.75f : 0.4f);
                 }
             }
+        }
+
+        // At the desk: a student at the window wears sanity down slowly (a scary one a little
+        // more), an empty window lets the custodian rest. Interactions are the same path — the
+        // drain follows whoever is at the glass, whether they are a student or an anomaly.
+        private void TickDesk(GameSession session, float dt)
+        {
+            var visitor = _gameRoot.Checkpoint != null ? _gameRoot.Checkpoint.CurrentVisitor : null;
+            if (visitor == null)
+            {
+                float rate = session.Mode == GameMode.Normal
+                    ? SanityModel.SecurityRoomRecoveryPerSecond
+                    : SanityModel.SecurityRoomRecoveryPerSecond * 0.4f;
+                session.ApplySanity(rate * dt);
+                return;
+            }
+            session.ApplySanity(-(SanityModel.DeskDrainPerSecond + ScaryExtraDrain(visitor.ClaimedName)) * dt);
+        }
+
+        // The configured extra drain for a named student (0 for everyone else).
+        private float ScaryExtraDrain(string name)
+        {
+            var cfg = _gameRoot.Config;
+            if (cfg == null || cfg.scaryStudents == null || string.IsNullOrEmpty(name)) return 0f;
+            foreach (var s in cfg.scaryStudents)
+                if (s != null && s.fullName == name) return s.extraDrainPerSecond;
+            return 0f;
         }
 
         private void OnStageChanged(GameEvent e)

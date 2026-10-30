@@ -882,21 +882,25 @@ namespace Hollowbrook.LogicTests
             Eq(s.CorrectDecisions, 1, "correct increments");
             Eq(s.Streak, 1, "streak increments");
             Eq(s.BestStreak, 1, "best streak tracks");
-            Eq(s.Sanity, 100f, "a correct call costs nothing");
+            Eq(s.Sanity, 100f, "a correct call does not touch sanity directly");
+            Eq(s.RefillPending, SanityModel.RefillOnCorrect, "...it queues a refill instead");
+            Eq(s.Stacks.Count, 0, "a correct call puts no drain stack up");
 
             s.RecordVerdict(InspectionRules.Apply(anomaly, Verdict.Allow, null));
             Eq(s.Breaches, 1, "breach counted");
             Eq(s.Streak, 0, "streak resets on a mistake");
             Eq(s.BestStreak, 1, "best streak preserved");
-            Eq(s.Sanity, 92f, "breach costs 8 sanity in Normal mode");
+            Eq(s.Sanity, 100f, "a breach costs no sanity directly");
+            Eq(s.Stacks.Count, 1, "...it adds a drain stack");
 
             s.RecordVerdict(InspectionRules.Apply(legit, Verdict.Reject, null));
             Eq(s.FalseRejections, 1, "false rejection counted");
-            Eq(s.Sanity, 86f, "false rejection costs 6 sanity");
+            Eq(s.Sanity, 100f, "a false rejection costs no sanity directly");
+            Eq(s.Stacks.Count, 2, "...it adds another drain stack");
 
             var challenge = new GameSession { Mode = GameMode.Challenge, Sanity = 100f };
-            challenge.RecordVerdict(InspectionRules.Apply(legit, Verdict.Reject, null));
-            Eq(challenge.Sanity, 88f, "Challenge drains twice as fast (6 x 2)");
+            challenge.ApplySanity(-10f);
+            Check(Math.Abs(challenge.Sanity - 83f) < 1e-3f, "Challenge drains twice as fast (10 x 2 x the 0.85 baseline = 17)");
             Eq(SanityModel.DrainMultiplier(GameMode.Challenge), 2f, "challenge drain multiplier");
             Eq(SanityModel.DrainMultiplier(GameMode.Normal), 1f, "normal drain multiplier");
 
@@ -904,9 +908,67 @@ namespace Hollowbrook.LogicTests
             var adminSession = new GameSession { Sanity = 50f };
             adminSession.RecordVerdict(InspectionRules.Apply(admin, Verdict.Reject, null));
             Check(adminSession.AdminRejected && !adminSession.AdminAllowed, "admin rejection recorded");
-            Eq(adminSession.Sanity, 60f, "rejecting the administrator recovers 10 sanity");
+            Eq(adminSession.Sanity, 50f, "rejecting the administrator is a correct call: a refill, not an instant jump");
+            Eq(adminSession.RefillPending, SanityModel.RefillOnCorrect, "...the refill is queued");
             adminSession.RecordVerdict(InspectionRules.Apply(admin, Verdict.Allow, null));
             Check(adminSession.AdminAllowed, "allowing the administrator sets AdminAllowed");
+
+            Group("SanityStacks — wrong calls speed the drain up for a while");
+            var st0 = new SanityStacks();
+            Eq(st0.Count, 0, "no stacks at the start");
+            Eq(st0.Multiplier, 0.85f, "the baseline drain is 0.85x");
+            st0.Add();
+            Eq(st0.Count, 1, "one wrong call: one stack");
+            Eq(st0.Multiplier, 1.25f, "one stack drains 1.25x");
+            Eq(st0.SecondsLeft, 10f, "one stack lasts 10 s (the 7-12 s minimum)");
+            st0.Add();
+            Eq(st0.Multiplier, 1.75f, "two stacks drain 1.75x");
+            Eq(st0.SecondsLeft, 20f, "two stacks last 20 s");
+            st0.Add();
+            Eq(st0.Multiplier, 2.25f, "three stacks drain 2.25x");
+            Eq(st0.SecondsLeft, 30f, "three stacks last 30 s (the maximum)");
+            st0.Add();
+            Eq(st0.Count, SanityStacks.MaxStacks, "the stack count is capped at three");
+            Eq(st0.Multiplier, 2.25f, "...so the drain is capped at 2.25x");
+            Eq(st0.SecondsLeft, 30f, "...and a fourth wrong call restarts the 30 s");
+            st0.Tick(29f);
+            Eq(st0.Count, 3, "still stacked at 29 s");
+            st0.Tick(1.5f);
+            Eq(st0.Count, 0, "the stacks clear together when the timer runs out");
+            Eq(st0.Multiplier, 0.85f, "...back to the 0.85x baseline");
+            Eq(st0.SecondsLeft, 0f, "...with no time left");
+            st0.Tick(5f);
+            Eq(st0.Count, 0, "ticking with no stacks does nothing");
+            st0.Add(); st0.Tick(-3f); st0.Tick(0f);
+            Eq(st0.SecondsLeft, 10f, "a negative or zero tick never rewinds or advances the timer");
+            st0.Clear();
+            Eq(st0.Count, 0, "Clear drops every stack");
+            Eq(SanityStacks.SecondsFor(99), 30f, "an out-of-range count clamps to the maximum");
+            Eq(SanityStacks.MultiplierFor(-4), 0.85f, "a negative count clamps to the baseline");
+
+            Group("GameSession — drain stacks scale losses, a correct call refills gradually");
+            var drain = new GameSession { Mode = GameMode.Normal, Sanity = 100f };
+            drain.ApplySanity(-10f);
+            Check(Math.Abs(drain.Sanity - 91.5f) < 1e-3f, "a loss at the baseline costs 0.85x (10 -> 8.5)");
+            drain.Stacks.Add(); drain.Stacks.Add(); drain.Stacks.Add();
+            drain.Sanity = 100f;
+            drain.ApplySanity(-10f);
+            Check(Math.Abs(drain.Sanity - 77.5f) < 1e-3f, "at three stacks the same loss costs 2.25x (10 -> 22.5)");
+            drain.ApplySanity(+10f);
+            Check(Math.Abs(drain.Sanity - 87.5f) < 1e-3f, "gains are never scaled by the stacks");
+            var refill = new GameSession { Sanity = 40f };
+            refill.RefillPending = SanityModel.RefillOnCorrect;
+            float handed = 0f; int ticks = 0;
+            while (refill.RefillPending > 0f && ticks < 100) { handed += refill.TakeRefill(0.5f); ticks++; }
+            Check(Math.Abs(handed - 15f) < 1e-3f, "the whole +15 is eventually handed over");
+            Eq(ticks, 12, "...in 12 half-second ticks of 1.25");
+            Check(ticks * 0.5f >= 5f && ticks * 0.5f <= 8f, "...so the refill takes 5-8 seconds (" + ticks * 0.5f + " s)");
+            Eq(refill.TakeRefill(0.5f), 0f, "nothing is handed over once the refill is paid out");
+            Eq(refill.TakeRefill(-1f), 0f, "a negative tick hands over nothing");
+            Check(SanityModel.RefillOnCorrect == 15f, "a correct call is worth +15");
+            Check(SanityModel.DeskDrainPerSecond < SanityModel.DarknessDrainPerSecond &&
+                  SanityModel.DarknessDrainPerSecond < SanityModel.SecurityRoomRecoveryPerSecond,
+                  "a student at the window drains slowest, then the dark, and resting out-recovers both");
 
             // sanity clamping
             var low = new GameSession { Sanity = 1f };
@@ -2659,7 +2721,7 @@ namespace Hollowbrook.LogicTests
             Eq(SanityModel.Clamp(500f), SanityModel.Max, "clamp high");
             Eq(SanityModel.Clamp(42f), 42f, "clamp passthrough");
             Check(SanityModel.SecurityRoomRecoveryPerSecond > SanityModel.DarknessDrainPerSecond,
-                  "the lit security room recovers faster than darkness drains");
+                  "resting at the desk recovers faster than darkness drains");
 
             Eq(EndlessRules.AnomalyChance(0), 0.15f, "endless anomaly chance at 0");
             Check(EndlessRules.AnomalyChance(10) > EndlessRules.AnomalyChance(0), "anomaly chance ramps");
