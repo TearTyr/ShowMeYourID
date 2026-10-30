@@ -2,79 +2,65 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    /// <summary>Registry access for the records station. The desk UI is the FLOOR FILES
-    /// cabinet: canon students are filed by the floor of their first classroom (Room 101 =
-    /// 1st floor, Room 202 = 2nd floor) and the player browses folders instead of typing.
-    /// A presented card whose number matches no filed record is itself a clue — ghost IDs
-    /// are not in the registry. <see cref="FindInCanon"/> remains the pure text lookup the
-    /// registry is defined by (covered by LogicTests); the desk no longer exposes a text box.
-    /// Pure and deterministic: same canon = same folders and same answers, always.</summary>
+    /// <summary>Registry access for the STUDENT RECORDS folder on the desk: canon students are
+    /// filed by cohort (the year they enrolled, shown as "S2024-2028") and the player browses
+    /// the cohort folders instead of typing. A presented card whose number matches no filed
+    /// record is itself a clue — ghost IDs are not in the registry.
+    /// Pure and deterministic: same canon = same folders, always.</summary>
     public static class RecordSearch
     {
-        /// <summary>One drawer folder: a floor, its display label, and the canon indices
+        /// <summary>The school year the game is set in: a student's cohort is this minus their
+        /// year level, and it is the year printed in their ID number (HB-2025-0286).</summary>
+        public const int CurrentSchoolYear = 2027;
+        /// <summary>First cohort on file (a 3rd-year in <see cref="CurrentSchoolYear"/>).</summary>
+        public const int FirstCohort = 2024;
+        /// <summary>How many cohorts are on file: 1st, 2nd and 3rd year.</summary>
+        public const int CohortCount = 3;
+        /// <summary>Years a cohort's programme spans, as written on its folder (S2024-2028).</summary>
+        public const int CohortSpanYears = 4;
+
+        /// <summary>One cohort folder: its enrolment year, display label, and the canon indices
         /// filed under it (roster order).</summary>
-        public class FloorFolder
+        public class CohortFolder
         {
-            public int Floor;                                  // 1-based floor number
-            public string Label = "";                          // e.g. "1ST FLOOR · ROOM 101"
+            public int Cohort;                                 // enrolment year, e.g. 2025
+            public string Label = "";                          // e.g. "S2025-2029"
             public List<int> Indices = new List<int>();        // indices into canon, roster order
         }
 
-        /// <summary>The floor a classroom is on: Room 101 sits on 1, Room 202 on 2.</summary>
-        public static int FloorOf(RoomId room) => room == RoomId.Classroom1 ? 1 : 2;
+        /// <summary>The enrolment year a student is filed under.</summary>
+        public static int CohortOf(StudentIdentity s) => s == null ? 0 : CurrentSchoolYear - s.YearLevel;
 
-        /// <summary>Display label of a floor folder. Room numbers follow the building:
-        /// floor N is Room N0N (101, 202 — the rooms StudentIdentity.ClassroomString names).</summary>
-        public static string FloorLabel(int floor)
-        {
-            string ord = floor == 1 ? "1ST" : floor == 2 ? "2ND" : floor == 3 ? "3RD" : floor + "TH";
-            return ord + " FLOOR · ROOM " + (floor * 100 + floor);
-        }
+        /// <summary>The enrolment year of the folder tab at <paramref name="tab"/> (0 = oldest).</summary>
+        public static int CohortOfTab(int tab) => FirstCohort + tab;
 
-        /// <summary>Files the canon roster into floor folders: one folder per floor present,
-        /// floors ascending, students in roster order inside their folder. A null or empty
-        /// canon files nothing.</summary>
-        public static List<FloorFolder> BuildFloorFolders(IReadOnlyList<StudentIdentity> canon)
+        /// <summary>Display label of a cohort folder: "S2025-2029".</summary>
+        public static string CohortLabel(int cohort) => "S" + cohort + "-" + (cohort + CohortSpanYears);
+
+        /// <summary>Files the canon roster into cohort folders: one folder per cohort present,
+        /// oldest first, students in roster order inside their folder. A null or empty canon
+        /// files nothing.</summary>
+        public static List<CohortFolder> BuildCohortFolders(IReadOnlyList<StudentIdentity> canon)
         {
-            var folders = new List<FloorFolder>();
+            var folders = new List<CohortFolder>();
             if (canon == null) return folders;
             for (int i = 0; i < canon.Count; i++)
             {
                 var s = canon[i];
                 if (s == null) continue;
-                int floor = FloorOf(s.FirstClassroom);
-                FloorFolder f = null;
+                int cohort = CohortOf(s);
+                CohortFolder f = null;
                 foreach (var cand in folders)
-                    if (cand.Floor == floor) { f = cand; break; }
+                    if (cand.Cohort == cohort) { f = cand; break; }
                 if (f == null)
                 {
-                    f = new FloorFolder { Floor = floor, Label = FloorLabel(floor) };
+                    f = new CohortFolder { Cohort = cohort, Label = CohortLabel(cohort) };
                     folders.Add(f);
                 }
                 f.Indices.Add(i);
             }
-            folders.Sort((a, b) => a.Floor.CompareTo(b.Floor));
+            folders.Sort((a, b) => a.Cohort.CompareTo(b.Cohort));
             return folders;
-        }
-
-        // the registry rows are StudentIdentity (canon); visitors are claimed paperwork
-        /// <summary>Index into <paramref name="canon"/>, or -1 when nothing matches.
-        /// Exact (case-insensitive) ID match wins; otherwise the first name that contains
-        /// the query (case-insensitive, queries of 3+ chars so "a" never matches all).</summary>
-        public static int FindInCanon(IReadOnlyList<StudentIdentity> canon, string query)
-        {
-            if (canon == null || string.IsNullOrEmpty(query)) return -1;
-            string q = query.Trim();
-            if (q.Length == 0) return -1;
-            string qu = q.ToUpperInvariant();
-            for (int i = 0; i < canon.Count; i++)
-                if (canon[i] != null && canon[i].IdNumber != null &&
-                    canon[i].IdNumber.ToUpperInvariant() == qu) return i;
-            if (qu.Length < 3) return -1;
-            for (int i = 0; i < canon.Count; i++)
-                if (canon[i] != null && canon[i].FullName != null &&
-                    canon[i].FullName.ToUpperInvariant().Contains(qu)) return i;
-            return -1;
         }
     }
 }
