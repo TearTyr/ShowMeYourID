@@ -791,7 +791,7 @@ namespace FlowCheck
                   "the stamp lands on the slip and records a pending verdict");
             Check(FindDeep(cp.transform, "stampoverlay").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
                   "the stamp mark persists on the slip (no fade-out before hand-back)");
-            Check(PromptText(root).Contains("HAND THE ID BACK"),
+            Check(PromptText(root).Contains("DRAG THE ID BACK"),
                   "prompt matches state: stamped, awaiting the ID's hand-back (got '" + PromptText(root) + "')");
             var soRt = FindDeep(cp.transform, "stampoverlay").GetComponent<RectTransform>();
             Check(soRt.sizeDelta.x > 1f && soRt.sizeDelta.y > 1f,
@@ -2301,6 +2301,11 @@ namespace FlowCheck
                 "issue #5: no APPROVE (A) / DECLINE (D) caption bars sit under the stamps");
             StampSlip(root, Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             Check(cp.SlipStamped, "issue #5: dragging a stamp onto the slip still stamps it");
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.H);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            Check(FindDeep(cp.transform, "idcard").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
+                "issue #5: H does nothing — the ID only goes back by being dragged to the window");
 
             root.TogglePause(true);
             root.OpenSettings();
@@ -3786,7 +3791,7 @@ namespace FlowCheck
                 cp.DebugTakeDocuments();
                 TakeSlip(root);
                 StampSlip(root, Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
-                cp.HandBackByKey();
+                HandBack(root, true, false);
                 cp.SetVisitorVisible(false);
                 DeskFrames(cp, 6);
                 var sb1 = new System.Text.StringBuilder();
