@@ -513,7 +513,8 @@ namespace Hollowbrook.UI
 
         public void Populate(GameSession session, ShiftDef justFinished)
         {
-            _title.text = "SHIFT " + justFinished.Number + " COMPLETE — " + justFinished.DateLabel;
+            bool failed = session.LastShiftFailure != ShiftFailure.None;
+            _title.text = "SHIFT " + justFinished.Number + (failed ? " FAILED — " : " COMPLETE — ") + justFinished.DateLabel;
             int shiftVisitors = justFinished.VisitorCount + (justFinished.HasAdministrator ? 1 : 0);
             var sb = new StringBuilder();
             sb.Append("Visitors processed tonight:  ").Append(shiftVisitors).Append('\n');
@@ -524,6 +525,15 @@ namespace Hollowbrook.UI
             sb.Append("Sanity at clock-out:           ").Append(((int)session.Sanity)).Append("  (").Append(session.SanityStage).Append(")\n");
             sb.Append("Findings discovered:           ").Append(session.Clues.FoundCount).Append(" / 10");
             sb.Append(session.Clues.OrderIntact ? "   (sequence intact)\n" : "   (sequence broken)\n");
+            if (failed)
+            {
+                sb.Append(session.LastShiftFailure == ShiftFailure.Blackout
+                    ? "\nYou blacked out before dawn.\n"
+                    : "\nSomething you let in was waiting at the end of the shift.\n");
+                int sev = session.PendingPenaltySeverity;
+                sb.Append("Tomorrow starts at ").Append((int)(SanityModel.Max - ShiftFailureRules.StartSanityLoss(sev, justFinished.Number)))
+                  .Append(" sanity, with the drain already up and something already walking the halls.\n");
+            }
             if (justFinished.Number == 5)
                 sb.Append("District administrator:        ").Append(session.AdminRejected ? "REJECTED — identified as an impostor\n" : "—\n");
             _body.text = sb.ToString();

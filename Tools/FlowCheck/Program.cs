@@ -142,11 +142,93 @@ namespace FlowCheck
                   "I-02: re-booting a scene never creates a second core");
 
             IssueOneProofs(root);
+            ShiftFailureProof(root);
             AdminTalkProof(root);
             TeardownProof();
 
             Console.WriteLine(_failures == 0 ? "== FLOW CHAIN COMPLETE ==" : "== " + _failures + " CHECK(S) FAILED ==");
             Environment.Exit(_failures == 0 ? 0 : 1);
+        }
+
+        // --------------------------------------------- a failed night (nights 1-4) and the final night
+        // Clocking out with an anomaly let in, or blacking out at 0 sanity, fails the SHIFT (never the
+        // game) on nights 1-4 and costs the next night; the final night is the unique one.
+        private static void ShiftFailureProof(GameRoot root)
+        {
+            Console.WriteLine("== failed nights: breach, blackout, penalty, final night ==");
+            float dtSave = Time.deltaTime;
+            bool exhibitionSave = root.Config.exhibitionMode;
+            root.Config.exhibitionMode = false;          // the shipping default: the full five-night story
+
+            // a clean clock-out is a normal shift end
+            FreshGame(root); ClickStickyNote(root);
+            root.RequestEndShift();
+            Check(root.State == AppViewState.ShiftResults && root.Session.LastShiftFailure == ShiftFailure.None,
+                "FAIL: clocking out clean ends the shift normally");
+            var title = FindDeep(root.ShiftResults.transform, "title").GetComponent<UnityEngine.UI.Text>().text;
+            Check(title.Contains("COMPLETE") && !title.Contains("FAILED"), "FAIL: ...and the results say COMPLETE (got '" + title + "')");
+
+            // clocking out with an anomaly let in: the night fails, the next one pays
+            FreshGame(root); ClickStickyNote(root);
+            root.Session.ShiftBreaches = 2;
+            root.RequestEndShift();
+            Check(root.State == AppViewState.ShiftResults && root.Session.LastShiftFailure == ShiftFailure.Breach,
+                "FAIL: clocking out with an anomaly let in fails the night (Breach)");
+            title = FindDeep(root.ShiftResults.transform, "title").GetComponent<UnityEngine.UI.Text>().text;
+            var body = FindDeep(root.ShiftResults.transform, "body").GetComponent<UnityEngine.UI.Text>().text;
+            Check(title.Contains("FAILED") && body.Contains("Tomorrow starts at"),
+                "FAIL: the results say FAILED and tell the player what tomorrow costs (got '" + title + "')");
+            Check(!root.ShiftFailing, "FAIL: the failure scene is over (input is live again)");
+            Check(root.Session.PendingPenaltySeverity == 2, "FAIL: two anomalies let in = severity 2");
+            root.AdvanceToNextShift();
+            Check(Mathf.Abs(root.Session.Sanity - (100f - ShiftFailureRules.StartSanityLoss(2, 1))) < 1e-3f,
+                "FAIL: the next night starts with less sanity (84)");
+            Check(root.Session.Stacks.Count == 2, "FAIL: ...with the drain stacks already up");
+            Check(root.Session.RoamingAtStart, "FAIL: ...and an anomaly already roaming");
+            Check(root.Session.PendingPenaltySeverity == 0, "FAIL: ...paid exactly once");
+
+            // a blackout at the desk
+            FreshGame(root); ClickStickyNote(root);
+            root.Session.Sanity = 0f;
+            Time.deltaTime = 0.5f;
+            root.SanityCtl.Tick(true);
+            Time.deltaTime = dtSave;
+            Check(root.State == AppViewState.ShiftResults && root.Session.LastShiftFailure == ShiftFailure.Blackout,
+                "FAIL: sanity at 0 blacks the custodian out and ends the shift (Blackout)");
+            Check(root.Session.PendingPenaltySeverity == ShiftFailureRules.BlackoutSeverity, "FAIL: a blackout is severity 2");
+
+            // a blackout on patrol has to bring the desk scene back to show the results
+            FreshGame(root); ClickStickyNote(root);
+            root.EnterExploration();
+            SchoolSceneBootstrap.Build(root);        // what Unity does after LoadScene(School)
+            Check(root.State == AppViewState.Exploration, "FAIL: (patrol is live for the blackout proof)");
+            root.Session.Sanity = 0f;
+            Time.deltaTime = 0.5f;
+            root.SanityCtl.Tick(false);
+            Time.deltaTime = dtSave;
+            Check(root.State == AppViewState.Exploration && root.Session.LastShiftFailure == ShiftFailure.Blackout,
+                "FAIL: a blackout on patrol fails the night and queues the desk scene (the results live there)");
+            CheckpointSceneBootstrap.Build(root);    // what Unity does after LoadScene(Hollowbrook)
+            Check(root.State == AppViewState.ShiftResults && root.Session.PendingPenaltySeverity == ShiftFailureRules.BlackoutSeverity,
+                "FAIL: ...and the desk scene shows the failed results with the penalty booked");
+
+            // the final night is unique: a breach does not fail it, a blackout is the Lose result
+            FreshGame(root); ClickStickyNote(root);
+            root.Session.CurrentShift = ShiftPlan.TotalShifts;
+            root.Session.ShiftBreaches = 1;
+            root.RequestEndShift();
+            Check(root.Session.LastShiftFailure == ShiftFailure.None && !root.ShiftFailing,
+                "FAIL: on the final night clocking out with a breach is not a failed night");
+            FreshGame(root); ClickStickyNote(root);
+            root.Session.CurrentShift = ShiftPlan.TotalShifts;
+            root.Session.Sanity = 0f;
+            Time.deltaTime = 0.5f;
+            root.SanityCtl.Tick(true);
+            Time.deltaTime = dtSave;
+            Check(root.State == AppViewState.Ending && root.Session.RunFinished,
+                "FAIL: a blackout on the final night is the Lose ending");
+            root.Config.exhibitionMode = exhibitionSave;
+            FreshGame(root);   // leave a live game for whatever runs next
         }
 
         // ------------------------------------------------------- teardown (OnDestroy)

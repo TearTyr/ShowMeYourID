@@ -380,9 +380,9 @@ namespace Hollowbrook.Core
             {
                 Session.TonightLog.Clear();
                 Session.AdmittedStudents.Clear();
-                Session.Stacks.Clear();          // a new night starts with a clean drain
-                Session.RefillPending = 0f;
+                Session.BeginNight();            // pays last night's failure (less sanity, a stack, a roamer)
             }
+            ShiftFailing = false;
             // a resume continues the saved night at its saved clock; a fresh shift starts at 22:00
             _shiftMinutes = isResume ? Session.ShiftClockMinutes : 0f;
             if (!isResume) Session.ShiftClockMinutes = 0f;
@@ -703,6 +703,59 @@ namespace Hollowbrook.Core
         }
 
         // ---- shift / run completion ----
+
+        /// <summary>True while a failed night's scene is playing (input and the sanity tick stand down).</summary>
+        public bool ShiftFailing { get; private set; }
+
+        /// <summary>The END SHIFT button. Clocking out with an anomaly let in fails the night (black
+        /// screen, a face, the jumpscare) on nights 1-4; anything else just ends the shift.</summary>
+        public void RequestEndShift()
+        {
+            bool failed = Session.Mode == GameMode.Normal && Session.CurrentShift < ShiftPlan.TotalShifts &&
+                          Session.ShiftBreaches > 0;
+            if (failed) FailShift(ShiftFailure.Breach);
+            else FinishShift();
+        }
+
+        /// <summary>The sanity bar hit zero. Nights 1-4: the custodian blacks out and the shift ends.
+        /// The final night is the unique one: a blackout there is the Lose result.</summary>
+        public void OnSanityDepleted()
+        {
+            if (ShiftFailing || Session.Mode != GameMode.Normal) return;
+            if (Session.CurrentShift < ShiftPlan.TotalShifts) { FailShift(ShiftFailure.Blackout); return; }
+            ShiftFailing = true;
+            var lose = new EndingRules.Evaluation
+            {
+                Ending = EndingType.Lose, ReasonKey = "blackout",
+                ReasonText = "Your sanity gave out in the dark. The last thing you remember is the lights going — and the corridor was not empty.",
+            };
+            PlayFailure(() => { ShiftFailing = false; TriggerEnding(lose); });
+        }
+
+        // A failed night (nights 1-4): record how and what it will cost, play the scene, then close
+        // the shift out. From the patrol the desk scene has to load first — the results screen lives there.
+        private void FailShift(ShiftFailure kind)
+        {
+            if (ShiftFailing) return;
+            ShiftFailing = true;
+            Session.RecordShiftFailure(kind);
+            PlayFailure(() =>
+            {
+                ShiftFailing = false;
+                if (State == AppViewState.Exploration || State == AppViewState.RoomPeek)
+                {
+                    QueueSceneAction(() => { Bus.Publish(GameEvent.Of(EventIds.PatrolEnded)); FinishShift(); });
+                    Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
+                }
+                else FinishShift();
+            });
+        }
+
+        private void PlayFailure(System.Action then)
+        {
+            if (Scares != null) Scares.FailureSequence(AnomalyBehaviorKind.Blink, then);
+            else then();
+        }
 
         public void FinishShift()
         {

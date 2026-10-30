@@ -68,6 +68,14 @@ namespace Hollowbrook.World
             // spawning — it runs regardless of the shift gate below.
             TickReturn(dt);
 
+            // a failed night's penalty: an anomaly is already roaming when this night's patrol starts
+            if (_root.Session.RoamingAtStart && _liveAnomaly == null)
+            {
+                _root.Session.RoamingAtStart = false;
+                SpawnAnomaly(false);
+                return;
+            }
+
             int shift = _root.Session.Mode == GameMode.Normal ? _root.Session.CurrentShift : 3;
             if (_root.Session.Mode == GameMode.Normal && shift < 2) return; // anomalies wander from shift 2
             if (_liveAnomaly != null) return;

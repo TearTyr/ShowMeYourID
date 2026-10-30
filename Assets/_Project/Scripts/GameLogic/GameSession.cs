@@ -116,6 +116,7 @@ namespace Hollowbrook.Logic
             if (o.AnomalyBreach)
             {
                 Breaches++;
+                ShiftBreaches++;
                 if (o.WasAdministrator) AdminAllowed = true;
             }
             if (o.WasAdministrator && o.Verdict == Verdict.Reject)
@@ -146,6 +147,46 @@ namespace Hollowbrook.Logic
         {
             if (delta < 0) delta *= SanityModel.DrainMultiplier(Mode) * Stacks.Multiplier;
             Sanity = SanityModel.Clamp(Sanity + delta);
+        }
+
+        /// <summary>Anomalies let in during the shift being played (resets each night). Clocking out with
+        /// any of them in is a failed night.</summary>
+        public int ShiftBreaches;
+        /// <summary>How the night just played failed (None when it did not) — read by the results screen.</summary>
+        public ShiftFailure LastShiftFailure = ShiftFailure.None;
+        /// <summary>Severity of the failed night the NEXT night pays for (0 = nothing to pay), and which
+        /// night it was (the penalty grows with the night). Saved: a quit at the results screen keeps it.</summary>
+        public int PendingPenaltySeverity;
+        public int PendingPenaltyNight;
+        /// <summary>An anomaly should already be roaming at the next patrol's start (consumed once).</summary>
+        public bool RoamingAtStart;
+
+        /// <summary>The night is over and it failed: record how, and what the next night will cost.</summary>
+        public void RecordShiftFailure(ShiftFailure kind)
+        {
+            LastShiftFailure = kind;
+            PendingPenaltySeverity = ShiftFailureRules.Severity(ShiftBreaches, kind);
+            PendingPenaltyNight = CurrentShift;
+        }
+
+        /// <summary>A new night begins: pay the previous night's penalty (less sanity, drain stacks
+        /// already up, an anomaly already roaming), then clear it. No-op after a clean night.</summary>
+        public void BeginNight()
+        {
+            ShiftBreaches = 0;
+            Stacks.Clear();
+            RefillPending = 0f;
+            int severity = PendingPenaltySeverity;
+            if (severity > 0)
+            {
+                Sanity = SanityModel.Clamp(SanityModel.Max - ShiftFailureRules.StartSanityLoss(severity, PendingPenaltyNight));
+                int stacks = ShiftFailureRules.StartStacks(severity);
+                for (int i = 0; i < stacks; i++) Stacks.Add();
+                RoamingAtStart = ShiftFailureRules.RoamingAtStart(severity);
+            }
+            PendingPenaltySeverity = 0;
+            PendingPenaltyNight = 0;
+            LastShiftFailure = ShiftFailure.None;
         }
 
         public ClueDiscoveryResult DiscoverClue(string key)
