@@ -582,6 +582,7 @@ namespace Hollowbrook.LogicTests
             {
                 var s = new GameSession { Mode = GameMode.Normal };
                 s.CompletedShifts = ShiftPlan.TotalShifts;
+                s.CurrentShift = ShiftPlan.TotalShifts + 1;   // CompleteShift moves past the last night
                 s.AdminRejected = adminRejected;
                 s.AdminAllowed = adminAllowed;
                 return s;
@@ -635,12 +636,22 @@ namespace Hollowbrook.LogicTests
             Eq(s3.Breaches, 1, "...folded once");
 
             // the ordinary Lose thresholds keep their teeth
-            var fr = new GameSession { Mode = GameMode.Normal, FalseRejections = 3 };
+            var fr = new GameSession { Mode = GameMode.Normal, CurrentShift = ShiftPlan.TotalShifts, FalseRejections = 3 };
             Eq(EndingRules.Evaluate(fr).Ending, EndingType.Lose, "three false rejections = Lose");
-            var br = new GameSession { Mode = GameMode.Normal, Breaches = 3 };
+            var br = new GameSession { Mode = GameMode.Normal, CurrentShift = ShiftPlan.TotalShifts, Breaches = 3 };
             Eq(EndingRules.Evaluate(br).Ending, EndingType.Lose, "three breaches = Lose");
-            var ow = new GameSession { Mode = GameMode.Normal, QueueOverwhelmed = true };
+            var ow = new GameSession { Mode = GameMode.Normal, CurrentShift = ShiftPlan.TotalShifts, QueueOverwhelmed = true };
             Eq(EndingRules.Evaluate(ow).Ending, EndingType.Lose, "the overrun line still ends the run");
+
+            // ...but only on the final night: nights 1-4 never end the game, however bad
+            for (int night = 1; night < ShiftPlan.TotalShifts; night++)
+            {
+                var earlyNight = new GameSession { Mode = GameMode.Normal, CurrentShift = night, Breaches = 3, FalseRejections = 3, QueueOverwhelmed = true };
+                Eq(EndingRules.Evaluate(earlyNight).Ending, EndingType.None,
+                   "night " + night + ": three breaches, three false rejections and an overrun line end nothing");
+            }
+            var endlessEarly = new GameSession { Mode = GameMode.Endless, CurrentShift = 1, Breaches = 3 };
+            Eq(EndingRules.Evaluate(endlessEarly).Ending, EndingType.Lose, "Endless mode keeps its lose thresholds on any 'night'");
         }
 
         private static void FillSecretClues(GameSession s)
@@ -830,24 +841,24 @@ namespace Hollowbrook.LogicTests
             Eq(EndingRules.Evaluate(win).ReasonKey, "win", "win reason key");
             Check(!string.IsNullOrEmpty(EndingRules.Evaluate(win).ReasonText), "win has ending text");
 
-            var breaches = new GameSession { CompletedShifts = 5, Breaches = 3 };
+            var breaches = new GameSession { CompletedShifts = 5, CurrentShift = 6, Breaches = 3 };
             Eq(EndingRules.Evaluate(breaches).Ending, EndingType.Lose, "3 breaches = Lose even after 5 shifts");
             Eq(EndingRules.Evaluate(breaches).ReasonKey, "breaches", "breach reason key");
             Check(breaches.LoseThresholdReached, "LoseThresholdReached at 3 breaches");
             Check(!new GameSession { Breaches = 2 }.LoseThresholdReached, "2 breaches is not yet a loss");
 
-            var falseRej = new GameSession { CompletedShifts = 5, FalseRejections = 3 };
+            var falseRej = new GameSession { CompletedShifts = 5, CurrentShift = 6, FalseRejections = 3 };
             Eq(EndingRules.Evaluate(falseRej).Ending, EndingType.Lose, "3 false rejections = Lose");
             Eq(EndingRules.Evaluate(falseRej).ReasonKey, "false_rejections", "false-rejection reason key");
 
-            var adminBreach = new GameSession { CompletedShifts = 5, AdminAllowed = true };
+            var adminBreach = new GameSession { CompletedShifts = 5, CurrentShift = 6, AdminAllowed = true };
             Eq(EndingRules.Evaluate(adminBreach).Ending, EndingType.Lose, "allowing the administrator = immediate Lose");
             Eq(EndingRules.Evaluate(adminBreach).ReasonKey, "admin_breach", "admin reason key");
-            Check(EndingRules.Evaluate(new GameSession { AdminAllowed = true, CompletedShifts = 0 }).Ending == EndingType.Lose,
-                  "admin breach fires mid-run too");
+            Check(EndingRules.Evaluate(new GameSession { AdminAllowed = true, CompletedShifts = 4, CurrentShift = 5 }).Ending == EndingType.Lose,
+                  "admin breach fires mid-run on the final night too");
 
             // Lose outranks Secret
-            var secretSession = new GameSession { Mode = GameMode.Normal, CompletedShifts = 5 };
+            var secretSession = new GameSession { Mode = GameMode.Normal, CompletedShifts = 5, CurrentShift = 6 };
             foreach (var clue in ClueRegistry.Build().OrderBy(x => x.Order)) secretSession.Clues.Discover(clue.Key);
             Check(secretSession.Clues.SecretConditionsMet, "all ten clues in order satisfy the secret conditions");
             Eq(EndingRules.Evaluate(secretSession).Ending, EndingType.Secret, "all clues in order = Secret ending");
@@ -855,7 +866,7 @@ namespace Hollowbrook.LogicTests
 
             secretSession.AdminAllowed = true;
             Eq(EndingRules.Evaluate(secretSession).Ending, EndingType.Lose, "Lose outranks Secret (priority order)");
-            var secretWithBreaches = new GameSession { Mode = GameMode.Normal, CompletedShifts = 5, Breaches = 3 };
+            var secretWithBreaches = new GameSession { Mode = GameMode.Normal, CompletedShifts = 5, CurrentShift = 6, Breaches = 3 };
             foreach (var clue in ClueRegistry.Build().OrderBy(x => x.Order)) secretWithBreaches.Clues.Discover(clue.Key);
             Eq(EndingRules.Evaluate(secretWithBreaches).Ending, EndingType.Lose, "breaches outrank Secret too");
 
@@ -945,6 +956,52 @@ namespace Hollowbrook.LogicTests
             Eq(st0.Count, 0, "Clear drops every stack");
             Eq(SanityStacks.SecondsFor(99), 30f, "an out-of-range count clamps to the maximum");
             Eq(SanityStacks.MultiplierFor(-4), 0.85f, "a negative count clamps to the baseline");
+
+            Group("ShiftFailureRules — what a failed night costs the next one");
+            Eq(ShiftFailureRules.Severity(0, ShiftFailure.None), 0, "no failure = no severity");
+            Eq(ShiftFailureRules.Severity(1, ShiftFailure.Breach), 1, "one anomaly let in = severity 1");
+            Eq(ShiftFailureRules.Severity(3, ShiftFailure.Breach), 3, "three let in = severity 3");
+            Eq(ShiftFailureRules.Severity(0, ShiftFailure.Blackout), 2, "a blackout alone is worth two");
+            Eq(ShiftFailureRules.Severity(2, ShiftFailure.Blackout), 4, "a blackout adds to the anomalies let in");
+            Eq(ShiftFailureRules.Severity(0, ShiftFailure.Breach), 1, "a failed night is never free (at least 1)");
+            Eq(ShiftFailureRules.Severity(99, ShiftFailure.Breach), ShiftFailureRules.MaxSeverity, "severity is capped");
+            Eq(ShiftFailureRules.StartSanityLoss(0, 3), 0f, "no severity, no loss");
+            Check(Math.Abs(ShiftFailureRules.StartSanityLoss(1, 1) - 8f) < 1e-3f, "severity 1 on night 1 costs 8 sanity");
+            Check(ShiftFailureRules.StartSanityLoss(2, 1) > ShiftFailureRules.StartSanityLoss(1, 1), "more severe = more sanity lost");
+            Check(ShiftFailureRules.StartSanityLoss(2, 4) > ShiftFailureRules.StartSanityLoss(2, 1), "the same failure costs more on a later night");
+            Eq(ShiftFailureRules.StartSanityLoss(ShiftFailureRules.MaxSeverity, 4), ShiftFailureRules.MaxStartSanityLoss, "the loss is capped (the next night never starts below 55)");
+            Eq(ShiftFailureRules.StartStacks(0), 0, "no stacks for no severity");
+            Eq(ShiftFailureRules.StartStacks(2), 2, "severity 2 starts with two stacks");
+            Eq(ShiftFailureRules.StartStacks(5), SanityStacks.MaxStacks, "stacks are capped at the stack cap");
+            Check(!ShiftFailureRules.RoamingAtStart(0) && ShiftFailureRules.RoamingAtStart(1), "an anomaly is already roaming after any failed night");
+
+            Group("GameSession — a failed night is paid for by the next one");
+            var fail = new GameSession { Mode = GameMode.Normal, CurrentShift = 2, Sanity = 0f };
+            fail.ShiftBreaches = 1;
+            fail.RecordShiftFailure(ShiftFailure.Blackout);
+            Eq(fail.LastShiftFailure, ShiftFailure.Blackout, "the failure is recorded for the results screen");
+            Eq(fail.PendingPenaltySeverity, 3, "a blackout with one anomaly let in is severity 3");
+            Eq(fail.PendingPenaltyNight, 2, "...earned on night 2");
+            fail.CurrentShift = 3;
+            fail.BeginNight();
+            Check(Math.Abs(fail.Sanity - (100f - ShiftFailureRules.StartSanityLoss(3, 2))) < 1e-3f, "the next night starts with the sanity the failure cost (not at 0)");
+            Eq(fail.Stacks.Count, 3, "...with the drain stacks already up");
+            Check(fail.RoamingAtStart, "...and an anomaly already roaming");
+            Eq(fail.PendingPenaltySeverity, 0, "the penalty is paid exactly once");
+            Eq(fail.LastShiftFailure, ShiftFailure.None, "...and the new night starts without a failure on record");
+            Eq(fail.ShiftBreaches, 0, "...and a fresh breach count");
+            var clean = new GameSession { Mode = GameMode.Normal, CurrentShift = 3, Sanity = 80f };
+            clean.Stacks.Add(); clean.RefillPending = 9f;
+            clean.BeginNight();
+            Eq(clean.Sanity, 80f, "a clean night leaves sanity alone");
+            Eq(clean.Stacks.Count, 0, "...but a new night always starts with no stacks");
+            Eq(clean.RefillPending, 0f, "...and no refill left over");
+            Check(!clean.RoamingAtStart, "...and nothing roaming at the start");
+            var breachSess = new GameSession { Mode = GameMode.Normal, Sanity = 100f };
+            breachSess.RecordVerdict(InspectionRules.Apply(anomaly, Verdict.Allow, null));
+            Eq(breachSess.ShiftBreaches, 1, "an anomaly let in counts toward this shift's breaches");
+            breachSess.RecordVerdict(InspectionRules.Apply(legit, Verdict.Allow, null));
+            Eq(breachSess.ShiftBreaches, 1, "a correct call does not");
 
             Group("GameSession — drain stacks scale losses, a correct call refills gradually");
             var drain = new GameSession { Mode = GameMode.Normal, Sanity = 100f };
@@ -1067,6 +1124,10 @@ namespace Hollowbrook.LogicTests
             save.Session.AdminAllowed = false;
             save.Session.AdminRejected = true;
             save.Session.Sanity = 63.5f;
+            save.Session.ShiftBreaches = 2;
+            save.Session.PendingPenaltySeverity = 3;
+            save.Session.PendingPenaltyNight = 2;
+            save.Session.LastShiftFailure = ShiftFailure.Breach;
             save.Session.Score = 5150;
             save.Session.Streak = 4;
             save.Session.BestStreak = 9;
@@ -1107,6 +1168,10 @@ namespace Hollowbrook.LogicTests
                 Eq(s.AnomaliesRejected, save.Session.AnomaliesRejected, "anomalies rejected round-trip");
                 Check(s.AdminRejected && !s.AdminAllowed, "admin flags round-trip");
                 Check(Math.Abs(s.Sanity - save.Session.Sanity) < 0.01f, "sanity round-trips");
+                Eq(s.ShiftBreaches, 2, "this shift's breaches round-trip");
+                Eq(s.PendingPenaltySeverity, 3, "a pending failed-night penalty round-trips (quit at the results screen)");
+                Eq(s.PendingPenaltyNight, 2, "...with the night it was earned on");
+                Eq(s.LastShiftFailure, ShiftFailure.Breach, "...and how the night failed");
                 Eq(s.Score, save.Session.Score, "score round-trips");
                 Eq(s.Streak, save.Session.Streak, "streak round-trips");
                 Eq(s.BestStreak, save.Session.BestStreak, "best streak round-trips");
@@ -2359,11 +2424,11 @@ namespace Hollowbrook.LogicTests
             Check(!pq.ForceNextArrival().Any, "collapsed: forced arrivals refuse too");
             Eq(pq.PressureLevel, 2, "pressure level stays at overwhelmed");
 
-            var owSession = new GameSession { Mode = GameMode.Normal, QueueOverwhelmed = true };
+            var owSession = new GameSession { Mode = GameMode.Normal, CurrentShift = ShiftPlan.TotalShifts, QueueOverwhelmed = true };
             var owEval = EndingRules.Evaluate(owSession);
             Eq(owEval.Ending, EndingType.Lose, "queue overload is a run failure");
             Eq(owEval.ReasonKey, "overwhelmed", "…with its own honest reason (not false rejection / breach)");
-            var prio = new GameSession { Mode = GameMode.Normal, QueueOverwhelmed = true, AdminAllowed = true };
+            var prio = new GameSession { Mode = GameMode.Normal, CurrentShift = ShiftPlan.TotalShifts, QueueOverwhelmed = true, AdminAllowed = true };
             Eq(EndingRules.Evaluate(prio).ReasonKey, "admin_breach", "existing lose routes keep priority");
             Check(EndingRules.Evaluate(new GameSession { Mode = GameMode.Normal }).Ending == EndingType.None,
                   "a clean session still evaluates to None (additive change)");

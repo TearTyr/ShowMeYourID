@@ -65,6 +65,7 @@ namespace Hollowbrook.Horror
             float dt = _acc; _acc = 0f;
 
             var session = _gameRoot.Session;
+            if (_gameRoot.ShiftFailing) return;            // a failed night's scene owns the screen
             float before = session.Sanity;
             session.Stacks.Tick(dt);                       // a wrong call's extra drain wears off
             float refill = session.TakeRefill(dt);         // a correct call's refill, handed over gradually
@@ -81,6 +82,8 @@ namespace Hollowbrook.Horror
 
             if (!Mathf.Approximately(before, _gameRoot.Session.Sanity))
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, _gameRoot.Session.Sanity));
+
+            if (session.Sanity <= SanityModel.Min) { _gameRoot.OnSanityDepleted(); return; }
 
             var stage = SanityModel.StageFor(_gameRoot.Session.Sanity);
             if (stage != _lastStage)

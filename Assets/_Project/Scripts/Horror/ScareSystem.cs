@@ -107,6 +107,59 @@ namespace Hollowbrook.Horror
             var f2 = _face.color; f2.a = 0; _face.color = f2;
         }
 
+        /// <summary>The scene that ends a failed night: the screen goes black, a face holds still in the
+        /// middle long enough to take in what happened, then the jumpscare lands. <paramref name="onDone"/>
+        /// fires once the scare has landed, with the screen still black. Stepped waits (not a frame
+        /// loop), so any frame rate paces it. Photosensitive and Reduce-Motion settings soften it.</summary>
+        public void FailureSequence(AnomalyBehaviorKind kind, System.Action onDone)
+        {
+            StartCoroutine(FailureRoutine(kind, onDone));
+        }
+
+        private IEnumerator FailureRoutine(AnomalyBehaviorKind kind, System.Action onDone)
+        {
+            bool photoSafe = _gameRoot.Settings != null && _gameRoot.Settings.PhotosensitivitySafe;
+            bool reduce = _gameRoot.Settings != null && _gameRoot.Settings.ReduceMotion;
+            _face.sprite = ProceduralArt.Portrait("scare", new Portrait
+            {
+                HairStyle = (int)kind % 6, FaceVariant = ((int)kind + 3) % 6, Accessory = 0, Distorted = true,
+            }, 280, 320);
+            const int steps = 20;
+            // 1) black screen, slowly
+            for (int i = 1; i <= steps; i++)
+            {
+                var bc = _black.color; bc.a = i / (float)steps; _black.color = bc;
+                yield return new WaitForSecondsRealtime(0.8f / steps);
+            }
+            // 2) a face fades up in the middle and holds, small and still
+            _face.rectTransform.localScale = Vector3.one * 0.7f;
+            for (int i = 1; i <= steps; i++)
+            {
+                var c = _face.color; c.a = 0.9f * i / steps; _face.color = c;
+                yield return new WaitForSecondsRealtime(1.2f / steps);
+            }
+            yield return new WaitForSecondsRealtime(0.9f);
+            // 3) the jumpscare: it lunges forward with a flash and a sting
+            _gameRoot.Audio.PlaySfx("sfx_scare", photoSafe ? 0.45f : 0.9f);
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.ScareTriggered, "failure_" + kind));
+            if (!photoSafe)
+            {
+                var fc = _flash.color; fc.a = 0.85f; _flash.color = fc;
+                yield return new WaitForSecondsRealtime(0.05f);
+                fc.a = 0f; _flash.color = fc;
+            }
+            var full = _face.color; full.a = 1f; _face.color = full;
+            _face.rectTransform.localScale = Vector3.one * (reduce ? 1.0f : 1.35f);
+            if (!reduce) Shake(0.8f);
+            yield return new WaitForSecondsRealtime(photoSafe ? 0.9f : 0.7f);
+            // 4) hand over with the screen still black; the next screen fades in under it
+            _face.rectTransform.localScale = Vector3.one;
+            var f0 = _face.color; f0.a = 0f; _face.color = f0;
+            if (onDone != null) onDone();
+            yield return new WaitForSecondsRealtime(0.4f);
+            var b0 = _black.color; b0.a = 0f; _black.color = b0;
+        }
+
         public void Stinger(string kind, float sanityHit)
         {
             if (Time.unscaledTime < _cooldownUntil) return;

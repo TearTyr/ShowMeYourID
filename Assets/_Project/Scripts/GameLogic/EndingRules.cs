@@ -13,6 +13,16 @@ namespace Hollowbrook.Logic
 
         public static Evaluation Evaluate(GameSession s)
         {
+            // Normal mode: nights 1-4 never end the game (a bad night just fails the shift and
+            // costs the next one); the lose conditions below only apply on the final night.
+            // Endless and Challenge keep them throughout.
+            bool losesCount = s.Mode != GameMode.Normal || s.CurrentShift >= ShiftPlan.TotalShifts;
+            if (losesCount) { var lose = EvaluateLosses(s); if (lose != null) return lose; }
+            return EvaluateOutcome(s);
+        }
+
+        private static Evaluation EvaluateLosses(GameSession s)
+        {
             if (s.AdminAllowed)
                 return Result(EndingType.Lose, "admin_breach",
                     "You let the administrator through. It walked straight to the server room, and the identification system came online. By morning the district had already replaced you.");
@@ -25,6 +35,11 @@ namespace Hollowbrook.Logic
             if (s.QueueOverwhelmed)
                 return Result(EndingType.Lose, "overwhelmed",
                     "The line overran the checkpoint. Too many faces at the glass, too little time to hold them — the gate gave way, and the yard poured into Hollowbrook unchecked. The district ended your contract before dawn.");
+            return null;
+        }
+
+        private static Evaluation EvaluateOutcome(GameSession s)
+        {
 
             if (s.Mode == GameMode.Normal && s.CompletedShifts >= ShiftPlan.TotalShifts)
             {
