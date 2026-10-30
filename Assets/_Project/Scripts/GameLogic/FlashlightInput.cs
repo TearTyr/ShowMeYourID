@@ -1,26 +1,28 @@
 namespace Hollowbrook.Logic
 {
-    /// <summary>Latched keyboard beam selections. Mouse buttons are momentary and never latch.</summary>
+    /// <summary>The flashlight's latched state: on in the wide sweep, on in the narrow focus,
+    /// or off (both false).</summary>
     public struct FlashlightLatches
     {
         public bool Sweep;
         public bool Focus;
     }
 
-    /// <summary>One frame of flashlight controls → latches + desired beam.
-    /// Rules (all unit-testable, no engine):
-    ///  - F/Q keyboard toggles are mutually exclusive — selecting one clears the other.
-    ///  - L clears both latches.
-    ///  - A held mouse button temporarily overrides the latched mode; releasing returns to it.
-    ///  - Both buttons held: Focus wins (precise intent beats broad intent).
+    /// <summary>One frame of flashlight controls -> latches + desired beam. Rules (all
+    /// unit-testable, no engine):
+    ///  - The ON/OFF toggle (F or left click) turns the light on in the wide sweep, or off
+    ///    whatever mode it was in.
+    ///  - The NARROW toggle (Q or right click) switches between the wide sweep and the narrow
+    ///    focus, and ONLY while the light is on — it never turns the light on by itself.
+    ///  - L puts the light out.
     ///  - A dead battery forces Off and clears the latches, so revival needs a deliberate
-    ///    press — the beam never switches itself back on when charge returns.</summary>
+    ///    press — the beam never switches itself back on when charge returns.
+    ///  - If both toggles arrive in one frame, ON/OFF wins.</summary>
     public static class FlashlightInput
     {
         public static LightMode Resolve(FlashlightLatches latches,
-            bool toggleSweepKey, bool toggleFocusKey, bool offKey,
-            bool holdSweep, bool holdFocus, bool batteryDead,
-            out FlashlightLatches newLatches)
+            bool toggleOnOff, bool toggleNarrow, bool offKey,
+            bool batteryDead, out FlashlightLatches newLatches)
         {
             newLatches = latches;
             if (batteryDead)
@@ -29,12 +31,12 @@ namespace Hollowbrook.Logic
                 return LightMode.Off;
             }
 
+            bool on = latches.Sweep || latches.Focus;
             if (offKey) newLatches = default;
-            else if (toggleFocusKey) { newLatches.Focus = !latches.Focus; newLatches.Sweep = false; }
-            else if (toggleSweepKey) { newLatches.Sweep = !latches.Sweep; newLatches.Focus = false; }
+            else if (toggleOnOff) newLatches = on ? default : new FlashlightLatches { Sweep = true };
+            else if (toggleNarrow && on)
+                newLatches = new FlashlightLatches { Sweep = latches.Focus, Focus = !latches.Focus };
 
-            if (holdFocus) return LightMode.Focus;
-            if (holdSweep) return LightMode.Sweep;
             if (newLatches.Focus) return LightMode.Focus;
             if (newLatches.Sweep) return LightMode.Sweep;
             return LightMode.Off;

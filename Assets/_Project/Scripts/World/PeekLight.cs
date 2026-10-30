@@ -109,9 +109,12 @@ namespace Hollowbrook.World
         public bool Covers(Vector3 worldPoint) =>
             Active && Lit && Vector2.Distance(worldPoint, _worldPoint) <= EffectiveRadius;
 
-        /// <summary>Q: wide wash <-> tight focus. Silent about ON/OFF — it only reshapes the
-        /// circle, and only a lit lamp shows the difference (an OFF lamp stays OFF).</summary>
-        public void ToggleFocus() => SetFocused(!Focused, false);
+        /// <summary>Q / right click: wide wash <-> tight focus, only while the flashlight is on.
+        /// It never turns the light on by itself, and does nothing while it is off.</summary>
+        public void ToggleFocus()
+        {
+            if (Lit) SetFocused(!Focused, false);
+        }
 
         private void SetFocused(bool on, bool quiet)
         {
@@ -153,7 +156,7 @@ namespace Hollowbrook.World
                     on ? "FLASHLIGHT: ON" : "FLASHLIGHT: OFF"));
         }
 
-        /// <summary>F is the ONLY lamp switch — the same deliberate toggle the handheld
+        /// <summary>F / left click is the flashlight switch — the same deliberate toggle the handheld
         /// beam uses. One press on, one press off; no latch can survive an entry reset.</summary>
         internal void ToggleLamp() => SetLit(!Lit, false);
 
@@ -195,8 +198,8 @@ namespace Hollowbrook.World
             if (!_gameRoot.Paused && !_gameRoot.BlockingOverlayOpen &&
                 (_gameRoot.Dialogue == null || !_gameRoot.Dialogue.IsActive))
             {
-                if (Input.GetKeyDown(KeyCode.F)) ToggleLamp();
-                else if (Input.GetKeyDown(KeyCode.Q)) ToggleFocus();   // reshapes, never lights
+                if (Input.GetKeyDown(KeyCode.F) || InputGate.FlashlightClick(0)) ToggleLamp();
+                else if (Input.GetKeyDown(KeyCode.Q) || InputGate.FlashlightClick(1)) ToggleFocus();
             }
 
             var mouse = Input.mousePosition;
