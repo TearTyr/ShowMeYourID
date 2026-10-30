@@ -141,7 +141,7 @@ namespace Hollowbrook.UI
             var bandBtn = bandRt.gameObject.AddComponent<Button>();
             bandBtn.targetGraphic = bandImg;
             bandBtn.onClick.AddListener(() => _gameRoot.ExitRoomPeek());
-            var bandCap = UIFactory.Label(bandRt, "cap", "STEP BACK TO THE HALLWAY", 13,
+            var bandCap = UIFactory.Label(bandRt, "cap", "STEP BACK", 13,
                 UIFactory.InkDim, TextAnchor.MiddleCenter);
             UIFactory.AnchorsFull(bandCap.rectTransform);
             _peekExitBand = bandRt.gameObject;
