@@ -63,23 +63,6 @@ namespace Hollowbrook.World
         }
     }
 
-    public class SecurityDoorInteractable : Interactable
-    {
-        public void Init(GameRoot root, RoomInstance room, float x)
-        {
-            _gameRoot = root; Room = room; AnchorX = x;
-            Prompt = "Security Office [E]";
-            Art = GetComponent<SpriteRenderer>();
-        }
-
-        public override void Interact()
-        {
-            if (_gameRoot.SecurityRoom == null) return;
-            _gameRoot.Audio.PlaySfx("sfx_door", 0.7f);
-            _gameRoot.OpenSecurityRoom();
-        }
-    }
-
     public class ClueObject : Interactable
     {
         private string _clueKey;

@@ -2491,6 +2491,13 @@ namespace FlowCheck
                     if (it.Prompt != null && it.Prompt.ToLowerInvariant().Contains("switch")) anySwitch = true;
             }
             Check(!anySwitch, "W2: no room has a light switch — the flashlight is the only light");
+            Check(FindDeep(views.Room(RoomId.Classroom1).Root.transform, "door_security_office") == null,
+                "W2: Classroom 1 has no Security Office door — the real one is the first door in the hallway");
+            Check(root.State == AppViewState.Exploration, "W2: patrol is live for the map proof");
+            PressKey(root, KeyCode.M);
+            root.OpenMap();
+            Check(root.State == AppViewState.Exploration,
+                "W2: the map cannot be opened on patrol (M and OpenMap both refuse) — it is pinned up at the desk only");
             Check(hall.Light != null && !hall.Light.Lit, "W2: rooms are entered DARK (lights start OFF)");
             var roomInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
             Check(roomInfo.Contains("MAIN HALLWAY") && roomInfo.Contains("FLASHLIGHT: OFF") &&

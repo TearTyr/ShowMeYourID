@@ -679,18 +679,15 @@ namespace Hollowbrook.Core
                 Bus.Publish(GameEvent.Of(EventIds.Notification, "The map is pinned up at the checkpoint."));
                 return;
             }
-            if (State != AppViewState.Exploration && State != AppViewState.Checkpoint) return;
-            _preMapState = State;
+            if (State != AppViewState.Checkpoint) return;   // the map is pinned up in the security office only
             SetState(AppViewState.Map);
             Audio.PlaySfx("sfx_ui_open");
         }
 
-        private AppViewState _preMapState = AppViewState.Checkpoint;
-
         public void CloseMap()
         {
             Audio.PlaySfx("sfx_ui_close");
-            SetState(_preMapState == AppViewState.Map ? AppViewState.Checkpoint : _preMapState);
+            SetState(AppViewState.Checkpoint);
         }
 
         // ---- shift / run completion ----

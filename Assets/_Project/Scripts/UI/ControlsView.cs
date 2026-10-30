@@ -49,7 +49,7 @@ namespace Hollowbrook.UI
                 "   Q                    focus beam (toggle — tight, exposes & repels; on peeks it\n" +
                 "                        tightens the flashlight without turning it on)\n" +
                 "   L                    beam off\n" +
-                "   M                    map          ESC   pause\n" +
+                "   M                    map (at the security desk only)     ESC   pause\n" +
                 "   The HUD reads the flashlight state (FLASHLIGHT: OFF / SWEEP / FOCUS).\n\n" +
                 "SECURITY ROOM (School scene prototype, mouse)\n" +
                 "   Click the door panel to admit or deny late night students.\n" +

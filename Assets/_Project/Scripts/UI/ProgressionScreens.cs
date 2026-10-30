@@ -384,17 +384,11 @@ namespace Hollowbrook.UI
         // ---------------------------------------------------------------- state
         private void Refresh()
         {
-            _hereRoom = _gameRoot.State == AppViewState.Exploration &&
-                        _gameRoot.Views != null && _gameRoot.Views.Current != null
-                ? _gameRoot.Views.Current.Id
-                : RoomId.Security;
+            _hereRoom = RoomId.Security;   // the map only opens at the desk, in the security office
             PlaceHereMarker();
             RebuildClueDots();
 
-            bool exploring = _gameRoot.State == AppViewState.Exploration;
-            _hint.text = exploring
-                ? "Reference only — walk the hallway and look into the rooms from their doors. Red dots are findings."
-                : "From the checkpoint the map is reference only — use PATROL HALLWAY to investigate.";
+            _hint.text = "From the checkpoint the map is reference only — use PATROL HALLWAY to investigate.";
             _hint.fontSize = ScaledSize(HintSize, _chromeTextScale);
         }
 

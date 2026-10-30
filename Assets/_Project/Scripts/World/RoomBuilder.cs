@@ -108,7 +108,6 @@ namespace Hollowbrook.World
                     AddClue(room, "chalkboard", -6.2f, floorY, "Chalkboard", "prop_chalkboard", 1.2f);
                     AddClue(room, "desk", -7.6f, floorY, "Front Desk");
                     AddClue(room, "lostid", -5.0f, floorY, "Lost-and-Found Shelf", "prop_lostid", 0.2f);
-                    AddSecurityDoor(room, -1.6f, floorY);
                     SpriteGO(root.transform, "deskprop", ProceduralArt.Get("prop_desk"), new Vector3(-7.6f, floorY + 1f, 0), 9);
                     room.PlayerSpawn = new Vector3(4.0f, 0, 0);
                     room.AnomalySpawnPoints.Add(new Vector3(-6.5f, 0, 0));
@@ -192,15 +191,6 @@ namespace Hollowbrook.World
             }
             var d = go.AddComponent<Doorway>();
             d.Init(_root, room, label, target, x);
-            room.Interactables.Add(d);
-        }
-
-        private void AddSecurityDoor(RoomInstance room, float x, float floorY)
-        {
-            var go = SpriteGO(room.Root.transform, "door_security_office", ProceduralArt.Get("prop_door_security"),
-                new Vector3(x, floorY + 3f, 0), 10);
-            var d = go.AddComponent<SecurityDoorInteractable>();
-            d.Init(_root, room, x);
             room.Interactables.Add(d);
         }
 
