@@ -94,25 +94,6 @@ namespace Hollowbrook.Bootstrap
             return c.ToSprite(chained ? "prop_server_door" : (security ? "prop_door_security" : "prop_door"), WorldPpu);
         }
 
-        // Wall switch plate: the one interactable that had no art key of its own (an anonymous
-        // white quad). Small enough to read at patrol distance: plate, two screws, a toggle that
-        // catches the beam. Dropped-in Resources/Art/prop_lightswitch.png replaces it as-is.
-        private static Sprite MakeLightSwitch(int w, int h)
-        {
-            var c = new Canvas2D(w, h);
-            var r = new System.Random(StableHash("prop_lightswitch"));
-            c.Fill(new Color(0f, 0f, 0f, 0f));
-            c.FillRect(4, 4, w - 8, h - 8, G(0.78f));                 // plate
-            Border2(c, WireInk);
-            c.FillRect(6, 6, w - 12, h - 12, G(0.70f));
-            c.FillRect(w / 2 - 6, h / 2 - 10, 12, 20, G(0.35f));      // recess
-            c.FillRect(w / 2 - 5, h / 2 - 9, 10, 9, G(0.88f));        // toggle, up = off
-            c.FillEllipse(8, 8, 2, 2, G(0.30f));                      // screws
-            c.FillEllipse(w - 9, h - 9, 2, 2, G(0.30f));
-            c.Noise(0.03f, 5);
-            return c.ToSprite("prop_lightswitch", WorldPpu);
-        }
-
         private static Sprite MakeLockers(int w, int h)
         {
             var c = new Canvas2D(w, h);

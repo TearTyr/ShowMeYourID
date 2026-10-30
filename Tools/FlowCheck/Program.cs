@@ -1154,11 +1154,11 @@ namespace FlowCheck
             Check(cone == want && mask == want,
                 $"{tag}: cone + mask agree with the beam state ({(want ? "ON" : "OFF")}) — the only two light layers");
             string hud = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            // while peeking, the handheld readout is replaced by the peek lamp's own line
+            // while peeking, the handheld readout is replaced by the peek flashlight's own line
             bool peeking = root.State == AppViewState.RoomPeek;
             string wantHud = peeking
-                ? (root.Views.PeekLight != null && root.Views.PeekLight.Lit ? "LAMP: ON" : "LAMP: OFF")
-                : (want ? ("BEAM: " + (rig.Beam == LightMode.Focus ? "FOCUS" : "SWEEP")) : "BEAM: OFF");
+                ? (root.Views.PeekLight != null && root.Views.PeekLight.Lit ? "FLASHLIGHT: ON" : "FLASHLIGHT: OFF")
+                : (want ? ("FLASHLIGHT: " + (rig.Beam == LightMode.Focus ? "FOCUS" : "SWEEP")) : "FLASHLIGHT: OFF");
             Check(hud.Contains(wantHud),
                 $"{tag}: the HUD readout agrees with the light layers (want '{wantHud}', got '{hud}')");
         }
@@ -1355,16 +1355,6 @@ namespace FlowCheck
             Check(closeBtn != null, "MAP: CLOSE is still a real button");
             Check(closeBtn != null && closeBtn.targetGraphic != null && closeBtn.targetGraphic.raycastTarget,
                 "MAP: ...and its graphic actually takes the click (a raycast-off target is a dead button)");
-            bool everyBtnHasTarget = true;
-            foreach (var def in FloorPlan.Rooms)
-            {
-                var node = map.RoomNode(def.Key);
-                var b = node.GetComponent<UnityEngine.UI.Button>();
-                if (b == null) { if (!def.Sealed) everyBtnHasTarget = false; continue; }
-                if (b.targetGraphic == null || !b.targetGraphic.raycastTarget) everyBtnHasTarget = false;
-            }
-            Check(everyBtnHasTarget,
-                "MAP: every clickable room has a raycast-enabled target graphic (none of them can be a dead click)");
             // centred space: +y up from the screen centre, whatever the element's own anchor is
             // CLOSE is anchored to the screen's bottom edge with a centre pivot, so its
             // anchoredPosition.y is measured UP from that edge: screen-centre space is
@@ -1484,15 +1474,21 @@ namespace FlowCheck
                   System.Array.IndexOf(RoomGraph.Roamable, RoomId.Security) < 0,
                 "MAP: the sealed room is not in the patrol graph, so it cannot be travelled to");
 
-            // ---- the patrol rooms keep their click ----
-            var c1Btn = c1Node.GetComponent<UnityEngine.UI.Button>();
-            var secBtn = secNode.GetComponent<UnityEngine.UI.Button>();
-            Check(c1Btn != null && secBtn != null &&
-                  hallNode.GetComponent<UnityEngine.UI.Button>() != null &&
-                  c2Node.GetComponent<UnityEngine.UI.Button>() != null,
-                "MAP: the hallway, both classrooms and the checkpoint are still clickable");
-            var crBtn = crNorth.GetComponent<UnityEngine.UI.Button>();
-            Check(crBtn != null, "MAP: a comfort room answers a click (with a line, not a dead nothing)");
+            // ---- the plan is a reference: no room can be clicked, so the map never moves the player ----
+            bool anyClickable = false;
+            foreach (var def in FloorPlan.Rooms)
+            {
+                var node = map.RoomNode(def.Key);
+                if (node == null) continue;
+                if (node.GetComponent<UnityEngine.UI.Button>() != null ||
+                    node.GetComponent<UnityEngine.UI.Image>().raycastTarget ||
+                    node.GetComponent<Hollowbrook.UI.HoverCursor>() != null) anyClickable = true;
+            }
+            Check(!anyClickable,
+                "MAP: no room — patrol, comfort or sealed — has a button, a raycast or a hover cursor");
+            Check(crNorth.GetComponent<UnityEngine.UI.Button>() == null &&
+                  crSouth.GetComponent<UnityEngine.UI.Button>() == null,
+                "MAP: the comfort rooms are drawn on the plan but take no click either");
 
             // ---- you-are-here + the findings dots ----
             var here = FindDeep(plan, "here");
@@ -2377,17 +2373,15 @@ namespace FlowCheck
             Check(hall.Darkness.color.r < 0.01f && hall.Darkness.color.g < 0.01f && hall.Darkness.color.b < 0.01f,
                   "P: the darkness overlay is black (its alpha dims, never washes out)");
             int doors = 0; bool doorsFullHeight = true;
-            bool switchVisible = false;
             foreach (var it in hall.Interactables)
             {
                 var d = it as Doorway;
                 if (d != null && d.Art != null) { doors++; if (QuadH(d.Art) < 3f) doorsFullHeight = false; }
-                var ls = it as LightSwitchObject;
-                if (ls != null && ls.Art != null && QuadW(ls.Art) > 0.1f) switchVisible = true;
             }
             Check(doors == 3 && doorsFullHeight,
                   "P: all " + doors + " hallway doors draw as full-height slabs at their anchors");
-            Check(switchVisible, "P: the wall switch plate is visible (not a sub-pixel dot)");
+            Check(FindDeep(hall.Root.transform, "lightswitch") == null,
+                  "P: the hallway has no wall switch plate any more");
 
             var cfg = root.Config;
             float chanceSave = cfg.anomalySpawnChancePerSecond;
@@ -2441,16 +2435,16 @@ namespace FlowCheck
             Check(coneGoW1.activeSelf && maskGoW1.activeSelf,
                 "W1: ON really shows the cone + mask (the beam exists, not just a status)");
             string beamInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            Check(beamInfo.Contains("BEAM: SWEEP"),
-                "W1: the HUD reads BEAM: SWEEP while the beam is on (got '" + beamInfo + "')");
+            Check(beamInfo.Contains("FLASHLIGHT: SWEEP"),
+                "W1: the HUD reads FLASHLIGHT: SWEEP while the beam is on (got '" + beamInfo + "')");
             PressKey(root, KeyCode.F);
             Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep, "W1: F again toggles it OFF");
             Check(!coneGoW1.activeSelf && !maskGoW1.activeSelf,
                 "W1: OFF hides the cone + mask completely — no visible beam, no illumination");
             Check(!rig.ConeCovers(new Vector3(3f, 0f, 0f)), "W1: an OFF beam illuminates nothing (cone test covers no point)");
             beamInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            Check(beamInfo.Contains("BEAM: OFF"),
-                "W1: the HUD reads BEAM: OFF in sync with the hidden beam (got '" + beamInfo + "')");
+            Check(beamInfo.Contains("FLASHLIGHT: OFF"),
+                "W1: the HUD reads FLASHLIGHT: OFF in sync with the hidden beam (got '" + beamInfo + "')");
             PressKey(root, KeyCode.Q);
             Check(rig.Beam == LightMode.Focus && !rig.Latches.Sweep && rig.Latches.Focus,
                 "W1: Q takes over with Focus — the keyboard toggles are mutually exclusive");
@@ -2464,25 +2458,40 @@ namespace FlowCheck
 
             // ---- W2: room lighting and the beam are independent systems
             Console.WriteLine("== W2 room lights vs handheld beam ==");
-            var sw = FindInteractable<LightSwitchObject>(hall);
-            Check(sw != null, "W2: the hallway has a wall switch");
+            bool anySwitch = false;
+            foreach (var rid in new[] { RoomId.Hallway, RoomId.Classroom1, RoomId.Classroom2 })
+            {
+                var r = views.Room(rid);
+                if (r == null) continue;
+                if (FindDeep(r.Root.transform, "lightswitch") != null) anySwitch = true;
+                foreach (var it in r.Interactables)
+                    if (it.Prompt != null && it.Prompt.ToLowerInvariant().Contains("switch")) anySwitch = true;
+            }
+            Check(!anySwitch, "W2: no room has a light switch — the flashlight is the only light");
+            Check(FindDeep(views.Room(RoomId.Classroom1).Root.transform, "door_security_office") == null,
+                "W2: Classroom 1 has no Security Office door — the real one is the first door in the hallway");
+            Check(root.State == AppViewState.Exploration, "W2: patrol is live for the map proof");
+            PressKey(root, KeyCode.M);
+            root.OpenMap();
+            Check(root.State == AppViewState.Exploration,
+                "W2: the map cannot be opened on patrol (M and OpenMap both refuse) — it is pinned up at the desk only");
             Check(hall.Light != null && !hall.Light.Lit, "W2: rooms are entered DARK (lights start OFF)");
             var roomInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            Check(roomInfo.Contains("LIGHTS: OFF — wall switch [E]"),
-                  "W2: the HUD reads LIGHTS: OFF and points at the wall switch (got '" + roomInfo + "')");
+            Check(roomInfo.Contains("MAIN HALLWAY") && roomInfo.Contains("FLASHLIGHT: OFF") &&
+                  !roomInfo.Contains("LIGHTS:") && !roomInfo.ToLowerInvariant().Contains("switch"),
+                  "W2: the HUD names the room and the flashlight and points at no switch (got '" + roomInfo + "')");
             PressKey(root, KeyCode.Q);
             Check(!hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: the beam is the portable light: Focus does NOT touch the room lights");
-            if (sw != null) sw.Interact();
-            Check(hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: the wall switch lights the room, beam stays Focus");
-            if (sw != null) sw.Interact();
+            hall.Light.SetLit(true);   // only a scripted event (the hallucination flicker) can light a room
+            Check(hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: a scripted light change lights the room, beam stays Focus");
+            hall.Light.SetLit(false);
             Check(!hall.Light.Lit, "W2: and darkens it again");
-            // entry reset: whatever the switch did, ARRIVING in a room always means darkness
-            if (sw != null) sw.Interact();
-            Check(hall.Light.Lit, "W2: switch back on...");
+            // entry reset: whatever a scripted event did, ARRIVING in a room always means darkness
+            hall.Light.SetLit(true);
             hall.Light.ForceDarkOnEntry();   // what ViewManager calls on every room entry
-            Check(!hall.Light.Lit, "W2: ...but entering the room forces the lights back off (spawn in darkness)");
-            if (sw != null) sw.Interact();   // later sections (battery recovery) play lit
-            Check(hall.Light.Lit, "W2: the switch relights it — the player is never locked in the dark");
+            Check(!hall.Light.Lit, "W2: entering the room forces the lights back off (spawn in darkness)");
+            hall.Light.SetLit(true);   // later sections (battery recovery) play lit
+            Check(hall.Light.Lit, "W2: the room can be lit again by script — the player is never locked in the dark");
             PressKey(root, KeyCode.L);
             Check(rig.Beam == LightMode.Off && hall.Light.Lit, "W2: beam Off leaves no stale state on the room light");
 
@@ -2495,22 +2504,21 @@ namespace FlowCheck
             Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep && !rig.Latches.Focus,
                 "W2: entering a room forces the beam OFF — a transition never carries a lit beam over");
             Check(!FindDeep(rig.transform, "beam").gameObject.activeSelf,
-                "W2: the beam sprite is really hidden after the entry (LIGHTS: OFF now MEANS dark)");
+                "W2: the beam sprite is really hidden after the entry (the room is dark and stays dark)");
             string entryInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            Check(entryInfo.Contains("BEAM: OFF"),
+            Check(entryInfo.Contains("FLASHLIGHT: OFF"),
                 "W2: the HUD beam status stays in sync through the entry (got '" + entryInfo + "')");
             PressKey(root, KeyCode.F);
             Check(rig.Beam == LightMode.Sweep, "W2: F relights it after the entry (deliberate input only)");
             views.EnterRoom(RoomId.Hallway);
             Check(views.Current.Id == RoomId.Hallway && rig.Beam == LightMode.Off,
                 "W2: ...and every further entry starts dark again");
-            if (sw != null && !hall.Light.Lit) sw.Interact();   // later sections (battery) play lit
+            if (!hall.Light.Lit) hall.Light.SetLit(true);   // later sections (battery) play lit
             Check(hall.Light.Lit, "W2: the hallway is relit for the battery proofs");
 
             // ---- W2b: limited hallway visibility — deeper ambient + a pool around the player
             Console.WriteLine("== W2b hallway limited visibility (dark corridor, manual beam) ==");
-            var swB = FindInteractable<LightSwitchObject>(hall);
-            if (hall.Light.Lit && swB != null) swB.Interact();
+            if (hall.Light.Lit) hall.Light.SetLit(false);
             Check(!hall.Light.Lit, "W2b: the corridor is dark for the depth proofs");
             var depth = hall.Depth;
             Check(depth != null, "W2b: the hallway owns a depth layer");
@@ -2578,16 +2586,16 @@ namespace FlowCheck
             Check(!coneT.gameObject.activeSelf && !maskGo.gameObject.activeSelf,
                 "W2b: beam OFF removes cone AND mask — no stale light layer survives");
 
-            // the wall switch still means a fully visible corridor, then darkness returns
-            if (swB != null) swB.Interact();
+            // a scripted lights-on still means a fully visible corridor, then darkness returns
+            hall.Light.SetLit(true);
             Check(hall.Light.Lit && !depth.enabled &&
                   Mathf.Abs(hall.Darkness.color.a - LightController.LitAlpha) < 1e-3f,
                   "W2b: lights ON -> the pool is gone, the corridor reads as an ordinary lit room");
-            if (swB != null) swB.Interact();
+            hall.Light.SetLit(false);
             Check(!hall.Light.Lit && depth.enabled &&
                   Mathf.Abs(depth.color.a - cfg.hallwayDepthAlpha) < 1e-3f,
                   "W2b: lights OFF -> darkness and the pool return");
-            if (swB != null) swB.Interact();   // leave the corridor lit, as W2 handed it over
+            hall.Light.SetLit(true);   // leave the corridor lit, as W2 handed it over
             Check(rig.Beam == LightMode.Off, "W2b: no lighting change ever auto-activated the beam");
             CheckLightSync(root, "W2b dark corridor");
 
@@ -2736,9 +2744,9 @@ namespace FlowCheck
             PressKey(root, KeyCode.F);
             Check(rig.BeamOn && rig.Beam == LightMode.Sweep, "W4: deliberate input relights the beam after revival");
             SetBeam(root, rig, LightMode.Off);
-            if (sw != null) sw.Interact();   // lights off
+            hall.Light.SetLit(false);   // lights off
             float d0 = rig.Battery; WorldFrames(root, 60); float darkGain = rig.Battery - d0;
-            if (sw != null) sw.Interact();   // lights on
+            hall.Light.SetLit(true);   // lights on
             float l0 = rig.Battery; WorldFrames(root, 60); float litGain2 = rig.Battery - l0;
             Check(darkGain > 0.03f && darkGain < 0.05f && litGain2 > darkGain * 1.5f,
                 $"W4: dark recovery ({darkGain * 100f:F1}%/s) is slower than lit ({litGain2 * 100f:F1}%/s)");
@@ -2746,7 +2754,7 @@ namespace FlowCheck
             // ---- W5: one authoritative encounter: detect → expose → repel → recover → return
             Console.WriteLine("== W5 one authoritative encounter ==");
             TopUpBattery(root, rig);
-            if (hall.Light.Lit && sw != null) sw.Interact();   // dark hallway: pure beam play
+            hall.Light.SetLit(false);   // dark hallway: pure beam play
             int poolBefore = root.Session.Pool.Pending;
             var targetKind = root.Session.Pool.PendingList[0];
             var an = views.SpawnAnomalyOfKind(targetKind);
@@ -2853,7 +2861,7 @@ namespace FlowCheck
             // ---- W6: four distinct behaviors
             Console.WriteLine("== W6 behavior identities ==");
             TopUpBattery(root, rig);
-            if (hall.Light.Lit && sw != null) sw.Interact();   // dark for behavior reads
+            hall.Light.SetLit(false);   // dark for behavior reads
 
             // Blink: creeps unseen, frozen by ANY beam, pinned by room light — never auto-solved
             var blink = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Blink);
@@ -2875,11 +2883,11 @@ namespace FlowCheck
                 Check(blink.State != AnomalyState.Repelled && !blink.Gone && blink.Meter < 0.55f,
                     "W6: Sweep alone never resolves the encounter");
                 SetBeam(root, rig, LightMode.Off);
-                if (sw != null) sw.Interact();     // lights on
+                hall.Light.SetLit(true);     // lights on
                 float bx2 = blink.Pos.x;
                 WorldFrames(root, 90);
                 Check(Mathf.Abs(blink.Pos.x - bx2) < 1e-4f, "W6: room lights alone pin a Blink");
-                if (sw != null) sw.Interact();     // lights off again
+                hall.Light.SetLit(false);     // lights off again
             }
             views.Spawner.DiscardLive();
 
@@ -2976,7 +2984,7 @@ namespace FlowCheck
             // ---- W7: repel cancels an in-progress catch; pause freezes everything
             Console.WriteLine("== W7 catch fairness + pause ==");
             TopUpBattery(root, rig);
-            if (hall.Light.Lit && sw != null) sw.Interact();
+            hall.Light.SetLit(false);
             var victim = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Slide);
             Check(victim != null, "W7: a Slide spawns for the catch-race test");
             if (victim != null)
@@ -3161,8 +3169,8 @@ namespace FlowCheck
             Check(!lamp.Lit && darkPrompt.Length > 0,
                 "W10: dark is not a trap — the exit prompt answers under the cursor without the lamp (got '" + darkPrompt + "')");
             string peekInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            Check(peekInfo.Contains("LAMP: OFF"),
-                "W10: the HUD reads LAMP: OFF in the dark classroom (got '" + peekInfo + "')");
+            Check(peekInfo.Contains("FLASHLIGHT: OFF"),
+                "W10: the HUD reads FLASHLIGHT: OFF in the dark classroom (got '" + peekInfo + "')");
             PressKey(root, KeyCode.F);
             Check(lamp.Lit, "W10: ONE F press turns the lamp on (nothing was secretly pre-lit)");
             Check(lampMask.activeSelf && lampGlow.activeSelf,
@@ -3172,13 +3180,13 @@ namespace FlowCheck
             Check(views.IsPeekLit(new Vector3(0f, 0f, 0f)),
                 "W10: the lit lamp illuminates the cursor point — the same state drives light and visual");
             peekInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            Check(peekInfo.Contains("LAMP: ON"),
-                "W10: the HUD reads LAMP: ON while the lamp is lit (got '" + peekInfo + "')");
+            Check(peekInfo.Contains("FLASHLIGHT: ON"),
+                "W10: the HUD reads FLASHLIGHT: ON while the flashlight is lit (got '" + peekInfo + "')");
             string peekObjective = FindDeep(root.HUD.transform, "objective").GetComponent<UnityEngine.UI.Text>().text;
             Check(peekObjective.Contains("Press F"),
                 "W10: the hint line teaches the manual lamp (got '" + peekObjective + "')");
             string lampToast = FindDeep(root.HUD.transform, "toast").GetComponent<UnityEngine.UI.Text>().text;
-            Check(lampToast.Contains("LAMP: ON"),
+            Check(lampToast.Contains("FLASHLIGHT: ON"),
                 "W10: the toggle confirms itself with a toast (got '" + lampToast + "')");
 
             // focus on the classroom lamp: Q reshapes the LIT circle, never the ON/OFF state
@@ -3193,8 +3201,8 @@ namespace FlowCheck
             Check(views.IsPeekLit(new Vector3(1f, 0f, 0f)) && !views.IsPeekLit(new Vector3(2.2f, 0f, 0f)),
                 "W10: the focused circle concentrates on near detail and stops short of the wide reach");
             peekInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            Check(peekInfo.Contains("LAMP: ON · FOCUS"),
-                "W10: the HUD names the focused lamp (got '" + peekInfo + "')");
+            Check(peekInfo.Contains("FLASHLIGHT: ON · FOCUS"),
+                "W10: the HUD names the focused flashlight (got '" + peekInfo + "')");
             PressKey(root, KeyCode.F);
             Check(!lamp.Lit && lamp.Focused && !lampMask.activeSelf && !lampGlow.activeSelf &&
                   !views.IsPeekLit(new Vector3(0f, 0f, 0f)),
@@ -4203,8 +4211,7 @@ namespace FlowCheck
         {
             if (rig.Beam != LightMode.Off) PressKey(root, KeyCode.L);
             var room = root.Views.Current;
-            var sw = FindInteractable<LightSwitchObject>(room);
-            if (room != null && room.Light != null && !room.Light.Lit && sw != null) sw.Interact();
+            if (room != null && room.Light != null && !room.Light.Lit) room.Light.SetLit(true);
             int g = 0;
             while (rig.Battery < 0.9f && g++ < 60 * 25) WorldFrame(root);
         }
