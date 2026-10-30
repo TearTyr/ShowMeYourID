@@ -37,7 +37,6 @@ ART = [
     ("hall_depth",      "world-bg",  "P0", "procedural", "PNG RGBA, ALPHA-ONLY black radial falloff (see HallwayDarkness.DepthAt), native px = shroud world size x10", "hallway limited visibility", "must stay alpha-graded or the pool breaks"),
     ("classroom1_bg",   "world-bg",  "P1", "procedural", "PNG 1152x640 px @64 ppu, Room 101 side view", "ViewManager classroom 1 / peek", ""),
     ("classroom2_bg",   "world-bg",  "P1", "procedural", "PNG 1152x640 px @64 ppu, Room 202 side view (night window glow)", "ViewManager classroom 2 / peek", ""),
-    ("security_bg",     "world-bg",  "P0", "procedural", "PNG 1280x720 px @100 ppu, the checkpoint booth interior behind the desk UI", "SecurityRoomView / booth", ""),
 
     # ---- patrol world: props & the GDD interaction objects ----
     ("prop_door",            "world-prop", "P0", "procedural", "PNG RGBA 160x384 px @64 ppu (2.5x6 units), classroom door, stands on the floor line", "RoomBuilder doors", "drawn standing: centre = floor + h/2"),

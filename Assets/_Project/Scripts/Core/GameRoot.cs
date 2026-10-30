@@ -70,7 +70,6 @@ namespace Hollowbrook.Core
         public ShiftResultsView ShiftResults;
         public ConfirmationPopup Confirm;
         public CaptionBar Captions;
-        public Hollowbrook.World.SecurityRoomView SecurityRoom;
         public Hollowbrook.World.StudentSpawner Students;
         public SanityController SanityCtl;
         public ScareSystem Scares;
@@ -200,8 +199,7 @@ namespace Hollowbrook.Core
         private void TickShiftClock()
         {
             if (State == AppViewState.Checkpoint || State == AppViewState.Exploration ||
-                State == AppViewState.SecurityRoom || State == AppViewState.Map ||
-                State == AppViewState.RoomPeek)
+                State == AppViewState.Map || State == AppViewState.RoomPeek)
             {
                 AdvanceShiftClock(ClampedDelta * (Config != null ? Config.clockMinutesPerSecond : 0.25f));
             }
@@ -248,11 +246,10 @@ namespace Hollowbrook.Core
             if (MainMenu != null) { if (s == AppViewState.MainMenu) MainMenu.Show(); else MainMenu.Hide(); }
             if (ModeSelect != null) { if (s == AppViewState.ModeSelect) ModeSelect.Show(); else ModeSelect.Hide(); }
 
-            if (SecurityRoom != null) { if (s == AppViewState.SecurityRoom) SecurityRoom.Show(); else SecurityRoom.Hide(); }
             bool inRun = s == AppViewState.Checkpoint || s == AppViewState.Exploration ||
                          s == AppViewState.ShiftIntro || s == AppViewState.AdminEncounter ||
                          s == AppViewState.Map || s == AppViewState.ShiftResults ||
-                         s == AppViewState.SecurityRoom || s == AppViewState.RoomPeek;
+                         s == AppViewState.RoomPeek;
             if (HUD != null) { if (inRun) HUD.Show(); else HUD.Hide(); }
             if (Checkpoint != null)
             {
@@ -663,15 +660,6 @@ namespace Hollowbrook.Core
             Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
         }
 
-        /// <summary>Classroom security-office door (Scene B prototype).</summary>
-        public void OpenSecurityRoom()
-        {
-            SetState(AppViewState.SecurityRoom);
-            ObjectiveText = "Night " + Session.CurrentShift + " — office: late list and expiry rule. Verdicts count.";
-            Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));
-            Audio.PlayMusic("darkroom");
-        }
-
         public void OpenMap()
         {
             if (MapScreen == null)
@@ -841,7 +829,7 @@ namespace Hollowbrook.Core
             if (target == Paused) return;
             bool allowed = State == AppViewState.Checkpoint || State == AppViewState.Exploration ||
                            State == AppViewState.AdminEncounter || State == AppViewState.Map ||
-                           State == AppViewState.SecurityRoom || State == AppViewState.RoomPeek;
+                           State == AppViewState.RoomPeek;
             if (target && !allowed) return;
             Paused = target;
             Time.timeScale = Paused ? 0f : 1f;
