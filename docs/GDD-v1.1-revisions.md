@@ -65,7 +65,7 @@ with
 > "Lose: on the final night, three anomalies breach the building, or three legitimate students are falsely rejected (counted over the whole run), or the custodian's sanity reaches 0%. On nights 1 to 4 these events do not end the game; they fail the shift (see Shift failure)."
 
 and **add** after *Shift transition*:
-> "Shift failure: on nights 1 to 4 a shift fails if the custodian blacks out (sanity reaches 0%) or clocks out with an anomaly let in that night. A failed shift ends with a jumpscare, is marked FAILED on the results screen, and the next night starts with less sanity, drain stacks already active, and an anomaly already roaming. The game continues."
+> "Shift failure: on nights 1 to 4 a shift fails if the custodian blacks out (sanity reaches 0%) or clocks out with an anomaly let in that night. A failed shift ends with a jumpscare and returns the player to the title menu, and the next night starts with less sanity, drain stacks already active, and an anomaly already roaming. The game continues."
 
 **2.3 Game design definitions** — replace the **Secret ending** line
 > "Secret ending: discover all ten environmental interactions across the hallway, Classroom 1 and Classroom 2."
@@ -110,7 +110,7 @@ with
 > "End: an ending screen shows the ending title, description, decision summary and final result."
 
 with
-> "End: an ending screen shows the ending title, description, decision summary and final result. (Planned) Between nights the player sees a short night-complete screen with the score and a flicker back to the menu or next night; the full breakdown appears after the final night."
+> "End: an ending screen shows the ending title, description, decision summary and final result. Finishing a night on nights 1 to 4 flickers the screen to black and returns the player straight to the title menu, with no results screen and no continue prompt; Continue resumes at the next night. The full results appear only after the final night."
 
 ---
 
@@ -224,7 +224,7 @@ with
 > "The game uses a security room for student inspections, side-scrolling hallways for exploration, and classrooms for cursor-based investigation."
 
 with
-> "The game uses a security room for student inspections, side-scrolling hallways for exploration, and classrooms and comfort rooms for cursor-based investigation. The comfort hallway branches off the east end of the main hallway through a doorway (E); its two doors, CR-1 and CR-2, are peek-only, and the bottom of the screen steps back."
+> "The game uses a security room for student inspections, side-scrolling hallways for exploration, and classrooms and comfort rooms for cursor-based investigation. The comfort hallway branches off the east end of the main hallway through a doorway (E); its two doors, CR-1 and CR-2, are peek-only, and clicking the bottom of the screen is the only way back."
 
 **2.14 HUD** — replace
 > "HUD: Displays relevant gameplay information, including the current shift, sanity level, and anomaly breach and false rejection counts."
@@ -236,14 +236,14 @@ with
 > "Screens: Title screen, shift start screen, gameplay screen, settings screen, credits screen, and game over screen."
 
 with
-> "Screens: Title screen, night title card and opening dialogue, gameplay screen, settings screen, credits screen, shift results screen (marked FAILED after a failed shift) and the ending screen."
+> "Screens: Title screen, night title card and opening dialogue, gameplay screen, settings screen, credits screen and the ending screen, which carries the full results after the final night. Nights 1 to 4 end at the title screen."
 
 **2.14 Controls table** — replace the rows:
 
 | Original row | Replace with |
 |---|---|
 | "Inspect documents, checklist rows, SCAN, questions, stamps — Mouse" | "Inspect documents, checklist rows, questions; drag stamps onto the slip; click the ID to inspect it — Mouse" |
-| "Interact (doors, clues, light switches, tokens, peek entry/exit) — E" | "Interact (doors, clues, tokens, peek entry/exit) — E" |
+| "Interact (doors, clues, light switches, tokens, peek entry/exit) — E" | "Interact (doors, clues, tokens, peek entry) — E. The only way back from a peeked room is clicking the bottom of the screen" |
 | "Flashlight: wide Sweep / tight Focus / off — F / Q / L — or hold LMB / RMB for a temporary beam" | "Flashlight: on / off — F or left click; narrow beam (while on) — Q or right click; off — L. A click on UI (such as the bottom step-back strip) does not toggle the light" |
 | "Map (checkpoint overlay) — M" | "Map (security desk only) — M" |
 
@@ -268,7 +268,7 @@ with
 > "5. Game over screen: Appears when the player reaches a failure condition."
 
 with
-> "5. Results screens: after each shift, a results screen (marked FAILED after a failed shift); after the final night the ending screen. The Lose ending appears only on the final night."
+> "5. Results: nights 1 to 4 return to the title screen with no results screen; after the final night the ending screen shows the full results. The Lose ending appears only on the final night."
 
 **2.15 Functional data model** — add to the list:
 > "● Drain stacks, pending sanity refill, this shift's breaches, and any failed-night penalty carried to the next night."
@@ -284,6 +284,7 @@ with
 - Add **comfort hallway · CR-1 · CR-2** beside the PEEK box.
 - Replace the dashed red LOSE interrupt: it now applies on the **final night only**. Add a **FAILED SHIFT** branch for nights 1 to 4 (blackout or an anomaly let in at clock-out → jumpscare → results marked FAILED → next night starts with a penalty) that rejoins at *NEXT NIGHT (N+1)*.
 - Add the **night title card** before NIGHT INTRO's dialogue.
+- **SHIFT RESULTS** box: remove for nights 1 to 4. A finished night (clean or failed) goes straight to **MAIN MENU**; the results appear only inside the **ENDING SCREEN** after night 5.
 
 ---
 
