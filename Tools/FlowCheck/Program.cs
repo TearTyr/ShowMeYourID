@@ -791,8 +791,8 @@ namespace FlowCheck
                   "the stamp lands on the slip and records a pending verdict");
             Check(FindDeep(cp.transform, "stampoverlay").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
                   "the stamp mark persists on the slip (no fade-out before hand-back)");
-            Check(PromptText(root).Contains("HAND BACK"),
-                  "prompt matches state: stamped, awaiting hand-back (got '" + PromptText(root) + "')");
+            Check(PromptText(root).Contains("DRAG THE ID BACK"),
+                  "prompt matches state: stamped, awaiting the ID's hand-back (got '" + PromptText(root) + "')");
             var soRt = FindDeep(cp.transform, "stampoverlay").GetComponent<RectTransform>();
             Check(soRt.sizeDelta.x > 1f && soRt.sizeDelta.y > 1f,
                   "the stamp overlay has a real size after the drop (visible mark)");
@@ -832,27 +832,26 @@ namespace FlowCheck
             spineBack.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Check(!FaceOf(idGo, "idback").gameObject.activeSelf, "the back face's own spine flips it home (reliable both ways)");
 
-            // decoupled papers: lift the SLIP last, then flip the ID — the slip must not ride along
+            // the slip is ONLY draggable: it has no back face, a tap on it does nothing, and the
+            // F key flips the ID even when the slip was lifted last
+            Check(FaceOf(slipT, "slipback") == null, "the slip has no back face any more");
             var slipDragC = slipT.GetComponent<DragPaper>();
             slipDragC.BeginDrag();
-            slipDragC.EndDrag();      // a tap on the taken slip is the SLIP's own flip
-            Check(FaceOf(slipT, "slipback").gameObject.activeSelf, "tapping the taken slip turns the slip over by itself");
+            slipDragC.EndDrag();      // a tap on the taken slip used to turn it over
+            Check(FaceOf(slipT, "bg").gameObject.activeSelf,
+                "tapping the taken slip does nothing — its face stays up");
             Check(FindDeep(cp.transform, "stampoverlay").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
-                  "the stamp mark rides the slip's flip (it stays on the paper)");
-            cp.FlipSlip();            // face-up again
-            Check(!FaceOf(slipT, "slipback").gameObject.activeSelf && FaceOf(slipT, "bg").gameObject.activeSelf,
-                  "and flips the slip back");
-            spine.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();   // the slip was touched last...
+                "the stamp mark stays on the slip");
+            Check(!FaceOf(idGo, "idback").gameObject.activeSelf, "(the ID is face-up before F)");
+            cp.FlipLastPaper();       // F, with the slip touched last
             Check(FaceOf(idGo, "idback").gameObject.activeSelf,
-                  "...yet clicking the ID's spine flips the ID — never the last-touched paper");
-            Check(!FaceOf(slipT, "slipback").gameObject.activeSelf && FaceOf(slipT, "bg").gameObject.activeSelf,
-                  "the slip stays exactly as it was: no mirroring, no hidden face");
-            cp.FlipLastPaper();       // the F key routes to the last-touched paper — here the slip
-            Check(FaceOf(slipT, "slipback").gameObject.activeSelf, "F flips whichever paper was lifted last (here: the slip)");
+                "F flips the ID even when the slip was touched last");
+            Check(FaceOf(slipT, "slipback") == null && FaceOf(slipT, "bg").gameObject.activeSelf,
+                "...and never touches the slip");
             var idDragC = idGo.GetComponent<DragPaper>();
             idDragC.BeginDrag(); idDragC.EndDrag();   // retarget zoom to the ID (no move, no tap handler)
-            // both papers deliberately STAY face-down here: the desk loop's fresh-visitor
-            // check proves the hand-over reset turns them face-up (flip never carries over)
+            // the ID deliberately STAYS face-down here: the desk loop's fresh-visitor
+            // check proves the hand-over reset turns it face-up (flip never carries over)
             // task 1: stacking — right-column panels below papers, stamps above papers
             int qPI = FindDeep(cp.transform, "qpanel_border").GetSiblingIndex();
             int layI = FindDeep(cp.transform, "PapersLayer").GetSiblingIndex();
@@ -1036,8 +1035,12 @@ namespace FlowCheck
             cp.DebugTakeDocuments();
             TakeSlip(root);                       // slip centred at (760,500): top-left (660,440)
             var slipDrag0 = slipT.GetComponent<DragPaper>();
-            slipDrag0.Zoom = 1.5f;                // the Z-zoom path: the drop must map through the scale
-            Check(Mathf.Abs(slipDrag0.Zoom - 1.5f) < 0.01f, "SP: the slip is zoomed to 1.5x for the drop");
+            slipDrag0.Zoom = 1.5f;                // the slip refuses zoom: no input can resize it
+            Check(!slipDrag0.Zoomable && Mathf.Abs(slipT.localScale.x - 1f) < 0.01f,
+                "SP: the slip is not zoomable — a zoom request leaves it at 1x");
+            // scaffolding only: scale the rect directly so the drop maths still proves it maps
+            // through ANY scale chain (nothing in the game scales the slip any more)
+            slipT.localScale = new Vector3(1.5f, 1.5f, 1f);
             var want = InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null);
             StampAtPoint(root, want, new Vector2(797.5f, 522.5f));   // centre of the 1.5x slip
             Check(cp.SlipStamped && cp.PendingVerdict == want,
@@ -1090,8 +1093,8 @@ namespace FlowCheck
             slipDrag.BeginDrag();
             slipDrag.PlaceCenter(new Vector2(620f, 540f));
             slipDrag.EndDrag();
-            Check(Mathf.Abs(slipDrag.Zoom - 1.5f) < 0.01f,
-                "SP: lifting and dropping never loses the slip's zoom");
+            Check(Mathf.Abs(slipT.localScale.x - 1.5f) < 0.01f,
+                "SP: lifting and dropping never loses the slip's scale");
             var top2 = new Vector2(slipT.anchoredPosition.x, -slipT.anchoredPosition.y);
             Vector2 deskAfter = new Vector2(top2.x + (lx * cA + ly * sA) * slipScale,
                                             top2.y + (-lx * sA + ly * cA) * slipScale);
@@ -1577,9 +1580,8 @@ namespace FlowCheck
             Check(cp.CurrentVisitor != null && FindDeep(desk, "idcard").gameObject.activeSelf &&
                   FindDeep(desk, "slip").gameObject.activeSelf,
                   "a fresh visitor arrives with both documents already on the desk (§6 automation)");
-            Check(!FaceOf(FindDeep(desk, "idcard"), "idback").gameObject.activeSelf &&
-                  !FaceOf(FindDeep(desk, "slip"), "slipback").gameObject.activeSelf,
-                  "the fresh visitor's papers are born FACE-UP (flip state never carries over)");
+            Check(!FaceOf(FindDeep(desk, "idcard"), "idback").gameObject.activeSelf,
+                  "the fresh visitor's ID is born FACE-UP (flip state never carries over)");
             Check(StampAlpha(root, "stamp_allow") > 0.9f, "stamps ink up as soon as the inspection is live (docs auto-placed)");
             int procBefore = root.Queue.ProcessedCount;
             DropStamp(root, Verdict.Reject);
@@ -1617,13 +1619,14 @@ namespace FlowCheck
                   "the stamp on the slip is pending: wordless, unscored");
             Check(root.Queue.ProcessedCount == procBeforeStamp,
                   "nothing is scored at the stamp drop — the decision waits for hand-back");
-            HandBack(root, true, false);
+            HandBack(root, false, true);     // the slip dropped at the window is NOT a hand-back
             Check(root.Queue.ProcessedCount == procBeforeStamp &&
-                  cp.CurrentVisitor != null && cp.CurrentVisitor.ClaimedName == beforeYes,
-                  "the student waits while one paper is missing");
-            HandBack(root, false, true);
+                  cp.CurrentVisitor != null && cp.CurrentVisitor.ClaimedName == beforeYes &&
+                  FindDeep(desk, "slip").gameObject.activeSelf,
+                  "dropping the slip at the window does nothing: it stays on the desk, the student waits");
+            HandBack(root, true, false);     // the ID alone closes the inspection
             Check(root.Queue.ProcessedCount == procBeforeStamp + 1,
-                  "hand-back of ID + stamped slip commits the verdict");
+                  "handing back the ID (slip stamped, left on the desk) commits the verdict");
             Check(!FindDeep(desk, "speechbubble").gameObject.activeSelf,
                   "the speech bubble leaves with the student — no line lingers over an empty window");
             // the stub runs the commit coroutine synchronously: the walked-off visitor is proof
@@ -2298,6 +2301,11 @@ namespace FlowCheck
                 "issue #5: no APPROVE (A) / DECLINE (D) caption bars sit under the stamps");
             StampSlip(root, Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             Check(cp.SlipStamped, "issue #5: dragging a stamp onto the slip still stamps it");
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.H);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            Check(FindDeep(cp.transform, "idcard").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
+                "issue #5: H does nothing — the ID only goes back by being dragged to the window");
 
             root.TogglePause(true);
             root.OpenSettings();
@@ -3783,7 +3791,7 @@ namespace FlowCheck
                 cp.DebugTakeDocuments();
                 TakeSlip(root);
                 StampSlip(root, Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
-                cp.HandBackByKey();
+                HandBack(root, true, false);
                 cp.SetVisitorVisible(false);
                 DeskFrames(cp, 6);
                 var sb1 = new System.Text.StringBuilder();

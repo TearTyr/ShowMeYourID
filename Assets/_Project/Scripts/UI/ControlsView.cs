@@ -23,9 +23,9 @@ namespace Hollowbrook.UI
             string body =
                 "CHECKPOINT (mouse)\n" +
                 "   The ID + slip are ON YOUR DESK when the student steps up — drag to arrange,\n" +
-                "   papers KEEP their size while you scroll; Z zooms the paper you touched last.\n" +
-                                "   Flip: click the ID's BLACK SPINE (the card body only drags); F flips the paper you\n" +
-                "   touched last — the slip flips on its own and never rides along with the ID.\n" +
+                "   papers KEEP their size while you scroll; Z zooms the ID. The slip only drags —\n" +
+                "   it never flips or zooms.\n" +
+                "   Flip the ID: click its BLACK SPINE (the card body only drags) or press F.\n" +
                 "   Floor files: click the cabinet front (or TAB) to PULL THE DRAWER OUT, pick a floor\n" +
                 "   folder, then click a file to pull it onto the desk — mismatches are clues.\n" +
                 "   The face at the window vs the ID photo is YOUR eye-check: this desk has no\n" +
@@ -33,7 +33,7 @@ namespace Hollowbrook.UI
                 "   Answers arrive in the speech bubble beside the head and stay up until the\n" +
                 "   next line (or until the student leaves).\n" +
                 "   Stamp the slip (drag a stamp onto it) — the mark lands WHERE you drop the stamp, always\n" +
-                "   fully on the paper — then hand back BOTH papers (H). TAB pulls the file drawer.\n" +
+                "   fully on the paper — then drag the ID back to the window. TAB pulls the file drawer.\n" +
                 "   At most 2 questions per visitor. Decisions are permanent.\n" +
                 "   NIGHT 5: when the district administrator arrives, T (or the bar beside the\n" +
                 "   stamps) opens THE CONVERSATION — challenge, comply, raise what you have\n" +

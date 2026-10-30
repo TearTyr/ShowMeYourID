@@ -66,7 +66,7 @@ namespace Hollowbrook.Checkpoint
         private GameObject _slipGo;
         private GameObject _papersLayer;
         private Text _slipName, _slipId, _slipReason;
-        private bool _slipTaken, _slipStamped, _backId, _backSlip;
+        private bool _slipTaken, _slipStamped, _backId;
         private Verdict _pendingVerdict = Verdict.None;
         private GameRng _stampRng = new GameRng(1);
         private Coroutine _punch;
@@ -379,10 +379,9 @@ namespace Hollowbrook.Checkpoint
         // DECOUPLED: flipping one never touches the other (the slip used to ride along
         // because both flips rode one shared "last paper" state).
         internal void FlipId() => FlipPaper(_idCardGo);
-        internal void FlipSlip() => FlipPaper(_slipGo);
 
-        // Keyboard flip: routes to the paper the player lifted last (the ID by default).
-        internal void FlipLastPaper() => FlipPaper(_lastPaper == _slipGo ? _slipGo : _idCardGo);
+        // Keyboard flip (F): only the ID has a back face — the slip never flips.
+        internal void FlipLastPaper() => FlipPaper(_idCardGo);
 
         // Both faces of one paper back to their born state: back hidden, front shown. The
         // stamp mark is left exactly as it is — it is a layer of the slip and is cleared
@@ -482,10 +481,8 @@ namespace Hollowbrook.Checkpoint
             // 1-4 ask the four questions while the interview is open (labels say so)
             for (int k = 0; k < 4; k++)
                 if (Input.GetKeyDown((KeyCode)(KeyCode.Alpha1 + k))) AskByHotkey(k);
-            // H hands both papers back; F flips the paper you touched last (the ID flips by
-            // itself only through its spine or this key). Verdicts have NO key: a stamp is
-            // dragged onto the slip by hand.
-            if (Input.GetKeyDown(KeyCode.H)) HandBackByKey();
+            // F flips the ID (its spine does too). Verdicts and the hand-back have NO key: a
+            // stamp is dragged onto the slip and the ID is dragged back to the window by hand.
             if (Input.GetKeyDown(KeyCode.F)) FlipLastPaper();
             // Z is the ONLY paper zoom input: a deliberate toggle (never the scroll wheel)
             if (Input.GetKeyDown(KeyCode.Z)) ToggleZoomLastPaper();

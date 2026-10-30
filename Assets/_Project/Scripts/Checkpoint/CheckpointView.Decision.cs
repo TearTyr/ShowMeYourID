@@ -279,13 +279,6 @@ namespace Hollowbrook.Checkpoint
             _gameRoot.Audio.PlaySfx(v == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 0.8f);
         }
 
-        internal void HandBackByKey()
-        {
-            if (!_slipStamped || !_documentsTaken) return;
-            HandBackId();
-            HandBackSlip();
-        }
-
         // The mark becomes a layer of the slip AT THE DROPPED SPOT (localCentre is in the
         // slip's own space, already clamped inside the printable area), so it moves, flips
         // and zooms with the paper and can never overhang the edge. Rotation is seeded per

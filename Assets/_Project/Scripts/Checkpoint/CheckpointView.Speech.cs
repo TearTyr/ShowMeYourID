@@ -191,7 +191,7 @@ namespace Hollowbrook.Checkpoint
                 if (!_documentsTaken) want = "DRAG THE ID AND THE SLIP FROM THE COUNTER TO YOUR DESK";
                 else if (!_slipTaken) want = "THE SLIP IS STILL ON THE COUNTER — DRAG IT TO YOUR DESK";
                 else if (!_slipStamped) want = "STAMP THE SLIP — DRAG A STAMP ONTO IT";
-                else want = "HAND BACK BOTH PAPERS AT THE WINDOW (H)";
+                else want = "DRAG THE ID BACK TO THE WINDOW";
             }
             if (want == _lastHandoverPrompt) return;
             _lastHandoverPrompt = want;
