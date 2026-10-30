@@ -2586,14 +2586,44 @@ namespace FlowCheck
             Check(beamInfo.Contains("FLASHLIGHT: OFF"),
                 "W1: the HUD reads FLASHLIGHT: OFF in sync with the hidden beam (got '" + beamInfo + "')");
             PressKey(root, KeyCode.Q);
-            Check(rig.Beam == LightMode.Focus && !rig.Latches.Sweep && rig.Latches.Focus,
-                "W1: Q takes over with Focus — the keyboard toggles are mutually exclusive");
+            Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep && !rig.Latches.Focus,
+                "W1: Q while the flashlight is OFF does nothing — the narrow beam never turns it on");
             PressKey(root, KeyCode.F);
+            PressKey(root, KeyCode.Q);
+            Check(rig.Beam == LightMode.Focus && !rig.Latches.Sweep && rig.Latches.Focus,
+                "W1: Q while it is ON switches to the narrow Focus — the two modes are mutually exclusive");
+            PressKey(root, KeyCode.Q);
             Check(rig.Beam == LightMode.Sweep && rig.Latches.Sweep && !rig.Latches.Focus,
-                "W1: F while Focus-latched switches back to Sweep (no dead toggle)");
+                "W1: Q again goes back to the wide Sweep — it never turns the light off");
+            PressKey(root, KeyCode.Q);
+            PressKey(root, KeyCode.F);
+            Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep && !rig.Latches.Focus,
+                "W1: F turns a narrow beam OFF too (on/off is always F)");
+            PressKey(root, KeyCode.F);
             PressKey(root, KeyCode.L);
             Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep && !rig.Latches.Focus,
                 "W1: L switches off and clears conflicting latches");
+
+            // the same controls on the mouse: left click = on / off, right click = narrow beam
+            ClickMouse(root, 1);
+            Check(rig.Beam == LightMode.Off, "W1: a right click while OFF does nothing");
+            ClickMouse(root, 0);
+            Check(rig.Beam == LightMode.Sweep, "W1: a left click turns the flashlight ON (wide)");
+            ClickMouse(root, 1);
+            Check(rig.Beam == LightMode.Focus, "W1: a right click while ON switches to the narrow beam");
+            ClickMouse(root, 1);
+            Check(rig.Beam == LightMode.Sweep, "W1: a right click again returns the wide sweep");
+            UnityEngine.EventSystems.EventSystem.PointerOverUi = true;      // pause button, a sheet...
+            ClickMouse(root, 0);
+            ClickMouse(root, 1);
+            UnityEngine.EventSystems.EventSystem.PointerOverUi = false;
+            Check(rig.Beam == LightMode.Sweep, "W1: clicks that land on UI never drive the flashlight");
+            ClickMouse(root, 0);
+            Check(rig.Beam == LightMode.Off, "W1: a left click turns it OFF");
+            Input.MouseHeld.Add(0);
+            WorldFrames(root, 5);
+            Input.MouseHeld.Clear();
+            Check(rig.Beam == LightMode.Off, "W1: HOLDING a mouse button never lights it — only the press toggles");
             CheckLightSync(root, "W1 after L");
 
             // ---- W2: room lighting and the beam are independent systems
@@ -2620,7 +2650,7 @@ namespace FlowCheck
             Check(roomInfo.Contains("MAIN HALLWAY") && roomInfo.Contains("FLASHLIGHT: OFF") &&
                   !roomInfo.Contains("LIGHTS:") && !roomInfo.ToLowerInvariant().Contains("switch"),
                   "W2: the HUD names the room and the flashlight and points at no switch (got '" + roomInfo + "')");
-            PressKey(root, KeyCode.Q);
+            SetBeam(root, rig, LightMode.Focus);
             Check(!hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: the beam is the portable light: Focus does NOT touch the room lights");
             hall.Light.SetLit(true);   // only a scripted event (the hallucination flicker) can light a room
             Check(hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: a scripted light change lights the room, beam stays Focus");
@@ -3353,6 +3383,20 @@ namespace FlowCheck
             PressKey(root, KeyCode.Q);
             Check(lamp.Lit && !lamp.Focused && views.IsPeekLit(new Vector3(2.2f, 0f, 0f)),
                 "W10: Q again returns the broad wash — the wide/focus toggle is clean both ways");
+            ClickMouse(root, 1);
+            Check(lamp.Lit && lamp.Focused, "W10: a right click narrows the lit flashlight");
+            ClickMouse(root, 1);
+            Check(lamp.Lit && !lamp.Focused, "W10: ...and a second right click widens it again");
+            UnityEngine.EventSystems.EventSystem.PointerOverUi = true;      // the bottom step-back strip
+            ClickMouse(root, 0);
+            UnityEngine.EventSystems.EventSystem.PointerOverUi = false;
+            Check(lamp.Lit, "W10: a click on the bottom strip (UI) never switches the flashlight — it steps back");
+            ClickMouse(root, 0);
+            Check(!lamp.Lit, "W10: a left click anywhere else turns the flashlight OFF");
+            ClickMouse(root, 1);
+            Check(!lamp.Lit && !lamp.Focused, "W10: a right click while OFF does nothing");
+            ClickMouse(root, 0);
+            Check(lamp.Lit && !lamp.Focused, "W10: a left click turns it back ON, wide");
             AimAt(3f, 1f);
             WorldFrames(root, 5);
             Check(views.IsPeekLit(new Vector3(3f, 1f, 0f)) && !views.IsPeekLit(new Vector3(-6f, 0f, 0f)),
@@ -4305,6 +4349,7 @@ namespace FlowCheck
             Time.unscaledDeltaTime = dt;
             root.Views.TickWorld(dt);
             Input.KeysDown.Clear();     // edge-triggered keys last exactly one frame
+            Input.MouseDown.Clear();    // ...and so do mouse presses
         }
 
         private static void WorldFrames(GameRoot root, int n, float dt = 1f / 60f)
@@ -4318,10 +4363,18 @@ namespace FlowCheck
             WorldFrame(root);
         }
 
+        // one mouse press (0 = left, 1 = right) for one patrol / peek frame, like PressKey
+        private static void ClickMouse(GameRoot root, int button)
+        {
+            Input.MouseDown.Add(button);
+            WorldFrame(root);
+        }
+
         private static void AimAt(float x, float y) => Input.mousePosition = new Vector3(x, y, 0f);
 
-        // idempotent beam selection through the real toggles (pressing Q while Focus is
-        // latched would switch it OFF — scenarios need the mode, not the keypress count)
+        // idempotent beam selection through the real toggles (F turns it on / off, Q switches
+        // the wide sweep to the narrow focus and only works while it is on — scenarios need
+        // the mode, not the keypress count)
         private static void SetBeam(GameRoot root, FlashlightRig rig, LightMode want)
         {
             if (want == LightMode.Off)
@@ -4330,9 +4383,14 @@ namespace FlowCheck
             }
             else if (want == LightMode.Sweep)
             {
-                if (!rig.Latches.Sweep) PressKey(root, KeyCode.F);
+                if (rig.Latches.Focus) PressKey(root, KeyCode.Q);       // narrow -> wide
+                else if (!rig.Latches.Sweep) PressKey(root, KeyCode.F);
             }
-            else if (!rig.Latches.Focus) PressKey(root, KeyCode.Q);
+            else if (!rig.Latches.Focus)
+            {
+                if (!rig.Latches.Sweep) PressKey(root, KeyCode.F);      // the narrow beam needs the light on
+                PressKey(root, KeyCode.Q);
+            }
         }
 
         private static T FindInteractable<T>(RoomInstance room) where T : Interactable

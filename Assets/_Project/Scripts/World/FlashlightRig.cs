@@ -117,11 +117,10 @@ namespace Hollowbrook.World
             _gameRoot.State != AppViewState.Exploration ||
             (_gameRoot.Views != null && _gameRoot.Views.Transitioning);
 
-        // Keyboard-only beam input: F sweeps (toggle on/off), Q focuses (toggle), L puts it
-        // out. The mouse buttons are deliberately NOT beam input — a held click (doors,
-        // switches, dialogue) used to light the beam without any F press, which read as the
-        // flashlight turning itself on (audit task 3). FlashlightInput keeps its momentary
-        // hold parameters for the pure-logic suites; the rig simply never feeds them.
+        // Beam input: F or a left click turns it on / off, Q or a right click switches the wide
+        // sweep to the narrow focus (only while it is on), L puts it out. A click is a single
+        // press-toggle (never a hold) and never one that lands on UI, so the beam cannot
+        // light itself from a held button or a click on the pause button.
         private void ReadInput()
         {
             if (InputLocked)
@@ -130,8 +129,9 @@ namespace Hollowbrook.World
                 return;
             }
             LightMode want = FlashlightInput.Resolve(_latches,
-                Input.GetKeyDown(KeyCode.F), Input.GetKeyDown(KeyCode.Q), Input.GetKeyDown(KeyCode.L),
-                false, false, BatteryDead, out _latches);
+                Input.GetKeyDown(KeyCode.F) || InputGate.FlashlightClick(0),
+                Input.GetKeyDown(KeyCode.Q) || InputGate.FlashlightClick(1),
+                Input.GetKeyDown(KeyCode.L), BatteryDead, out _latches);
             if (want != Beam) ApplyBeam(want, false);
         }
 
