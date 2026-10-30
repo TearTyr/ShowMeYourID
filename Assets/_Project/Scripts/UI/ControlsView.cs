@@ -33,7 +33,7 @@ namespace Hollowbrook.UI
                 "   Answers arrive in the speech bubble beside the head and stay up until the\n" +
                 "   next line (or until the student leaves).\n" +
                 "   Stamp the slip (drag a stamp onto it) — the mark lands WHERE you drop the stamp, always\n" +
-                "   fully on the paper — then hand the ID back (H). TAB pulls the file drawer.\n" +
+                "   fully on the paper — then drag the ID back to the window. TAB pulls the file drawer.\n" +
                 "   At most 2 questions per visitor. Decisions are permanent.\n" +
                 "   NIGHT 5: when the district administrator arrives, T (or the bar beside the\n" +
                 "   stamps) opens THE CONVERSATION — challenge, comply, raise what you have\n" +

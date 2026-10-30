@@ -481,9 +481,8 @@ namespace Hollowbrook.Checkpoint
             // 1-4 ask the four questions while the interview is open (labels say so)
             for (int k = 0; k < 4; k++)
                 if (Input.GetKeyDown((KeyCode)(KeyCode.Alpha1 + k))) AskByHotkey(k);
-            // H hands the ID back; F flips the ID (its spine does too). Verdicts have NO key:
-            // a stamp is dragged onto the slip by hand.
-            if (Input.GetKeyDown(KeyCode.H)) HandBackByKey();
+            // F flips the ID (its spine does too). Verdicts and the hand-back have NO key: a
+            // stamp is dragged onto the slip and the ID is dragged back to the window by hand.
             if (Input.GetKeyDown(KeyCode.F)) FlipLastPaper();
             // Z is the ONLY paper zoom input: a deliberate toggle (never the scroll wheel)
             if (Input.GetKeyDown(KeyCode.Z)) ToggleZoomLastPaper();
