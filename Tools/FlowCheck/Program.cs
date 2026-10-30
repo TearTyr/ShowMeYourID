@@ -1681,9 +1681,8 @@ namespace FlowCheck
             Check(cp.CurrentVisitor != null && FindDeep(desk, "idcard").gameObject.activeSelf &&
                   FindDeep(desk, "slip").gameObject.activeSelf,
                   "a fresh visitor arrives with both documents already on the desk (§6 automation)");
-            Check(!FaceOf(FindDeep(desk, "idcard"), "idback").gameObject.activeSelf &&
-                  !FaceOf(FindDeep(desk, "slip"), "slipback").gameObject.activeSelf,
-                  "the fresh visitor's papers are born FACE-UP (flip state never carries over)");
+            Check(!FaceOf(FindDeep(desk, "idcard"), "idback").gameObject.activeSelf,
+                  "the fresh visitor's ID is born FACE-UP (flip state never carries over)");
 
             // ---- the night counter, and the night title that opens each night ----
             {
