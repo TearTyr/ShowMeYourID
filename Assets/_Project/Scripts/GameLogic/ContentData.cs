@@ -194,7 +194,6 @@ namespace Hollowbrook.Logic
             switch (Key)
             {
                 case "no_transferees": return !v.IsAnomaly && v.IdIsTransferee;
-                case "third_year_curfew": return !v.IsAnomaly && v.IdYearLevel == 3;
                 case "strict_expiry": return !v.IsAnomaly && v.ExpirationDay - Content.ShiftDayNumber(v.ShiftNumber) <= 60;
                 case "odd_serials": return !v.IsAnomaly && IdRules.SerialOf(v.IdNumber) % 2 == 1;
                 case "office_late_list": return !v.IsAnomaly &&

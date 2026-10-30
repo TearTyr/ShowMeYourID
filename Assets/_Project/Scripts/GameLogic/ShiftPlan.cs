@@ -93,8 +93,6 @@ namespace Hollowbrook.Logic
             new RuleMutationDef("none", null),
             new RuleMutationDef("no_transferees",
                 "TEMPORARY DISTRICT RULE: Transferees are not admitted on nights with active system audits. Reject all transferees."),
-            new RuleMutationDef("third_year_curfew",
-                "TEMPORARY DISTRICT RULE: Third-year students are under district curfew tonight. Reject all 3rd Years."),
             new RuleMutationDef("strict_expiry",
                 "TEMPORARY DISTRICT RULE: IDs expiring within 60 days are not accepted during audits. Reject them."),
             new RuleMutationDef("odd_serials",

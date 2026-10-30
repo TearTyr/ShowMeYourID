@@ -754,8 +754,9 @@ namespace Hollowbrook.LogicTests
             Check(!strict.ForcesReject(anomaly), "mutations never force-reject an anomaly (it is already Reject)");
             var noTransferees = new RuleMutationDef("no_transferees", "test");
             var odd = new RuleMutationDef("odd_serials", "test");
-            var curfew = new RuleMutationDef("third_year_curfew", "test");
             Check(!new RuleMutationDef("unknown_key", "x").ForcesReject(legit), "unknown mutation key is inert");
+            Check(!ShiftPlan.ChallengeMutations.Any(m => m.Key.Contains("curfew")),
+                  "no year-based curfew rule exists (the school has no 4th years to single out)");
 
             // strict_expiry works on a 60-day window measured on Content's day-number axis
             var far = new VisitorData
@@ -789,12 +790,9 @@ namespace Hollowbrook.LogicTests
                 IdNumber = "HB-2026-0003", ExpirationDay = Content.DayNumberOfDate(2027, 3, 31),
             };
             Check(noTransferees.ForcesReject(probe), "no_transferees forces reject on a transferee");
-            Check(curfew.ForcesReject(probe), "third_year_curfew forces reject on a 3rd year");
             Check(odd.ForcesReject(probe), "odd_serials forces reject on serial 0003");
             Check(!noTransferees.ForcesReject(new VisitorData { ShiftNumber = 3, IdNumber = "HB-2026-0004" }),
                   "no_transferees ignores a regular student");
-            Check(!curfew.ForcesReject(new VisitorData { ShiftNumber = 3, IdYearLevel = 2, IdNumber = "HB-2026-0004" }),
-                  "third_year_curfew ignores a 2nd year");
             Check(!odd.ForcesReject(new VisitorData { ShiftNumber = 3, IdNumber = "HB-2026-0004" }),
                   "odd_serials ignores an even serial");
 
