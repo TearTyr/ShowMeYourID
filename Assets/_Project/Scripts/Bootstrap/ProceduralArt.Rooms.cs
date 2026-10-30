@@ -239,27 +239,5 @@ namespace Hollowbrook.Bootstrap
             c.Vignette(0.6f);
             return c.ToSprite(room2 ? "classroom2_bg" : "classroom1_bg", WorldPpu);
         }
-
-        private static Sprite MakeSecurityRoom(int w, int h)
-        {
-            var c = new Canvas2D(w, h);
-            c.Fill(G(0.06f));
-            c.FillRect(0, 0, w, (int)(h * 0.66f), G(0.09f));
-            int wx = (int)(w * 0.24f), wy = (int)(h * 0.08f), ww = (int)(w * 0.52f), wh = (int)(h * 0.44f);
-            c.FillRect(wx - 12, wy - 12, ww + 24, wh + 24, G(0.16f));          // frame
-            c.FillRect(wx, wy, ww, wh, G(0.22f));                              // glass (visitor drawn under UI glass tint)
-            for (int i = 1; i <= 2; i++) c.FillRect(wx + ww * i / 3 - 3, wy, 6, wh, G(0.14f)); // bars
-            c.FillRect(wx, wy + (int)(wh * 0.72f), ww, wh - (int)(wh * 0.72f), G(0.17f));
-            c.FillRect(0, (int)(h * 0.66f), w, h - (int)(h * 0.66f), G(0.11f));
-            c.FillRect(0, (int)(h * 0.66f), w, 6, G(0.24f));
-            c.FillRect((int)(w * 0.03f), (int)(h * 0.52f), 150, 100, G(0.14f));
-            c.FillRect((int)(w * 0.03f) + 8, (int)(h * 0.52f) + 8, 134, 78, G(0.30f));
-            c.FillRect((int)(w * 0.03f) + 60, (int)(h * 0.52f) + 100, 30, 22, G(0.12f));
-            c.FillRect((int)(w * 0.88f), (int)(h * 0.56f), 120, 60, G(0.15f));   // ID scanner
-            c.FillRect((int)(w * 0.88f) + 10, (int)(h * 0.56f) + 8, 100, 8, G(0.4f));
-            c.Noise(0.04f, 42);
-            c.Vignette(0.5f);
-            return c.ToSprite("security_bg", UiPpu);
-        }
     }
 }

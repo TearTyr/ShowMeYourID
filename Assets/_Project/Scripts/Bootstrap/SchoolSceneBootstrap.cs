@@ -60,7 +60,6 @@ namespace Hollowbrook.Bootstrap
             root.CreditsScreen = CoreBootstrap.CreateView<CreditsView>(ui, "CreditsView", root);
             root.Captions = CoreBootstrap.CreateView<CaptionBar>(ui, "CaptionBar", root);
             root.Confirm = CoreBootstrap.CreateView<ConfirmationPopup>(ui, "ConfirmationPopup", root);
-            root.SecurityRoom = CoreBootstrap.CreateView<World.SecurityRoomView>(ui, "SecurityRoomView", root);
 
             UIFactory.ApplyTextScale(root.Settings.TextScaleMultiplier);
             root.RunQueuedSceneAction();

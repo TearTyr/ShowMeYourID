@@ -229,7 +229,7 @@ namespace Hollowbrook.Bootstrap
         {
             "solid_white", "vignette", "noise_overlay", "flash", "light_cone",
             "menu_bg", "desk_bg", "hood_figure",
-            "hallway_bg", "hall_depth", "classroom1_bg", "classroom2_bg", "security_bg",
+            "hallway_bg", "hall_depth", "classroom1_bg", "classroom2_bg",
             "prop_door", "prop_door_security", "prop_server_door", "prop_lockers", "prop_desk",
             "prop_chalkboard", "prop_window", "prop_noticeboard", "prop_cabinet", "prop_clock",
             "token",
@@ -261,7 +261,6 @@ namespace Hollowbrook.Bootstrap
                 case "hall_depth": return MakeHallDepth();
                 case "classroom1_bg": return MakeClassroom(1152, 640, false);
                 case "classroom2_bg": return MakeClassroom(1152, 640, true);
-                case "security_bg": return MakeSecurityRoom(1280, 720);
                 case "prop_door": return MakeDoor(160, 384, false);
                 case "prop_door_security": return MakeDoor(160, 384, true);
                 case "prop_server_door": return MakeDoor(208, 384, false, chained: true);

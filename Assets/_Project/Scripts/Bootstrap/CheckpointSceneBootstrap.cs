@@ -17,7 +17,6 @@ namespace Hollowbrook.Bootstrap
 
             // world-scoped references from other scenes must not leak in
             root.Views = null;
-            root.SecurityRoom = null;
 
             root.Checkpoint = CoreBootstrap.CreateView<CheckpointView>(ui, "CheckpointView", root);
             root.HUD = CoreBootstrap.CreateView<HUDView>(ui, "HUDView", root);
