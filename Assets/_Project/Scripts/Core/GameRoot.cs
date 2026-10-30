@@ -380,6 +380,8 @@ namespace Hollowbrook.Core
             {
                 Session.TonightLog.Clear();
                 Session.AdmittedStudents.Clear();
+                Session.Stacks.Clear();          // a new night starts with a clean drain
+                Session.RefillPending = 0f;
             }
             // a resume continues the saved night at its saved clock; a fresh shift starts at 22:00
             _shiftMinutes = isResume ? Session.ShiftClockMinutes : 0f;

@@ -126,8 +126,16 @@ namespace Hollowbrook.Logic
             }
         }
 
+        // Resting at the desk (the window is empty) recovers sanity; a student at the window
+        // wears it down slowly; patrol in the dark wears it down a little faster. Wrong
+        // decisions do not cost sanity directly: they add a SanityStacks drain stack.
         public const float SecurityRoomRecoveryPerSecond = 1.2f;
-        public const float DarknessDrainPerSecond = 0.6f;
+        public const float DeskDrainPerSecond = 0.25f;
+        public const float DarknessDrainPerSecond = 0.3f;
+        // A correct decision refills this much, handed over gradually (the bar fills in
+        // RefillOnCorrect / RefillPerSecond = 6 s) rather than in one jump.
+        public const float RefillOnCorrect = 15f;
+        public const float RefillPerSecond = 2.5f;
 
         public static float Clamp(float v) => v < Min ? Min : (v > Max ? Max : v);
 

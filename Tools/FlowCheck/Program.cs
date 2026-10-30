@@ -1605,6 +1605,38 @@ namespace FlowCheck
             Check(!FaceOf(FindDeep(desk, "idcard"), "idback").gameObject.activeSelf &&
                   !FaceOf(FindDeep(desk, "slip"), "slipback").gameObject.activeSelf,
                   "the fresh visitor's papers are born FACE-UP (flip state never carries over)");
+
+            // ---- sanity at the desk (the real controller, one 0.5 s tick at a time) ----
+            {
+                var ses = root.Session; var ctl = root.SanityCtl;
+                float dtSave = Time.deltaTime;
+                Time.deltaTime = 0.5f;
+                ses.Stacks.Clear(); ses.RefillPending = 0f; ses.Sanity = 60f;
+                ctl.Tick(true);
+                Check(Mathf.Abs((60f - ses.Sanity) - SanityModel.DeskDrainPerSecond * 0.5f * 0.85f) < 1e-3f,
+                    "SANITY: a student at the window wears sanity down slowly (0.25/s at the 0.85x baseline)");
+                var scaryCfg = root.Config.scaryStudents;
+                root.Config.scaryStudents = new[] { new GameConfigSO.ScaryStudent
+                    { fullName = cp.CurrentVisitor.ClaimedName, extraDrainPerSecond = 1f } };
+                ses.Sanity = 60f;
+                ctl.Tick(true);
+                Check(Mathf.Abs((60f - ses.Sanity) - (SanityModel.DeskDrainPerSecond + 1f) * 0.5f * 0.85f) < 1e-3f,
+                    "SANITY: a student named in the config's scary list drains extra while at the window");
+                root.Config.scaryStudents = scaryCfg;
+                ses.Stacks.Add(); ses.Stacks.Add(); ses.Stacks.Add();
+                ses.Sanity = 60f;
+                ctl.Tick(true);
+                Check(Mathf.Abs((60f - ses.Sanity) - SanityModel.DeskDrainPerSecond * 0.5f * 2.25f) < 1e-3f,
+                    "SANITY: three stacks drain at 2.25x");
+                Check(Mathf.Abs(ses.Stacks.SecondsLeft - 29.5f) < 1e-3f, "SANITY: ...and the stack timer ticks down with the controller");
+                ses.Stacks.Clear();
+                ses.RefillPending = 15f; ses.Sanity = 50f;
+                ctl.Tick(true);
+                Check(Mathf.Abs(ses.RefillPending - 13.75f) < 1e-3f && ses.Sanity > 50.5f && ses.Sanity < 51.5f,
+                    "SANITY: a correct call's refill arrives gradually (1.25 per 0.5 s tick)");
+                ses.RefillPending = 0f; ses.Sanity = 100f;
+                Time.deltaTime = dtSave;
+            }
             Check(StampAlpha(root, "stamp_allow") > 0.9f, "stamps ink up as soon as the inspection is live (docs auto-placed)");
             int procBefore = root.Queue.ProcessedCount;
             DropStamp(root, Verdict.Reject);
@@ -1671,6 +1703,18 @@ namespace FlowCheck
             Check(guard < 16, "roster walked to the end without runaway (" + guard + " steps)");
             Check(root.Queue.ShiftComplete, "P9: shift complete = source dry + line empty + window free");
             Check(live("endshift"), "END SHIFT lights up when the roster is done");
+            {
+                // nobody at the window: the custodian rests (the only passive recovery there is)
+                var ses = root.Session; float dtSave = Time.deltaTime;
+                Check(cp.CurrentVisitor == null, "SANITY: the window is empty once the roster is done");
+                Time.deltaTime = 0.5f;
+                ses.Stacks.Clear(); ses.RefillPending = 0f; ses.Sanity = 60f;
+                root.SanityCtl.Tick(true);
+                Check(Mathf.Abs((ses.Sanity - 60f) - SanityModel.SecurityRoomRecoveryPerSecond * 0.5f) < 1e-3f,
+                    "SANITY: with the window empty sanity recovers (1.2/s) — resting means clearing the line");
+                ses.Sanity = 100f;
+                Time.deltaTime = dtSave;
+            }
             Check(live("patrol"), "PATROL HALLWAY usable once no inspection is live");
 
             ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
