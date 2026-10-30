@@ -35,13 +35,16 @@ namespace Hollowbrook.Checkpoint
             get => _rt != null ? _rt.localScale.x / Mathf.Max(0.01f, BaseScale) : 1f;
             set
             {
-                if (_rt != null)
+                if (_rt != null && Zoomable)
                 {
                     var z = Mathf.Clamp(value, 1f, 1.8f) * Mathf.Max(0.01f, BaseScale);
                     _rt.localScale = new Vector3(z, z, 1f);
                 }
             }
         }
+        /// <summary>False for a paper that is only ever dragged (the slip): any zoom request is
+        /// ignored, so no key, tap or script can resize it.</summary>
+        public bool Zoomable = true;
         /// <summary>Tools (stamps, the offered ID) return to their slot after every drop;
         /// papers stay where the player left them.</summary>
         public bool ReturnsHome;
