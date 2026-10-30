@@ -219,6 +219,8 @@ namespace UnityEngine.UI
         public FillMethod fillMethod = FillMethod.Horizontal;
         public int fillOrigin = 0;
         public Sprite overrideSprite { get; set; }
+        public float pixelsPerUnitMultiplier = 1f;
+        public float pixelsPerUnit => sprite != null ? sprite.pixelsPerUnit / 100f : 1f;   // canvas reference PPU 100
         public void SetNativeSize() { }
         // uGUI asks every Graphic under the pointer whether the hit counts; the real
         // Image tests the sprite rect, HotRectImage narrows that to one local band

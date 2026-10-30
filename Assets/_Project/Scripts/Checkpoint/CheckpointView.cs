@@ -169,7 +169,7 @@ namespace Hollowbrook.Checkpoint
             gameObject.SetActive(false);
             _notesRoot.SetActive(false);
             _recordsRoot.SetActive(false);
-            HideBubbleNow();   // leaving the desk never carries a line (or a timer) along
+            HideBubbleNow();   // leaving the desk never carries a line along
             CloseFileDrawer(true);   // ...nor an open drawer: the cabinet is shut on return
             // ...nor a half-spoken conversation: the panel goes dark, the state stays in the
             // session, and ResumeRun puts the re-open bar back if the administrator still waits
@@ -450,7 +450,6 @@ namespace Hollowbrook.Checkpoint
             if (_gameRoot == null || !gameObject.activeInHierarchy) return;
             TickClockText();                  // the header clock follows the model every frame
             AdvanceQueue(Time.deltaTime);
-            TickBubble(Time.unscaledDeltaTime);   // the 2 s bubble cooldown (frozen while paused)
             TickDrawer(Time.unscaledDeltaTime);   // the floor-files drawer's pull/slide
             TickKitLight(Time.unscaledDeltaTime); // the booth lamp's slow breath
             TickHotkeys();
@@ -483,10 +482,9 @@ namespace Hollowbrook.Checkpoint
             // 1-4 ask the four questions while the interview is open (labels say so)
             for (int k = 0; k < 4; k++)
                 if (Input.GetKeyDown((KeyCode)(KeyCode.Alpha1 + k))) AskByHotkey(k);
-            // A / D stamp the slip (pending); H hands both papers back; F flips the paper
-            // you touched last (the ID flips by itself only through its spine or this key)
-            if (Input.GetKeyDown(KeyCode.A)) StampSlipByKey(Verdict.Allow);
-            if (Input.GetKeyDown(KeyCode.D)) StampSlipByKey(Verdict.Reject);
+            // H hands both papers back; F flips the paper you touched last (the ID flips by
+            // itself only through its spine or this key). Verdicts have NO key: a stamp is
+            // dragged onto the slip by hand.
             if (Input.GetKeyDown(KeyCode.H)) HandBackByKey();
             if (Input.GetKeyDown(KeyCode.F)) FlipLastPaper();
             // Z is the ONLY paper zoom input: a deliberate toggle (never the scroll wheel)

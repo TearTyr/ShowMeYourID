@@ -1872,65 +1872,32 @@ namespace Hollowbrook.LogicTests
         }
 
         // ------------------------------------------------------- speech bubble (task 4)
-        // The bubble beside the student's head: ONE clock, a 2-second cooldown that
-        // starts when the dialogue ENDS, generation-guarded against stale hides.
+        // The bubble beside the student's head: a line STAYS until the next line replaces
+        // it or the desk clears it — there is no timeout and no hover rule any more.
         private static void SpeechBubbleTests()
         {
-            Group("SpeechBubbleClock — one bubble, 2 s cooldown, stale-timer proof");
-
-            Check(Math.Abs(SpeechBubbleClock.HideDelaySeconds - 2f) < 1e-6f,
-                "the cooldown between 'dialogue ended' and 'bubble removed' is exactly 2 s");
+            Group("SpeechBubbleClock — a line stays until replaced or cleared");
 
             var b = new SpeechBubbleClock();
             Check(!b.Visible && b.Generation == 0, "born hidden, with no generations spent");
             Eq(b.Who, "", "born with no speaker");
             Eq(b.Text, "", "born with no line");
-            b.Tick(5f);
-            Check(!b.Visible, "ticking a hidden bubble does nothing");
 
             b.Say("AT THE WINDOW", "Good evening.");
             Check(b.Visible, "a line shows the bubble");
             Eq(b.Who, "AT THE WINDOW", "the bubble carries the speaker");
             Eq(b.Text, "Good evening.", "the bubble carries the line");
             Eq(b.Generation, 1, "the first line is generation 1");
-            Check(b.SecondsSinceLine < 1e-6f, "the countdown starts at zero with the line");
 
-            b.Tick(1.9f);
-            Check(b.Visible && Math.Abs(b.SecondsSinceLine - 1.9f) < 1e-4f,
-                "still up 1.9 s after the line — no premature hide");
-            b.Tick(0.05f);
-            Check(b.Visible, "still up at 1.95 s");
-            b.Tick(0.06f);
-            Check(!b.Visible, "hidden once the cooldown passes the 2 s mark");
-            float frozen = b.SecondsSinceLine;
-            b.Tick(3f);
-            Check(!b.Visible && Math.Abs(b.SecondsSinceLine - frozen) < 1e-6f,
-                "ticks after the hide change nothing");
+            // nothing but a new line or a cleanup may change what is on screen
+            Check(b.Visible && b.Text == "Good evening.",
+                "the line is still up later — there is no timer to take it away");
 
-            // a new dialogue during/after the cooldown shows normally (cancel + restart)
             b.Say("AT THE WINDOW", "Second visit.");
-            Check(b.Visible && b.Generation == 2, "the next line brings the bubble back (generation 2)");
-            b.Tick(1.5f);
-            b.Say("AT THE WINDOW", "Interrupting line.");
-            Check(b.Visible && b.SecondsSinceLine < 1e-6f,
-                "a new line mid-cooldown RESTARTS the countdown — the pending hide is cancelled");
-            Eq(b.Generation, 3, "...and advances the generation, so a stale callback can never hide it");
-            b.Tick(1.9f);
-            Check(b.Visible, "the newer line survives past the OLDER timer's 2 s mark");
-            b.Tick(0.2f);
-            Check(!b.Visible, "...and hides 2 s after the LAST line, not the first");
+            Check(b.Visible && b.Generation == 2, "the next line replaces it (generation 2)");
+            Eq(b.Text, "Second visit.", "...and the bubble shows the NEW line");
 
-            // one overshoot tick hides it too (no frame-rate dependency in the model)
-            b.Say("AT THE WINDOW", "Long frame.");
-            b.Tick(10f);
-            Check(!b.Visible, "one long tick past the cooldown hides the bubble");
-
-            // robustness: negative time, zero time, null payload
-            b.Say("AT THE WINDOW", "Negative dt.");
-            b.Tick(-3f);
-            Check(b.Visible && b.SecondsSinceLine < 1e-6f, "negative dt is clamped — the clock never rewinds below zero");
-            b.Tick(0f);
-            Check(b.Visible, "a zero tick keeps the dialogue up");
+            // robustness: null payload
             b.Say(null, null);
             Check(b.Visible, "a null line still shows the bubble");
             Eq(b.Who, "", "null speaker is stored as empty");
@@ -1939,41 +1906,16 @@ namespace Hollowbrook.LogicTests
             // HideNow: the cleanup path (room change / visitor walks off)
             b.Say("AT THE WINDOW", "Cleanup.");
             b.HideNow();
-            Check(!b.Visible && b.SecondsSinceLine < 1e-6f, "HideNow removes the bubble and drops the countdown instantly");
+            Check(!b.Visible, "HideNow removes the bubble instantly");
+            b.HideNow();
+            Check(!b.Visible, "...and is idempotent");
             b.Say("AT THE WINDOW", "After cleanup.");
-            Check(b.Visible, "...and a later line still shows normally");
+            Check(b.Visible, "a later line still shows normally");
 
             int g0 = b.Generation;
             for (int i = 0; i < 10; i++) b.Say("AT THE WINDOW", "line " + i);
             Eq(b.Generation, g0 + 10, "generations are strictly monotonic — every line gets its own");
             Eq(b.Text, "line 9", "the bubble always shows the newest line only (no overlap)");
-
-            // hover-to-read: the countdown suspends while the cursor sits inside the bubble
-            b.Say("AT THE WINDOW", "Read me.");
-            b.Tick(1.2f);
-            b.SetHover(true);
-            Check(b.Hovering && b.Visible, "hovering registers and keeps the bubble up");
-            b.Tick(30f);
-            Check(b.Visible && Math.Abs(b.SecondsSinceLine - 1.2f) < 1e-4f,
-                "the countdown is suspended while hovered — no hide, no drift");
-            b.SetHover(false);
-            Check(!b.Hovering && b.SecondsSinceLine < 1e-6f,
-                "leaving RESTARTS the 2 s cooldown from zero (dialogue already over)");
-            b.Tick(1.9f);
-            Check(b.Visible, "still up 1.9 s after the cursor left");
-            b.Tick(0.2f);
-            Check(!b.Visible, "hidden 2 s after the cursor left");
-            b.Say("AT THE WINDOW", "New line while hovered.");
-            Check(b.Visible && b.SecondsSinceLine < 1e-6f,
-                "new dialogue under hover resets the timer and shows normally");
-            b.SetHover(false);
-            b.Tick(2.1f);
-            Check(!b.Visible, "...and the cooldown runs once the cursor is gone");
-            b.SetHover(true);
-            b.SetHover(true);
-            b.SetHover(false);
-            b.SetHover(false);
-            Check(!b.Hovering, "duplicate enter/exit calls cannot stack state");
 
             Group("SpeechBubbleLayout — wrap estimate, truncation, bubble height");
 
