@@ -282,8 +282,7 @@ namespace Hollowbrook.Checkpoint
         internal void HandBackByKey()
         {
             if (!_slipStamped || !_documentsTaken) return;
-            HandBackId();
-            HandBackSlip();
+            HandBackId();   // the slip stays on the desk — only the ID goes back
         }
 
         // The mark becomes a layer of the slip AT THE DROPPED SPOT (localCentre is in the
