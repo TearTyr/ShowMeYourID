@@ -503,10 +503,6 @@ namespace Hollowbrook.Core
 
         private void PlayIntroThenCheckpoint(List<DialogueLine> intro, ShiftDef shift)
         {
-            if (Loading != null)
-                Loading.Show(shift != null
-                    ? "SHIFT " + shift.Number + "  ·  " + shift.DateLabel
-                    : (Session.Mode == GameMode.Endless ? "ENDLESS WATCH" : "CHALLENGE PROTOCOL"));
             SetState(AppViewState.ShiftIntro);
             Bus.Publish(GameEvent.Of(EventIds.ShiftStarted, shift));
             ObjectiveText = shift != null ? shift.Objective :
@@ -517,6 +513,20 @@ namespace Hollowbrook.Core
             if (Dialogue == null) Debug.LogError("[GameRoot] intro: Dialogue view NULL - check scene bootstrap view creation.");
             if (Loading == null) Debug.LogError("[GameRoot] intro: Loading view NULL - no NIGHT backdrop will show.");
             if (Checkpoint == null) Debug.LogError("[GameRoot] intro: Checkpoint view NULL - the desk cannot start.");
+            // the night title fades in slowly on the black card FIRST, and only then does the
+            // dialogue box open over it (a click skips the title)
+            System.Action startDialogue = () => PlayIntroDialogue(intro, shift);
+            if (Loading != null)
+                Loading.PlayNightTitle(
+                    shift != null ? "NIGHT " + shift.Number
+                        : (Session.Mode == GameMode.Endless ? "ENDLESS WATCH" : "CHALLENGE PROTOCOL"),
+                    shift != null ? shift.DateLabel.ToUpperInvariant() : "HOLLOWBROOK COLLEGE — NIGHT CUSTODIAN PROGRAM",
+                    startDialogue);
+            else startDialogue();
+        }
+
+        private void PlayIntroDialogue(List<DialogueLine> intro, ShiftDef shift)
+        {
             if (Dialogue != null)
                 Dialogue.Play(intro, () =>
                 {

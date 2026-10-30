@@ -43,6 +43,7 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region LightMeter = new Region(348, 96, 200, 40);   // patrol only, under the board
         public static readonly Region TrackMeter = new Region(568, 96, 110, 40);   // chase only
         public static readonly Region Clock = new Region(1000, 25, 85, 30);
+        public static readonly Region NightCounter = new Region(885, 25, 110, 30);   // "NIGHT 1/5", right beside the clock
         public static readonly Region Pause = new Region(1119, 22, 125, 38);        // kit pill, concept-measured
 
         // ---- row under the top bar (wireframe text baseline y=72) -----------

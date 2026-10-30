@@ -190,7 +190,7 @@ namespace FlowCheck
             string[] deskNames =
             {
                 "DeskFrame", "topbar", "daybanner_border", "clock", "pause", "runstats", "mutationbg",
-                "record", "station", "folder1", "folder2", "filedrawer_border", "closefile", "idcard",
+                "record", "station", "folder1", "folder2", "filedrawer_border", "closefile", "idcard", "nightcounter",
                 "drawerbody", "drawerfront", "drawercavity", "drawerhead", "cabfront",
                 "windowframe", "glass", "facade", "visitor", "glitch", "sill",
                 "speechbubble", "bubble_border", "bubble", "bubbletext", "bubbletail",
@@ -287,6 +287,10 @@ namespace FlowCheck
             ExpectRegion("light", L.LightMeter, 348, 96, 200, 40);
             ExpectRegion("track", L.TrackMeter, 568, 96, 110, 40);
             ExpectRegion("clock", L.Clock, 1000, 25, 85, 30);
+            ExpectRegion("night counter", L.NightCounter, 885, 25, 110, 30);
+            Check(L.NightCounter.Right <= L.Clock.X && L.NightCounter.X >= L.SanityMeter.Right &&
+                  L.NightCounter.Y == L.Clock.Y && L.NightCounter.H == L.Clock.H,
+                "the night counter sits right beside the clock, on its line, clear of the sanity meter");
             ExpectRegion("pause", L.Pause, 1119, 22, 125, 38);
             ExpectRegion("records station", L.Station, 40, 85, 305, 160);
             ExpectRegion("file drawer", L.FileDrawer, 55, 255, 275, 290);
@@ -360,6 +364,7 @@ namespace FlowCheck
             Add("light meter", L.LightMeter, "E");
             Add("track meter", L.TrackMeter, "E");
             Add("clock", L.Clock, "B");
+            Add("night counter", L.NightCounter, "B");
             Add("pause", L.Pause, "B");
             Add("run stats", L.RunStats, "B");
             Add("mutation strip", L.Mutation, "B");
@@ -1605,6 +1610,28 @@ namespace FlowCheck
             Check(!FaceOf(FindDeep(desk, "idcard"), "idback").gameObject.activeSelf &&
                   !FaceOf(FindDeep(desk, "slip"), "slipback").gameObject.activeSelf,
                   "the fresh visitor's papers are born FACE-UP (flip state never carries over)");
+
+            // ---- the night counter, and the night title that opens each night ----
+            {
+                var nc = FindDeep(desk, "nightcounter");
+                Check(nc != null && nc.gameObject.activeSelf &&
+                      nc.GetComponent<UnityEngine.UI.Text>().text == "NIGHT " + root.Session.CurrentShift + "/" + ShiftPlan.TotalShifts,
+                    "NIGHT: the desk header shows the night counter beside the clock (got '" +
+                    (nc != null ? nc.GetComponent<UnityEngine.UI.Text>().text : "missing") + "')");
+                int titleDone = 0;
+                root.Loading.PlayNightTitle("NIGHT 9", "SOME DATE", () => titleDone++);
+                var loadLabel = FindDeep(root.Loading.transform, "label").GetComponent<UnityEngine.UI.Text>();
+                var loadSub = FindDeep(root.Loading.transform, "sub").GetComponent<UnityEngine.UI.Text>();
+                Check(titleDone == 1, "NIGHT: the title hands over to the dialogue exactly once when it ends");
+                Check(loadLabel.text == "NIGHT 9" && loadSub.text == "SOME DATE" &&
+                      loadLabel.color.a > 0.99f && loadSub.color.a > 0.99f,
+                    "NIGHT: the title and its date finish fully faded in");
+                Check(FindDeep(root.Loading.transform, "bg").gameObject.activeSelf,
+                    "NIGHT: the black card stays up under the dialogue that follows");
+                root.Loading.Hide();
+                Check(!FindDeep(root.Loading.transform, "bg").gameObject.activeSelf && titleDone == 1,
+                    "NIGHT: hiding the card never fires a second hand-over");
+            }
             Check(StampAlpha(root, "stamp_allow") > 0.9f, "stamps ink up as soon as the inspection is live (docs auto-placed)");
             int procBefore = root.Queue.ProcessedCount;
             DropStamp(root, Verdict.Reject);

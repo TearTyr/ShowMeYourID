@@ -43,7 +43,7 @@ namespace Hollowbrook.Checkpoint
         private bool _verdictLocked = true;
         private bool _flowActive;
 
-        private Text _topLeft, _topClock;
+        private Text _topLeft, _topClock, _topNight;
         private string _lastClockText = "";
         private Text _runStats;      // endless/challenge: score · streak · timer
         private Text _mutationStrip; // challenge bulletin
