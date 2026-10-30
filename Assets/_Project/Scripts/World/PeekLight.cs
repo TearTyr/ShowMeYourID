@@ -217,7 +217,7 @@ namespace Hollowbrook.World
             if (Input.GetKeyDown(KeyCode.E) && nearest != null)
             {
                 var door = nearest as Doorway;
-                if (door != null && door.Target == RoomId.Hallway) _gameRoot.ExitRoomPeek();
+                if (door != null && door.Target == RoomGraph.ParentOf(_room.Id)) _gameRoot.ExitRoomPeek();
                 else nearest.Interact();
             }
         }

@@ -1451,8 +1451,8 @@ namespace FlowCheck
             Check(!crN.Overlaps(hall.Value) && !crS.Overlaps(hall.Value) &&
                   !crN.Overlaps(c1.Value) && !crS.Overlaps(c2.Value),
                 "MAP: the comfort rooms obstruct neither the hallway nor the classrooms");
-            Check(!crN.Room.HasValue && !crS.Room.HasValue && !crN.Sealed && !crS.Sealed,
-                "MAP: the comfort rooms are map-only — they are not patrol destinations");
+            Check(crN.Room == RoomId.Comfort1 && crS.Room == RoomId.Comfort2 && !crN.Sealed && !crS.Sealed,
+                "MAP: the comfort rooms are the CR-1 / CR-2 peek rooms of the patrol");
 
             // every drawn room sits inside the drawn plan, at its design-space size, and at the
             // position the table asks for — the check that catches a mirrored or hand-nudged plan
@@ -2401,7 +2401,7 @@ namespace FlowCheck
                 var d = it as Doorway;
                 if (d != null && d.Art != null) { doors++; if (QuadH(d.Art) < 3f) doorsFullHeight = false; }
             }
-            Check(doors == 3 && doorsFullHeight,
+            Check(doors == 4 && doorsFullHeight,
                   "P: all " + doors + " hallway doors draw as full-height slabs at their anchors");
             Check(FindDeep(hall.Root.transform, "lightswitch") == null,
                   "P: the hallway has no wall switch plate any more");
@@ -3275,6 +3275,66 @@ namespace FlowCheck
                 "W10: the step-back band is gone after leaving the doorway");
             Check(!views.PeekLight.Lit && rig.Beam == LightMode.Off,
                 "W10: exiting leaves everything dark — restarting patrol never re-lights anything");
+
+            // ---- W11: the comfort rooms — a corridor off the hallway's east end, two peek rooms behind it
+            Console.WriteLine("== W11 comfort rooms ==");
+            Doorway toComfort = null;
+            foreach (var it in hall.Interactables)
+            {
+                var d = it as Doorway;
+                if (d != null && d.Target == RoomId.ComfortHall) toComfort = d;
+            }
+            Check(toComfort != null && toComfort.AnchorX > 8f &&
+                  Mathf.Abs(toComfort.AnchorX - RoomGraph.DoorX(RoomId.Hallway, RoomId.ComfortHall)) < 0.01f &&
+                  toComfort.Prompt.Contains("Comfort Rooms") && toComfort.Prompt.Contains("[E]"),
+                "W11: the east end of the hallway has a doorway to the comfort rooms, used with E");
+            toComfort.Interact();
+            Check(views.Current.Id == RoomId.ComfortHall && root.State == AppViewState.Exploration &&
+                  !views.PeekActive && views.Current.DisplayName == "COMFORT ROOMS",
+                "W11: E walks into the comfort hallway — a walkable room, not a peek");
+            Doorway cr1 = null, cr2 = null, backDoor = null;
+            foreach (var it in views.Current.Interactables)
+            {
+                var d = it as Doorway;
+                if (d == null) continue;
+                if (d.Target == RoomId.Comfort1) cr1 = d;
+                else if (d.Target == RoomId.Comfort2) cr2 = d;
+                else if (d.Target == RoomId.Hallway) backDoor = d;
+            }
+            Check(cr1 != null && cr2 != null && backDoor != null &&
+                  cr1.Prompt.Contains("CR-1") && cr2.Prompt.Contains("CR-2"),
+                "W11: the comfort hallway has a door to CR-1, a door to CR-2 and a way back to the hallway");
+            cr1.Interact();
+            Check(root.State == AppViewState.RoomPeek && views.PeekActive &&
+                  views.Current.Id == RoomId.Comfort1 && root.PeekRoom == RoomId.Comfort1,
+                "W11: a comfort-room door peeks in like a classroom — you never walk inside");
+            Check(!views.PeekLight.Lit, "W11: CR-1 starts dark like every other room");
+            PressKey(root, KeyCode.F);
+            Check(views.PeekLight.Lit, "W11: the flashlight works in the comfort room");
+            PressKey(root, KeyCode.F);
+            Doorway crExit = null;
+            foreach (var it in views.Current.Interactables)
+            {
+                var d = it as Doorway;
+                if (d != null && d.Target == RoomId.ComfortHall) crExit = d;
+            }
+            Check(crExit != null, "W11: CR-1's exit doorway leads back to the comfort hallway");
+            AimAt(crExit.AnchorX, RoomInstance.FloorY + 1.4f);
+            PressKey(root, KeyCode.E);
+            Check(!views.PeekActive && root.State == AppViewState.Exploration &&
+                  views.Current.Id == RoomId.ComfortHall,
+                "W11: stepping back from CR-1 returns to the COMFORT hallway, not the main hallway");
+            cr2.Interact();
+            Check(views.PeekActive && views.Current.Id == RoomId.Comfort2 && root.PeekRoom == RoomId.Comfort2,
+                "W11: CR-2 peeks the same way");
+            root.ExitRoomPeek();
+            Check(!views.PeekActive && views.Current.Id == RoomId.ComfortHall && root.State == AppViewState.Exploration,
+                "W11: the step-back strip also returns from CR-2 to the comfort hallway");
+            backDoor.Interact();
+            Check(views.Current.Id == RoomId.Hallway && root.State == AppViewState.Exploration,
+                "W11: the comfort hallway's door walks back out to the main hallway");
+            Check(rig.Beam == LightMode.Off && !views.PeekLight.Lit,
+                "W11: the whole trip left everything dark");
 
             // ---- W9: spawn ownership under ambient pressure + the desk handoff
             Console.WriteLine("== W9 spawn ownership + desk handoff ==");

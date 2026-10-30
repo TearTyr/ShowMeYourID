@@ -70,6 +70,9 @@ namespace Hollowbrook.World
             _rooms[RoomId.Hallway] = _builder.BuildRoom(RoomId.Hallway);
             _rooms[RoomId.Classroom1] = _builder.BuildRoom(RoomId.Classroom1);
             _rooms[RoomId.Classroom2] = _builder.BuildRoom(RoomId.Classroom2);
+            _rooms[RoomId.ComfortHall] = _builder.BuildRoom(RoomId.ComfortHall);
+            _rooms[RoomId.Comfort1] = _builder.BuildRoom(RoomId.Comfort1);
+            _rooms[RoomId.Comfort2] = _builder.BuildRoom(RoomId.Comfort2);
         }
 
         private void BuildPlayer()
@@ -235,8 +238,9 @@ namespace Hollowbrook.World
             StartCoroutine(PeekTransitionRoutine(id));
         }
 
-        /// <summary>Step back from a peek into the hallway and restore the normal patrol
-        /// presentation. Idempotent.</summary>
+        /// <summary>Step back from a peek into the room it hangs off (the hallway for a classroom,
+        /// the comfort hallway for a comfort room) and restore the normal patrol presentation.
+        /// Idempotent.</summary>
         public void ExitPeek()
         {
             if (!_peeking || _peekExiting || Transitioning) return;
@@ -267,7 +271,7 @@ namespace Hollowbrook.World
             var from = Current;
             if (_peekLight != null) _peekLight.Exit();
             if (from != null && from.Light != null) from.Light.EnterPeek(false);
-            EnterRoomImmediate(RoomId.Hallway, from);
+            EnterRoomImmediate(from != null ? RoomGraph.ParentOf(from.Id) : RoomId.Hallway, from);
             SetPlayerVisible(true);
             _peeking = false;
             _peekExiting = false;
