@@ -18,8 +18,12 @@ namespace Hollowbrook.Bootstrap
         public static bool IsRegistered(string sceneName) =>
             sceneName == Menu || sceneName == Checkpoint || sceneName == School;
 
+        /// <summary>The last scene asked for (diagnostic: lets headless checks see where a flow went).</summary>
+        public static string LastRequested { get; set; }
+
         public static void Load(string sceneName)
         {
+            LastRequested = sceneName;
             if (!IsRegistered(sceneName))
                 Debug.LogError("[SceneRouter] refusing unknown scene '" + sceneName + "'.");
             Debug.Log("[Flow] loading scene: " + sceneName);

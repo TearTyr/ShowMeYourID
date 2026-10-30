@@ -775,9 +775,26 @@ namespace Hollowbrook.Core
             }
             if (eval.Ending != EndingType.None) { TriggerEnding(eval); return; }
 
+            // Nights 1-4 end at the title menu: no results screen and no continue prompt between
+            // nights (Continue picks the story up at the next night). Results come after night 5.
+            if (Session.Mode == GameMode.Normal && CurrentShiftDef != null &&
+                CurrentShiftDef.Number < ShiftPlan.TotalShifts)
+            {
+                EndNightAtMenu();
+                return;
+            }
+
             SetState(AppViewState.ShiftResults);
             if (ShiftResults != null) ShiftResults.Populate(Session, CurrentShiftDef);
             Audio.PlayMusic("");
+        }
+
+        // The save was written by FinishShift; the screen flickers to black, then the title menu loads.
+        private void EndNightAtMenu()
+        {
+            Audio.PlayMusic("");
+            if (Scares != null) Scares.ScreenFlicker(() => QuitToMenu(false));
+            else QuitToMenu(false);
         }
 
         public void AdvanceToNextShift()

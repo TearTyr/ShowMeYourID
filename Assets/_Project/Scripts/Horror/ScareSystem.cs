@@ -160,6 +160,30 @@ namespace Hollowbrook.Horror
             var b0 = _black.color; b0.a = 0f; _black.color = b0;
         }
 
+        /// <summary>The screen flickers to black and holds: a few quick cuts (two slow ones with the
+        /// photosensitivity setting), then <paramref name="onDone"/> with the screen black. Used to
+        /// leave a finished night for the title menu.</summary>
+        public void ScreenFlicker(System.Action onDone)
+        {
+            StartCoroutine(FlickerRoutine(onDone));
+        }
+
+        private IEnumerator FlickerRoutine(System.Action onDone)
+        {
+            bool photoSafe = _gameRoot.Settings != null && _gameRoot.Settings.PhotosensitivitySafe;
+            int cuts = photoSafe ? 2 : 6;
+            float step = photoSafe ? 0.35f : 0.07f;
+            for (int i = 0; i < cuts; i++)
+            {
+                var on = _black.color; on.a = 1f; _black.color = on;
+                yield return new WaitForSecondsRealtime(step);
+                var off = _black.color; off.a = 0.15f; _black.color = off;
+                yield return new WaitForSecondsRealtime(step);
+            }
+            var full = _black.color; full.a = 1f; _black.color = full;
+            if (onDone != null) onDone();
+        }
+
         public void Stinger(string kind, float sanityHit)
         {
             if (Time.unscaledTime < _cooldownUntil) return;
