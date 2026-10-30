@@ -8,13 +8,13 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
-    // Owns every per-room sprite, door, switch and clue for the patrol scene.
+    // Owns every per-room sprite, door and clue for the patrol scene.
     // Called once by ViewManager.Init; holds no state of its own beyond the root it builds into.
     public class RoomBuilder
     {
         // The hallway's depth shroud sits under the darkness quad (70) but INSIDE the handheld
         // beam mask's custom sorting range (60..70), so one beam hole cuts both black layers.
-        // It stays under the player (73) and the wall-switch plate (75), like the darkness does.
+        // It stays under the player (73) and the markers (75+), like the darkness does.
         private const int DepthOrder = 65;
 
         private readonly GameRoot _root;
@@ -53,7 +53,7 @@ namespace Hollowbrook.World
 
         // One flat placeholder quad. The solid_white sprite is exactly 1x1 world unit, so
         // `size` is in world units and equals the localScale — every placeholder in the patrol
-        // scene (wall/floor bands, doors, switches, darkness overlay, markers) is this one
+        // scene (wall/floor bands, doors, darkness overlay, markers) is this one
         // call, which keeps the convention in a single place.
         public static GameObject Quad(Transform parent, string name, Vector3 pos, int order,
             Vector2 size, Color color)
@@ -86,8 +86,7 @@ namespace Hollowbrook.World
                     float serverH = serverSprite.rect.height / Mathf.Max(1f, serverSprite.pixelsPerUnit);
                     SpriteGO(root.transform, "server_door_art", serverSprite,
                         new Vector3(10.4f, floorY + serverH / 2f, 0), 10);
-                    AddLightSwitch(room, -9.2f, floorY);
-                    AddClue(room, "light", -7.0f, floorY, "Flickering Light (switch panel)", "prop_lightfixture", 1.5f);
+                    AddClue(room, "light", -7.0f, floorY, "Flickering Light (ceiling fixture)", "prop_lightfixture", 1.5f);
                     AddClue(room, "door", 10.0f, floorY, "Sealed Door");
                     AddClue(room, "board", 0.6f, floorY, "Notice Board", "prop_noticeboard", 1.0f);
                     AddClue(room, "photo", 7.2f, floorY, "Old School Photo", "prop_photoframe", 1.1f);
@@ -106,11 +105,9 @@ namespace Hollowbrook.World
                     room.HalfWidth = 8.2f;
                     PlaceholderBg(root.transform, floorY);
                     AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.Classroom1, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door");
-                    AddLightSwitch(room, 6.4f, floorY);
                     AddClue(room, "chalkboard", -6.2f, floorY, "Chalkboard", "prop_chalkboard", 1.2f);
                     AddClue(room, "desk", -7.6f, floorY, "Front Desk");
                     AddClue(room, "lostid", -5.0f, floorY, "Lost-and-Found Shelf", "prop_lostid", 0.2f);
-                    AddSecurityDoor(room, -1.6f, floorY);
                     SpriteGO(root.transform, "deskprop", ProceduralArt.Get("prop_desk"), new Vector3(-7.6f, floorY + 1f, 0), 9);
                     room.PlayerSpawn = new Vector3(4.0f, 0, 0);
                     room.AnomalySpawnPoints.Add(new Vector3(-6.5f, 0, 0));
@@ -123,7 +120,6 @@ namespace Hollowbrook.World
                     room.HalfWidth = 8.2f;
                     PlaceholderBg(root.transform, floorY);
                     AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.Classroom2, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door");
-                    AddLightSwitch(room, 6.4f, floorY);
                     AddClue(room, "window", -6.6f, floorY, "Classroom Window", "prop_window", 1.2f);
                     AddClue(room, "cabinet", 7.4f, floorY, "Filing Cabinet");
                     SpriteGO(root.transform, "cabinetprop", ProceduralArt.Get("prop_cabinet"), new Vector3(7.6f, floorY + 2.1f, 0), 9);
@@ -163,7 +159,7 @@ namespace Hollowbrook.World
 
             var lightCtl = root.AddComponent<LightController>();
             lightCtl.Init(_root, room, dark.GetComponent<SpriteRenderer>(),
-                startLit: false,   // every room is entered dark; the wall switch (E) or the beam lights it
+                startLit: false,   // every room is entered dark; the flashlight is the only light
                 depthShroud: depth, darkAlpha: darkAlpha, depthAlpha: depthAlpha);
             room.Light = lightCtl;
             room.Darkness = dark.GetComponent<SpriteRenderer>();
@@ -196,24 +192,6 @@ namespace Hollowbrook.World
             var d = go.AddComponent<Doorway>();
             d.Init(_root, room, label, target, x);
             room.Interactables.Add(d);
-        }
-
-        private void AddSecurityDoor(RoomInstance room, float x, float floorY)
-        {
-            var go = SpriteGO(room.Root.transform, "door_security_office", ProceduralArt.Get("prop_door_security"),
-                new Vector3(x, floorY + 3f, 0), 10);
-            var d = go.AddComponent<SecurityDoorInteractable>();
-            d.Init(_root, room, x);
-            room.Interactables.Add(d);
-        }
-
-        private void AddLightSwitch(RoomInstance room, float x, float floorY)
-        {
-            var go = SpriteGO(room.Root.transform, "lightswitch", ProceduralArt.Get("prop_lightswitch"),
-                new Vector3(x, floorY + 2.1f, 0), 75);
-            var sw = go.AddComponent<LightSwitchObject>();
-            sw.Init(_root, room, x);
-            room.Interactables.Add(sw);
         }
 
         // The clue anchor (chest height, what the interact test uses) stays where it was; the

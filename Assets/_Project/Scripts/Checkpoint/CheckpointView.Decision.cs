@@ -229,14 +229,6 @@ namespace Hollowbrook.Checkpoint
         {
             BuildStamp("stamp_allow", "APPROVE", new Color(0.42f, 0.58f, 0.42f), L.StampAllow, Verdict.Allow, 0, 20);
             BuildStamp("stamp_deny", "DECLINE", new Color(0.58f, 0.28f, 0.28f), L.StampDeny, Verdict.Reject, 1, 20);
-            // the tray's identification strip: verdict word + hotkey letter (the kit skin
-            // restyles these into caption bars with the check/cross discs)
-            var la = UIFactory.Label(_desk, "slblA", "APPROVE (A)", 11, UIFactory.NsMid, TextAnchor.MiddleCenter);
-            L.Place(la.rectTransform, L.StampLabelAllow);
-            la.font = UIFactory.UiFont;
-            var ld = UIFactory.Label(_desk, "slblD", "DECLINE (D)", 11, UIFactory.NsMid, TextAnchor.MiddleCenter);
-            L.Place(ld.rectTransform, L.StampLabelDeny);
-            ld.font = UIFactory.UiFont;
         }
 
         private void BuildStamp(string goName, string label, Color tint, L.Region region, Verdict verdict, int idx, int fontSize = 13)
@@ -245,8 +237,7 @@ namespace Hollowbrook.Checkpoint
             var panel = UIFactory.Panel(_desk, goName, dim);
             Reg(goName, panel.rectTransform, region);
             // NO word over the artwork: the stamp illustration stays clean ink. The
-            // verdict's name lives on the caption bar under the tray (slblA / slblD),
-            // which carries the check/cross disc and the hotkey letter.
+            // verdict is told by the stamp's own colour and the check/cross badge on its head.
             var drag = panel.gameObject.AddComponent<DragPaper>();
             drag.Init(_desk, 0f);
             drag.ReturnsHome = true;                 // stamps live in the tray
@@ -257,7 +248,7 @@ namespace Hollowbrook.Checkpoint
 
         // Papers, Please stamping: the mark lands WHERE the player released the stamp on
         // the slip. The drop centre (desk space) is converted into the slip's own space —
-        // position, zoom scale and resting tilt included — then clamped so the whole
+        // position, scale and resting tilt included — then clamped so the whole
         // tilted mark stays inside the printable area: a drop near a corner stamps near
         // that corner, a drop in the middle stamps the middle, nothing ever hangs off the
         // paper. It records a PENDING verdict: nothing is scored until hand-back.
@@ -266,7 +257,7 @@ namespace Hollowbrook.Checkpoint
             if (_slipGo == null || !_slipGo.activeSelf || !_slipTaken || _current == null || _verdictLocked) return;
             var srt = _slipGo.GetComponent<RectTransform>();
             // the written slip lives on its scaled art layer: placement maths runs in the
-            // art's 200x120 design space, converted through the container's zoom+tilt
+            // art's 200x120 design space, converted through the container's scale+tilt
             var artT = _slipGo.transform.Find("slipart");
             var art = artT != null ? artT.GetComponent<RectTransform>() : srt;
             var ss = art.rect.size;
@@ -288,39 +279,9 @@ namespace Hollowbrook.Checkpoint
             _gameRoot.Audio.PlaySfx(v == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 0.8f);
         }
 
-        // Keyboard path (A / D): there is no click point, so the mark lands on the
-        // slip's lower-right quarter — the classic corner spot — with the same clamp.
-        internal void StampSlipByKey(Verdict v)
-        {
-            if (!_slipTaken || _slipStamped || _current == null || _verdictLocked) return;
-            _pendingVerdict = v;
-            _slipStamped = true;
-            PlaceStampMark(v, KeyboardStampSpot());
-            _gameRoot.Audio.PlaySfx(v == Verdict.Allow ? "sfx_stamp_allow" : "sfx_stamp_reject", 0.8f);
-        }
-
-        private Vector2 KeyboardStampSpot()
-        {
-            var artT = _slipGo.transform.Find("slipart");
-            var ss = artT != null
-                ? artT.GetComponent<RectTransform>().rect.size
-                : _slipGo.GetComponent<RectTransform>().rect.size;
-            var local = StampPlacement.ClampToPrintable(
-                new StampPlacement.Point(ss.x * 0.8f, ss.y * 0.68f),
-                ss.x, ss.y, StampMarkSize, StampMaxTilt, StampEdgePad);
-            return new Vector2(local.X, local.Y);
-        }
-
-        internal void HandBackByKey()
-        {
-            if (!_slipStamped || !_documentsTaken) return;
-            HandBackId();
-            HandBackSlip();
-        }
-
         // The mark becomes a layer of the slip AT THE DROPPED SPOT (localCentre is in the
         // slip's own space, already clamped inside the printable area), so it moves, flips
-        // and zooms with the paper and can never overhang the edge. Rotation is seeded per
+        // and scales with the paper and can never overhang the edge. Rotation is seeded per
         // inspection; the clamp budget (StampMaxTilt) covers the tilt's corners.
         //
         // 60px on the 200x120 slip: +33.3% over the 45px mark (this pass's readability request)

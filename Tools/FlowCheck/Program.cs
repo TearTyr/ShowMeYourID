@@ -295,7 +295,7 @@ namespace FlowCheck
             ExpectRegion("glass", L.Glass, 430, 200, 415, 235);
             ExpectRegion("portrait", L.Portrait, 530, 205, 200, 230);
             ExpectRegion("sill", L.Sill, 375, 450, 520, 18);
-            ExpectRegion("speech bubble", L.SpeechBubble, 737, 297, 182, 72);
+            ExpectRegion("speech bubble", L.SpeechBubble, 737, 297, 182, 132);
             ExpectRegion("patrol button", L.PatrolBtn, 450, 655, 180, 40);
             ExpectRegion("end shift", L.EndShiftBtn, 650, 655, 180, 40);
             ExpectRegion("questions", L.Questions, 950, 105, 305, 215);
@@ -566,8 +566,8 @@ namespace FlowCheck
             idDrag.EndDrag();
 
             // task 5: the ID card's DEFAULT display is slightly smaller — the whole card
-            // (sprite, photo, rows) scales uniformly through DragPaper.BaseScale, so the
-            // design proportions survive and zoom still reads 1x..1.8x of the resting size
+            // (sprite, photo, rows) scales uniformly through its art layer, so the design
+            // proportions survive and the inspect view enlarges it from the resting size
             float cardRatio = CheckpointView.IdCardScale;
             Check(cardRatio >= 0.55f && cardRatio <= 0.70f,
                 "the ID card's printed art rests at the concept size (scale " + cardRatio + ")");
@@ -576,7 +576,7 @@ namespace FlowCheck
             Check(cardArt != null &&
                   Mathf.Abs(cardArt.GetComponent<RectTransform>().localScale.x - cardRatio) < 0.01f &&
                   Mathf.Abs(idGo0.GetComponent<RectTransform>().localScale.x - 1f) < 0.01f &&
-                  Mathf.Abs(idDrag.Zoom - 1f) < 0.01f,
+                  !idDrag.Inspecting,
                 "the container rests at 1x while the art layer carries the concept scale");
             Check(Mathf.Abs(idGo0.GetComponent<RectTransform>().rect.width - L.IdCard.W) < 0.5f &&
                   Mathf.Abs(idGo0.GetComponent<RectTransform>().rect.height - L.IdCard.H) < 0.5f &&
@@ -791,8 +791,8 @@ namespace FlowCheck
                   "the stamp lands on the slip and records a pending verdict");
             Check(FindDeep(cp.transform, "stampoverlay").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
                   "the stamp mark persists on the slip (no fade-out before hand-back)");
-            Check(PromptText(root).Contains("HAND BACK"),
-                  "prompt matches state: stamped, awaiting hand-back (got '" + PromptText(root) + "')");
+            Check(PromptText(root).Contains("DRAG THE ID BACK"),
+                  "prompt matches state: stamped, awaiting the ID's hand-back (got '" + PromptText(root) + "')");
             var soRt = FindDeep(cp.transform, "stampoverlay").GetComponent<RectTransform>();
             Check(soRt.sizeDelta.x > 1f && soRt.sizeDelta.y > 1f,
                   "the stamp overlay has a real size after the drop (visible mark)");
@@ -832,27 +832,24 @@ namespace FlowCheck
             spineBack.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Check(!FaceOf(idGo, "idback").gameObject.activeSelf, "the back face's own spine flips it home (reliable both ways)");
 
-            // decoupled papers: lift the SLIP last, then flip the ID — the slip must not ride along
+            // the slip is ONLY draggable: it has no back face, a tap on it does nothing, and the
+            // F key flips the ID even when the slip was lifted last
+            Check(FaceOf(slipT, "slipback") == null, "the slip has no back face any more");
             var slipDragC = slipT.GetComponent<DragPaper>();
             slipDragC.BeginDrag();
-            slipDragC.EndDrag();      // a tap on the taken slip is the SLIP's own flip
-            Check(FaceOf(slipT, "slipback").gameObject.activeSelf, "tapping the taken slip turns the slip over by itself");
+            slipDragC.EndDrag();      // a tap on the taken slip used to turn it over
+            Check(FaceOf(slipT, "bg").gameObject.activeSelf,
+                "tapping the taken slip does nothing — its face stays up");
             Check(FindDeep(cp.transform, "stampoverlay").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
-                  "the stamp mark rides the slip's flip (it stays on the paper)");
-            cp.FlipSlip();            // face-up again
-            Check(!FaceOf(slipT, "slipback").gameObject.activeSelf && FaceOf(slipT, "bg").gameObject.activeSelf,
-                  "and flips the slip back");
-            spine.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();   // the slip was touched last...
+                "the stamp mark stays on the slip");
+            Check(!FaceOf(idGo, "idback").gameObject.activeSelf, "(the ID is face-up before F)");
+            cp.FlipLastPaper();       // F, with the slip touched last
             Check(FaceOf(idGo, "idback").gameObject.activeSelf,
-                  "...yet clicking the ID's spine flips the ID — never the last-touched paper");
-            Check(!FaceOf(slipT, "slipback").gameObject.activeSelf && FaceOf(slipT, "bg").gameObject.activeSelf,
-                  "the slip stays exactly as it was: no mirroring, no hidden face");
-            cp.FlipLastPaper();       // the F key routes to the last-touched paper — here the slip
-            Check(FaceOf(slipT, "slipback").gameObject.activeSelf, "F flips whichever paper was lifted last (here: the slip)");
-            var idDragC = idGo.GetComponent<DragPaper>();
-            idDragC.BeginDrag(); idDragC.EndDrag();   // retarget zoom to the ID (no move, no tap handler)
-            // both papers deliberately STAY face-down here: the desk loop's fresh-visitor
-            // check proves the hand-over reset turns them face-up (flip never carries over)
+                "F flips the ID even when the slip was touched last");
+            Check(FaceOf(slipT, "slipback") == null && FaceOf(slipT, "bg").gameObject.activeSelf,
+                "...and never touches the slip");
+            // the ID deliberately STAYS face-down here: the desk loop's fresh-visitor
+            // check proves the hand-over reset turns it face-up (flip never carries over)
             // task 1: stacking — right-column panels below papers, stamps above papers
             int qPI = FindDeep(cp.transform, "qpanel_border").GetSiblingIndex();
             int layI = FindDeep(cp.transform, "PapersLayer").GetSiblingIndex();
@@ -872,32 +869,52 @@ namespace FlowCheck
             var xRt = FindDeep(cp.transform, "closefile").GetComponent<RectTransform>();
             Check(xRt.anchorMin == Vector2.one && xRt.anchorMax == Vector2.one,
                   "the record's exit button is anchored top-right");
-            cp.DebugZoom(9f);
-            Check(Mathf.Abs(idGo.localScale.x - 1.8f) < 0.01f &&
-                  Mathf.Abs(idGo.GetComponent<DragPaper>().Zoom - 1.8f) < 0.01f,
-                "zoom clamps at 1.8x of the card's resting scale");
-            cp.DebugZoom(0.1f);
-            Check(Mathf.Abs(idGo.localScale.x - 1f) < 0.01f &&
-                  Mathf.Abs(idGo.GetComponent<DragPaper>().Zoom - 1f) < 0.01f,
-                "zoom clamps at the resting 1x (the smaller default card)");
-            cp.DebugZoom(1f);
-            // the ONLY remaining zoom input is the deliberate Z toggle (the scroll wheel
-            // no longer resizes papers — there is no scroll listener on the desk at all)
+            // ---- click-to-inspect: the ID is read by clicking it, there is no zoom key or wheel ----
+            var idDragI = idGo.GetComponent<DragPaper>();
+            var idRtI = idGo.GetComponent<RectTransform>();
+            var deskRt = FindDeep(cp.transform, "DeskFrame").GetComponent<RectTransform>();
+            Check(idDragI.Inspectable, "INSPECT: the ID card is inspectable");
+            var restPos = idRtI.anchoredPosition;
+            float restScale = idRtI.localScale.x, restTilt = idRtI.localEulerAngles.z;
+            Check(Mathf.Abs(Mathf.DeltaAngle(restTilt, 0f)) > 0.1f,
+                "INSPECT: the ID rests tilted on the table (" + restTilt + " deg)");
             UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Z);
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
-            Check(Mathf.Abs(idGo.localScale.x - 1.5f) < 0.01f, "Z toggles the last-touched paper to 1.5x");
-            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Z);
-            cp.TickHotkeys();
-            UnityEngine.Input.KeysDown.Clear();
-            Check(Mathf.Abs(idGo.localScale.x - 1f) < 0.01f, "Z again returns it to the intended 1x size");
+            Check(Mathf.Abs(idRtI.localScale.x - restScale) < 0.01f && !idDragI.Inspecting,
+                "INSPECT: Z does nothing any more — the zoom key is gone");
+            idDragI.Tap();      // exactly what a still click on the card body does
+            Check(idDragI.Inspecting && Mathf.Abs(idRtI.localScale.x - restScale * idDragI.InspectScale) < 0.01f,
+                "INSPECT: a click lifts the ID, enlarged to " + idDragI.InspectScale + "x");
+            Check(Mathf.Abs(Mathf.DeltaAngle(idRtI.localEulerAngles.z, 0f)) < 0.01f,
+                "INSPECT: ...and straight, so every line can be read");
+            float centreX = idRtI.anchoredPosition.x + idRtI.rect.width * idRtI.localScale.x / 2f;
+            Check(Mathf.Abs(centreX - deskRt.rect.width / 2f) < 1f,
+                "INSPECT: ...centred on the desk");
+            var catcher = FindDeep(cp.transform, "inspectcatcher_idcard");
+            Check(catcher != null && catcher.gameObject.activeSelf &&
+                  catcher.GetSiblingIndex() < idGo.GetSiblingIndex(),
+                "INSPECT: a dimmer sits right under the card and takes the click-away");
+            idDragI.BeginDrag();
+            Check(!idDragI.Dragging, "INSPECT: an inspected card cannot be dragged — click off it first");
+            catcher.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();     // click anywhere off the card
+            Check(!idDragI.Inspecting && Mathf.Abs(idRtI.localScale.x - restScale) < 0.01f &&
+                  Mathf.Abs(Mathf.DeltaAngle(idRtI.localEulerAngles.z, restTilt)) < 0.01f &&
+                  (idRtI.anchoredPosition - restPos).magnitude < 0.01f && !catcher.gameObject.activeSelf,
+                "INSPECT: clicking off returns the ID to its tilted spot on the table, dimmer gone");
+            // the slip is read where it lies: tapping it never inspects it
+            var slipDragI = slipT.GetComponent<DragPaper>();
+            Check(!slipDragI.Inspectable, "INSPECT: the slip is not inspectable");
+            slipDragI.Tap();
+            slipDragI.Inspect();
+            Check(!slipDragI.Inspecting && Mathf.Abs(slipT.localScale.x - 1f) < 0.01f,
+                "INSPECT: tapping or asking the slip to inspect does nothing — it stays 1x");
         }
 
         // ---------------------------------------------------- speech bubble proof
         // The student's voice lives in a comic bubble beside the portrait's head:
-        // visible while the line is up, removed exactly 2 s after the dialogue ends,
-        // re-shown (with a RESTARTED countdown) when a new line arrives mid-cooldown —
-        // one clock, generation-guarded, so no stale timer can hide a newer dialogue.
+        // visible while the line is up and STAYING up until the next line replaces it or the
+        // desk clears it — no timer, so a clue can never vanish before it is read.
         private static void BubbleProof(GameRoot root)
         {
             Console.WriteLine("== speech bubble beside the student's head ==");
@@ -913,16 +930,13 @@ namespace FlowCheck
             Check(!text.text.StartsWith("<b><color="),
                 "SB: no speaker-tag markup rides in the kit bubble");
             Check(tail.sprite != null, "SB: the bubble carries its pointing tail");
-            bool borderRaycast = false, otherRaycast = false;
+            bool anyRaycast = false;
             foreach (var img in bubbleRoot.gameObject.GetComponentsInChildren<UnityEngine.UI.Image>(true))
-            {
-                if (!img.raycastTarget) continue;
-                if (img.gameObject.name == "bubble_border") borderRaycast = true; else otherRaycast = true;
-            }
+                if (img.raycastTarget) anyRaycast = true;
             foreach (var t in bubbleRoot.gameObject.GetComponentsInChildren<UnityEngine.UI.Text>(true))
-                if (t.raycastTarget) otherRaycast = true;
-            Check(borderRaycast && !otherRaycast,
-                "SB: exactly one raycast target — the bubble panel, for hover-to-read; text/fill stay click-through");
+                if (t.raycastTarget) anyRaycast = true;
+            Check(!anyRaycast,
+                "SB: the bubble is entirely click-through — a click or drag over it reaches the desk below");
             Check(bubbleRoot.GetSiblingIndex() < FindDeep(cp.transform, "PapersLayer").GetSiblingIndex(),
                 "SB: the bubble sits under the papers layer — a dragged paper rides over it");
             Check(L.Inner.BubbleTail.X < 0f && L.Inner.BubbleTail.Right > 0f,
@@ -940,69 +954,48 @@ namespace FlowCheck
             Check(h0 >= 56f && h0 <= L.SpeechBubble.H + 0.01f,
                 "SB: the panel wraps to the line count inside its box (h=" + h0 + ")");
 
-            // the 2-second cooldown starts when the dialogue ENDS (the line is instant here)
-            cp.TickBubble(1.9f);
+            // no timer: the line is still up long after it was spoken
             Check(bubbleRoot.gameObject.activeSelf && cp.BubbleClock.Visible,
-                "SB: still up 1.9 s after the line — no premature hide while it is showing");
-            cp.TickBubble(0.2f);
-            Check(!cp.BubbleClock.Visible && !bubbleRoot.gameObject.activeSelf,
-                "SB: removed exactly 2 s after the dialogue ended");
-            cp.TickBubble(5f);
-            Check(!bubbleRoot.gameObject.activeSelf, "SB: ticks after the hide change nothing");
+                "SB: the line is up and stays up — nothing ticks it away");
 
-            // hover-to-read through the REAL wiring: pointer enter suspends the countdown
-            var hover = FindDeep(cp.transform, "bubble_border").GetComponent<Hollowbrook.UI.HoverSense>();
-            Check(hover != null, "SB: the bubble panel carries the hover sensor");
-            if (hover != null)
-            {
-                cp.DebugSay("Hold still — the player is reading this line.");
-                cp.TickBubble(1.5f);
-                hover.OnPointerEnter(null);
-                Check(cp.BubbleClock.Hovering && bubbleRoot.gameObject.activeSelf,
-                    "SB: the cursor entering the bubble registers as a hover");
-                cp.TickBubble(12f);
-                Check(bubbleRoot.gameObject.activeSelf && cp.BubbleClock.Visible,
-                    "SB: the bubble stays up while hovered, long past the 2 s cooldown");
-                hover.OnPointerExit(null);
-                Check(!cp.BubbleClock.Hovering && cp.BubbleClock.SecondsSinceLine < 0.01f &&
-                      bubbleRoot.gameObject.activeSelf,
-                    "SB: leaving restarts the 2 s cooldown (dialogue over) — bubble still up at leave");
-                cp.TickBubble(1.9f);
-                Check(bubbleRoot.gameObject.activeSelf, "SB: still up 1.9 s after the cursor left");
-                cp.TickBubble(0.2f);
-                Check(!bubbleRoot.gameObject.activeSelf, "SB: gone 2 s after the cursor left");
-                // hover while the line is fresh: leaving must not start the countdown early
-                cp.DebugSay("Talking line — do not start the clock yet.");
-                hover.OnPointerEnter(null);
-                hover.OnPointerExit(null);
-                Check(cp.BubbleClock.SecondsSinceLine < 0.01f,
-                    "SB: leaving while the dialogue still runs keeps the countdown unstarted");
-                cp.TickBubble(1.9f);
-                Check(bubbleRoot.gameObject.activeSelf,
-                    "SB: ...so the bubble waits for the dialogue to end before counting");
-                cp.TickBubble(0.2f);
-                Check(!bubbleRoot.gameObject.activeSelf, "SB: ...then hides 2 s after that");
-                // a hidden bubble cannot be hovered (it stops raycasting when inactive)
-                hover.OnPointerEnter(null);
-                Check(!cp.BubbleClock.Hovering && !bubbleRoot.gameObject.activeSelf,
-                    "SB: an enter while the bubble is hidden is ignored — it can never suspend a countdown");
-            }
-
-            // a new line during the cooldown cancels the pending hide and shows normally
+            // a new line replaces the old one and shows normally
             cp.DebugSay("One more thing — the intercom crackles.");
-            Check(bubbleRoot.gameObject.activeSelf, "SB: a fresh line brings the bubble back");
+            Check(bubbleRoot.gameObject.activeSelf, "SB: a fresh line keeps the bubble up");
             int gen1 = cp.BubbleClock.Generation;
-            cp.TickBubble(1.5f);
-            cp.DebugSay("Second line, mid-cooldown.");
-            Check(bubbleRoot.gameObject.activeSelf && cp.BubbleClock.SecondsSinceLine < 0.01f,
-                "SB: a new line mid-cooldown RESTARTS the countdown (pending hide cancelled)");
-            Check(cp.BubbleClock.Generation == gen1 + 1,
-                "SB: every line advances the generation — a stale timer could never hide it");
+            cp.DebugSay("Second line, replacing the first.");
+            Check(bubbleRoot.gameObject.activeSelf && cp.BubbleClock.Generation == gen1 + 1,
+                "SB: every line advances the generation");
             Check(text.text.Contains("Second line"), "SB: the bubble shows the NEW line, not the old one");
-            cp.TickBubble(1.9f);
-            Check(bubbleRoot.gameObject.activeSelf, "SB: the newer dialogue survives past the OLD timer's 2 s");
-            cp.TickBubble(0.2f);
-            Check(!bubbleRoot.gameObject.activeSelf, "SB: ...and hides 2 s after the LAST line");
+
+            // the white interior is where the text lives: the kit panel's sliced borders are
+            // pinned to the 48u tail / 14u edge the layout is built on, and the text sits
+            // inside the white with a clear inset (never on the jagged ink)
+            var bubbleImg = FindDeep(cp.transform, "bubble_border").GetComponent<UnityEngine.UI.Image>();
+            float multiplied = bubbleImg.pixelsPerUnit * bubbleImg.pixelsPerUnitMultiplier;
+            Check(Mathf.Abs(multiplied - L.Inner.BubbleKitArtPxPerUnit) < 0.01f,
+                "SB: the kit bubble's borders are pinned to " + L.Inner.BubbleKitArtPxPerUnit +
+                " art px per unit whatever the canvas reference PPU is (got " + multiplied + ")");
+            var textRt = text.rectTransform;
+            float whiteLeft = L.Inner.BubbleKitTailW;
+            float whiteRight = panel.sizeDelta.x - L.Inner.BubbleKitWhiteMargin;
+            float tl = textRt.anchoredPosition.x, tr = tl + textRt.sizeDelta.x;
+            Check(tl >= whiteLeft + L.Inner.BubbleKitInsetX - 0.01f &&
+                  tr <= whiteRight - L.Inner.BubbleKitInsetX + 0.01f,
+                "SB: the text column sits inside the bubble's white with a clear inset (" +
+                tl + ".." + tr + " inside " + whiteLeft + ".." + whiteRight + ")");
+            Check(text.fontSize >= 15, "SB: the bubble type is large enough to read at a glance");
+
+            // the longest lines the game can actually put in the bubble are shown in full
+            foreach (var line in new[] {
+                Hollowbrook.Logic.Content.AdminLines[0],
+                "“My first stop is your server room.”  [echoing, as if reading]" })
+            {
+                cp.DebugSay(line);
+                Check(!text.text.EndsWith("…") && text.text == line,
+                    "SB: the longest real line (" + line.Length + " chars) is shown in full — nothing is cut off");
+                Check(panel.sizeDelta.y > 56f && panel.sizeDelta.y <= L.SpeechBubble.H + 0.01f,
+                    "SB: the panel grows to the wrapped line count (h=" + panel.sizeDelta.y + ")");
+            }
 
             // a long line is wrapped and capped inside the bubble box, never spilling
             cp.DebugSay("Tonight the hallway smells of chalk and old rain, and every face in " +
@@ -1028,10 +1021,10 @@ namespace FlowCheck
             Check(!text.text.Contains("Your course?"),
                 "SB: the bubble carries the STUDENT's answer (the button shows the question asked)");
 
-            // leaving the desk cleans the bubble (and its countdown) up
+            // leaving the desk cleans the bubble up
             cp.HideBubbleNow();
             Check(!bubbleRoot.gameObject.activeSelf && !cp.BubbleClock.Visible,
-                "SB: the room-change cleanup hides the bubble instantly — no timer survives");
+                "SB: the room-change cleanup hides the bubble instantly");
         }
 
         // ------------------------------------- stamp placement (Papers, Please style)
@@ -1061,8 +1054,11 @@ namespace FlowCheck
             cp.DebugTakeDocuments();
             TakeSlip(root);                       // slip centred at (760,500): top-left (660,440)
             var slipDrag0 = slipT.GetComponent<DragPaper>();
-            slipDrag0.Zoom = 1.5f;                // the Z-zoom path: the drop must map through the scale
-            Check(Mathf.Abs(slipDrag0.Zoom - 1.5f) < 0.01f, "SP: the slip is zoomed to 1.5x for the drop");
+            Check(!slipDrag0.Inspectable && Mathf.Abs(slipT.localScale.x - 1f) < 0.01f,
+                "SP: the slip is not inspectable — it rests at 1x and is only ever dragged");
+            // scaffolding only: scale the rect directly so the drop maths still proves it maps
+            // through ANY scale chain (nothing in the game scales the slip any more)
+            slipT.localScale = new Vector3(1.5f, 1.5f, 1f);
             var want = InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null);
             StampAtPoint(root, want, new Vector2(797.5f, 522.5f));   // centre of the 1.5x slip
             Check(cp.SlipStamped && cp.PendingVerdict == want,
@@ -1115,8 +1111,8 @@ namespace FlowCheck
             slipDrag.BeginDrag();
             slipDrag.PlaceCenter(new Vector2(620f, 540f));
             slipDrag.EndDrag();
-            Check(Mathf.Abs(slipDrag.Zoom - 1.5f) < 0.01f,
-                "SP: lifting and dropping never loses the slip's zoom");
+            Check(Mathf.Abs(slipT.localScale.x - 1.5f) < 0.01f,
+                "SP: lifting and dropping never loses the slip's scale");
             var top2 = new Vector2(slipT.anchoredPosition.x, -slipT.anchoredPosition.y);
             Vector2 deskAfter = new Vector2(top2.x + (lx * cA + ly * sA) * slipScale,
                                             top2.y + (-lx * sA + ly * cA) * slipScale);
@@ -1176,11 +1172,11 @@ namespace FlowCheck
             Check(cone == want && mask == want,
                 $"{tag}: cone + mask agree with the beam state ({(want ? "ON" : "OFF")}) — the only two light layers");
             string hud = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            // while peeking, the handheld readout is replaced by the peek lamp's own line
+            // while peeking, the handheld readout is replaced by the peek flashlight's own line
             bool peeking = root.State == AppViewState.RoomPeek;
             string wantHud = peeking
-                ? (root.Views.PeekLight != null && root.Views.PeekLight.Lit ? "LAMP: ON" : "LAMP: OFF")
-                : (want ? ("BEAM: " + (rig.Beam == LightMode.Focus ? "FOCUS" : "SWEEP")) : "BEAM: OFF");
+                ? (root.Views.PeekLight != null && root.Views.PeekLight.Lit ? "FLASHLIGHT: ON" : "FLASHLIGHT: OFF")
+                : (want ? ("FLASHLIGHT: " + (rig.Beam == LightMode.Focus ? "FOCUS" : "SWEEP")) : "FLASHLIGHT: OFF");
             Check(hud.Contains(wantHud),
                 $"{tag}: the HUD readout agrees with the light layers (want '{wantHud}', got '{hud}')");
         }
@@ -1377,16 +1373,6 @@ namespace FlowCheck
             Check(closeBtn != null, "MAP: CLOSE is still a real button");
             Check(closeBtn != null && closeBtn.targetGraphic != null && closeBtn.targetGraphic.raycastTarget,
                 "MAP: ...and its graphic actually takes the click (a raycast-off target is a dead button)");
-            bool everyBtnHasTarget = true;
-            foreach (var def in FloorPlan.Rooms)
-            {
-                var node = map.RoomNode(def.Key);
-                var b = node.GetComponent<UnityEngine.UI.Button>();
-                if (b == null) { if (!def.Sealed) everyBtnHasTarget = false; continue; }
-                if (b.targetGraphic == null || !b.targetGraphic.raycastTarget) everyBtnHasTarget = false;
-            }
-            Check(everyBtnHasTarget,
-                "MAP: every clickable room has a raycast-enabled target graphic (none of them can be a dead click)");
             // centred space: +y up from the screen centre, whatever the element's own anchor is
             // CLOSE is anchored to the screen's bottom edge with a centre pivot, so its
             // anchoredPosition.y is measured UP from that edge: screen-centre space is
@@ -1506,15 +1492,21 @@ namespace FlowCheck
                   System.Array.IndexOf(RoomGraph.Roamable, RoomId.Security) < 0,
                 "MAP: the sealed room is not in the patrol graph, so it cannot be travelled to");
 
-            // ---- the patrol rooms keep their click ----
-            var c1Btn = c1Node.GetComponent<UnityEngine.UI.Button>();
-            var secBtn = secNode.GetComponent<UnityEngine.UI.Button>();
-            Check(c1Btn != null && secBtn != null &&
-                  hallNode.GetComponent<UnityEngine.UI.Button>() != null &&
-                  c2Node.GetComponent<UnityEngine.UI.Button>() != null,
-                "MAP: the hallway, both classrooms and the checkpoint are still clickable");
-            var crBtn = crNorth.GetComponent<UnityEngine.UI.Button>();
-            Check(crBtn != null, "MAP: a comfort room answers a click (with a line, not a dead nothing)");
+            // ---- the plan is a reference: no room can be clicked, so the map never moves the player ----
+            bool anyClickable = false;
+            foreach (var def in FloorPlan.Rooms)
+            {
+                var node = map.RoomNode(def.Key);
+                if (node == null) continue;
+                if (node.GetComponent<UnityEngine.UI.Button>() != null ||
+                    node.GetComponent<UnityEngine.UI.Image>().raycastTarget ||
+                    node.GetComponent<Hollowbrook.UI.HoverCursor>() != null) anyClickable = true;
+            }
+            Check(!anyClickable,
+                "MAP: no room — patrol, comfort or sealed — has a button, a raycast or a hover cursor");
+            Check(crNorth.GetComponent<UnityEngine.UI.Button>() == null &&
+                  crSouth.GetComponent<UnityEngine.UI.Button>() == null,
+                "MAP: the comfort rooms are drawn on the plan but take no click either");
 
             // ---- you-are-here + the findings dots ----
             var here = FindDeep(plan, "here");
@@ -1674,13 +1666,14 @@ namespace FlowCheck
                   "the stamp on the slip is pending: wordless, unscored");
             Check(root.Queue.ProcessedCount == procBeforeStamp,
                   "nothing is scored at the stamp drop — the decision waits for hand-back");
-            HandBack(root, true, false);
+            HandBack(root, false, true);     // the slip dropped at the window is NOT a hand-back
             Check(root.Queue.ProcessedCount == procBeforeStamp &&
-                  cp.CurrentVisitor != null && cp.CurrentVisitor.ClaimedName == beforeYes,
-                  "the student waits while one paper is missing");
-            HandBack(root, false, true);
+                  cp.CurrentVisitor != null && cp.CurrentVisitor.ClaimedName == beforeYes &&
+                  FindDeep(desk, "slip").gameObject.activeSelf,
+                  "dropping the slip at the window does nothing: it stays on the desk, the student waits");
+            HandBack(root, true, false);     // the ID alone closes the inspection
             Check(root.Queue.ProcessedCount == procBeforeStamp + 1,
-                  "hand-back of ID + stamped slip commits the verdict");
+                  "handing back the ID (slip stamped, left on the desk) commits the verdict");
             Check(!FindDeep(desk, "speechbubble").gameObject.activeSelf,
                   "the speech bubble leaves with the student — no line lingers over an empty window");
             // the stub runs the commit coroutine synchronously: the walked-off visitor is proof
@@ -2352,27 +2345,26 @@ namespace FlowCheck
             slip.BeginDrag(); slip.PlaceCenter(new Vector2(760f, 500f)); slip.EndDrag();
             root.TogglePause(true);
             UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.A);
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.D);
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
-            Check(!cp.SlipStamped, "issue #5: a paused desk never stamps from hotkeys");
+            Check(!cp.SlipStamped, "issue #5: a paused desk never stamps");
             root.TogglePause(false);
             UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.A);
             cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.D);
+            cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
-            Check(cp.SlipStamped, "issue #5: unpaused, the same key stamps the slip");
-            var kbMark = FindDeep(cp.transform, "stampoverlay").GetComponent<RectTransform>();
-            var kbSlip = FindDeep(cp.transform, "slip").Find("slipart").GetComponent<RectTransform>();
-            var kbLocal = StampPlacement.ClampToPrintable(new StampPlacement.Point(
-                kbSlip.rect.width * 0.8f, kbSlip.rect.height * 0.68f),
-                kbSlip.rect.width, kbSlip.rect.height,
-                CheckpointView.StampMarkSize, CheckpointView.StampMaxTilt, CheckpointView.StampEdgePad);
-            Check(kbMark.parent == kbSlip &&
-                  Mathf.Abs(kbMark.anchoredPosition.x - kbLocal.X) < 0.5f &&
-                  Mathf.Abs(-kbMark.anchoredPosition.y - kbLocal.Y) < 0.5f,
-                "issue #5: the keyboard stamp lands on the corner default spot, fully on the paper");
-            Check(Mathf.Abs(kbMark.anchoredPosition.x - tlx) +
-                  Mathf.Abs(kbMark.anchoredPosition.y + tly) > 20f,
-                "issue #5: keyboard default and corner drop are DIFFERENT spots (no single fixed position)");
+            Check(!cp.SlipStamped, "issue #5: unpaused, A and D do NOT stamp — a verdict is only ever a dragged stamp");
+            Check(FindDeep(cp.transform, "slblA") == null && FindDeep(cp.transform, "slblD") == null,
+                "issue #5: no APPROVE (A) / DECLINE (D) caption bars sit under the stamps");
+            StampSlip(root, Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            Check(cp.SlipStamped, "issue #5: dragging a stamp onto the slip still stamps it");
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.H);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            Check(FindDeep(cp.transform, "idcard").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
+                "issue #5: H does nothing — the ID only goes back by being dragged to the window");
 
             root.TogglePause(true);
             root.OpenSettings();
@@ -2444,17 +2436,15 @@ namespace FlowCheck
             Check(hall.Darkness.color.r < 0.01f && hall.Darkness.color.g < 0.01f && hall.Darkness.color.b < 0.01f,
                   "P: the darkness overlay is black (its alpha dims, never washes out)");
             int doors = 0; bool doorsFullHeight = true;
-            bool switchVisible = false;
             foreach (var it in hall.Interactables)
             {
                 var d = it as Doorway;
                 if (d != null && d.Art != null) { doors++; if (QuadH(d.Art) < 3f) doorsFullHeight = false; }
-                var ls = it as LightSwitchObject;
-                if (ls != null && ls.Art != null && QuadW(ls.Art) > 0.1f) switchVisible = true;
             }
             Check(doors == 3 && doorsFullHeight,
                   "P: all " + doors + " hallway doors draw as full-height slabs at their anchors");
-            Check(switchVisible, "P: the wall switch plate is visible (not a sub-pixel dot)");
+            Check(FindDeep(hall.Root.transform, "lightswitch") == null,
+                  "P: the hallway has no wall switch plate any more");
 
             var cfg = root.Config;
             float chanceSave = cfg.anomalySpawnChancePerSecond;
@@ -2508,16 +2498,16 @@ namespace FlowCheck
             Check(coneGoW1.activeSelf && maskGoW1.activeSelf,
                 "W1: ON really shows the cone + mask (the beam exists, not just a status)");
             string beamInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            Check(beamInfo.Contains("BEAM: SWEEP"),
-                "W1: the HUD reads BEAM: SWEEP while the beam is on (got '" + beamInfo + "')");
+            Check(beamInfo.Contains("FLASHLIGHT: SWEEP"),
+                "W1: the HUD reads FLASHLIGHT: SWEEP while the beam is on (got '" + beamInfo + "')");
             PressKey(root, KeyCode.F);
             Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep, "W1: F again toggles it OFF");
             Check(!coneGoW1.activeSelf && !maskGoW1.activeSelf,
                 "W1: OFF hides the cone + mask completely — no visible beam, no illumination");
             Check(!rig.ConeCovers(new Vector3(3f, 0f, 0f)), "W1: an OFF beam illuminates nothing (cone test covers no point)");
             beamInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            Check(beamInfo.Contains("BEAM: OFF"),
-                "W1: the HUD reads BEAM: OFF in sync with the hidden beam (got '" + beamInfo + "')");
+            Check(beamInfo.Contains("FLASHLIGHT: OFF"),
+                "W1: the HUD reads FLASHLIGHT: OFF in sync with the hidden beam (got '" + beamInfo + "')");
             PressKey(root, KeyCode.Q);
             Check(rig.Beam == LightMode.Focus && !rig.Latches.Sweep && rig.Latches.Focus,
                 "W1: Q takes over with Focus — the keyboard toggles are mutually exclusive");
@@ -2531,25 +2521,40 @@ namespace FlowCheck
 
             // ---- W2: room lighting and the beam are independent systems
             Console.WriteLine("== W2 room lights vs handheld beam ==");
-            var sw = FindInteractable<LightSwitchObject>(hall);
-            Check(sw != null, "W2: the hallway has a wall switch");
+            bool anySwitch = false;
+            foreach (var rid in new[] { RoomId.Hallway, RoomId.Classroom1, RoomId.Classroom2 })
+            {
+                var r = views.Room(rid);
+                if (r == null) continue;
+                if (FindDeep(r.Root.transform, "lightswitch") != null) anySwitch = true;
+                foreach (var it in r.Interactables)
+                    if (it.Prompt != null && it.Prompt.ToLowerInvariant().Contains("switch")) anySwitch = true;
+            }
+            Check(!anySwitch, "W2: no room has a light switch — the flashlight is the only light");
+            Check(FindDeep(views.Room(RoomId.Classroom1).Root.transform, "door_security_office") == null,
+                "W2: Classroom 1 has no Security Office door — the real one is the first door in the hallway");
+            Check(root.State == AppViewState.Exploration, "W2: patrol is live for the map proof");
+            PressKey(root, KeyCode.M);
+            root.OpenMap();
+            Check(root.State == AppViewState.Exploration,
+                "W2: the map cannot be opened on patrol (M and OpenMap both refuse) — it is pinned up at the desk only");
             Check(hall.Light != null && !hall.Light.Lit, "W2: rooms are entered DARK (lights start OFF)");
             var roomInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            Check(roomInfo.Contains("LIGHTS: OFF — wall switch [E]"),
-                  "W2: the HUD reads LIGHTS: OFF and points at the wall switch (got '" + roomInfo + "')");
+            Check(roomInfo.Contains("MAIN HALLWAY") && roomInfo.Contains("FLASHLIGHT: OFF") &&
+                  !roomInfo.Contains("LIGHTS:") && !roomInfo.ToLowerInvariant().Contains("switch"),
+                  "W2: the HUD names the room and the flashlight and points at no switch (got '" + roomInfo + "')");
             PressKey(root, KeyCode.Q);
             Check(!hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: the beam is the portable light: Focus does NOT touch the room lights");
-            if (sw != null) sw.Interact();
-            Check(hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: the wall switch lights the room, beam stays Focus");
-            if (sw != null) sw.Interact();
+            hall.Light.SetLit(true);   // only a scripted event (the hallucination flicker) can light a room
+            Check(hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: a scripted light change lights the room, beam stays Focus");
+            hall.Light.SetLit(false);
             Check(!hall.Light.Lit, "W2: and darkens it again");
-            // entry reset: whatever the switch did, ARRIVING in a room always means darkness
-            if (sw != null) sw.Interact();
-            Check(hall.Light.Lit, "W2: switch back on...");
+            // entry reset: whatever a scripted event did, ARRIVING in a room always means darkness
+            hall.Light.SetLit(true);
             hall.Light.ForceDarkOnEntry();   // what ViewManager calls on every room entry
-            Check(!hall.Light.Lit, "W2: ...but entering the room forces the lights back off (spawn in darkness)");
-            if (sw != null) sw.Interact();   // later sections (battery recovery) play lit
-            Check(hall.Light.Lit, "W2: the switch relights it — the player is never locked in the dark");
+            Check(!hall.Light.Lit, "W2: entering the room forces the lights back off (spawn in darkness)");
+            hall.Light.SetLit(true);   // later sections (battery recovery) play lit
+            Check(hall.Light.Lit, "W2: the room can be lit again by script — the player is never locked in the dark");
             PressKey(root, KeyCode.L);
             Check(rig.Beam == LightMode.Off && hall.Light.Lit, "W2: beam Off leaves no stale state on the room light");
 
@@ -2562,22 +2567,21 @@ namespace FlowCheck
             Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep && !rig.Latches.Focus,
                 "W2: entering a room forces the beam OFF — a transition never carries a lit beam over");
             Check(!FindDeep(rig.transform, "beam").gameObject.activeSelf,
-                "W2: the beam sprite is really hidden after the entry (LIGHTS: OFF now MEANS dark)");
+                "W2: the beam sprite is really hidden after the entry (the room is dark and stays dark)");
             string entryInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            Check(entryInfo.Contains("BEAM: OFF"),
+            Check(entryInfo.Contains("FLASHLIGHT: OFF"),
                 "W2: the HUD beam status stays in sync through the entry (got '" + entryInfo + "')");
             PressKey(root, KeyCode.F);
             Check(rig.Beam == LightMode.Sweep, "W2: F relights it after the entry (deliberate input only)");
             views.EnterRoom(RoomId.Hallway);
             Check(views.Current.Id == RoomId.Hallway && rig.Beam == LightMode.Off,
                 "W2: ...and every further entry starts dark again");
-            if (sw != null && !hall.Light.Lit) sw.Interact();   // later sections (battery) play lit
+            if (!hall.Light.Lit) hall.Light.SetLit(true);   // later sections (battery) play lit
             Check(hall.Light.Lit, "W2: the hallway is relit for the battery proofs");
 
             // ---- W2b: limited hallway visibility — deeper ambient + a pool around the player
             Console.WriteLine("== W2b hallway limited visibility (dark corridor, manual beam) ==");
-            var swB = FindInteractable<LightSwitchObject>(hall);
-            if (hall.Light.Lit && swB != null) swB.Interact();
+            if (hall.Light.Lit) hall.Light.SetLit(false);
             Check(!hall.Light.Lit, "W2b: the corridor is dark for the depth proofs");
             var depth = hall.Depth;
             Check(depth != null, "W2b: the hallway owns a depth layer");
@@ -2645,16 +2649,16 @@ namespace FlowCheck
             Check(!coneT.gameObject.activeSelf && !maskGo.gameObject.activeSelf,
                 "W2b: beam OFF removes cone AND mask — no stale light layer survives");
 
-            // the wall switch still means a fully visible corridor, then darkness returns
-            if (swB != null) swB.Interact();
+            // a scripted lights-on still means a fully visible corridor, then darkness returns
+            hall.Light.SetLit(true);
             Check(hall.Light.Lit && !depth.enabled &&
                   Mathf.Abs(hall.Darkness.color.a - LightController.LitAlpha) < 1e-3f,
                   "W2b: lights ON -> the pool is gone, the corridor reads as an ordinary lit room");
-            if (swB != null) swB.Interact();
+            hall.Light.SetLit(false);
             Check(!hall.Light.Lit && depth.enabled &&
                   Mathf.Abs(depth.color.a - cfg.hallwayDepthAlpha) < 1e-3f,
                   "W2b: lights OFF -> darkness and the pool return");
-            if (swB != null) swB.Interact();   // leave the corridor lit, as W2 handed it over
+            hall.Light.SetLit(true);   // leave the corridor lit, as W2 handed it over
             Check(rig.Beam == LightMode.Off, "W2b: no lighting change ever auto-activated the beam");
             CheckLightSync(root, "W2b dark corridor");
 
@@ -2803,9 +2807,9 @@ namespace FlowCheck
             PressKey(root, KeyCode.F);
             Check(rig.BeamOn && rig.Beam == LightMode.Sweep, "W4: deliberate input relights the beam after revival");
             SetBeam(root, rig, LightMode.Off);
-            if (sw != null) sw.Interact();   // lights off
+            hall.Light.SetLit(false);   // lights off
             float d0 = rig.Battery; WorldFrames(root, 60); float darkGain = rig.Battery - d0;
-            if (sw != null) sw.Interact();   // lights on
+            hall.Light.SetLit(true);   // lights on
             float l0 = rig.Battery; WorldFrames(root, 60); float litGain2 = rig.Battery - l0;
             Check(darkGain > 0.03f && darkGain < 0.05f && litGain2 > darkGain * 1.5f,
                 $"W4: dark recovery ({darkGain * 100f:F1}%/s) is slower than lit ({litGain2 * 100f:F1}%/s)");
@@ -2813,7 +2817,7 @@ namespace FlowCheck
             // ---- W5: one authoritative encounter: detect → expose → repel → recover → return
             Console.WriteLine("== W5 one authoritative encounter ==");
             TopUpBattery(root, rig);
-            if (hall.Light.Lit && sw != null) sw.Interact();   // dark hallway: pure beam play
+            hall.Light.SetLit(false);   // dark hallway: pure beam play
             int poolBefore = root.Session.Pool.Pending;
             var targetKind = root.Session.Pool.PendingList[0];
             var an = views.SpawnAnomalyOfKind(targetKind);
@@ -2920,7 +2924,7 @@ namespace FlowCheck
             // ---- W6: four distinct behaviors
             Console.WriteLine("== W6 behavior identities ==");
             TopUpBattery(root, rig);
-            if (hall.Light.Lit && sw != null) sw.Interact();   // dark for behavior reads
+            hall.Light.SetLit(false);   // dark for behavior reads
 
             // Blink: creeps unseen, frozen by ANY beam, pinned by room light — never auto-solved
             var blink = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Blink);
@@ -2942,11 +2946,11 @@ namespace FlowCheck
                 Check(blink.State != AnomalyState.Repelled && !blink.Gone && blink.Meter < 0.55f,
                     "W6: Sweep alone never resolves the encounter");
                 SetBeam(root, rig, LightMode.Off);
-                if (sw != null) sw.Interact();     // lights on
+                hall.Light.SetLit(true);     // lights on
                 float bx2 = blink.Pos.x;
                 WorldFrames(root, 90);
                 Check(Mathf.Abs(blink.Pos.x - bx2) < 1e-4f, "W6: room lights alone pin a Blink");
-                if (sw != null) sw.Interact();     // lights off again
+                hall.Light.SetLit(false);     // lights off again
             }
             views.Spawner.DiscardLive();
 
@@ -3043,7 +3047,7 @@ namespace FlowCheck
             // ---- W7: repel cancels an in-progress catch; pause freezes everything
             Console.WriteLine("== W7 catch fairness + pause ==");
             TopUpBattery(root, rig);
-            if (hall.Light.Lit && sw != null) sw.Interact();
+            hall.Light.SetLit(false);
             var victim = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Slide);
             Check(victim != null, "W7: a Slide spawns for the catch-race test");
             if (victim != null)
@@ -3228,8 +3232,8 @@ namespace FlowCheck
             Check(!lamp.Lit && darkPrompt.Length > 0,
                 "W10: dark is not a trap — the exit prompt answers under the cursor without the lamp (got '" + darkPrompt + "')");
             string peekInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            Check(peekInfo.Contains("LAMP: OFF"),
-                "W10: the HUD reads LAMP: OFF in the dark classroom (got '" + peekInfo + "')");
+            Check(peekInfo.Contains("FLASHLIGHT: OFF"),
+                "W10: the HUD reads FLASHLIGHT: OFF in the dark classroom (got '" + peekInfo + "')");
             PressKey(root, KeyCode.F);
             Check(lamp.Lit, "W10: ONE F press turns the lamp on (nothing was secretly pre-lit)");
             Check(lampMask.activeSelf && lampGlow.activeSelf,
@@ -3239,13 +3243,13 @@ namespace FlowCheck
             Check(views.IsPeekLit(new Vector3(0f, 0f, 0f)),
                 "W10: the lit lamp illuminates the cursor point — the same state drives light and visual");
             peekInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            Check(peekInfo.Contains("LAMP: ON"),
-                "W10: the HUD reads LAMP: ON while the lamp is lit (got '" + peekInfo + "')");
+            Check(peekInfo.Contains("FLASHLIGHT: ON"),
+                "W10: the HUD reads FLASHLIGHT: ON while the flashlight is lit (got '" + peekInfo + "')");
             string peekObjective = FindDeep(root.HUD.transform, "objective").GetComponent<UnityEngine.UI.Text>().text;
             Check(peekObjective.Contains("Press F"),
                 "W10: the hint line teaches the manual lamp (got '" + peekObjective + "')");
             string lampToast = FindDeep(root.HUD.transform, "toast").GetComponent<UnityEngine.UI.Text>().text;
-            Check(lampToast.Contains("LAMP: ON"),
+            Check(lampToast.Contains("FLASHLIGHT: ON"),
                 "W10: the toggle confirms itself with a toast (got '" + lampToast + "')");
 
             // focus on the classroom lamp: Q reshapes the LIT circle, never the ON/OFF state
@@ -3260,8 +3264,8 @@ namespace FlowCheck
             Check(views.IsPeekLit(new Vector3(1f, 0f, 0f)) && !views.IsPeekLit(new Vector3(2.2f, 0f, 0f)),
                 "W10: the focused circle concentrates on near detail and stops short of the wide reach");
             peekInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
-            Check(peekInfo.Contains("LAMP: ON · FOCUS"),
-                "W10: the HUD names the focused lamp (got '" + peekInfo + "')");
+            Check(peekInfo.Contains("FLASHLIGHT: ON · FOCUS"),
+                "W10: the HUD names the focused flashlight (got '" + peekInfo + "')");
             PressKey(root, KeyCode.F);
             Check(!lamp.Lit && lamp.Focused && !lampMask.activeSelf && !lampGlow.activeSelf &&
                   !views.IsPeekLit(new Vector3(0f, 0f, 0f)),
@@ -3664,8 +3668,7 @@ namespace FlowCheck
                                       "sec_window_top", "sec_window_glass", "sec_window_base",
                                       "sec_upper_bg",
                                       "sec_upper", "sec_sanity_bar", "sec_pause_block",
-                                      "sec_tray_allow", "sec_tray_deny",
-                                      "sec_captionbar_a", "sec_captionbar_d" })
+                                      "sec_tray_allow", "sec_tray_deny" })
             {
                 var t = FindDeep(cp.transform, n);
                 Check(t != null, "KIT: layer " + n + " exists (proof is not a silent no-op)");
@@ -3753,9 +3756,9 @@ namespace FlowCheck
                   circA.GetSiblingIndex() < allow.GetSiblingIndex() &&
                   circD.GetSiblingIndex() < deny.GetSiblingIndex(),
                 "KIT: the tray circles draw under their stamps (allow and deny)");
-            Check(FindDeep(cp.transform, "sec_captionbar_a") != null &&
-                  FindDeep(cp.transform, "sec_captionbar_d") != null,
-                "KIT: the stamp captions ride the kit's caption bars");
+            Check(FindDeep(cp.transform, "sec_captionbar_a") == null &&
+                  FindDeep(cp.transform, "sec_captionbar_d") == null,
+                "KIT: the APPROVE / DECLINE caption bars are gone from the tray");
 
             // fonts: kit families first, bundled open-licence faces as fallback — never null
             Check(UIFactory.UiFont != null && UIFactory.UiFontBold != null &&
@@ -3857,8 +3860,9 @@ namespace FlowCheck
                 // The stub coroutine pump never runs AfterStamp, so the harness lands the
                 // same beat the editor reaches through the post-stamp coroutine.
                 cp.DebugTakeDocuments();
-                cp.StampSlipByKey(Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
-                cp.HandBackByKey();
+                TakeSlip(root);
+                StampSlip(root, Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+                HandBack(root, true, false);
                 cp.SetVisitorVisible(false);
                 DeskFrames(cp, 6);
                 var sb1 = new System.Text.StringBuilder();
@@ -3929,7 +3933,7 @@ namespace FlowCheck
                 // shows the student's side of it — a long answer in the kit bubble
                 cp.DebugSay("Custodian. I'm the district administrator. I'll be taking " +
                             "control of this facility tonight.");
-                for (int i = 0; i < 2; i++) { cp.TickBubble(1f / 60f); DeskFrame(cp); }
+                for (int i = 0; i < 2; i++) DeskFrame(cp);
             }
 
             var frame = FindDeep(cp.transform, "DeskFrame");
@@ -4270,8 +4274,7 @@ namespace FlowCheck
         {
             if (rig.Beam != LightMode.Off) PressKey(root, KeyCode.L);
             var room = root.Views.Current;
-            var sw = FindInteractable<LightSwitchObject>(room);
-            if (room != null && room.Light != null && !room.Light.Lit && sw != null) sw.Interact();
+            if (room != null && room.Light != null && !room.Light.Lit) room.Light.SetLit(true);
             int g = 0;
             while (rig.Battery < 0.9f && g++ < 60 * 25) WorldFrame(root);
         }

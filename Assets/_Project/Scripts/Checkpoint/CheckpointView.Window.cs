@@ -137,20 +137,13 @@ namespace Hollowbrook.Checkpoint
             // no printed stamp box: the verdict mark lands WHERE the player drops the
             // stamp (Papers, Please style), clamped fully inside the paper — see
             // TryStampOnDrop / StampPlacement
-            var slipBack = UIFactory.Panel(slipArtRt, "slipback", new Color(0.84f, 0.82f, 0.76f));
-            UIFactory.AnchorsFull(slipBack.rectTransform);
-            var backNote = UIFactory.Label(slipBack.rectTransform, "note", "RADIO NOTE: verify against the registry", 10,
-                UIFactory.PaperInk, TextAnchor.MiddleCenter);
-            UIFactory.AnchorsFull(backNote.rectTransform);
-            slipBack.gameObject.SetActive(false);
             _slipGo = slipRt.gameObject;
             if (_papersLayer != null) _slipGo.transform.SetParent(_papersLayer.transform, false);
             var slipDrag = _slipGo.AddComponent<DragPaper>();
             slipDrag.Init(_desk, 1.2f);
-            slipDrag.OnLift = () => _lastPaper = _slipGo;
-            // a tap on the counter slip takes it; a tap on the TAKEN slip turns it over —
-            // its own flip (FlipSlip), never the ID's: the papers are decoupled
-            slipDrag.OnTapped = c => { if (!_slipTaken) TakeSlipAt(new Vector2(740f, 560f)); else FlipSlip(); };
+            // the slip is ONLY draggable: never flips, never inspects (Inspectable stays off).
+            // A tap on the counter slip takes it.
+            slipDrag.OnTapped = c => { if (!_slipTaken) TakeSlipAt(new Vector2(740f, 560f)); };
             slipDrag.OnDropped = c => SlipDropped(c);
             _slipGo.SetActive(false);
         }
@@ -197,24 +190,13 @@ namespace Hollowbrook.Checkpoint
                     var rt = _slipGo.GetComponent<RectTransform>();
                     rt.anchoredPosition = new Vector2(L.CounterSlip.X, -L.CounterSlip.Y);
                 }
-                return;
             }
-            if (InWindowZone(center)) HandBackSlip();
+            // a taken slip simply stays where it was dropped: it is never handed back
         }
 
         private bool InWindowZone(Vector2 c) =>
             c.x >= L.Window.X - 10f && c.x <= L.Window.Right + 10f &&
             c.y >= L.Window.Y - 10f && c.y <= L.Sill.Bottom + 10f;
-
-        private void HandBackSlip()
-        {
-            if (!_slipStamped) { _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.25f); return; }
-            if (_backSlip) return;
-            _backSlip = true;
-            SetPaperHeld(_slipGo, false);
-            _gameRoot.Audio.PlaySfx("sfx_paper", 0.4f);
-            FinalizeIfReady();
-        }
 
         internal void HandBackId()
         {
@@ -238,10 +220,11 @@ namespace Hollowbrook.Checkpoint
             { var c = t.color; c.a = held ? 1f : 0.55f; t.color = c; }
         }
 
-        // The decision counts HERE — when the student has both papers back, never earlier.
+        // The decision counts HERE — when the stamped slip is on the desk and the student has the
+        // ID back, never earlier. The slip is the desk's own record: it is not handed back.
         private void FinalizeIfReady()
         {
-            if (!_backId || !_backSlip || !_slipStamped || _pendingVerdict == Verdict.None) return;
+            if (!_backId || !_slipStamped || _pendingVerdict == Verdict.None) return;
             var v = _pendingVerdict;
             _pendingVerdict = Verdict.None;
             _slipGo.SetActive(false);
@@ -253,22 +236,19 @@ namespace Hollowbrook.Checkpoint
         private void ResetHandover(VisitorData v)
         {
             _slipTaken = false; _slipStamped = false; _pendingVerdict = Verdict.None;
-            _backId = false; _backSlip = false;
-            // a fresh desk per student: zoom resets, the old file closes, the query clears
+            _backId = false;
+            // a fresh desk per student: an inspected card goes back, the old file closes, the query clears
             var idp = _idCardGo != null ? _idCardGo.GetComponent<DragPaper>() : null;
-            if (idp != null) idp.Zoom = 1f;
-            var slp = _slipGo != null ? _slipGo.GetComponent<DragPaper>() : null;
-            if (slp != null) slp.Zoom = 1f;
+            if (idp != null) idp.EndInspect();
             if (_recordGo != null) _recordGo.SetActive(false);
-            FaceUp(_idCardGo);          // flip state never carries across visitors: both
-            FaceUp(_slipGo);            // papers are born face-up on a fresh desk
+            FaceUp(_idCardGo);          // flip state never carries across visitors: the ID
+                                        // is born face-up on a fresh desk (the slip has no back)
             CloseFileDrawer();          // drawer shut, no file highlighted on a fresh desk
             _selectedCanon = -1;
             _stampRng = new GameRng((_gameRoot.Session != null ? _gameRoot.Session.Seed : 1) ^ (v.VisitorIndex * 131 + 7));
             SetPaperHeld(_idCardGo, true);
             SetPaperHeld(_slipGo, true);
             if (_stampOverlay != null) { var c = _stampOverlay.color; c.a = 0f; _stampOverlay.color = c; }
-            _lastPaper = _idCardGo;
             OfferAtCounter();          // fills + activates the counter card...
             OfferSlipAtCounter();      // ...and the slip (FillSlip lives here)
             // §6 automation: the papers are ALREADY on the desk when the student steps up —
@@ -366,7 +346,7 @@ namespace Hollowbrook.Checkpoint
             _visitorPortrait.gameObject.SetActive(on);
             _visitorShown = on;
             RefreshWindowLayer(on);       // the booth shutter follows the visitor
-            if (!on) _bubble.HideNow();   // an empty window carries no line — and no timer
+            if (!on) _bubble.HideNow();   // an empty window carries no line
             SyncBubble();
             _glitchOverlay.gameObject.SetActive(on && _glitchOverlay.color.a > 0f);
         }
