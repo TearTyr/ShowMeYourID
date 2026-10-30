@@ -11,11 +11,16 @@ using UnityEngine.UI;
 namespace Hollowbrook.UI
 {
     // The black NIGHT title card behind intro dialogue. Created by each scene bootstrap.
+    // PlayNightTitle fades the card's words in slowly, holds them, then hands over to the
+    // dialogue box — a click skips ahead.
     public class LoadingView : MonoBehaviour, IScreenView
     {
-        private Text _label;
+        private Text _label, _sub;
         private GameObject _bg;
         private Coroutine _routine;
+        private Action _onTitleDone;          // fires exactly once when the night title ends or is skipped
+        private const int FadeSteps = 40;     // stepped waits (not a frame loop) so any frame rate paces it
+        private const float FadeInSeconds = 1.8f, HoldSeconds = 1.3f;
 
         public void Init(GameRoot root)
         {
@@ -29,8 +34,13 @@ namespace Hollowbrook.UI
             kitBg.rectTransform.SetAsFirstSibling();
             _label = UIFactory.Label(_bg.transform, "label", "", 40, UIFactory.Ink, TextAnchor.MiddleCenter);
             UIFactory.Anchor(_label.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(900, 80), new Vector2(0, 30));
-            var sub = UIFactory.Label(_bg.transform, "sub", "HOLLOWBROOK COLLEGE — NIGHT CUSTODIAN PROGRAM", 15, UIFactory.InkFaint, TextAnchor.MiddleCenter);
-            UIFactory.Anchor(sub.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(900, 30), new Vector2(0, -30));
+            _sub = UIFactory.Label(_bg.transform, "sub", "HOLLOWBROOK COLLEGE — NIGHT CUSTODIAN PROGRAM", 15, UIFactory.InkFaint, TextAnchor.MiddleCenter);
+            UIFactory.Anchor(_sub.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(900, 30), new Vector2(0, -30));
+            // a click anywhere on the card skips the title (only live while a title is playing)
+            var skip = _bg.AddComponent<Button>();
+            skip.targetGraphic = _bg.GetComponent<Image>();
+            skip.transition = Selectable.Transition.None;
+            skip.onClick.AddListener(SkipTitle);
             _bg.SetActive(false);
         }
 
@@ -49,9 +59,57 @@ namespace Hollowbrook.UI
             _routine = null;
         }
 
+        /// <summary>The night title: the black card fades "NIGHT 1" and its date in slowly, holds
+        /// them, then calls <paramref name="onDone"/> exactly once so the dialogue box can open
+        /// over the card. A click skips ahead. A new call replaces any title still playing.</summary>
+        public void PlayNightTitle(string title, string sub, Action onDone)
+        {
+            if (_routine != null) { StopCoroutine(_routine); _routine = null; }
+            _label.text = title ?? "";
+            _sub.text = sub ?? "";
+            SetTitleAlpha(0f);
+            _bg.SetActive(true);
+            _onTitleDone = onDone;
+            _routine = StartCoroutine(NightTitleRoutine());
+        }
+
+        private IEnumerator NightTitleRoutine()
+        {
+            for (int i = 1; i <= FadeSteps; i++)
+            {
+                SetTitleAlpha(i / (float)FadeSteps);
+                yield return new WaitForSecondsRealtime(FadeInSeconds / FadeSteps);
+            }
+            yield return new WaitForSecondsRealtime(HoldSeconds);
+            _routine = null;
+            FinishTitle();
+        }
+
+        private void SkipTitle()
+        {
+            if (_onTitleDone == null) return;       // nothing is playing: the card is just a backdrop
+            if (_routine != null) { StopCoroutine(_routine); _routine = null; }
+            SetTitleAlpha(1f);
+            FinishTitle();
+        }
+
+        private void FinishTitle()
+        {
+            var done = _onTitleDone;
+            _onTitleDone = null;                     // exactly once, whether it ended or was skipped
+            if (done != null) done();
+        }
+
+        private void SetTitleAlpha(float a)
+        {
+            var c = _label.color; c.a = a; _label.color = c;
+            var d = _sub.color; d.a = a; _sub.color = d;
+        }
+
         public void Show(string label)
         {
             _label.text = label ?? "";
+            SetTitleAlpha(1f);
             if (_routine != null) { StopCoroutine(_routine); _routine = null; }
             _bg.SetActive(true);
         }
@@ -60,6 +118,7 @@ namespace Hollowbrook.UI
         public void Hide()
         {
             if (_routine != null) { StopCoroutine(_routine); _routine = null; }
+            _onTitleDone = null;                     // a hidden card never fires a late "title done"
             _bg.SetActive(false);
         }
     }
