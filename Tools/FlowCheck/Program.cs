@@ -3324,20 +3324,25 @@ namespace FlowCheck
                 "W10: mouse movement never lights the lamp (cursor is not lamp input)");
             Check(!views.IsPeekLit(new Vector3(0f, 0f, 0f)),
                 "W10: an OFF lamp illuminates nothing — the coverage query agrees with the visuals");
-            // the peek SESSION keeps running dark: the exit prompt is reachable without
-            // the lamp, so an OFF light can never lock the player in a classroom
+            // the peek SESSION keeps running dark: the bottom step-back strip is always there, so an
+            // OFF light can never lock the player in a classroom. It is the ONLY way back: the
+            // room's doorway is scenery while peeking (no prompt, E does nothing).
             Doorway exitDoor = null;
             foreach (var it in views.Current.Interactables)
             {
                 var d = it as Doorway;
                 if (d != null && d.Target == RoomId.Hallway) exitDoor = d;
             }
-            Check(exitDoor != null, "W10: the peeked classroom has its exit doorway");
+            Check(exitDoor != null, "W10: the peeked classroom still has its door (scenery)");
             AimAt(exitDoor.AnchorX, RoomInstance.FloorY + 1.4f);
             WorldFrames(root, 2);
             string darkPrompt = FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>().text;
-            Check(!lamp.Lit && darkPrompt.Length > 0,
-                "W10: dark is not a trap — the exit prompt answers under the cursor without the lamp (got '" + darkPrompt + "')");
+            Check(darkPrompt.Length == 0, "W10: aiming at the doorway shows no prompt (got '" + darkPrompt + "')");
+            PressKey(root, KeyCode.E);
+            Check(views.PeekActive && root.State == AppViewState.RoomPeek,
+                "W10: E at the doorway does nothing — the peek stays up");
+            Check(FindDeep(root.HUD.transform, "peekexitband").gameObject.activeSelf,
+                "W10: the bottom step-back strip is up while peeking, lamp on or off");
             string peekInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
             Check(peekInfo.Contains("FLASHLIGHT: OFF"),
                 "W10: the HUD reads FLASHLIGHT: OFF in the dark classroom (got '" + peekInfo + "')");
@@ -3421,19 +3426,12 @@ namespace FlowCheck
             Check(views.PeekLight.Lit, "W10: one F press lights the second classroom too");
             PressKey(root, KeyCode.F);
             Check(!views.PeekLight.Lit, "W10: ...and one F press puts it out again (a clean toggle)");
-            // the dark exit: E on the doorway works with the lamp OFF
-            Doorway exitDoor2 = null;
-            foreach (var it in views.Current.Interactables)
-            {
-                var d = it as Doorway;
-                if (d != null && d.Target == RoomId.Hallway) exitDoor2 = d;
-            }
-            AimAt(exitDoor2.AnchorX, RoomInstance.FloorY + 1.4f);
-            PressKey(root, KeyCode.E);
+            // the dark exit: clicking the bottom strip steps back with the lamp OFF
+            FindDeep(root.HUD.transform, "peekexitband").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Check(!views.PeekActive && root.State == AppViewState.Exploration,
-                "W10: E on the exit doorway steps back to the hallway — even with the lamp OFF");
+                "W10: clicking the bottom strip steps back to the hallway — even with the lamp OFF");
             Check(!FindDeep(root.HUD.transform, "peekexitband").gameObject.activeSelf,
-                "W10: the step-back band is gone after leaving the doorway");
+                "W10: the step-back strip is gone after leaving");
             Check(!views.PeekLight.Lit && rig.Beam == LightMode.Off,
                 "W10: exiting leaves everything dark — restarting patrol never re-lights anything");
 
@@ -3479,12 +3477,14 @@ namespace FlowCheck
                 var d = it as Doorway;
                 if (d != null && d.Target == RoomId.ComfortHall) crExit = d;
             }
-            Check(crExit != null, "W11: CR-1's exit doorway leads back to the comfort hallway");
+            Check(crExit != null, "W11: CR-1 has its door back to the comfort hallway (scenery while peeking)");
             AimAt(crExit.AnchorX, RoomInstance.FloorY + 1.4f);
             PressKey(root, KeyCode.E);
+            Check(views.PeekActive, "W11: E at CR-1's door does nothing — only the bottom strip leads back");
+            FindDeep(root.HUD.transform, "peekexitband").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Check(!views.PeekActive && root.State == AppViewState.Exploration &&
                   views.Current.Id == RoomId.ComfortHall,
-                "W11: stepping back from CR-1 returns to the COMFORT hallway, not the main hallway");
+                "W11: the bottom strip steps back from CR-1 to the COMFORT hallway, not the main hallway");
             cr2.Interact();
             Check(views.PeekActive && views.Current.Id == RoomId.Comfort2 && root.PeekRoom == RoomId.Comfort2,
                 "W11: CR-2 peeks the same way");

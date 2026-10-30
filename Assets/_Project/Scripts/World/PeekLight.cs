@@ -217,12 +217,7 @@ namespace Hollowbrook.World
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.InteractionPrompt, prompt));
             }
 
-            if (Input.GetKeyDown(KeyCode.E) && nearest != null)
-            {
-                var door = nearest as Doorway;
-                if (door != null && door.Target == RoomGraph.ParentOf(_room.Id)) _gameRoot.ExitRoomPeek();
-                else nearest.Interact();
-            }
+            if (Input.GetKeyDown(KeyCode.E) && nearest != null) nearest.Interact();
         }
 
         // Nearest interactable whose anchor point (chest height above the shared floor line)
@@ -235,7 +230,9 @@ namespace Hollowbrook.World
             float anchorY = RoomInstance.FloorY + 1.4f;
             foreach (var it in _room.Interactables)
             {
-                if (it == null || !it.Enabled) continue;
+                // the way back is the bottom of the screen and nothing else: a doorway is scenery
+                // while peeking (no prompt, no E)
+                if (it == null || !it.Enabled || it is Doorway) continue;
                 float dx = cursor.x - it.AnchorX;
                 float dy = cursor.y - anchorY;
                 float sq = dx * dx + dy * dy;
