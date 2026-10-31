@@ -2100,6 +2100,10 @@ namespace FlowCheck
             cp = root.Checkpoint;
             Check(!FindDeep(cp.transform, "StickyNoteOverlay").gameObject.activeSelf, "Q7: returning never re-shows the note");
             Check(cp.CurrentVisitor == null, "Q7: no visitor duplicated on return");
+            Check(!FindDeep(cp.transform, "portraitroot").gameObject.activeSelf,
+                  "Q7: back from patrol the empty window shows no floating student");
+            Check(!FindDeep(cp.transform, "idcard").gameObject.activeSelf,
+                  "Q7: ...and no ID card left on the desk");
             cp.AdvanceQueue(timerBeforePatrol + 0.1f);
             Check(cp.CurrentVisitor == pRoster[2] && root.Queue.ArrivalCount == 3,
                   "Q7: the paused clock resumes and delivers exactly the next visitor");

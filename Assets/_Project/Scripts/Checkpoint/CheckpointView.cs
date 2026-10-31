@@ -219,6 +219,7 @@ namespace Hollowbrook.Checkpoint
             if (Queue != null && Queue.Started)
             {
                 _stickyRoot.SetActive(false);
+                ClearWindow();
                 if (Queue.ResolutionPending) Queue.CompleteActive();   // a quit mid-banner finishes the step-up
                 if (Queue.Active != null) PresentFromQueue(Queue.Active, true);
                 else ApplyTickResult(Queue.ResumePresentation(), true);
@@ -232,6 +233,16 @@ namespace Hollowbrook.Checkpoint
                 _stickyRoot.SetActive(true);
             }
             RefreshHud();
+        }
+
+        // The desk is rebuilt every time the scene loads, so it must start with an empty window:
+        // no student, no papers. The queue then puts back whoever is really there.
+        private void ClearWindow()
+        {
+            SetVisitorVisible(false);
+            SetDocumentsVisible(false);
+            _offeredRoot.SetActive(false);
+            if (_slipGo != null) _slipGo.SetActive(false);
         }
 
         private IEnumerator WaitUnpaused(float seconds)
