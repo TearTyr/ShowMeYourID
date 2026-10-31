@@ -2743,6 +2743,22 @@ namespace FlowCheck
                 if (!hall.Light.Lit) hall.Light.SetLit(true);
             }
 
+            // ---- tokens: picked up on patrol, banked in the records, spent on the main menu ----
+            {
+                int before = root.Records.TokensBanked;
+                var tokenGo = new GameObject("proof_token");
+                var pickup = tokenGo.AddComponent<TokenPickup>();
+                pickup.Init(root, hall, 0f);
+                pickup.Interact();
+                Check(root.Records.TokensBanked == before + 1, "TOKEN: a picked up token is banked in the records");
+                var round = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = root.Session, Records = root.Records }));
+                Check(round != null && round.Records.TokensBanked == before + 1, "TOKEN: banked tokens survive the save file");
+                var rec = new RecordsData { TokensBanked = RecordsData.TokensToUnlockModes - 1 };
+                Check(!rec.ModesUnlocked, "TOKEN: the other modes stay locked below the price");
+                rec.TokensBanked++;
+                Check(rec.ModesUnlocked, "TOKEN: enough tokens open Endless and Challenge on the menu");
+            }
+
             // ---- the hallway art fits the frame and the walkers stand on the painted floor ----
             {
                 int spots = 0;
@@ -3940,7 +3956,7 @@ namespace FlowCheck
                 var im = t.GetComponent<UnityEngine.UI.Image>();
                 if (im != null && im.raycastTarget) clickThrough = false;
             }
-            foreach (var b in new[] { "NEW GAME", "CONTINUE", "SETTINGS", "EXIT", "CREDITS" })
+            foreach (var b in new[] { "NEW GAME", "CONTINUE", "SETTINGS", "EXIT", "CREDITS", "TOKENS" })
             {
                 var t = menu.Find("buttons/" + b);
                 Check(t != null && t.GetComponent<UnityEngine.UI.Button>() != null,

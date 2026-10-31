@@ -84,6 +84,7 @@ namespace Hollowbrook.Logic
             KV(sb, "history", string.Join("|", hist));
             KV(sb, "settings", save.Settings.Encode());
             sb.Append("endlessBest=").Append(save.Records.EndlessBest).Append('\n');
+            sb.Append("tokensBanked=").Append(save.Records.TokensBanked).Append('\n');
             sb.Append("challengeBest=").Append(save.Records.ChallengeBest).Append('\n');
             KV(sb, "endingsSeen", string.Join(",", save.Records.EndingsSeen));
 
@@ -209,6 +210,7 @@ namespace Hollowbrook.Logic
                 if (settings != null) save.Settings = settings;
 
                 save.Records.EndlessBest = Int(map, "endlessBest", 0);
+                save.Records.TokensBanked = Int(map, "tokensBanked", 0);
                 save.Records.ChallengeBest = Int(map, "challengeBest", 0);
                 save.Records.EndingsSeen.Clear();
                 foreach (var e in Split(Str(map, "endingsSeen", ""))) save.Records.EndingsSeen.Add(e);
