@@ -168,6 +168,7 @@ namespace Hollowbrook.Checkpoint
 
         private void RefreshQuestionsPanel(bool atWindow)
         {
+            ShowQuestionsPanel(!_talkOpen);
             Color ink = _kitOn ? UIFactory.NsInk : UIFactory.NsChalk;
             if (_qKeyHint != null)
                 _qKeyHint.text = InterviewRules.Remaining(_questionMask) + "/" + InterviewRules.Budget;

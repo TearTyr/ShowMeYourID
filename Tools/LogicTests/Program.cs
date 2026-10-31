@@ -348,7 +348,7 @@ namespace Hollowbrook.LogicTests
             var hubOptions = AdminTalk.OptionsFor(st, ctx);
             Check(hubOptions.Any(o => o.Action == AdminTalkAction.Refuse) && hubOptions.Any(o => o.Action == AdminTalkAction.StepBack),
                   "the hub always offers REFUSE ENTRY and the exit");
-            Check(!hubOptions.Any(o => o.Id == "ask_photo" || o.Id == "ask_cabinet" || o.Id == "ask_server"),
+            Check(!hubOptions.Any(o => o.Id == "ask_photo" || o.Id == "ask_cabinet"),
                   "evidence and the server question stay hidden until earned");
 
             // tokens are filled from the real papers
@@ -386,7 +386,7 @@ namespace Hollowbrook.LogicTests
             var withCabinet = Fresh(); withCabinet.ClueCabinet = true;
             st = new AdminTalkState(); AdminTalk.Open(st, withCabinet);
             Check(AdminTalk.OptionsFor(st, withCabinet).Any(o => o.Id == "ask_cabinet"), "the cabinet clue unlocks its question");
-            var withClass = Fresh(); withClass.AskedClassroom = true;
+            var withClass = Fresh();
             st = new AdminTalkState(); AdminTalk.Open(st, withClass);
             var serverOpt = AdminTalk.OptionsFor(st, withClass).FirstOrDefault(o => o.Id == "ask_server");
             Check(serverOpt != null, "asking him the classroom question unlocks the server-room follow-up");

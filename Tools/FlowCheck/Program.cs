@@ -3721,8 +3721,8 @@ namespace FlowCheck
                   FindDeep(cp.transform, "opt_end") != null,
                 "AT: the hub offers the three badge questions, REFUSE ENTRY and the exit");
             Check(FindDeep(cp.transform, "opt_ask_photo") == null && FindDeep(cp.transform, "opt_ask_cabinet") == null &&
-                  FindDeep(cp.transform, "opt_ask_server") == null,
-                "AT: evidence and the server-room question stay shut until earned");
+                  FindDeep(cp.transform, "opt_ask_server") != null,
+                "AT: evidence stays shut until earned; his first stop can always be asked");
             var refuseLabel = FindDeep(cp.transform, "opt_refuse").Find("label").GetComponent<UnityEngine.UI.Text>();
             Check(refuseLabel.horizontalOverflow == UnityEngine.HorizontalWrapMode.Wrap,
                 "AT: option labels wrap to two lines instead of being cut off");
@@ -3748,23 +3748,26 @@ namespace FlowCheck
             Check(root.Session.AdminTalk.Node == AdminTalk.HubId && FindDeep(cp.transform, "opt_ask_name") == null,
                 "AT: back at the hub; a question already asked is not offered again");
 
-            // the classroom question still works mid-conversation, and unlocks the follow-up
+            // he never gets the student questions, in or out of the conversation
             cp.AskClassroom();
-            Check(root.Queue.ActiveQuestionAsked, "AT: the classroom question still works mid-conversation");
-            FindDeep(cp.transform, "opt_ask_num").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(!root.Queue.ActiveQuestionAsked && !FindDeep(cp.transform, "qpanel_border").gameObject.activeSelf,
+                "AT: the default questions are gone while he is at the window");
+            FindDeep(cp.transform, "opt_ask_server").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             guard = 0;
             while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+            FindDeep(cp.transform, "opt_press_server").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            guard = 0;
+            while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+            Check(AdminTalk.LiesExposed(root.Session.AdminTalk) >= 1, "AT: a follow-up taken counts as a lie exposed");
             FindDeep(cp.transform, "opt_back").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             guard = 0;
             while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
-            Check(FindDeep(cp.transform, "opt_ask_server") != null,
-                "AT: after the classroom question, the server-room follow-up appears");
 
             // T steps out and back in without losing the thread
             PressDeskKey(cp, KeyCode.T);
             Check(!cp.AdminTalkOpen && FindDeep(cp.transform, "admintalkbar").gameObject.activeSelf &&
-                  FindDeep(cp.transform, "qpanel_border").gameObject.activeSelf,
-                "AT: stepping back restores the inspection column and leaves the re-open bar");
+                  !FindDeep(cp.transform, "qpanel_border").gameObject.activeSelf,
+                "AT: stepping back leaves the re-open bar, and the student questions stay away");
             PressDeskKey(cp, KeyCode.T);
             Check(cp.AdminTalkOpen && FindDeep(cp.transform, "opt_end") != null && !root.Dialogue.IsActive,
                 "AT: re-opening resumes the same node, options straight away, no replayed lines");
