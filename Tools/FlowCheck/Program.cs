@@ -272,8 +272,8 @@ namespace FlowCheck
             string[] deskNames =
             {
                 "DeskFrame", "topbar", "daybanner_border", "clock", "pause", "runstats", "mutationbg",
-                "record", "station", "folder1", "folder2", "filedrawer_border", "closefile", "idcard", "nightcounter",
-                "drawerbody", "drawerfront", "drawercavity", "drawerhead", "cabfront",
+                "record", "station", "folder1", "folder2", "folder3", "recordsicon", "filedrawer_border", "closefile", "idcard", "nightcounter",
+                "drawerbody", "drawerhead",
                 "windowframe", "glass", "facade", "visitor", "glitch", "sill",
                 "speechbubble", "bubble_border", "bubble", "bubbletext", "bubbletail",
                 "offeredid", "patrol", "endshift",
@@ -397,23 +397,26 @@ namespace FlowCheck
                   L.Inner.QContentY0 < L.Inner.QContentY1 &&
                   (L.Inner.QContentY1 - L.Inner.QContentY0) / 4f >= 22f,
                 "question rows divide the panel content box, clear of the painted frame");
-            // folder tabs: station-local grid; file rows: drawer-body grid, starting under the
-            // 52px front lip and the 18px header — a whole floor folder (7 files) fits
+            // cohort tabs: station-local grid; file rows: records-panel grid, starting under the
+            // 18px header — a whole cohort folder (7 files) fits
             Check(Math.Abs(L.Inner.FolderTabX - (L.Station.W - L.Inner.FolderTabW) / 2f) < 0.01f &&
                   Math.Abs(L.Inner.FolderTabY0 - 40) < 0.01f &&
                   Math.Abs(L.Inner.FolderTabStep - 35) < 0.01f && Math.Abs(L.Inner.FolderTabW - 230) < 0.01f &&
                   Math.Abs(L.Inner.FolderTabH - 34) < 0.01f,
-                "folder tabs == the centred cabinet grid ((W-230)/2,40 + i*35, 230x34): one symmetric face");
+                "folder tabs == the centred station grid ((W-230)/2,40 + i*35, 230x34): one symmetric face");
+            Check(L.Inner.FolderTabY0 + (RecordSearch.CohortCount - 1) * L.Inner.FolderTabStep +
+                  L.Inner.FolderTabH <= L.Station.H + 0.01f,
+                "all three cohort tabs fit inside the station");
+            Check(L.Inner.RecordsIcon.X >= 0f && L.Inner.RecordsIcon.Right <= L.Station.W &&
+                  L.Inner.RecordsIcon.Y >= L.Inner.StationCap.Bottom - 0.01f &&
+                  L.Inner.RecordsIcon.Bottom <= L.Station.H + 0.01f,
+                "the folder icon sits inside the station, under the caption");
             Check(Math.Abs(L.Inner.FileRowX - 15) < 0.01f && Math.Abs(L.Inner.FileRowY0 - 50) < 0.01f &&
                   Math.Abs(L.Inner.FileRowStep - 27) < 0.01f && Math.Abs(L.Inner.FileRowW - 250) < 0.01f &&
-                  L.Inner.FileRowY0 + 6 * L.Inner.FileRowStep + L.Inner.FileRowH <= L.Inner.DrawerBodyH + 0.01f,
-                "file rows == the reference drawer grid (15,50 + i*27, 250x22), 7 rows fit the sheet");
-            Check(Math.Abs(L.Inner.DrawerLipH - 28f) < 0.01f &&
-                  Math.Abs(DrawerMotion.TravelPx - (L.FileDrawer.H - L.Inner.DrawerLipH)) < 0.01f,
-                $"the drawer travels exactly its own hidden depth ({DrawerMotion.TravelPx:F0}px): " +
-                "shut = fully behind the front, open = flush with the mouth");
-            Check(CheckpointView.DrawerRowCapacity() >= 7,
-                "the pulled drawer holds a whole floor folder (>= 7 file rows)");
+                  L.Inner.FileRowY0 + 6 * L.Inner.FileRowStep + L.Inner.FileRowH <= L.Inner.RecordsPanelH + 0.01f,
+                "file rows == the reference panel grid (15,50 + i*27, 250x22), 7 rows fit the sheet");
+            Check(CheckpointView.RecordsRowCapacity() >= 7,
+                "the records panel holds a whole cohort folder (>= 7 file rows)");
             // the retired appearance check left its slot to the stamp tray: the right
             // column reads questions-above / stamps-below, with the tray hugging the panel
             Check(Mathf.Abs(L.StampAllow.W - L.StampDeny.W) < 0.01f &&
@@ -715,68 +718,45 @@ namespace FlowCheck
                   FindDeep(cp.transform, "query") == null &&
                   FindDeep(cp.transform, "station").GetComponent<UnityEngine.UI.InputField>() == null,
                   "the old registry terminal is gone: no FIND button, no text input");
-            // ---- the floor-files cabinet: a physical pull drawer, not a hover pop-up ----
-            var drawer = FindDeep(cp.transform, "filedrawer_border");   // the mouth: pinned to the grid
-            var body = FindDeep(cp.transform, "drawerbody");            // what actually slides
-            var front = FindDeep(cp.transform, "drawerfront");          // the worn front + handle
-            var shadow = FindDeep(cp.transform, "drawercavity");
-            var cabinet = FindDeep(cp.transform, "station");
-            var pull = cabinet.GetComponent<UnityEngine.UI.Button>();
-            Check(body != null && front != null && pull != null && drawer != null,
-                "DRAWER: the cabinet is one mouth + one sliding body + one front, and the front is the pull");
-            Check(FindDeep(cp.transform, "drawerzone") == null,
-                "DRAWER: the old hover-gated zone is gone — nothing pops open just because the cursor passed");
-            Check(FindDeep(cp.transform, "stationout") == null,
-                "DRAWER: no permanent status text under the cabinet — the pulled sheet IS the feedback");
-            var cabFront = FindDeep(cp.transform, "cabfront");
-            Check(cabFront != null && cabFront.parent == cabinet && cabFront.Find("cabgrip") != null &&
-                  cabFront.Find("cabtag") != null,
-                "DRAWER: the shut cabinet wears a gripped, tagged drawer front — the pull reads before it moves");
-            Check(!FindDeep(cp.transform, "folder1").gameObject.activeSelf && !drawer.gameObject.activeSelf,
-                "DRAWER: floor files start HIDDEN inside the shut cabinet (front label + handle only)");
-            // start from a known state: whatever the preceding proofs left behind, push the
-            // drawer home and let the motion finish before measuring the shut geometry
-            cp.CloseFileDrawer(true);
-            DeskFrames(cp, 2);
-            float shutY = body.GetComponent<RectTransform>().anchoredPosition.y;
-            Check(Mathf.Abs(shutY - DrawerMotion.TravelPx) < 0.01f,
-                $"DRAWER: a shut body sits {DrawerMotion.TravelPx:F0}px ABOVE the mouth (desk y {-shutY:F0}), " +
-                "so the cabinet front is all that shows");
-            Check(cp.DrawerPull <= 0f && !cp.DrawerIsOpen, "DRAWER: born shut, with no motion running");
+            // ---- the STUDENT RECORDS folder: one folder icon that opens a three-cohort panel ----
+            var panelBox = FindDeep(cp.transform, "filedrawer_border");   // the panel slot: pinned to the grid
+            var station = FindDeep(cp.transform, "station");
+            var icon = FindDeep(cp.transform, "recordsicon");
+            Check(panelBox != null && station != null && icon != null && icon.parent == station,
+                "RECORDS: the station holds one folder icon and the panel slot sits on the grid");
+            Check(icon.Find("label").GetComponent<UnityEngine.UI.Text>().text == "STUDENT RECORDS" &&
+                  FindDeep(station, "cap").GetComponent<UnityEngine.UI.Text>().text == "STUDENT RECORDS",
+                "RECORDS: the folder is labelled STUDENT RECORDS");
+            Check(station.GetComponent<UnityEngine.UI.Button>() == null &&
+                  FindDeep(cp.transform, "cabfront") == null && FindDeep(cp.transform, "drawerfront") == null &&
+                  FindDeep(cp.transform, "handle") == null && FindDeep(cp.transform, "drawercavity") == null,
+                "RECORDS: no drawer machinery is left — no pull button, cabinet front, handle or cavity");
+            cp.ResetRecords();
+            DeskFrames(cp, 1);
+            Check(!cp.RecordsOpen && icon.gameObject.activeSelf && !panelBox.gameObject.activeSelf &&
+                  !FindDeep(cp.transform, "folder1").gameObject.activeSelf,
+                "RECORDS: a fresh desk shows the closed folder icon and nothing else");
 
-            // the click is answered on the SAME call: no timer, no coroutine, no wind-up
-            pull.onClick.Invoke();
-            Check(cp.DrawerIsOpen && cp.DrawerPull > 0f && drawer.gameObject.activeSelf,
-                "DRAWER: one click on the cabinet front starts the pull immediately (no delay, no pop-in)");
-            float clickFrameOut = DrawerMotion.BodyOffset(cp.DrawerPull);
-            Check(clickFrameOut > 20f && body.GetComponent<RectTransform>().anchoredPosition.y < shutY - 20f,
-                // (anchoredPosition.y falls as the body travels down/out — PlaceTL stores desk y negated)
-                $"DRAWER: the click frame ALREADY has the body {clickFrameOut:F0}px out of the cabinet " +
-                "(the input is answered by the same frame that received it — no wind-up, no pop-in)");
-            Check(clickFrameOut < DrawerMotion.TravelPx * 0.5f,
-                "DRAWER: ...and it travels, rather than jumping straight to the end (a real pull)");
-            DeskFrames(cp, 2);   // two more 60 Hz frames — exactly what the player sees next
-            Check(DrawerMotion.BodyOffset(cp.DrawerPull) > clickFrameOut + 20f,
-                $"DRAWER: the next frames carry it further out ({DrawerMotion.BodyOffset(cp.DrawerPull):F0}px)");
-            Check(shadow.GetComponent<UnityEngine.UI.Image>().color.a > 0.05f,
-                $"DRAWER: the cavity behind the front lip darkens as the body comes out (a={shadow.GetComponent<UnityEngine.UI.Image>().color.a:F2})");
-            DeskFrames(cp, 12);
-            Check(Mathf.Abs(cp.DrawerPull - 1f) < 1e-4f && cp.DrawerIsOpen,
-                "DRAWER: fully out inside a fifth of a second, and it STAYS out (no bounce, no auto-close)");
-            Check(Mathf.Abs(body.GetComponent<RectTransform>().anchoredPosition.y) < 0.01f,
-                "DRAWER: the open body sits flush with the mouth — every file row is reachable");
-            Check(FindDeep(cp.transform, "folder1").gameObject.activeSelf &&
-                  FindDeep(cp.transform, "folder2").gameObject.activeSelf,
-                "DRAWER: the floor folders are only reachable once the drawer is out");
-            Check(FindDeep(cp.transform, "filerow0") != null, "DRAWER: the files came out with it");
-            var rowGroup = FindDeep(cp.transform, "filerow0").GetComponent<CanvasGroup>();
-            Check(rowGroup != null && Mathf.Abs(rowGroup.alpha - 1f) < 1e-3f && rowGroup.blocksRaycasts,
-                "DRAWER: a settled file is fully visible AND clickable");
+            // the click is answered on the SAME call: no timer, no coroutine, no animation
+            icon.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(cp.RecordsOpen && panelBox.gameObject.activeSelf && !icon.gameObject.activeSelf,
+                "RECORDS: one click on the folder opens the panel on that very call (no delay, no slide)");
+            var cohorts = RecordSearch.BuildCohortFolders(root.Roster.Canon);
+            string[] wantTabs = { "S2024-2028", "S2025-2029", "S2026-2030" };
+            bool tabsOk = true;
+            for (int t = 0; t < 3; t++)
+            {
+                var tabGo = FindDeep(cp.transform, "folder" + (t + 1));
+                if (tabGo == null || !tabGo.gameObject.activeSelf ||
+                    tabGo.Find("label").GetComponent<UnityEngine.UI.Text>().text != wantTabs[t]) tabsOk = false;
+            }
+            Check(tabsOk && FindDeep(cp.transform, "folder4") == null,
+                "RECORDS: three cohort tabs — S2024-2028, S2025-2029, S2026-2030 — appear once it is open");
+            Check(FindDeep(cp.transform, "filerow0") != null, "RECORDS: the oldest cohort's files are listed");
             var headText = FindDeep(cp.transform, "drawerhead").GetComponent<UnityEngine.UI.Text>().text;
-            Check(headText.Contains("ROOM 101") && headText.Contains("7 FILES"),
-                  "the drawer head names the room and counts its files (got '" + headText + "')");
-            Check(CheckpointView.DrawerRowCapacity() >= 7,
-                $"DRAWER: the pulled drawer holds a whole floor folder ({CheckpointView.DrawerRowCapacity()} rows)");
+            Check(headText.Contains("S2024-2028") && headText.Contains(cohorts[0].Indices.Count + " FILES"),
+                  "the panel head names the cohort and counts its files (got '" + headText + "')");
+            Check(cp.RecordsTab == 0, "RECORDS: it opens on the oldest cohort");
 
             // pull a file: same record-window path the old FIND search triggered
             var row0 = FindDeep(cp.transform, "filerow0");
@@ -787,73 +767,59 @@ namespace FlowCheck
             Check(FindDeep(cp.transform, "rname").GetComponent<UnityEngine.UI.Text>().text
                       .ToUpperInvariant().Contains(rowName),
                   "the pulled record is the row that was clicked");
-            Check(Mathf.Approximately(
-                      FindDeep(cp.transform, "cabfront").GetComponent<CanvasGroup>().alpha, 0f),
-                  "the shut cabinet face yields to the pulled drawer — never two fronts at once");
             Check(row0.Find("pill").GetComponent<UnityEngine.UI.Image>().color !=
                   FindDeep(cp.transform, "filerow1").Find("pill").GetComponent<UnityEngine.UI.Image>().color,
                   "the selected file row stays highlighted");
-            Check(cp.DrawerIsOpen,
-                  "DRAWER: taking a file leaves the drawer OUT — browsing several files never re-pulls it");
+            Check(cp.RecordsOpen,
+                  "RECORDS: taking a file leaves the panel OPEN — browsing several files never re-opens it");
             var closeBtn = FindDeep(cp.transform, "closefile").GetComponent<UnityEngine.UI.Button>();
             closeBtn.onClick.Invoke();
             Check(!FindDeep(cp.transform, "record").gameObject.activeSelf, "the file's X closes the window");
 
-            // the second floor folder: different files, and pulling one repopulates the sheet
+            // the other cohorts: different files, and pulling one repopulates the sheet
             var tab2 = FindDeep(cp.transform, "folder2").GetComponent<UnityEngine.UI.Button>();
             tab2.onClick.Invoke();
-            Check(cp.DrawerIsOpen && cp.DrawerFloor == 2, "DRAWER: the other folder swaps the drawer's contents");
+            Check(cp.RecordsOpen && cp.RecordsTab == 1, "RECORDS: another cohort tab swaps the panel's contents");
             var row2 = FindDeep(cp.transform, "filerow0");
             string row2Name = row2.Find("pill/fname").GetComponent<UnityEngine.UI.Text>().text;
-            Check(row2Name != rowName, "the second floor folder lists a different set of files");
+            Check(row2Name != rowName, "the second cohort lists a different set of files");
             row2.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Check(FindDeep(cp.transform, "record").gameObject.activeSelf &&
                   FindDeep(cp.transform, "rname").GetComponent<UnityEngine.UI.Text>().text
                       .ToUpperInvariant().Contains(row2Name),
-                  "pulling from the second folder reopens the record sheet");
+                  "pulling from the second cohort reopens the record sheet");
+            FindDeep(cp.transform, "folder3").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(cp.RecordsTab == 2 &&
+                  FindDeep(cp.transform, "drawerhead").GetComponent<UnityEngine.UI.Text>().text.Contains("S2026-2030"),
+                "the third tab opens S2026-2030");
 
-            // repeated input: one drawer, one animation, one set of files — never a pile-up
-            int rowsBefore = CountDeep(cp.transform, "filerow0");
-            int bodiesBefore = CountDeep(cp.transform, "drawerbody");
-            pull.onClick.Invoke();   // the open drawer's own toggle: pushes it back in
-            Check(!cp.DrawerIsOpen, "DRAWER: clicking the front again pushes the drawer back in");
-            Check(cp.DrawerPull > 0f, "DRAWER: ...and it starts moving on the click frame, not later");
-            pull.onClick.Invoke();   // yanked straight back out MID-TRAVEL: the motion reverses
-            pull.onClick.Invoke();   // and again — three toggles, still one drawer, one animation
-            pull.onClick.Invoke();   // (an even number, so it ends the way the player left it: out)
-            DeskFrames(cp, 16);
-            Check(CountDeep(cp.transform, "drawerbody") == bodiesBefore && bodiesBefore == 1 &&
-                  CountDeep(cp.transform, "filerow0") == rowsBefore && rowsBefore == 1,
-                "DRAWER: repeated clicks never build a second drawer or a second set of files");
-            Check(Mathf.Abs(cp.DrawerPull - 1f) < 1e-4f,
-                "DRAWER: after the click storm it settles fully open exactly once (no overlapping animation)");
+            // repeated input: one panel, one set of files — never a pile-up
+            for (int k = 0; k < 6; k++)
+                FindDeep(cp.transform, "folder" + (1 + k % 3)).GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(CountDeep(cp.transform, "drawerbody") == 1 && CountDeep(cp.transform, "filerow0") == 1,
+                "RECORDS: repeated tab clicks never build a second panel or a second set of files");
 
-            // keyboard: TAB is the same act as clicking the cabinet front
-            PressDeskKey(cp, KeyCode.Tab);
-            Check(!cp.DrawerIsOpen, "DRAWER: TAB pushes the drawer shut");
-            DeskFrames(cp, 14);
-            Check(cp.DrawerPull <= 0f && !drawer.gameObject.activeSelf &&
+            // closing: clicking the open tab again, or TAB, puts the folder back
+            int openTab = cp.RecordsTab;
+            FindDeep(cp.transform, "folder" + (openTab + 1)).GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(!cp.RecordsOpen && !panelBox.gameObject.activeSelf && icon.gameObject.activeSelf &&
                   !FindDeep(cp.transform, "folder1").gameObject.activeSelf,
-                "DRAWER: closing reverses the motion and restores the shut cabinet (front + handle only)");
-            Check(Mathf.Abs(body.GetComponent<RectTransform>().anchoredPosition.y - shutY) < 0.01f,
-                "DRAWER: the body parks back exactly where it started — no drift across open/close cycles");
+                "RECORDS: clicking the open tab closes the panel and brings the folder icon back");
             PressDeskKey(cp, KeyCode.Tab);
-            DeskFrames(cp, 14);
-            Check(cp.DrawerIsOpen && cp.DrawerFloor == 2,
-                "DRAWER: TAB pulls the same drawer back out on the floor it was last opened on");
+            Check(cp.RecordsOpen && cp.RecordsTab == openTab,
+                "RECORDS: TAB reopens the folder on the cohort it was last on");
+            PressDeskKey(cp, KeyCode.Tab);
+            Check(!cp.RecordsOpen, "RECORDS: TAB closes it again");
 
-            // empty folder edge: the drawer still opens, with an explicit NO FILES line
-            cp.PopulateDrawer(RecordSearch.FloorLabel(3), null, new int[0]);
+            // empty folder edge: the panel still opens, with an explicit NO FILES line
+            cp.OpenRecords(0);
+            cp.PopulateRecords(RecordSearch.CohortLabel(2023), null, new int[0]);
             Check(FindDeep(cp.transform, "nofiles") != null &&
                   FindDeep(cp.transform, "nofiles").GetComponent<UnityEngine.UI.Text>().text.Contains("NO FILES"),
                   "an empty folder shows a NO FILES state");
-            var tab1 = FindDeep(cp.transform, "folder1").GetComponent<UnityEngine.UI.Button>();
-            tab1.onClick.Invoke();      // back to the real 1st-floor folder...
-            DeskFrames(cp, 2);
-            Check(FindDeep(cp.transform, "filerow0") != null, "DRAWER: ...and its files come back");
-            tab1.onClick.Invoke();      // ...then shut the drawer: clean desk for the next checks
-            DeskFrames(cp, 14);
-            Check(!drawer.gameObject.activeSelf && !cp.DrawerIsOpen, "the drawer closes again after browsing");
+            cp.ResetRecords();
+            Check(!cp.RecordsOpen && !panelBox.gameObject.activeSelf && cp.RecordsTab == -1,
+                "RECORDS: a reset (new visitor) closes the folder and clears the cohort");
 
             // the slip: counter -> desk, stamp target, one stamp, pending until hand-back
             var slipGo = FindDeep(cp.transform, "slip");
@@ -1681,9 +1647,8 @@ namespace FlowCheck
             Check(cp.CurrentVisitor != null && FindDeep(desk, "idcard").gameObject.activeSelf &&
                   FindDeep(desk, "slip").gameObject.activeSelf,
                   "a fresh visitor arrives with both documents already on the desk (§6 automation)");
-            Check(!FaceOf(FindDeep(desk, "idcard"), "idback").gameObject.activeSelf &&
-                  !FaceOf(FindDeep(desk, "slip"), "slipback").gameObject.activeSelf,
-                  "the fresh visitor's papers are born FACE-UP (flip state never carries over)");
+            Check(!FaceOf(FindDeep(desk, "idcard"), "idback").gameObject.activeSelf,
+                  "the fresh visitor's ID is born FACE-UP (flip state never carries over)");
 
             // ---- the night counter, and the night title that opens each night ----
             {
@@ -3846,13 +3811,12 @@ namespace FlowCheck
         // ------------------------------------------------------- desk helpers
         // The desk view runs its own Update in the editor; headlessly nothing ticks unless the
         // harness does it, exactly like WorldFrame does for the patrol. These drive the same
-        // per-frame paths (queue clock, bubble cooldown, drawer motion, hotkeys) so an
+        // per-frame paths (queue clock, hotkeys) so an
         // animation's real timing is what gets asserted — never a synthetic jump to the end.
         private static void DeskFrame(CheckpointView cp, float dt = 1f / 60f)
         {
             Time.deltaTime = dt;
             Time.unscaledDeltaTime = dt;
-            cp.TickDrawer(dt);
             Input.KeysDown.Clear();     // edge-triggered keys last exactly one frame
         }
 
@@ -3977,19 +3941,19 @@ namespace FlowCheck
             // reading-sheet and map dumps open the real view the way its own click does
             if (state == "rules" || state == "log")
                 cp.DebugOpenOverlay(state);
-            // floor-files dumps: the pulled drawer with a folder open, and the pulled
-            // record sheet over it — the two states a player browsing the registry sees
+            // records dumps: the open panel on a cohort, and the pulled record sheet over it
+            // — the two states a player browsing the registry sees
             if (state == "files" || state == "record")
             {
-                // the occupied setup already pulls the cabinet once (floor 1): asking for
-                // the same floor again would shut it, so only steer when it is elsewhere
-                if (!cp.DrawerIsOpen || cp.DrawerFloor != 1) cp.OpenFolder(1);
+                // the occupied setup already opens the panel once (oldest cohort): asking for
+                // the same cohort again would shut it, so only steer when it is elsewhere
+                if (!cp.RecordsOpen || cp.RecordsTab != 0) cp.OpenRecords(0);
                 DeskFrames(cp, 14);
                 if (state == "record")
                 {
                     int idx = -1;
-                    foreach (var f in Hollowbrook.Logic.RecordSearch.BuildFloorFolders(root.Roster.Canon))
-                        if (f.Floor == 1 && f.Indices.Count > 2) { idx = f.Indices[2]; break; }
+                    foreach (var f in Hollowbrook.Logic.RecordSearch.BuildCohortFolders(root.Roster.Canon))
+                        if (f.Cohort == RecordSearch.FirstCohort && f.Indices.Count > 2) { idx = f.Indices[2]; break; }
                     if (idx >= 0) cp.OpenCanonFile(idx);
                     DeskFrames(cp, 3);
                 }
@@ -4218,20 +4182,18 @@ namespace FlowCheck
             while (cp.CurrentVisitor == null && guard++ < 8) cp.AdvanceQueue(6f);
 
             var frameRt = FindDeep(cp.transform, "DeskFrame").GetComponent<RectTransform>();
-            string[] names = { "station", "filedrawer_border", "drawerbody", "drawerfront",
-                               "handle", "drawerhead", "filerow0", "filerow3", "filerow6",
-                               "drawercavity", "folder1", "folder2", "cabfront", "record" };
-            var frames = new[] { new { Tag = "0_shut", Frames = 0, Open = false },
-                                 new { Tag = "1_click_frame", Frames = -1, Open = true },
-                                 new { Tag = "2_2frames", Frames = 2, Open = true },
-                                 new { Tag = "3_5frames", Frames = 3, Open = true },
+            string[] names = { "station", "recordsicon", "filedrawer_border", "drawerbody",
+                               "drawerhead", "filerow0", "filerow3", "filerow6",
+                               "folder1", "folder2", "folder3", "record" };
+            var frames = new[] { new { Tag = "0_closed", Frames = 0, Open = false },
+                                 new { Tag = "1_open", Frames = 2, Open = true },
                                  new { Tag = "4_open", Frames = 20, Open = true } };
             bool opened = false;
             foreach (var f in frames)
             {
                 if (f.Open && !opened)
                 {
-                    FindDeep(cp.transform, "station").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+                    FindDeep(cp.transform, "recordsicon").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
                     opened = true;
                 }
                 if (f.Frames > 0) DeskFrames(cp, f.Frames);
@@ -4245,7 +4207,7 @@ namespace FlowCheck
                               "viewBox=\"0 0 420 560\" font-family=\"sans-serif\">");
                 sb.AppendLine("<rect width=\"420\" height=\"560\" fill=\"#0b0b0d\"/>");
                 sb.AppendLine($"<text x=\"10\" y=\"18\" fill=\"#8a8a92\" font-size=\"12\">" +
-                              $"{f.Tag}  pull={cp.DrawerPull:F3}  open={cp.DrawerIsOpen}</text>");
+                              $"{f.Tag}  open={cp.RecordsOpen}</text>");
                 // desk-grid (x right, y down) -> svg, cropped to the left column and shifted up
                 const float ox = 20f, oy = -90f;
                 foreach (var n in names)

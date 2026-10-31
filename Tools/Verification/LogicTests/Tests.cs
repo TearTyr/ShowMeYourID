@@ -480,10 +480,6 @@ namespace SMYID.Tests
             var o2 = InspectionRules.Apply(transferee, Verdict.Reject, mNoTrans);
             Check(o2.Correct && !o2.FalseRejection, "mutation reject is NOT a false rejection");
 
-            var mFourth = ShiftPlan.ChallengeMutations.First(m => m.Key == "fourth_year_curfew");
-            Check(InspectionRules.ExpectedVerdict(fourth, mFourth) == Verdict.Reject, "4th-year curfew forces reject");
-            Check(InspectionRules.ExpectedVerdict(transferee, mFourth) == Verdict.Allow, "curfew spares 2nd years");
-
             var mExp = ShiftPlan.ChallengeMutations.First(m => m.Key == "strict_expiry");
             Check(InspectionRules.ExpectedVerdict(nearExp, mExp) == Verdict.Reject, "strict expiry forces reject (<=60d)");
             Check(InspectionRules.ExpectedVerdict(fourth, mExp) == Verdict.Allow, "strict expiry spares 2027 IDs");

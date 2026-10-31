@@ -42,7 +42,7 @@ namespace Hollowbrook.Logic
     {
         public string FullName;
         public string IdNumber;        // registry ID, always valid format: HB-YYYY-NNNN
-        public int YearLevel;          // 1..4
+        public int YearLevel;          // 1..3
         public int CourseIndex;        // index into Content.Courses
         public bool IsTransferee;
         public Portrait Portrait;
@@ -194,7 +194,6 @@ namespace Hollowbrook.Logic
             switch (Key)
             {
                 case "no_transferees": return !v.IsAnomaly && v.IdIsTransferee;
-                case "fourth_year_curfew": return !v.IsAnomaly && v.IdYearLevel == 4;
                 case "strict_expiry": return !v.IsAnomaly && v.ExpirationDay - Content.ShiftDayNumber(v.ShiftNumber) <= 60;
                 case "odd_serials": return !v.IsAnomaly && IdRules.SerialOf(v.IdNumber) % 2 == 1;
                 case "office_late_list": return !v.IsAnomaly &&
@@ -215,7 +214,7 @@ namespace Hollowbrook.Logic
             "BS Criminology", "BS Psychology", "BS Biology", "BA Multimedia Arts",
         };
 
-        public static readonly string[] YearNames = { "1st Year", "2nd Year", "3rd Year", "4th Year" };
+        public static readonly string[] YearNames = { "1st Year", "2nd Year", "3rd Year" };
 
         public static readonly string[] ShiftDates =
         {
@@ -247,15 +246,15 @@ namespace Hollowbrook.Logic
             {
                 { "Ana Delgado",     "3", "0", "0", "0", "0", "1", "1", "Data Structures" },
                 { "Marco Reyes",     "2", "4", "0", "1", "1", "0", "2", "Criminal Law" },
-                { "Liza Santos",     "4", "1", "0", "2", "2", "1", "1", "Taxation Review" },
+                { "Liza Santos",     "1", "1", "0", "2", "2", "1", "1", "Taxation Review" },
                 { "Jerome Cruz",     "1", "7", "0", "3", "3", "3", "2", "Digital Sketching" },
                 { "Bea Villanueva",  "3", "3", "1", "4", "4", "2", "1", "Anatomy" },
                 { "Carlo Mendoza",   "2", "0", "0", "5", "5", "0", "2", "Networking" },
-                { "Trisha Ramos",    "4", "2", "0", "0", "3", "2", "1", "Media Ethics" },
+                { "Trisha Ramos",    "3", "2", "0", "0", "3", "2", "1", "Media Ethics" },
                 { "Miguel Bautista", "1", "5", "1", "1", "4", "0", "2", "Intro Psychology" },
                 { "Grace Lim",       "3", "6", "0", "2", "5", "1", "1", "Genetics" },
                 { "Paolo Soriano",   "2", "1", "1", "3", "0", "0", "2", "Bookkeeping" },
-                { "Kim Alonzo",      "4", "4", "0", "4", "1", "3", "1", "Forensics" },
+                { "Kim Alonzo",      "2", "4", "0", "4", "1", "3", "1", "Forensics" },
                 { "Rica Fernandez",  "1", "2", "0", "5", "2", "2", "2", "Public Speaking" },
                 { "Diego Navarro",   "3", "5", "0", "0", "4", "0", "1", "Abnormal Psych" },
                 { "Faith Gonzales",  "2", "3", "1", "1", "5", "1", "2", "Pharmacology" },
@@ -265,7 +264,7 @@ namespace Hollowbrook.Logic
             for (int i = 0; i < TotalStudents; i++)
             {
                 int year = int.Parse(core[i, 1]);
-                int enrollYear = 2027 - year;
+                int enrollYear = RecordSearch.CurrentSchoolYear - year;
                 var id = new StudentIdentity
                 {
                     FullName = core[i, 0],
