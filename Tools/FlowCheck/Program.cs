@@ -872,9 +872,9 @@ namespace FlowCheck
             slipDrag.PlaceCenter(new Vector2(760f, 500f));
             slipDrag.EndDrag();
             Check(cp.PendingVerdict == Verdict.None, "an unstamped slip commits nothing");
-            Check(PromptText(root).Contains("STAMP THE SLIP"),
+            Check(PromptText(root).Contains("DRAG A STAMP ONTO THE SLIP") || PromptText(root).Contains("WHICH CLASSROOM"),
                   "prompt matches state: both papers on the desk (got '" + PromptText(root) + "')");
-            Check(!HintText(root).Contains("STAMP THE SLIP"),
+            Check(!HintText(root).Contains("DRAG A STAMP"),
                   "the grey objective strip no longer duplicates the red prompt (got '" + HintText(root) + "')");
             Check(FindDeep(FindDeep(cp.transform, "offeredid").parent, "dim") == null,
                   "no full-desk dimmer blocks stamps or tools during the hand-over");
@@ -909,7 +909,33 @@ namespace FlowCheck
                   FindDeep(cp.transform, "PapersLayer").GetSiblingIndex(),
                   "the drawer sits under the papers layer: a pulled file lands on top of it");
             StampSlip(root, Verdict.Allow);
-            Check(cp.PendingVerdict == Verdict.Reject, "one stamp per slip: the second returns to the rack");
+            Check(cp.PendingVerdict == Verdict.Allow,
+                  "a second stamp before the hand-back REPLACES the first (the verdict only counts at the hand-back)");
+            StampSlip(root, Verdict.Reject);   // and the player can change their mind back
+            Check(cp.PendingVerdict == Verdict.Reject, "...as often as needed");
+
+            // desk quality of life: say why, light the next step, close sheets with a key
+            string lastToast = "";
+            var qolSub = root.Bus.Subscribe(EventIds.Notification, e => lastToast = e.Text ?? "");
+            var denyDrag = FindDeep(cp.transform, "stamp_deny").GetComponent<DragPaper>();
+            denyDrag.BeginDrag();
+            denyDrag.PlaceAt(new Vector2(20f, 20f));          // far from the slip
+            denyDrag.EndDrag();
+            Check(lastToast.Contains("MISSED"), "QOL: a stamp dropped off the slip says why (got '" + lastToast + "')");
+            Check(FindDeep(cp.transform, "windowcue").gameObject.activeSelf,
+                  "QOL: once the slip is stamped, the window sill lights up to say 'hand the ID back here'");
+            Check(FindDeep(cp.transform, "queuecount").GetComponent<UnityEngine.UI.Text>().text.Contains("TO GO TONIGHT"),
+                  "QOL: the top bar counts who is waiting and how many are still to go");
+            cp.DebugOpenOverlay("rules");
+            Check(FindDeep(cp.transform, "OverlayRules").gameObject.activeSelf, "QOL: the rules note opens");
+            Input.KeysDown.Add(KeyCode.X); cp.TickHotkeys(); Input.KeysDown.Clear();
+            Check(!FindDeep(cp.transform, "OverlayRules").gameObject.activeSelf, "QOL: X closes the note (the button says CLOSE [X])");
+            cp.DebugOpenOverlay("log");
+            Input.KeysDown.Add(KeyCode.Escape); cp.TickHotkeys(); Input.KeysDown.Clear();
+            Check(!FindDeep(cp.transform, "OverlayLog").gameObject.activeSelf && !root.Paused,
+                  "QOL: Esc closes an open sheet first instead of pausing behind it");
+            Time.frameCount++;   // the harness has no frame loop: Esc is handled once per frame
+            qolSub.Dispose();
 
             // flip + zoom on the held ID (desk is live here): the black spine is the handle
             var idGo = FindDeep(cp.transform, "idcard");
@@ -1726,8 +1752,8 @@ namespace FlowCheck
             Check(FindDeep(desk, "idcard").gameObject.activeSelf &&
                   FindDeep(desk, "slip").gameObject.activeSelf,
                   "AUTO-DOCS: ID and slip are already on the desk when the inspection begins");
-            Check(PromptText(root).Contains("STAMP THE SLIP"),
-                  "AUTO-DOCS: the prompt jumps straight to stamping (got '" + PromptText(root) + "')");
+            Check(PromptText(root).Contains("WHICH CLASSROOM"),
+                  "AUTO-DOCS: the prompt starts with the classroom question (got '" + PromptText(root) + "')");
             var cardPos = FindDeep(desk, "idcard").GetComponent<RectTransform>().anchoredPosition;
             var slipPos = FindDeep(desk, "slip").GetComponent<RectTransform>().anchoredPosition;
             Check(cardPos.y < 0 && slipPos.y < 0 && Mathf.Abs(slipPos.x - (740f - L.CounterSlip.W * 0.5f)) < 1f,

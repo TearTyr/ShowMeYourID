@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 44af37e66017bdb4f0f358b5d7561d12, type: 3}
   m_Name: GameConfig
   m_EditorClassIdentifier: 
-  verdictBannerSeconds: 3.2
+  verdictBannerSeconds: 1.2
   queueArrivalMinSeconds: 25
   queueArrivalMaxSeconds: 30
   queueRunMinSeconds: 3

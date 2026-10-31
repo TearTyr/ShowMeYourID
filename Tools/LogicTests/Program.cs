@@ -1575,17 +1575,17 @@ namespace Hollowbrook.LogicTests
             bool ordered = true, floorsOk = true;
             foreach (var f in folders)
             {
-                int prev = -1;
+                string prev = "";
                 foreach (int i in f.Indices)
                 {
-                    if (i <= prev) ordered = false;              // roster order inside a folder
-                    prev = i;
+                    if (string.Compare(canon[i].FullName, prev, System.StringComparison.OrdinalIgnoreCase) < 0) ordered = false;   // A-Z inside a folder
+                    prev = canon[i].FullName;
                     if (!seen.Add(i)) ordered = false;           // filed exactly once
                     if (RecordSearch.FloorOf(canon[i].FirstClassroom) != f.Floor) floorsOk = false;
                 }
             }
             Eq(seen.Count, canon.Count, "every canon student is filed exactly once");
-            Check(ordered, "files keep roster order inside their folder");
+            Check(ordered, "files are listed A-Z by name inside their folder");
             Check(floorsOk, "each file sits on its classroom's floor");
             Check(folders[0].Label != folders[1].Label &&
                   folders[0].Label.Contains("ROOM 101") && folders[1].Label.Contains("ROOM 202"),

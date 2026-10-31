@@ -183,19 +183,30 @@ namespace Hollowbrook.Checkpoint
                 L.Inner.BubblePanelW - 20f, h - L.Inner.BubblePadTop - L.Inner.BubblePadBottom));
         }
 
+        // The HUD prompt line says the NEXT step, in order: ask, check the file, stamp, hand back.
         private void RefreshHandoverPrompt()
         {
             string want = "";
             if (_current != null && !_verdictLocked)
             {
-                if (!_documentsTaken) want = "DRAG THE ID AND THE SLIP FROM THE COUNTER TO YOUR DESK";
-                else if (!_slipTaken) want = "THE SLIP IS STILL ON THE COUNTER — DRAG IT TO YOUR DESK";
-                else if (!_slipStamped) want = "STAMP THE SLIP — DRAG A STAMP ONTO IT";
-                else want = "DRAG THE ID BACK TO THE WINDOW";
+                if (_slipStamped) want = "CHANGE YOUR MIND? STAMP AGAIN. OTHERWISE DRAG THE ID BACK TO THE WINDOW";
+                else if (!_classroomAsked && !_current.IsAdministrator)
+                    want = "ASK WHICH CLASSROOM THEY ARE GOING TO [1], THEN CHECK THEIR FILE IN THE DRAWER";
+                else want = "CHECK THE PAPERS AND THE FILE, THEN DRAG A STAMP ONTO THE SLIP";
             }
+            RefreshWindowCue();
             if (want == _lastHandoverPrompt) return;
             _lastHandoverPrompt = want;
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.InteractionPrompt, want));
+        }
+
+        // The sill lights up when the only thing left is handing the ID back.
+        private void RefreshWindowCue()
+        {
+            if (_windowCue == null) return;
+            bool on = _current != null && !_verdictLocked && _slipStamped && !_backId;
+            _windowCue.gameObject.SetActive(on);
+            if (on) _windowCue.color = new Color(0.95f, 0.80f, 0.30f, 0.92f);
         }
     }
 }

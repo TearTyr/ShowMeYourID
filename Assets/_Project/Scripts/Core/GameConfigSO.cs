@@ -8,8 +8,8 @@ namespace Hollowbrook.Core
     public class GameConfigSO : ScriptableObject
     {
         [Header("Checkpoint pacing")]
-        [Tooltip("Seconds the result banner stays up after a verdict.")]
-        public float verdictBannerSeconds = 3.2f;
+        [Tooltip("Seconds the stamped paper stays before the next student steps up.")]
+        public float verdictBannerSeconds = 1.2f;
 
         [Header("Checkpoint queue")]
         [Tooltip("Lower bound of the randomized visitor arrival interval while a shift runs (Normal mode, night 1).")][Range(0.5f, 60f)]

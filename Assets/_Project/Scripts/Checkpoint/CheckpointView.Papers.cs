@@ -148,6 +148,7 @@ namespace Hollowbrook.Checkpoint
             // a click on the card lifts it into the inspect view (the spine still flips it);
             // clicking anywhere off it puts it back, tilted, where it lay
             idDrag.Inspectable = true;
+            idDrag.KeepVisible = _recordGo.transform;   // inspect the ID with the file still in view
             idDrag.OnTapped = c => idDrag.Inspect();
             idDrag.OnDropped = center =>
             {

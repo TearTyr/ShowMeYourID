@@ -49,6 +49,13 @@ namespace Hollowbrook.Checkpoint
             Reg("nightcounter", _topNight.rectTransform, L.NightCounter);
 
 
+            // under the night banner: how many are waiting and how many are still to go tonight
+            _topQueue = UIFactory.Label(_desk, "queuecount", "", 13, UIFactory.NsChalk, TextAnchor.MiddleLeft);
+            _topQueue.font = UIFactory.UiFontBold;
+            _topQueue.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _topQueue.raycastTarget = false;
+            L.Place(_topQueue.rectTransform, L.QueueCount);
+
             var pause = GridButton(_desk, "pause", "II  PAUSE", () => _gameRoot.TogglePause(true), L.Pause, 12);
             Reg("pause", pause, L.Pause);
 
@@ -91,6 +98,7 @@ namespace Hollowbrook.Checkpoint
         private void RefreshTopBar()
         { 
             ApplyModeGates();
+            RefreshQueueCount();
             if (_gameRoot.Session.Mode == GameMode.Normal)
             {
                 _topLeft.text = "NIGHT " + _gameRoot.Session.CurrentShift + " - " + (_shift != null ? _shift.LongDateLabel : "");
@@ -107,6 +115,18 @@ namespace Hollowbrook.Checkpoint
                              (_gameRoot.Session.Mode == GameMode.Challenge ? ChallengeRules.ScoreMultiplier : 1f);
                 _runStats.text = "SCORE " + _gameRoot.Session.Score + "   ·   STREAK " + _gameRoot.Session.Streak + " (×" + mult.ToString("0.0") + ")";
             }
+        }
+
+        // "WAITING 2   ·   4 TO GO TONIGHT" - blank until the shift has started and in run modes.
+        private void RefreshQueueCount()
+        {
+            if (_topQueue == null) return;
+            bool show = Queue != null && Queue.Started && !Queue.InfiniteSource &&
+                        _gameRoot.Session.Mode == GameMode.Normal;
+            _topQueue.gameObject.SetActive(show);
+            if (!show) return;
+            int toGo = Mathf.Max(0, Queue.EffectiveTotal - Queue.ProcessedCount);
+            _topQueue.text = "WAITING " + Queue.WaitingCount + "   ·   " + toGo + " TO GO TONIGHT";
         }
 
         // The shift clock model ticks every frame in GameRoot.Update; the label that shows

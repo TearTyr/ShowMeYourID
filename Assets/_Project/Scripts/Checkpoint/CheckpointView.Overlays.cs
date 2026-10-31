@@ -42,7 +42,11 @@ namespace Hollowbrook.Checkpoint
             var goRt = UIFactory.NewUI(_desk, goName);
             var go = goRt.gameObject;
             L.Place(goRt, L.FullDesk);
-            UIFactory.Dimmer(goRt, "dim", 0.66f);
+            var dim = UIFactory.Dimmer(goRt, "dim", 0.66f);
+            var dimClose = dim.gameObject.AddComponent<Button>();   // a click outside the paper closes it
+            dimClose.targetGraphic = dim;
+            dimClose.transition = Selectable.Transition.None;
+            dimClose.onClick.AddListener(() => { go.SetActive(false); _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.5f); });
             // the photographed paper, centred at its own proportions (preserveAspect keeps
             // the 789x879 export undistorted whatever the sheet rect rounds to); no extra
             // rotation — the print already lies at its angle
@@ -80,6 +84,18 @@ namespace Hollowbrook.Checkpoint
         {
             if (which == "rules") { RefreshNotes(); ToggleOverlay(_notesRoot); }
             else if (which == "log") { RefreshRecords(); ToggleOverlay(_recordsRoot); }
+        }
+
+        /// <summary>Close the rules note / tonight's log if one is open (X key, Esc, or a click
+        /// outside the paper). Returns whether anything was open.</summary>
+        private bool CloseOpenSheets()
+        {
+            bool any = (_notesRoot != null && _notesRoot.activeSelf) || (_recordsRoot != null && _recordsRoot.activeSelf);
+            if (!any) return false;
+            _notesRoot.SetActive(false);
+            _recordsRoot.SetActive(false);
+            _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.5f);
+            return true;
         }
 
         private Text Body(RectTransform parent, string name, L.Region r, int size, bool scroll)

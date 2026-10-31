@@ -43,7 +43,7 @@ namespace Hollowbrook.Checkpoint
         private bool _verdictLocked = true;
         private bool _flowActive;
 
-        private Text _topLeft, _topClock, _topNight;
+        private Text _topLeft, _topClock, _topNight, _topQueue;
         private string _lastClockText = "";
         private Text _runStats;      // endless/challenge: score · streak · timer
         private Text _mutationStrip; // challenge bulletin
@@ -429,12 +429,16 @@ namespace Hollowbrook.Checkpoint
         {
             // Escape belongs to an open overlay sheet (Options/Controls/Credits) first —
             // without this guard Esc over the pause menu would close Options AND unpause.
+            // Esc closes an open desk sheet (rules / log) first; with none open it pauses
             if (Input.GetKeyDown(KeyCode.Escape) && !_gameRoot.BlockingOverlayOpen && InputGate.TryEscape())
-                _gameRoot.TogglePause();
+            {
+                if (!CloseOpenSheets()) _gameRoot.TogglePause();
+            }
             // gameplay keys stand down while paused, in overlays, in dialogue, or off-desk
             if (_gameRoot.Paused || _gameRoot.BlockingOverlayOpen ||
                 (_gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive) ||
                 _gameRoot.State != AppViewState.Checkpoint) return;
+            if (Input.GetKeyDown(KeyCode.X)) CloseOpenSheets();   // the CLOSE [X] button has a key
             if (Input.GetKeyDown(KeyCode.M) && InputGate.TryM()) _gameRoot.OpenMap();
             // TAB pulls the floor-files drawer open / pushes it shut (same act as clicking
             // the cabinet front); with a floor already open it re-opens that floor's files

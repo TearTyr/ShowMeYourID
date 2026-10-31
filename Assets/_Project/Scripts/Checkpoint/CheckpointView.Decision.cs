@@ -193,7 +193,9 @@ namespace Hollowbrook.Checkpoint
             var drag = panel.gameObject.AddComponent<DragPaper>();
             drag.Init(_desk, 0f);
             drag.ReturnsHome = true;                 // stamps live in the tray
-            drag.OnDropped = center => TryStampOnDrop(center, verdict);
+            drag.OnPickedUp = () => SetSlipGlow(true);    // the slip lights up: that is where it goes
+            drag.OnDropped = center => { SetSlipGlow(false); TryStampOnDrop(center, verdict); };
+            drag.OnTapped = center => { SetSlipGlow(false); ToastDesk("DRAG THE STAMP ONTO THE SLIP."); };
             _stampTints[idx] = panel;
             _stampBase[idx] = tint;
         }
@@ -218,8 +220,13 @@ namespace Hollowbrook.Checkpoint
             var top = new Vector2(srt.anchoredPosition.x, -srt.anchoredPosition.y);
             bool onSlip = center.x >= top.x - 8f && center.x <= top.x + w + 8f &&
                           center.y >= top.y - 8f && center.y <= top.y + h + 8f;
-            if (!onSlip) return;                                    // off the slip: back to the rack
-            if (_slipStamped) { _gameRoot.Audio.PlaySfx("sfx_paper", 0.25f); return; }   // one stamp per slip
+            if (!onSlip)
+            {
+                ToastDesk("MISSED - DROP THE STAMP ON THE SLIP.");   // back to the rack, but say why
+                return;
+            }
+            // a second stamp before the hand-back REPLACES the first: the verdict only counts
+            // once the ID goes back to the student, so a slip of the hand can be fixed
             _pendingVerdict = v;
             _slipStamped = true;
             var local = StampPlacement.DeskToLocal(center.x, center.y, top.x, top.y,
@@ -265,6 +272,19 @@ namespace Hollowbrook.Checkpoint
             rt.localScale = Vector3.one;
             var c = _stampOverlay.color; c.a = 0f; _stampOverlay.color = c;
             _punch = StartCoroutine(StampPunch(v));
+        }
+
+        // A short note on the HUD toast line (the same channel as every desk refusal).
+        private void ToastDesk(string text)
+        {
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, text));
+        }
+
+        // While a stamp is in hand the slip glows, so the target is never a guess.
+        private void SetSlipGlow(bool on)
+        {
+            if (_slipBg == null) return;
+            _slipBg.color = on ? new Color(1f, 0.97f, 0.72f) : SlipPaperColor;
         }
 
         private void RefreshStamps(bool live)
@@ -315,6 +335,7 @@ namespace Hollowbrook.Checkpoint
 
             // silent verdict: the log records the call, never whether it was right
             _tonightsLog.Append("  ").Append(_current.IsAdministrator ? "ADMINISTRATOR" : _current.ClaimedName)
+                .Append(" (").Append(_current.IdNumber).Append(")")
                 .Append(" — ").Append(verdict == Verdict.Allow ? "ALLOWED" : "REJECTED").Append("\n");
 
             var resolved = _current;

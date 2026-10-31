@@ -16,6 +16,11 @@ namespace Hollowbrook.Checkpoint
     // the shared fields and the whole-class comment. Same class, split by desk area.
     public partial class CheckpointView
     {
+        private static readonly Color SlipPaperColor = new Color(0.88f, 0.86f, 0.80f);
+        private Image _slipBg;        // the slip's paper (glows while a stamp is in hand)
+        private Image _windowCue;     // the strip along the window sill: "return the ID here"
+        private Text _windowCueText;
+
         private void BuildWindowArea()
         {
             // booth dressing from the mockup: two hood bands over the frame, then the frame
@@ -64,8 +69,16 @@ namespace Hollowbrook.Checkpoint
             Reg("base3", base3.rectTransform, L.Base3);
             base3.raycastTarget = false;
 
-            // the student slides their ID to the counter edge on arrival (OfferAtCounter);
-            // nothing here needs a click target any more
+            // the hand-back cue: lit along the sill once the slip is stamped (see RefreshWindowCue)
+            _windowCue = UIFactory.Panel(_desk, "windowcue", new Color(0.95f, 0.80f, 0.30f, 0f));
+            L.Place(_windowCue.rectTransform, L.Sill);
+            _windowCue.raycastTarget = false;
+            _windowCueText = UIFactory.Label(_windowCue.rectTransform, "text", "▼  DRAG THE ID BACK TO THE WINDOW  ▼", 11,
+                UIFactory.NsInk, TextAnchor.MiddleCenter);
+            _windowCueText.font = UIFactory.UiFontBold;
+            _windowCueText.raycastTarget = false;
+            UIFactory.AnchorsFull(_windowCueText.rectTransform);
+            _windowCue.gameObject.SetActive(false);
         }
 
         // The hand-over step: a dimmer plus the centred offered ID. Clicking the card takes
@@ -126,7 +139,8 @@ namespace Hollowbrook.Checkpoint
             var slipArtRt = UIFactory.NewUI(slipRt, "slipart");
             UIFactory.PlaceTL(slipArtRt, 0, 0, 200, 120);
             slipArtRt.localScale = new Vector3(L.SlipScale, L.SlipScale, 1f);
-            var slipBg = UIFactory.Panel(slipArtRt, "bg", new Color(0.88f, 0.86f, 0.80f));
+            var slipBg = UIFactory.Panel(slipArtRt, "bg", SlipPaperColor);
+            _slipBg = slipBg;
             UIFactory.AnchorsFull(slipBg.rectTransform);
             _slipName = UIFactory.Label(slipArtRt, "sname", "", 11, UIFactory.PaperInk, TextAnchor.UpperLeft);
             L.Place(_slipName.rectTransform, new L.Region(8, 8, 184, 16));
@@ -201,7 +215,12 @@ namespace Hollowbrook.Checkpoint
         internal void HandBackId()
         {
             if (_backId) return;
-            if (!_slipStamped) { _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.25f); return; }  // decide first
+            if (!_slipStamped)   // decide first: say so, do not just buzz
+            {
+                _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.25f);
+                ToastDesk("STAMP THE SLIP FIRST - then hand the ID back.");
+                return;
+            }
             _backId = true;
             SetPaperHeld(_idCardGo, false);
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.4f);

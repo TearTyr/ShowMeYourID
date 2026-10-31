@@ -43,6 +43,11 @@ namespace Hollowbrook.Checkpoint
         /// <summary>Tools (stamps, the offered ID) return to their slot after every drop;
         /// papers stay where the player left them.</summary>
         public bool ReturnsHome;
+        /// <summary>Invoked the moment the paper is picked up (a drag starts).</summary>
+        public Action OnPickedUp;
+        /// <summary>A paper that stays bright above the dimmer while this one is inspected
+        /// (the student file, so it can be read next to the enlarged ID).</summary>
+        public Transform KeepVisible;
         /// <summary>Invoked with the desk-space drop centre after a real drag.</summary>
         public Action<Vector2> OnDropped;
         /// <summary>Invoked with the desk-space centre after a tap (movement < threshold).</summary>
@@ -81,6 +86,7 @@ namespace Hollowbrook.Checkpoint
             _rt.SetAsLastSibling();                       // papers stack: the held one is on top
             _rt.localScale = _baseScale * LiftScale;
             _rt.localEulerAngles = Vector3.zero;          // straighten while held
+            OnPickedUp?.Invoke();
         }
 
         // pointer deltas arrive in screen pixels; the desk lives in canvas-scaled units
@@ -128,6 +134,8 @@ namespace Hollowbrook.Checkpoint
             _preInspectPos = _rt.anchoredPosition;
             _preInspectScale = _rt.localScale;
             ShowCatcher();
+            if (KeepVisible != null && KeepVisible.gameObject.activeInHierarchy && KeepVisible.parent == _rt.parent)
+                KeepVisible.SetAsLastSibling();           // the file stays readable beside the big ID
             _rt.SetAsLastSibling();                       // above its own dimmer
             _rt.localScale = _preInspectScale * InspectScale;
             _rt.localEulerAngles = Vector3.zero;          // straight, to be read

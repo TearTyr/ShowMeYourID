@@ -11,7 +11,7 @@ namespace Hollowbrook.Logic
     public static class RecordSearch
     {
         /// <summary>One drawer folder: a floor, its display label, and the canon indices
-        /// filed under it (roster order).</summary>
+        /// filed under it (A-Z by name).</summary>
         public class FloorFolder
         {
             public int Floor;                                  // 1-based floor number
@@ -31,7 +31,7 @@ namespace Hollowbrook.Logic
         }
 
         /// <summary>Files the canon roster into floor folders: one folder per floor present,
-        /// floors ascending, students in roster order inside their folder. A null or empty
+        /// floors ascending, students A-Z by name inside their folder. A null or empty
         /// canon files nothing.</summary>
         public static List<FloorFolder> BuildFloorFolders(IReadOnlyList<StudentIdentity> canon)
         {
@@ -53,6 +53,9 @@ namespace Hollowbrook.Logic
                 f.Indices.Add(i);
             }
             folders.Sort((a, b) => a.Floor.CompareTo(b.Floor));
+            foreach (var f in folders)   // files in a drawer are alphabetical: easy to find by name
+                f.Indices.Sort((x, y) => string.Compare(canon[x].FullName, canon[y].FullName,
+                    System.StringComparison.OrdinalIgnoreCase));
             return folders;
         }
     }
