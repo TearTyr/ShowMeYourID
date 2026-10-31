@@ -50,6 +50,9 @@ namespace Hollowbrook.World
         private string _lastPrompt = "\0";   // "\0" = nothing published yet this peek
         private float _flickerLeft;           // > 0 while the lamp is dying (administrator hunt)
 
+        /// <summary>The lamp's sprite mask (headless diagnostics check its sorting range).</summary>
+        internal SpriteMask Mask => _mask;
+
         /// <summary>The cursor's point on the room plane (what the lamp is centred on).</summary>
         public Vector3 CursorWorld => _worldPoint;
 
@@ -67,8 +70,13 @@ namespace Hollowbrook.World
             _mask = maskGo.AddComponent<SpriteMask>();
             _mask.sprite = ProceduralArt.Get("lamp_glow");
             _mask.isCustomRangeActive = true;
-            _mask.frontSortingOrder = 60;   // the darkness overlay (70) is the only masked layer
-            _mask.backSortingOrder = 80;
+            // The mask only cuts sprites inside its sorting range. The range used to run from 80
+            // down to 60 (front below back), which Unity treats as empty, so the lamp lit a glow
+            // but never opened the black cover. Front and back on the darkness layer itself
+            // cover exactly that one layer, whichever way round Unity reads the pair.
+            _mask.frontSortingOrder = WorldLayers.Darkness;
+            _mask.backSortingOrder = WorldLayers.Darkness;
+            _mask.alphaCutoff = 0.05f;   // soft edge: the hole follows the glow, not a hard disc
             transform.localScale = Vector3.one * Radius * 2f;
 
             var glowGo = new GameObject("Glow");

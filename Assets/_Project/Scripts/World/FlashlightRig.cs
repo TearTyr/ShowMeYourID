@@ -58,11 +58,16 @@ namespace Hollowbrook.World
             _mask = maskGo.AddComponent<SpriteMask>();
             _mask.sprite = cone != null ? cone.sprite : null;
             _mask.isCustomRangeActive = true;
-            _mask.frontSortingOrder = 60;
-            _mask.backSortingOrder = 70;
+            // same rule as the peek lamp: the range must contain the darkness layer (and the hallway
+            // shroud, which draws on the same order), with front and back equal so it cannot be inverted
+            _mask.frontSortingOrder = WorldLayers.Darkness;
+            _mask.backSortingOrder = WorldLayers.Darkness;
             _mask.alphaCutoff = MaskAlphaCutoff;   // soft-edge hole: cut where the art is ~invisible
             ApplyBeam(LightMode.Off, true);
         }
+
+        /// <summary>The beam's sprite mask (headless diagnostics check its sorting range).</summary>
+        internal SpriteMask Mask => _mask;
 
         /// <summary>Is a world point inside the beam's actual cone? Sweep and Focus use their
         /// own range/angle; Off and dead battery cover nothing.</summary>

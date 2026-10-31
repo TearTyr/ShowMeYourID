@@ -15,7 +15,7 @@ namespace Hollowbrook.World
         // The hallway's depth shroud sits under the darkness quad (70) but INSIDE the handheld
         // beam mask's custom sorting range (60..70), so one beam hole cuts both black layers.
         // It stays under the player (73) and the markers (75+), like the darkness does.
-        private const int DepthOrder = 65;
+        private const int DepthOrder = WorldLayers.Darkness;
 
         private readonly GameRoot _root;
         private readonly GameObject _worldRoot;
@@ -164,7 +164,7 @@ namespace Hollowbrook.World
             // Ambient dim layer: BLACK at the LightController's alpha (0.12 lit .. 0.62 dark,
             // 1 while peeking). It draws only outside sprite masks, so the peek lamp punches
             // a hole in it. A white tint here would wash rooms out instead of darkening them.
-            var dark = Quad(root.transform, "darkness", Vector3.zero, 70,
+            var dark = Quad(root.transform, "darkness", Vector3.zero, WorldLayers.Darkness,
                 new Vector2(room.HalfWidth * 2f + 4f, HallwayDarkness.RoomDarkHalfHeight * 2f), Color.black);
 
             // The corridor alone is deeper than the rooms AND only reveals a pool around the

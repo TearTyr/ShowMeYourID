@@ -2747,8 +2747,9 @@ namespace FlowCheck
                   "W2b: classrooms keep their single uniform darkness layer (design preserved)");
             if (depth == null) return;
             Check(depth.maskInteraction == SpriteMaskInteraction.VisibleOutsideMask &&
-                  depth.sortingOrder > 60 && depth.sortingOrder < 70,
-                  "W2b: the depth layer rides INSIDE the beam mask's range, so one beam hole cuts both");
+                  depth.sortingOrder == views.Flashlight.Mask.frontSortingOrder &&
+                  depth.sortingOrder == views.Flashlight.Mask.backSortingOrder,
+                  "W2b: the depth layer is inside the beam mask's range (same layer as the darkness), so one beam hole cuts both");
             Check(depth.color.r < 0.01f && depth.color.g < 0.01f && depth.color.b < 0.01f,
                   "W2b: the depth layer is black (its alpha grades, it never washes the room out)");
             Check(depth.enabled && Mathf.Abs(depth.color.a - cfg.hallwayDepthAlpha) < 1e-3f,
@@ -3355,6 +3356,24 @@ namespace FlowCheck
             Check(views.Current.Id == RoomId.Hallway, "W10: back in the hallway for the peek proof");
             root.EnterRoomPeek(RoomId.Classroom1);
             Check(root.State == AppViewState.RoomPeek && views.PeekActive, "W10: peeking frames the classroom");
+            {
+                // the lamp can only open the black cover if its mask range contains the cover's layer
+                var coverProof = views.Current.Darkness;
+                var lampMaskProof = views.PeekLight.Mask;
+                int lo = Math.Min(lampMaskProof.frontSortingOrder, lampMaskProof.backSortingOrder);
+                int hi = Math.Max(lampMaskProof.frontSortingOrder, lampMaskProof.backSortingOrder);
+                Check(lampMaskProof.isCustomRangeActive && coverProof.sortingOrder >= lo && coverProof.sortingOrder <= hi &&
+                      lampMaskProof.frontSortingOrder == lampMaskProof.backSortingOrder,
+                      "W10: the peek lamp's mask range contains the black cover (coverProof " + coverProof.sortingOrder + ", range " + lo + ".." + hi + ")");
+                var beamMask = root.Views.Flashlight.Mask;
+                Check(beamMask.isCustomRangeActive && beamMask.frontSortingOrder == coverProof.sortingOrder &&
+                      beamMask.backSortingOrder == coverProof.sortingOrder,
+                      "W10: the handheld beam's mask range contains the black cover and the hallway shroud");
+                bool artUnder = true;
+                foreach (var r in views.Current.Root.GetComponentsInChildren<SpriteRenderer>(true))
+                    if (r.gameObject.name.StartsWith("bg_") && r.sortingOrder >= coverProof.sortingOrder) artUnder = false;
+                Check(artUnder, "W10: the room's painted backdrop draws under the black cover, so the lamp reveals it");
+            }
             CheckLightSync(root, "W10 peek entry");
             var lamp = views.PeekLight;
             Check(lamp != null && lamp.Active, "W10: the peek session is live");
