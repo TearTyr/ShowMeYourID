@@ -72,6 +72,7 @@ namespace Hollowbrook.Checkpoint
             UIFactory.PlaceTL(art.rectTransform, 0, 0, 320, 220);
             art.rectTransform.localScale = new Vector3(IdCardScale, IdCardScale, 1f);
             art.raycastTarget = false;
+            _idArt = art;
             var cardRt = art.rectTransform;
 
             // the verdict mark: born riding the ID (invisible), re-parented onto the slip
@@ -105,6 +106,7 @@ namespace Hollowbrook.Checkpoint
             stripe.rectTransform.offsetMin = new Vector2(0, 0);
             stripe.rectTransform.offsetMax = new Vector2(14, 0);
             SpineHandle(stripe, FlipId);
+            _idStripe = stripe;
             var bstripe = UIFactory.Panel(back.rectTransform, "idstripeback", new Color(0.06f, 0.06f, 0.07f));
             bstripe.rectTransform.anchorMin = new Vector2(1, 0);
             bstripe.rectTransform.anchorMax = new Vector2(1, 1);
@@ -196,9 +198,12 @@ namespace Hollowbrook.Checkpoint
         // badge, so every line has an admin wording.
         private void FillIdCard(VisitorData v, bool admin)
         {
-            _idHeader.text = admin ? "DISTRICT STAFF BADGE" : "HOLLOWBROOK COLLEGE — STUDENT ID";
-            _idName.text = "NAME: " + v.ClaimedName;
-            _idNumber.text = (admin ? "BADGE NO: " : "ID NO: ") + v.IdNumber;
+            bool template = !admin && ProceduralArt.Get("id_card_template") != null;
+            LayoutIdCard(template);
+            _idHeader.text = template ? "" : admin ? "DISTRICT STAFF BADGE" : "HOLLOWBROOK COLLEGE — STUDENT ID";
+            // the printed template already carries the field names, so it holds the values only
+            _idName.text = (template ? "" : "NAME: ") + v.ClaimedName;
+            _idNumber.text = template ? v.IdNumber : (admin ? "BADGE NO: " : "ID NO: ") + v.IdNumber;
             if (admin)
             {
                 _idYear.text = "DIVISION: Facilities Oversight";
@@ -207,11 +212,65 @@ namespace Hollowbrook.Checkpoint
             }
             else
             {
-                _idYear.text = "YEAR: " + Content.YearNames[v.IdYearLevel - 1];
-                _idCourse.text = "COURSE: " + Content.Courses[v.IdCourseIndex];
-                _idStatus.text = "STATUS: " + (v.IdIsTransferee ? "TRANSFEREE" : "REGULAR");
+                string year = Content.YearNames[v.IdYearLevel - 1];
+                string course = Content.Courses[v.IdCourseIndex];
+                string status = v.IdIsTransferee ? "TRANSFEREE" : "REGULAR";
+                _idYear.text = (template ? "" : "YEAR: ") + year;
+                _idCourse.text = (template ? "" : "COURSE: ") + course;
+                _idStatus.text = (template ? "" : "STATUS: ") + status;
             }
             _idExpires.text = admin ? "VALID THRU: " + v.ExpirationDisplay : "EXPIRES: " + v.ExpirationDisplay;
+        }
+
+        // The student card is the owner's printed template (header, field names, barcode);
+        // the administrator's badge keeps the older plain card. This swaps the art, the flip
+        // handle (the header bar on the template, the black spine on the badge) and where the
+        // lines of text sit. All numbers are in the 320x220 design space of the card.
+        private void LayoutIdCard(bool template)
+        {
+            if (_idArt == null) return;
+            _idArt.sprite = template ? ProceduralArt.Get("id_card_template") : ProceduralArt.Get("id_card_frame");
+            var st = _idStripe.rectTransform;
+            if (template)
+            {
+                st.anchorMin = new Vector2(0, 1);
+                st.anchorMax = new Vector2(1, 1);
+                st.offsetMin = new Vector2(0, -59);
+                st.offsetMax = Vector2.zero;
+                _idStripe.color = new Color(0f, 0f, 0f, 0f);   // the printed header shows; the bar is just the click area
+                _idPhotoSlot = L.Inner.IdPhotoTemplate;
+                PlaceIdText(_idName, 76);
+                PlaceIdText(_idNumber, 100);
+                PlaceIdText(_idCourse, 121);
+                PlaceIdText(_idYear, 141.5f);
+                PlaceIdText(_idStatus, 162);
+                L.Place(_idExpires.rectTransform, new L.Region(16, 190, 250, 18));
+                _idExpires.alignment = TextAnchor.MiddleLeft;
+            }
+            else
+            {
+                st.anchorMin = new Vector2(0, 0);
+                st.anchorMax = new Vector2(0, 1);
+                st.offsetMin = Vector2.zero;
+                st.offsetMax = new Vector2(14, 0);
+                _idStripe.color = new Color(0.06f, 0.06f, 0.07f);
+                _idPhotoSlot = L.Inner.IdPhoto;
+                Text[] rows = { _idName, _idNumber, _idYear, _idCourse, _idStatus, _idExpires };
+                for (int i = 0; i < rows.Length; i++)
+                {
+                    L.Place(rows[i].rectTransform, new L.Region(L.Inner.IdRowX,
+                        L.Inner.IdRules[i] - L.Inner.IdRowH, L.Inner.IdRowW, L.Inner.IdRowH));
+                    rows[i].alignment = TextAnchor.UpperLeft;
+                }
+            }
+            FrameToSlot(_idPhoto, _idPhotoSlot);
+        }
+
+        // one value line on the printed template: just above its field line, left aligned
+        private static void PlaceIdText(Text t, float y)
+        {
+            L.Place(t.rectTransform, new L.Region(112f, y, 163f, 16f));
+            t.alignment = TextAnchor.MiddleLeft;
         }
 
         // The district roster memo that arrives with the administrator's badge.

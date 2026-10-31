@@ -214,8 +214,8 @@ namespace Hollowbrook.Logic
             {
                 case DefectType.PhotoMismatch:
                     v.WindowPortrait = v.IdPhoto.Swapped();
-                    // somebody else's face stands at the window (1..5 steps never lands on the same face art)
-                    v.WindowFaceIndex = v.FaceAssetIndex + 1 + _rng.NextInt(0, 5);
+                    // somebody else's face stands at the window (1..N-1 steps never lands on the same face art)
+                    v.WindowFaceIndex = v.FaceAssetIndex + 1 + _rng.NextInt(0, FaceAssets.StudentFaceCount - 1);
                     break;
                 case DefectType.PhotoSubtleMismatch:
                     v.WindowPortrait = v.IdPhoto.SubtleVariant(_rng);

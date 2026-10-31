@@ -179,8 +179,10 @@ namespace Hollowbrook.Checkpoint
 
         private void BuildStampTray()
         {
-            BuildStamp("stamp_allow", "APPROVE", new Color(0.42f, 0.58f, 0.42f), L.StampAllow, Verdict.Allow, 0, 20);
-            BuildStamp("stamp_deny", "DECLINE", new Color(0.58f, 0.28f, 0.28f), L.StampDeny, Verdict.Reject, 1, 20);
+            // both stamps are plain black-and-white ink like the concept art; the caption
+            // pill under each one (added by the kit skin) says which is which
+            BuildStamp("stamp_allow", "APPROVE", Color.white, L.StampAllow, Verdict.Allow, 0, 20);
+            BuildStamp("stamp_deny", "DECLINE", Color.white, L.StampDeny, Verdict.Reject, 1, 20);
         }
 
         private void BuildStamp(string goName, string label, Color tint, L.Region region, Verdict verdict, int idx, int fontSize = 13)

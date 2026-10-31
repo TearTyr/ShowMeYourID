@@ -43,7 +43,7 @@ namespace Hollowbrook.Checkpoint
         private bool _verdictLocked = true;
         private bool _flowActive;
 
-        private Text _topLeft, _topClock, _topNight, _topQueue;
+        private Text _topLeft, _topClock, _topQueue;
         private string _lastClockText = "";
         private Text _runStats;      // endless/challenge: score · streak · timer
         private Text _mutationStrip; // challenge bulletin
@@ -55,6 +55,8 @@ namespace Hollowbrook.Checkpoint
         private Image _glitchOverlay;
 
         private Text _idName, _idNumber, _idYear, _idCourse, _idExpires, _idStatus, _idHeader;
+        private L.Region _idPhotoSlot = L.Inner.IdPhoto;   // where the ID photo sits on the current card art
+        private Image _idArt, _idStripe;   // the card's printed art and its flip handle (see LayoutIdCard)
         private Image _idPhoto;
         private Text _recName, _recNumber, _recYear, _recCourse, _recStatus, _recClassroom, _recHeader, _recEnrolled;
         private StringBuilder _tonightsLog = new StringBuilder();

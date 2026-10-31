@@ -10,9 +10,10 @@ namespace Hollowbrook.Logic
     /// portrait painter, so a missing asset never shows a broken image.</summary>
     public static class FaceAssets
     {
-        // Temporary set shipped under Assets/_Project/Resources/Art/ (see Tools/make_face_assets.py
-        // / the pass notes). Swap the files for final art later; the mapping does not change.
-        public const int StudentFaceCount = 6;
+        // The illustrated busts (Mark, Jose, Maria, Liza, Raf, Reniel, Rhevster), built by
+        // Tools/prep_characters.py into Assets/_Project/Resources/Art/. Add a character there
+        // and raise this number; the mapping does not change.
+        public const int StudentFaceCount = 7;
 
         /// <summary>Zero-padded key for one ordinary student face: "student_face_03".</summary>
         public static string StudentKey(int faceIndex) =>

@@ -157,7 +157,7 @@ namespace Hollowbrook.Checkpoint
             slipDrag.Init(_desk, 1.2f);
             // the slip is ONLY draggable: never flips, never inspects (Inspectable stays off).
             // A tap on the counter slip takes it.
-            slipDrag.OnTapped = c => { if (!_slipTaken) TakeSlipAt(new Vector2(740f, 560f)); };
+            slipDrag.OnTapped = c => { if (!_slipTaken) TakeSlipAt(new Vector2(765f, 560f)); };
             slipDrag.OnDropped = c => SlipDropped(c);
             _slipGo.SetActive(false);
         }
@@ -189,7 +189,7 @@ namespace Hollowbrook.Checkpoint
             rt.localScale = Vector3.one;
             var drag = _slipGo.GetComponent<DragPaper>();
             drag.PlaceCenter(deskCenter);
-            drag.SetHome(new Vector2(740f, 560f));   // desk slot if it ever returns home
+            drag.SetHome(new Vector2(765f, 560f));   // desk slot if it ever returns home
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.5f);
             RefreshHandoverPrompt();
         }
@@ -274,7 +274,7 @@ namespace Hollowbrook.Checkpoint
             // dragging still arranges them, but never gates the inspection
             TakeId();
             DockIdToSlot();
-            TakeSlipAt(new Vector2(740f, 560f));
+            TakeSlipAt(new Vector2(765f, 560f));
         }
 
         // Offered card rows reuse the ID-card grid offsets (same card size).
@@ -387,7 +387,7 @@ namespace Hollowbrook.Checkpoint
             _idPhoto.sprite = FaceArt.IdSprite(v);
             // artwork centred in the window (root-local slot)... and in the card's photo slot
             FrameToSlot(_visitorPortrait, new L.Region(0f, 0f, L.Portrait.W, L.Portrait.H));
-            FrameToSlot(_idPhoto, L.Inner.IdPhoto);
+            FrameToSlot(_idPhoto, _idPhotoSlot);
         }
 
         // Centre the ARTWORK, not the container: the face Image's own rect is set to the

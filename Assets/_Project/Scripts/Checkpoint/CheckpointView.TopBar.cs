@@ -35,18 +35,11 @@ namespace Hollowbrook.Checkpoint
             // (the waiting / to-go counter is built below, under the banner)
 
 
-            _topClock = UIFactory.Label(_desk, "clock", "22:00", 30, UIFactory.NsChalk, TextAnchor.MiddleCenter);
+            _topClock = UIFactory.Label(_desk, "clock", "22:00", 34, UIFactory.NsChalk, TextAnchor.MiddleCenter);
             _topClock.font = UIFactory.UiFontBold;
             _topClock.horizontalOverflow = HorizontalWrapMode.Overflow;
             _topClock.rectTransform.localScale = new Vector3(0.75f, 1f, 1f);   // condensed digits
             Reg("clock", _topClock.rectTransform, L.Clock);
-
-            // the night counter sits right beside the clock: which of the five nights this is
-            _topNight = UIFactory.Label(_desk, "nightcounter", "", 20, UIFactory.NsChalk, TextAnchor.MiddleRight);
-            _topNight.font = UIFactory.UiFontBold;
-            _topNight.horizontalOverflow = HorizontalWrapMode.Overflow;
-            _topNight.raycastTarget = false;
-            Reg("nightcounter", _topNight.rectTransform, L.NightCounter);
 
 
             // under the night banner: how many are waiting and how many are still to go tonight
@@ -91,7 +84,6 @@ namespace Hollowbrook.Checkpoint
             bool runMode = _gameRoot != null && _gameRoot.Session != null &&
                            _gameRoot.Session.Mode != GameMode.Normal;
             if (_runStats != null) _runStats.gameObject.SetActive(runMode);
-            if (_topNight != null) _topNight.gameObject.SetActive(!runMode);   // run modes have no nights
             if (_mutationStrip != null) _mutationStrip.gameObject.SetActive(runMode);
         }
 
@@ -102,8 +94,6 @@ namespace Hollowbrook.Checkpoint
             if (_gameRoot.Session.Mode == GameMode.Normal)
             {
                 _topLeft.text = "NIGHT " + _gameRoot.Session.CurrentShift + " - " + (_shift != null ? _shift.LongDateLabel : "");
-                if (_topNight != null)
-                    _topNight.text = "NIGHT " + _gameRoot.Session.CurrentShift + "/" + ShiftPlan.TotalShifts;
                 TickClockText();
             }
             else
