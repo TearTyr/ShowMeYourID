@@ -11,7 +11,7 @@ namespace Hollowbrook.Logic
     public enum LightMode { Off, Sweep, Focus }
 
     /// <summary>Where the administrator hunt stands (saved with the run).</summary>
-    public enum HuntState { None, Active, Won, Lost }
+    public enum HuntState { None, Active, Won, Lost, Ready }
 
     public enum AnomalyBehaviorKind { Blink, Slide, Sprint, CoverHug }
 

@@ -3911,9 +3911,26 @@ namespace FlowCheck
         private static void AdminHuntProof(GameRoot root)
         {
             Console.WriteLine("== administrator hunt: from the DENY stamp to the server door ==");
-            Check(root.HuntActive, "HUNT: the DENY stamp on the administrator starts the hunt");
+            Check(root.HuntReady && !root.HuntActive, "HUNT: the DENY stamp ends the security game, the hunt waits");
+            var desk = root.Checkpoint;
+            Check(!desk.WindowOpen, "HUNT: the window closes on him");
+            Check(desk.CurrentVisitor == null, "HUNT: he has left the window");
+            Check(FindDeep(desk.transform, "deny_dim") != null, "HUNT: the booth dims");
+            Check(root.Dialogue != null && root.Dialogue.IsActive, "HUNT: he says he will be back");
             int guard = 0;
             while (root.Dialogue != null && root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+            Check(root.HuntReady && root.State == AppViewState.Checkpoint, "HUNT: the hunt does not start until the player clicks Patrol");
+            desk.RefreshHud();
+            Check(Btn(root, "patrol").interactable, "HUNT: Patrol is the one thing left to do");
+            Check(!Btn(root, "endshift").interactable, "HUNT: END SHIFT is not");
+            root.QuitToMenu(true);
+            root.ContinueGame();
+            CheckpointSceneBootstrap.Build(root);
+            for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
+            Check(root.HuntReady && root.State == AppViewState.Checkpoint, "HUNT: Continue returns to the desk, still waiting");
+            Check(root.Checkpoint.CurrentVisitor == null && !root.Checkpoint.WindowOpen, "HUNT: and nobody is back at the window");
+            root.Checkpoint.GoPatrol();
+            Check(root.HuntActive, "HUNT: clicking Patrol starts it");
             SchoolSceneBootstrap.Build(root);                       // what Unity does after LoadScene(School)
             var views = root.Views;
             Check(root.State == AppViewState.Exploration && views.Hunt != null && views.Hunt.Running,
@@ -3943,38 +3960,22 @@ namespace FlowCheck
             // a perfect player: hold the door he stopped at, light him in the comfort room, flash him at your back
             var rig = views.Flashlight;
             var hallRoom = views.Room(RoomId.Hallway);
-            bool sawDoor = false, sawCloset = false, sawBehind = false, litOnEntry = false, doorBlocked = false;
+            bool sawRoom = false, sawBehind = false, litOnEntry = false;
+            root.Session.Sanity = 50f;
             for (int frame = 0; frame < 12000 && !hunt.Finished; frame++)
             {
                 var fig = views.Hunt.Figure;
                 bool figUp = fig != null && fig.activeSelf;
                 bool walking = !views.PeekActive && !views.Transitioning && root.State == AppViewState.Exploration;
-                views.Hunt.ForceHoldKey = hunt.Phase == HuntPhase.AtDoor;
-                if (hunt.Phase == HuntPhase.AtDoor)
-                {
-                    if (views.PeekActive) root.ExitRoomPeek();
-                    else if (walking)
-                    {
-                        sawDoor = true;
-                        Doorway held = null;
-                        foreach (var it in hallRoom.Interactables)
-                        { var d = it as Doorway; if (d != null && d.Target == hunt.Room) held = d; }
-                        if (held != null)
-                        {
-                            held.Interact();
-                            doorBlocked = doorBlocked || (!views.PeekActive && held.Prompt.Contains("HOLD E"));
-                            views.Player.PlaceInRoom(hallRoom, new Vector3(held.AnchorX, 0f, 0f));
-                        }
-                    }
-                }
-                else if (hunt.Phase == HuntPhase.Closet)
+                if (views.PeekActive && views.Current.Id != hunt.Room) root.ExitRoomPeek();
+                else if (hunt.Phase == HuntPhase.InRoom)
                 {
                     if (walking)
                     {
                         root.EnterRoomPeek(hunt.Room);
                         litOnEntry = litOnEntry || (views.PeekLight != null && views.PeekLight.Lit);
                     }
-                    if (figUp) { sawCloset = true; AimAt(fig.transform.position.x, fig.transform.position.y); }
+                    if (figUp) { sawRoom = true; AimAt(fig.transform.position.x, fig.transform.position.y); }
                 }
                 else if (hunt.Phase == HuntPhase.Behind && walking)
                 {
@@ -3982,15 +3983,13 @@ namespace FlowCheck
                     SetBeam(root, rig, LightMode.Sweep);
                     if (figUp) AimAt(fig.transform.localPosition.x, fig.transform.localPosition.y);
                 }
-                else if (views.PeekActive && hunt.Phase == HuntPhase.Stalking) root.ExitRoomPeek();
                 WorldFrame(root, 0.05f);
             }
-            views.Hunt.ForceHoldKey = false;
-            Check(sawDoor && doorBlocked, "HUNT: he stops at a door; it cannot be opened and asks to be held");
-            Check(sawCloset, "HUNT: he was found in the comfort room, a shaking picture under the lamp");
+            Check(sawRoom, "HUNT: he was found in a room, a shaking picture under the lamp");
             Check(litOnEntry, "HUNT: during the hunt a peek starts with the lamp ON");
             Check(sawBehind, "HUNT: he came up behind the player and the beam was needed");
             Check(hunt.Phase == HuntPhase.Won, $"HUNT: a perfect player reaches dawn (phase={hunt.Phase} caught={hunt.Catches})");
+            Check(hunt.Repels > 0 && root.Session.Sanity > 50f, $"HUNT: each light success gains sanity (now {root.Session.Sanity:F0})");
             Check(root.Session.Hunt == HuntState.Won && !root.HuntActive,
                 "HUNT: the session records the win");
             Check(EndingRules.Evaluate(root.Session).ReasonKey != "server_door",

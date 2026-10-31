@@ -716,14 +716,12 @@ namespace Hollowbrook.LogicTests
                 case HuntPlayer.Idle:
                     break;
                 case HuntPlayer.Perfect:
-                    inp.HoldingDoor = h.Phase == HuntPhase.AtDoor;
                     inp.BeamOnFace = h.Phase == HuntPhase.Behind;
-                    if (h.Phase == HuntPhase.Closet)
+                    if (h.Phase == HuntPhase.InRoom)
                     { inp.Peeking = true; inp.PlayerRoom = h.Room; inp.InHallway = false; inp.OnTarget = true; }
                     break;
                 case HuntPlayer.Dodger:   // holds for 1 s, lets go for 2 s, again and again
-                    inp.HoldingDoor = h.Phase == HuntPhase.AtDoor && (t % 3f) < 1f;
-                    if (h.Phase == HuntPhase.Closet)
+                    if (h.Phase == HuntPhase.InRoom)
                     { inp.Peeking = true; inp.PlayerRoom = h.Room; inp.InHallway = false; inp.OnTarget = (t % 3f) < 1f; }
                     break;
                 case HuntPlayer.StepBackSpammer:   // peeks in and out every half second, never holds
@@ -739,7 +737,6 @@ namespace Hollowbrook.LogicTests
                         inp.OnTarget = rng.Chance(0.6f);
                     }
                     inp.BeamOnFace = rng.Chance(0.5f);
-                    inp.HoldingDoor = rng.Chance(0.3f);
                     break;
             }
             return inp;
@@ -760,12 +757,11 @@ namespace Hollowbrook.LogicTests
             {
                 var ev = h.Tick(dt, HuntInputFor(who, h, t, rng, ref peek));
                 t += dt;
-                if (stops != null && (ev & (HuntEvent.ReachedDoor | HuntEvent.EnteredCloset | HuntEvent.AppearedBehind)) != 0)
+                if (stops != null && (ev & (HuntEvent.EnteredRoom | HuntEvent.AppearedBehind)) != 0)
                     stops.Add(h.Phase);
                 if (h.SurviveLeft > prevLeft + 1e-4f) { seconds = t; catches = -1; return HuntPhase.Stalking; }
                 prevLeft = h.SurviveLeft;
-                float limit = h.Phase == HuntPhase.AtDoor ? tun.DoorSeconds
-                    : h.Phase == HuntPhase.Closet ? tun.ClosetSeconds
+                float limit = h.Phase == HuntPhase.InRoom ? tun.RoomSeconds
                     : h.Phase == HuntPhase.Behind ? tun.BehindSeconds
                     : h.Phase == HuntPhase.Retreat ? tun.RetreatSeconds
                     : h.Phase == HuntPhase.Stalking ? tun.StalkMaxSeconds : float.MaxValue;
@@ -814,19 +810,22 @@ namespace Hollowbrook.LogicTests
             }
 
             // every kind of stop happens
-            int doors = 0, closets = 0, behinds = 0;
+            int rooms = 0, behinds = 0;
+            var roomsSeen = new HashSet<RoomId>();
             for (int seed = 1; seed <= 200; seed++)
             {
                 var seq = new List<HuntPhase>();
                 RunHunt(HuntPlayer.Perfect, seed, tun, out _, out _, seq);
-                foreach (var stop in seq)
+                foreach (var stop in seq) { if (stop == HuntPhase.InRoom) rooms++; else behinds++; }
+                var watch = new AdminHunt(tun, seed); watch.Start();
+                for (int i = 0; i < 2000 && !watch.Finished; i++)
                 {
-                    if (stop == HuntPhase.AtDoor) doors++;
-                    else if (stop == HuntPhase.Closet) closets++;
-                    else behinds++;
+                    watch.Tick(0.05f, new HuntInput { InHallway = true, BeamOnFace = true });
+                    if (watch.Phase == HuntPhase.InRoom) roomsSeen.Add(watch.Room);
                 }
             }
-            Check(doors > closets && closets > 0 && behinds > 0, $"doors, comfort room and behind you all happen ({doors}/{closets}/{behinds})");
+            Check(rooms > 0 && behinds > 0, $"he stops in rooms and behind you ({rooms}/{behinds})");
+            Eq(roomsSeen.Count, 4, "he can be in Room 101, Room 202, CR-1 and CR-2");
 
             // same seed + same input = same hunt
             var a = RunHunt(HuntPlayer.Random, 77, tun, out float aSecs, out int aCatches, null);
@@ -835,8 +834,8 @@ namespace Hollowbrook.LogicTests
 
             // looking is not enough: without the lamp on his head he is never sent away
             var off = new AdminHunt(tun, 5); off.Start();
-            for (int i = 0; i < 6000 && off.Phase != HuntPhase.Closet; i++)
-                off.Tick(0.05f, new HuntInput { HoldingDoor = true, BeamOnFace = true, InHallway = true });
+            for (int i = 0; i < 6000 && off.Phase != HuntPhase.InRoom; i++)
+                off.Tick(0.05f, new HuntInput { BeamOnFace = true, InHallway = true });
             int repelsBefore = off.Repels;
             for (int i = 0; i < 100; i++) off.Tick(0.05f, new HuntInput { Peeking = true, PlayerRoom = off.Room, OnTarget = false });
             Check(off.Repels == repelsBefore && off.Hold == 0f, "peeking without the lamp on his head never sends him away");

@@ -181,6 +181,7 @@ namespace Hollowbrook.Checkpoint
             _shift = shift;
             ResetShiftState();
             RestoreQueuePresentation();
+            if (_gameRoot.HuntReady) SetDenyDim(DenyDimAlpha);
             if (_gameRoot.HuntActive) _gameRoot.ResumeAdminHunt();   // saved mid-hunt: back to it
         }
 
@@ -371,7 +372,7 @@ namespace Hollowbrook.Checkpoint
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, "Finish the inspection at the window first."));
                 return;
             }
-            if (Queue != null && (!Queue.Started || Queue.Collapsed))
+            if (!_gameRoot.HuntReady && Queue != null && (!Queue.Started || Queue.Collapsed))
             {
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
                     Queue.Started ? "The line has overrun the checkpoint." : "Begin the night shift first."));

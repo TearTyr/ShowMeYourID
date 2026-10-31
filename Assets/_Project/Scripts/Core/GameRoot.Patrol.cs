@@ -18,6 +18,11 @@ namespace Hollowbrook.Core
 
         public void EnterExploration(RoomId room = RoomId.Hallway)
         {
+            if (HuntReady)
+            {
+                Session.Hunt = HuntState.Active;   // the Patrol click is what starts night 5's hunt
+                PersistRun();
+            }
             QueueSceneAction(() =>
             {
                 SetState(AppViewState.Exploration);

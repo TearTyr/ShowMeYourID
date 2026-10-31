@@ -106,14 +106,10 @@ namespace Hollowbrook.Core
         public float huntStalkMinSeconds = 5f;
         [Range(1f, 40f)]
         public float huntStalkMaxSeconds = 10f;
-        [Tooltip("Seconds to reach the door he stopped at and hold it before he gets through.")][Range(3f, 30f)]
-        public float huntDoorSeconds = 10f;
-        [Tooltip("Seconds of holding E at the door that send him away.")][Range(0.3f, 10f)]
-        public float huntDoorHoldSeconds = 2f;
-        [Tooltip("Seconds to find him in the comfort room.")][Range(3f, 30f)]
-        public float huntClosetSeconds = 12f;
-        [Tooltip("Seconds the lamp must stay on his head in the comfort room.")][Range(0.3f, 10f)]
-        public float huntClosetHoldSeconds = 1.8f;
+        [Tooltip("Seconds to find him in the room he stopped in.")][Range(3f, 30f)]
+        public float huntRoomSeconds = 12f;
+        [Tooltip("Seconds the lamp must stay on his head.")][Range(0.3f, 10f)]
+        public float huntRoomHoldSeconds = 1.8f;
         [Tooltip("How close (world units) the cursor must be to his head.")][Range(0.3f, 3f)]
         public float huntHeadRadius = 1.0f;
         [Tooltip("Seconds to flash him when he appears behind you.")][Range(1f, 8f)]
@@ -122,6 +118,8 @@ namespace Hollowbrook.Core
         public float huntBeamHitSeconds = 0.35f;
         [Tooltip("Sanity lost each time he catches you.")][Range(0f, 40f)]
         public float huntCaughtSanity = 15f;
+        [Tooltip("Sanity gained each time the light sends him away.")][Range(0f, 40f)]
+        public float huntSanityPerRepel = 8f;
 
         [Header("Encounter - repel meter")]
         [Tooltip("Meter per second while Focus holds the anomaly's body (the only way to progress).")][Range(0.05f, 2f)]

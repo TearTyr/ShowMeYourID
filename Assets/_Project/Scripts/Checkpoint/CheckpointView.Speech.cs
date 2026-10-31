@@ -194,6 +194,7 @@ namespace Hollowbrook.Checkpoint
                     want = "ASK UP TO 2 QUESTIONS [1-4], THEN CHECK THEIR FILE IN THE DRAWER";
                 else want = "CHECK THE PAPERS AND THE FILE, THEN DRAG A STAMP ONTO THE SLIP";
             }
+            else if (_gameRoot.HuntReady) want = "HE IS INSIDE THE SCHOOL. PATROL WHEN YOU ARE READY";
             else if (_current == null && Queue != null && Queue.ShiftComplete && _gameRoot.PatrolRequired)
             {
                 want = _gameRoot.PatrolDone ? "PATROL DONE: END THE SHIFT"

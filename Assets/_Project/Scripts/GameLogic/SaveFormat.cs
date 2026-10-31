@@ -174,7 +174,7 @@ namespace Hollowbrook.Logic
                 }
                 s.AdminAllowed = Int(map, "adminAllowed", 0) == 1;
                 s.AdminRejected = Int(map, "adminRejected", 0) == 1;
-                s.Hunt = (HuntState)Math.Max(0, Math.Min(3, Int(map, "hunt", 0)));
+                s.Hunt = (HuntState)Math.Max(0, Math.Min(4, Int(map, "hunt", 0)));
                 // absent in older saves: no failed night to pay for
                 s.ShiftBreaches = Int(map, "shiftBreaches", 0);
                 s.PendingPenaltySeverity = Int(map, "penaltySeverity", 0);

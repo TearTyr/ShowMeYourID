@@ -124,6 +124,7 @@ namespace UnityEngine
                 try { more = e.MoveNext(); }
                 catch (Exception ex) { Debug.LogError("[stub] coroutine exception: " + ex); break; }
                 if (!more) break;
+                if (e.Current is IEnumerator nested) RunSync(nested);   // Unity waits for a nested routine
             }
         }
 
