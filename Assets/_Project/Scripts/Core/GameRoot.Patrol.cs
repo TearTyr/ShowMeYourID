@@ -22,7 +22,7 @@ namespace Hollowbrook.Core
             {
                 SetState(AppViewState.Exploration);
                 Bus.Publish(GameEvent.Of(EventIds.PatrolStarted));
-                ObjectiveText = "Night " + Session.CurrentShift + " — patrol: check the rooms, follow the chain, return to the checkpoint before dawn.";
+                ObjectiveText = "Night " + Session.CurrentShift + " - patrol: check the rooms, follow the chain, return to the checkpoint before dawn.";
                 Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));
                 if (Views != null) Views.EnterRoom(room);
                 Audio.PlayMusic(MusicForRoom(room));
@@ -41,7 +41,7 @@ namespace Hollowbrook.Core
             }
         }
 
-        /// <summary>Flashlight peek into a classroom: the player never walks inside — the
+        /// <summary>Flashlight peek into a classroom: the player never walks inside - the
         /// camera frames the room and a cursor-locked light circle reveals it. Classrooms
         /// are reachable ONLY this way; the hallway and office keep their normal paths.</summary>
         public void EnterRoomPeek(RoomId room)

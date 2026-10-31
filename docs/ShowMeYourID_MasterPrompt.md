@@ -1,9 +1,9 @@
-# MASTER DEVELOPMENT PROMPT — "SHOW ME YOUR ID!" (Unity C#)
+# MASTER DEVELOPMENT PROMPT - "SHOW ME YOUR ID!" (Unity C#)
 
 > **How to use this file (do NOT paste this box into the AI):**
 > 1. Copy everything from the `==== PROMPT START ====` line to the `==== PROMPT END ====` line into your AI coding tool (Cursor / Claude / Copilot / ChatGPT) as the FIRST message.
 > 2. If you have the old `RollCall` C# source, attach it (or paste `ProcArt.cs`, `EventBus.cs`, `DeskController.cs`, `HallwayController.cs`, `AnomalyEntity.cs`, `SanitySystem.cs`, `ViewDirector.cs`, `GameBootstrap.cs`, `AutoBootstrap.cs`) right after the prompt and say: *"Here is the existing RollCall source to reuse."*
-> 3. The AI will output **Phase 0** first and then STOP. Reply **"Proceed to Phase N"** to build each phase in order. Do not let it dump all phases at once — you'll get truncated, inconsistent code.
+> 3. The AI will output **Phase 0** first and then STOP. Reply **"Proceed to Phase N"** to build each phase in order. Do not let it dump all phases at once - you'll get truncated, inconsistent code.
 > 4. After each phase: paste the files into Unity, press Play, fix any compile error with the AI, then continue. The build must run after every phase.
 
 ====================================================================
@@ -14,15 +14,15 @@
 You are a **senior Unity engineer** and technical director. You will build a complete, compiling, playable 2D game in **Unity (C#)** to a professional standard, working **phase by phase**. You write clean, well-commented, production-quality code that compiles on the first try and never leaves the project in a broken state.
 
 ## MISSION
-Build **"Show Me Your ID!"** by **Twin Studio** — a **2D monochrome psychological-horror / deduction / exploration** game for **PC (Windows), mouse + keyboard**. This is a **hybrid remake**: reuse the proven systems of an existing codebase ("RollCall") where noted, and rebuild everything else cleanly to the spec below. Deliver a **complete, buildable Unity project** whose gameplay loop is: **Main Menu → Mode Select → a Shift (Security Checkpoint ⇄ Exploration) → Ending → next Shift**, across **5 shifts**.
+Build **"Show Me Your ID!"** by **Twin Studio** - a **2D monochrome psychological-horror / deduction / exploration** game for **PC (Windows), mouse + keyboard**. This is a **hybrid remake**: reuse the proven systems of an existing codebase ("RollCall") where noted, and rebuild everything else cleanly to the spec below. Deliver a **complete, buildable Unity project** whose gameplay loop is: **Main Menu → Mode Select → a Shift (Security Checkpoint ⇄ Exploration) → Ending → next Shift**, across **5 shifts**.
 
 ## FICTION / TONE (for content, text, and naming)
-Hollowbrook College closed mid-year with no official reason. A secret **Student Identification Project** began generating identities that belonged to no real student — and those identities started appearing as *people*. The player is the newest **temporary night custodian**, screening everyone who enters. Some "students" are **anomalies** wearing real students' faces, trying to reach the original identification system behind a sealed door. Tagline: **"Everyone has an ID. Not everyone is a student."** Tone: quiet, paranoid, institutional, analog-horror. High-contrast **monochrome** with a single **red** accent used ONLY for interactives/UX.
+Hollowbrook College closed mid-year with no official reason. A secret **Student Identification Project** began generating identities that belonged to no real student - and those identities started appearing as *people*. The player is the newest **temporary night custodian**, screening everyone who enters. Some "students" are **anomalies** wearing real students' faces, trying to reach the original identification system behind a sealed door. Tagline: **"Everyone has an ID. Not everyone is a student."** Tone: quiet, paranoid, institutional, analog-horror. High-contrast **monochrome** with a single **red** accent used ONLY for interactives/UX.
 
 ## HARD TECHNICAL CONSTRAINTS (obey all)
 1. **Unity 2D, Built-in Render Pipeline** (so custom unlit shaders work). Target **1920×1080**, 16:9. C# (.NET Standard 2.1).
 2. **ONE scene only** (`Assets/_Project/Scenes/Hollowbrook.unity`). All views are **swappable GameObject roots** activated/deactivated under hard-cut transitions. Never use multiple scenes or `SceneManager` for gameplay.
-3. **Everything is wired from code by a bootstrap** (`GameBootstrap` at runtime + an `AutoBootstrap` `[InitializeOnLoad]` editor helper that builds the scene and assigns references). **The user should not have to hand-wire anything in the Inspector.** No `GameObject.Find` in gameplay code — pass references via the bootstrap or an `EventBus`.
+3. **Everything is wired from code by a bootstrap** (`GameBootstrap` at runtime + an `AutoBootstrap` `[InitializeOnLoad]` editor helper that builds the scene and assigns references). **The user should not have to hand-wire anything in the Inspector.** No `GameObject.Find` in gameplay code - pass references via the bootstrap or an `EventBus`.
 4. **Decouple with an EventBus.** A `GameEvent` ScriptableObject channel carries typed messages (`EventIds` constants + a payload). Systems subscribe/raise; they never reference each other directly unless unavoidable.
 5. **The build ALWAYS runs.** Every shader/material/texture lookup walks a **fallback chain** (custom → built-in → code-generated). Missing art degrades to **procedural greybox**, never to a crash or magenta. Wrap risky lookups; log a warning and continue.
 6. **Zero required image files.** All placeholder art is generated in code as `Texture2D` (see `ProcArt`). Real art is swapped in later behind a **provider interface** (`IPlateProvider` / `IPortraitProvider`) that defaults to procedural.
@@ -60,28 +60,28 @@ Assets/_Project/
   Resources/Audio/
 ```
 
-## ARCHITECTURE — CORE SYSTEMS (implement these first; they are the spine)
+## ARCHITECTURE - CORE SYSTEMS (implement these first; they are the spine)
 - **EventBus / GameEvent / EventIds:** `GameEvent : ScriptableObject` with `Raise(string name, object sender, object data)` and `Subscribe/Unsubscribe(Action<GameEventPayload>)`. `EventIds` holds `const string` names. Include at least: `GameStarted, StateChanged, SaveWritten, SaveLoaded, StripInteract, ViewEntered, FrameEnter, FrameExit, PoseChanged, LightModeChanged, HotspotClicked, AnomalyRevealed, AnomalySnapped, AnomalyDispelled, AnomalyEscaped, DoorSeeded, FramePassThrough, DeskAllowed, DeskRejected, DeskWrongReject, ClueFound, ShiftStarted, ShiftEnded, EndingReached, SanityChanged, ClockTick`.
 - **GameStateMachine:** `enum GameState { Boot, Menu, ModeSelect, Security, Hub, Explore, Ending, Report }`. Owns `Current`, raises `EventIds.StateChanged`, exposes `ChangeState(next)`.
 - **PlayerState (static, minimal):** `int Shift (1..5)`, `float Sanity (0..100)`, `float SanityNorm => Clamp01(Sanity/100)`, `int Rank`, `int FalseRejects`, `int Breaches`, `Mode CurrentMode`, `void ResetShift()`.
-- **FilmParams (static):** `float Sanity=1, InvertPulse=0, ExtraHaze=0; int RunSeed=0;` — globals the shaders read for the noir grade + distortion.
+- **FilmParams (static):** `float Sanity=1, InvertPulse=0, ExtraHaze=0; int RunSeed=0;` - globals the shaders read for the noir grade + distortion.
 - **RCShaderLib (static):** material factory with **fallback chains**: `FrameLit(tex,tint)`, `FrameMarker()`, `Silhouette(poseTex)` (haze→ink via `_Solidify`), `World(color,fixture)`, `White()` (code-made 4×4). If `RC/Frame` or `RC/World` are missing, fall back to `Unlit/Transparent`/`Unlit/Color` and log once.
 - **ProcArt (static, deterministic, cached):** code-paints every placeholder `Texture2D`: `Plate(RoomDef)`, `Sticky(RoomDef)`, `Pose(style,seed)` (0 sit,1 sleep,2 stand,3 crouch,4 back), `Portrait(seed, entity)`, `CamStill(seed, figure)`, `Token(seed)`, `Reticle()`, plus a tiny bitmap font (`Canvas32`). Monochrome, silhouette-first, no baked grain (the shader adds grain/haze).
 - **SaveData / SaveSystem:** JSON to `Application.persistentDataPath`. Schema below. Autosave on shift end; load on boot.
-- **GameBootstrap (runtime) + AutoBootstrap (editor):** build the entire scene graph from code — cameras, canvases, the strip/hallway, the security desk root, room-frame root, HUD, managers — and assign all references. `AutoBootstrap` runs `[InitializeOnLoad]`/menu item to create the scene + objects so the user only presses Play.
+- **GameBootstrap (runtime) + AutoBootstrap (editor):** build the entire scene graph from code - cameras, canvases, the strip/hallway, the security desk root, room-frame root, HUD, managers - and assign all references. `AutoBootstrap` runs `[InitializeOnLoad]`/menu item to create the scene + objects so the user only presses Play.
 
-## FEATURE SPEC (build ALL of these; they define 100% — target ≥75% working)
+## FEATURE SPEC (build ALL of these; they define 100% - target ≥75% working)
 
-### 1) SECURITY ROOM CHECKPOINT (fixed, point-and-click, mouse-only) — the TNMN core
+### 1) SECURITY ROOM CHECKPOINT (fixed, point-and-click, mouse-only) - the TNMN core
 - `DeskController` FSM: `Idle → Knock → Interview → Inspect → Decide → Confirm → Result`.
 - A visitor appears at the security window. The player inspects: **Student ID** and **Student Record/Form** on the desk; compares against the person's **portrait/appearance**.
 - **Verification fields** (each can contain a discrepancy): `idNumber` (+ a required **format rule**, e.g. `HBC-YYYY-####`), `photo` (must match appearance), `expiration` (must be a future/valid date), `yearLevel`, `course/program`, `status` = **Regular | Transferee**.
-- **Questioning:** exactly 4 standing questions — *"What's your course?" · "What year are you in?" · "Are you a regular student or a transferee?" · "What classroom is your first class in?"* The player may ask **1–2** (not required to ask all). Answers are recorded as evidence in a `TestimonyView` and can confirm or contradict the documents.
+- **Questioning:** exactly 4 standing questions - *"What's your course?" · "What year are you in?" · "Are you a regular student or a transferee?" · "What classroom is your first class in?"* The player may ask **1–2** (not required to ask all). Answers are recorded as evidence in a `TestimonyView` and can confirm or contradict the documents.
 - **CrossCheckEngine** scores the decision. Rule: **"1 discrepancy = doubt, 2+ = reject"**; an anomaly always warrants reject. `DeskDecision { Allow, Reject }`.
 - **Decisions are permanent.** Correct reject of an anomaly = "collected"; **false reject** of a real student increments `FalseRejects` (a "complaint"); **allowing an anomaly** increments `Breaches`.
-- **ALLOW / REJECT stamps** (red accent) with a stamp animation + SFX; a result banner ("ACCESS GRANTED" / "ACCESS DENIED" / "COLLECTED" / "WRONG — complaint filed").
+- **ALLOW / REJECT stamps** (red accent) with a stamp animation + SFX; a result banner ("ACCESS GRANTED" / "ACCESS DENIED" / "COLLECTED" / "WRONG - complaint filed").
 
-### 2) HALLWAY + CLASSROOMS (2D side-scroll movement) — the FNaC/exploration core
+### 2) HALLWAY + CLASSROOMS (2D side-scroll movement) - the FNaC/exploration core
 - `HallwayController`: guard walks **left/right** (A/D or ←/→), **run** on Shift, **interact** on E/left-click within radius of an `Interactable`. `StripCameraRig` orthographic camera follows on X and subtly "breathes"/shakes as sanity drops.
 - The hallway has **doors** (`Interactable` ids like `door/security`, `door/classroom1`, `door/classroom2`). Interacting raises `EventIds.StripInteract`; `ViewDirector` hard-cuts (via `ShutterTransition`) between **strip (hallway) ⇄ security desk ⇄ room frame**.
 - **Classrooms** are entered from the hallway and are **also walkable** (reuse `HallwayController` on a smaller strip) with **inspectable objects** (`Interactable`/`Hotspot`). Provide a `ViewDirector` watchdog so a view is never lost/black (re-activate the correct root or snap back to the hallway).
@@ -106,26 +106,26 @@ Assets/_Project/
 - `ClueSystem` with **10 inspectable interactions** across Hallway / Classroom 1 / Classroom 2: **flickering light, chalkboard, desk, door, window, notice board, lost ID, photo, cabinet, clock**. Each has lore text (the Identification Project, previous custodians' notes like *"Don't let them in"*).
 - Track discovered clues **and their intended order** in `SaveData.archiveFlags`. Finding all 10 in order (and investigating Hallway, Classroom 1, Classroom 2) unlocks the **Secret ending**.
 
-### 7) ENDINGS (3) — `EndingManager`
-- **WIN — "Surviving Hollowbrook":** complete all 5 shifts, keep `FalseRejects < 3` and `Breaches < 3`, and **reject the Shift-5 administrator impostor**.
-- **LOSE — "Another Custodian":** `Breaches >= 3` OR `FalseRejects >= 3`.
-- **SECRET — "The Truth Behind Hollowbrook":** discover all 10 clues in the intended sequence + investigate Hallway, Classroom 1, Classroom 2.
+### 7) ENDINGS (3) - `EndingManager`
+- **WIN - "Surviving Hollowbrook":** complete all 5 shifts, keep `FalseRejects < 3` and `Breaches < 3`, and **reject the Shift-5 administrator impostor**.
+- **LOSE - "Another Custodian":** `Breaches >= 3` OR `FalseRejects >= 3`.
+- **SECRET - "The Truth Behind Hollowbrook":** discover all 10 clues in the intended sequence + investigate Hallway, Classroom 1, Classroom 2.
 - Each ending shows an `EndingUI` card (title, description, decision summary) and records to `SaveData.endingsSeen`.
 
 ### 8) DISTRICT ADMINISTRATOR BOSS (Shift 5)
 - `AdministratorBoss`: a scripted special `VisitorSO` (`isAnomaly=true`) that arrives on Shift 5, claims to take control of the school, and exhibits the same ID/face **glitch** as other anomalies. Includes a **twist reveal** beat (ink-redrawn portrait + invert-pulse). Rejecting it is required for the Win ending.
 
-### 9) MODES — `ModeManager`
+### 9) MODES - `ModeManager`
 - **Normal:** the 5-shift story. **Endless:** continuous inspections, a time limit, `+time` per anomaly correctly cleared, rising anomaly rate, score. **Challenge:** faster sanity drain, unpredictable rule changes, score multipliers. Mode is chosen at Mode Select and stored in `PlayerState.CurrentMode`.
 
 ### 10) MAP UI
 - `MapUI`: an overlay showing the **Hallway, Classroom 1, Classroom 2** (plus locked/lore rooms: office, records room, server/identification room, staircase, restroom, emergency exit). Used to decide where to investigate; clicking a reachable room navigates there (or closes and lets the player walk).
 
 ### 11) MENUS / SETTINGS / PAUSE / SAVE
-- `MainMenuUI`: **Game logo**, New Game, Continue, Settings, Credits, Exit. `SettingsUI` wired to `SaveData.SaveSettings` (below) — include the accessibility options. Pause menu + controls screen. Loading screen.
+- `MainMenuUI`: **Game logo**, New Game, Continue, Settings, Credits, Exit. `SettingsUI` wired to `SaveData.SaveSettings` (below) - include the accessibility options. Pause menu + controls screen. Loading screen.
 - `SaveSystem`: Save/Continue across shifts (shift#, clues found, false-rejects, breaches, mode, endings seen, settings).
 
-### 12) AUDIO — `AudioDirector` / `AudioLibrary` / `CueSO`
+### 12) AUDIO - `AudioDirector` / `AudioLibrary` / `CueSO`
 - A central `AudioDirector` (`Play(id, volume)`), an `AudioLibrary` (id→clip), `AmbientAudio` (room tone + ducking), and `CueSO` per sound (`clip, positional, gainInLookDown, caption`). The `caption` feeds an on-screen **Visual Cues** subtitle (accessibility). Wire: checkpoint (paper, ID handling, page turn, allow/reject stamps, UI clicks, map open, intercom static), exploration (footsteps, doors/latch, light flicker, object interact), horror (distorted stingers, static, sudden hits, anomaly reveal), and music hooks (menu theme, dark-room, normal-classroom, anomaly-encounter, endings). **Reuse existing clips where present; expose ids so new clips drop in without code changes.**
 
 ## DATA SCHEMAS (ScriptableObjects)
@@ -159,22 +159,22 @@ SaveData: shift, rank, mode, falseRejects, breaches, archiveFlags[] (clue ids in
 - **Resolution:** world/characters authored at **640×360** (integer ×3 to 1080p, point filtering); **UI/documents at 1920×1080** native (bilinear) so ID cards and records stay readable. `CanvasScaler = Scale With Screen Size, 1920×1080, match 0.5`.
 - Provide a `PlateProvider` that loads a PNG from `Art/` by a **naming convention** (`ctx_subject_variant_state.png`) if present, else calls `ProcArt`.
 
-## BUILD ORDER — WORK IN THESE PHASES, STOP AFTER EACH, WAIT FOR "PROCEED"
-- **PHASE 0 — Core spine:** folder structure, `EventBus/GameEvent/EventIds`, `GameStateMachine`, `PlayerState`, `FilmParams`, `RCShaderLib`, `ProcArt`+`Canvas32`, `RCFrame.shader`+`RCWorld.shader`, `SaveData/SaveSystem`, `GameBootstrap`+`AutoBootstrap`+`WorldBuilder` that builds an empty running scene with a greybox hallway and a working camera. **Deliverable: press Play → a greybox scene renders, no errors.**
-- **PHASE 1 — Menu + rebrand:** `MainMenuUI`, `SettingsUI`, Mode Select, `ModeManager` stub, title/logo, loading screen; wire state machine Menu→ModeSelect→(Security/Hub).
-- **PHASE 2 — Security checkpoint:** `VisitorSO`, `CrossCheckEngine`, `DeskController` (full FSM), `TestimonyView`, `DocumentUI` (ID + record), questions, ALLOW/REJECT + stamps + result banner, false-reject/breach counters. Demo with 3 generated visitors.
-- **PHASE 3 — Movement + views:** `HallwayController`, `StripCameraRig`, `Interactable`, `ViewDirector`+`ShutterTransition`, doors, walkable classrooms, `RoomViewController`/`FrameRenderer`/`Hotspot`, watchdog.
-- **PHASE 4 — Anomalies + sanity:** `AnomalySO`, `AnomalyEntity`, `SilhouetteView`, `TrackingSystem`+`TrackParamsSO`, `CursorLight`, Evade behaviors, `TokenManager/View`, `SanitySystem`+`SanityBarUI`, `HallucinationSpawner`, `DreadDirector`.
-- **PHASE 5 — Progression:** `NightConfig`, `ShiftManager` (5 shifts + escalation + roster builder), `ClockSystem`, `ClueSystem` (10 clues + order), `EndingManager` (3 endings + `EndingUI`), `AdministratorBoss`.
-- **PHASE 6 — Modes + Map + Save polish:** `ModeManager` (Normal/Endless/Challenge), `MapUI`, Save/Continue across shifts, pause.
-- **PHASE 7 — Audio + integration + build:** `AudioDirector/AudioLibrary/AmbientAudio/CueSO`, wire all SFX/music hooks, integrate any real art via providers, balance sanity/tells/pacing, a `DebugHUD`, and produce a **Windows build** + a short "how to test each feature" list.
+## BUILD ORDER - WORK IN THESE PHASES, STOP AFTER EACH, WAIT FOR "PROCEED"
+- **PHASE 0 - Core spine:** folder structure, `EventBus/GameEvent/EventIds`, `GameStateMachine`, `PlayerState`, `FilmParams`, `RCShaderLib`, `ProcArt`+`Canvas32`, `RCFrame.shader`+`RCWorld.shader`, `SaveData/SaveSystem`, `GameBootstrap`+`AutoBootstrap`+`WorldBuilder` that builds an empty running scene with a greybox hallway and a working camera. **Deliverable: press Play → a greybox scene renders, no errors.**
+- **PHASE 1 - Menu + rebrand:** `MainMenuUI`, `SettingsUI`, Mode Select, `ModeManager` stub, title/logo, loading screen; wire state machine Menu→ModeSelect→(Security/Hub).
+- **PHASE 2 - Security checkpoint:** `VisitorSO`, `CrossCheckEngine`, `DeskController` (full FSM), `TestimonyView`, `DocumentUI` (ID + record), questions, ALLOW/REJECT + stamps + result banner, false-reject/breach counters. Demo with 3 generated visitors.
+- **PHASE 3 - Movement + views:** `HallwayController`, `StripCameraRig`, `Interactable`, `ViewDirector`+`ShutterTransition`, doors, walkable classrooms, `RoomViewController`/`FrameRenderer`/`Hotspot`, watchdog.
+- **PHASE 4 - Anomalies + sanity:** `AnomalySO`, `AnomalyEntity`, `SilhouetteView`, `TrackingSystem`+`TrackParamsSO`, `CursorLight`, Evade behaviors, `TokenManager/View`, `SanitySystem`+`SanityBarUI`, `HallucinationSpawner`, `DreadDirector`.
+- **PHASE 5 - Progression:** `NightConfig`, `ShiftManager` (5 shifts + escalation + roster builder), `ClockSystem`, `ClueSystem` (10 clues + order), `EndingManager` (3 endings + `EndingUI`), `AdministratorBoss`.
+- **PHASE 6 - Modes + Map + Save polish:** `ModeManager` (Normal/Endless/Challenge), `MapUI`, Save/Continue across shifts, pause.
+- **PHASE 7 - Audio + integration + build:** `AudioDirector/AudioLibrary/AmbientAudio/CueSO`, wire all SFX/music hooks, integrate any real art via providers, balance sanity/tells/pacing, a `DebugHUD`, and produce a **Windows build** + a short "how to test each feature" list.
 
 ## OUTPUT CONTRACT (how you must respond each phase)
 1. Start with a **2–3 line plan** for the phase and a **list of files** you will create/modify (full paths).
 2. Output **complete file contents** (not snippets/diffs) in fenced ```csharp blocks, each preceded by its path as a comment. Include `using` directives. Code must **compile** and follow all constraints above.
 3. Add any **ScriptableObject creation** as `[CreateAssetMenu]` classes AND, for the demo, generate sample assets from the bootstrap so the phase is testable without manual authoring.
-4. End with **"How to test this phase"** (3–6 bullet steps) and the single line: `PHASE N COMPLETE — say "Proceed to Phase N+1"`. Then **STOP**.
-5. If a requirement is ambiguous, choose the simplest option consistent with this spec, note the assumption in one line, and continue — do not stall.
+4. End with **"How to test this phase"** (3–6 bullet steps) and the single line: `PHASE N COMPLETE - say "Proceed to Phase N+1"`. Then **STOP**.
+5. If a requirement is ambiguous, choose the simplest option consistent with this spec, note the assumption in one line, and continue - do not stall.
 
 ## DEFINITION OF DONE (per phase)
 Compiles with **zero errors**; the build **runs** (Play mode) with no exceptions; new systems communicate via the **EventBus**; all references are assigned by the **bootstrap** (no hand-wiring, no `GameObject.Find` in gameplay); placeholder art is **procedural** and swappable; the phase's **"How to test"** steps pass.

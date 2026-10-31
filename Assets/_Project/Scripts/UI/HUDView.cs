@@ -11,7 +11,7 @@ namespace Hollowbrook.UI
 {
     // Sanity, light battery, tracking meter, findings, prompts. Created by each scene bootstrap.
     // Lives in its own fixed 1280x720 frame so the top-bar meters sit in the same grid slots
-    // as the desk underneath — at every aspect ratio.
+    // as the desk underneath - at every aspect ratio.
     public class HUDView : MonoBehaviour, IScreenView
     {
         private GameRoot _gameRoot;
@@ -31,7 +31,7 @@ namespace Hollowbrook.UI
         // Under the SecurityRoom kit the sanity furniture is a WHITE pill on the board: the
         // HUD's own box retires, the track goes invisible and the fill/caption/value flip to
         // dark ink so the live meter reads exactly like the concept art's bar.
-        // The flag is sticky because SetSanity repaints the fill on every sanity event — a
+        // The flag is sticky because SetSanity repaints the fill on every sanity event - a
         // one-shot tint used to be clobbered by the next SetSanity call.
         private bool _kitSanity;
         internal void ApplyKitSanity(bool kit)
@@ -154,14 +154,14 @@ namespace Hollowbrook.UI
             _subs.Add(root.Bus.Subscribe(EventIds.SanityStageChanged, e =>
             {
                 if (e.Data is SanityStage st && st == SanityStage.Breaking)
-                    Notify("YOUR GRIP IS SLIPPING — GET BACK TO THE BOOTH");
+                    Notify("YOUR GRIP IS SLIPPING - GET BACK TO THE BOOTH");
             }));
             _subs.Add(root.Bus.Subscribe(EventIds.ObjectiveChanged, e => _objective.text = e.Text ?? ""));
             _subs.Add(root.Bus.Subscribe(EventIds.InteractionPrompt, e =>
             {
                 _lastPrompt = e.Text ?? "";
                 // ONE instruction per band: the red strip owns the moment-to-moment hint.
-                // The grey strip keeps the shift objective — mirroring the prompt into both
+                // The grey strip keeps the shift objective - mirroring the prompt into both
                 // read as a duplicated, conflicting instruction (owner UI report #2A).
                 _prompt.text = _lastPrompt;
             }));
@@ -220,7 +220,7 @@ namespace Hollowbrook.UI
             if (s == AppViewState.Checkpoint) _objective.text = _gameRoot.ObjectiveText ?? "";
             if (peeking) _objective.text = _gameRoot.HuntActive
                 ? _gameRoot.ObjectiveText
-                : "Press F to switch the flashlight on — sweep it across the room; click the bottom edge to step back.";
+                : "Press F to switch the flashlight on - sweep it across the room; click the bottom edge to step back.";
             if (exploring) _objective.text = _gameRoot.ObjectiveText;   // restore after a peek overwrote the hint
             if (_peekExitBand != null) _peekExitBand.SetActive(peeking);
             RefreshFindings();
@@ -294,7 +294,7 @@ namespace Hollowbrook.UI
             // the flashlight is the only light, so the line reads HERE, live: it must never say
             // OFF while the light is visibly on. While peeking, the cursor light IS the
             // flashlight (the beam rests OFF for the whole peek); every toggle republishes
-            // LightModeChanged, and every beam change republishes the battery — so this
+            // LightModeChanged, and every beam change republishes the battery - so this
             // line refreshes with both.
             var rig = _gameRoot.Views.Flashlight;
             string handheld = peeking

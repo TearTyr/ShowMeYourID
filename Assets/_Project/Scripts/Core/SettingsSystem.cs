@@ -137,7 +137,7 @@ namespace Hollowbrook.Core
             }
             catch (Exception e)
             {
-                Debug.LogWarning("[Settings] display change failed — previous mode kept: " + e.Message);
+                Debug.LogWarning("[Settings] display change failed - previous mode kept: " + e.Message);
             }
             if (persist) SaveToPrefs();
             Notify();
@@ -149,7 +149,7 @@ namespace Hollowbrook.Core
             if (!DisplayPolicy.IsSupported(SupportedModes(), Current.DisplayWidth, Current.DisplayHeight))
             {
                 Debug.LogWarning("[Settings] stored resolution " + Current.DisplayWidth + "x" +
-                                 Current.DisplayHeight + " unsupported here — preference cleared.");
+                                 Current.DisplayHeight + " unsupported here - preference cleared.");
                 Current.DisplayWidth = 0;
                 Current.DisplayHeight = 0;
                 SaveToPrefs();

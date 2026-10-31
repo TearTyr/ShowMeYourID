@@ -149,7 +149,7 @@ namespace Hollowbrook.Checkpoint
             _slipReason = UIFactory.Label(slipArtRt, "sreason", "", 10, UIFactory.PaperInk, TextAnchor.UpperLeft);
             L.Place(_slipReason.rectTransform, L.Inner.SlipReason);
             // no printed stamp box: the verdict mark lands WHERE the player drops the
-            // stamp (Papers, Please style), clamped fully inside the paper — see
+            // stamp (Papers, Please style), clamped fully inside the paper - see
             // TryStampOnDrop / StampPlacement
             _slipGo = slipRt.gameObject;
             if (_papersLayer != null) _slipGo.transform.SetParent(_papersLayer.transform, false);
@@ -239,7 +239,7 @@ namespace Hollowbrook.Checkpoint
             { var c = t.color; c.a = held ? 1f : 0.55f; t.color = c; }
         }
 
-        // The decision counts HERE — when the stamped slip is on the desk and the student has the
+        // The decision counts HERE - when the stamped slip is on the desk and the student has the
         // ID back, never earlier. The slip is the desk's own record: it is not handed back.
         private void FinalizeIfReady()
         {
@@ -270,7 +270,7 @@ namespace Hollowbrook.Checkpoint
             if (_stampOverlay != null) { var c = _stampOverlay.color; c.a = 0f; _stampOverlay.color = c; }
             OfferAtCounter();          // fills + activates the counter card...
             OfferSlipAtCounter();      // ...and the slip (FillSlip lives here)
-            // §6 automation: the papers are ALREADY on the desk when the student steps up —
+            // §6 automation: the papers are ALREADY on the desk when the student steps up -
             // dragging still arranges them, but never gates the inspection
             TakeId();
             DockIdToSlot();
@@ -379,7 +379,7 @@ namespace Hollowbrook.Checkpoint
         // Both faces from one place so the window, the card and the face-asset override can
         // never disagree about who is standing there. Neither face is a click target: the
         // portrait is scenery behind the glass and the ID photo belongs to the card you drag,
-        // so both stay click-through (verification is the player's own eyes — there is no
+        // so both stay click-through (verification is the player's own eyes - there is no
         // photo-matching widget on this desk).
         private void PaintFaces(VisitorData v)
         {
@@ -392,7 +392,7 @@ namespace Hollowbrook.Checkpoint
 
         // Centre the ARTWORK, not the container: the face Image's own rect is set to the
         // letterbox of its sprite inside the slot, so preserveAspect has nothing left to guess
-        // and every portrait — any source dimensions — sits centred in the window/slot.
+        // and every portrait - any source dimensions - sits centred in the window/slot.
         internal static void FrameToSlot(Image img, L.Region slot)
         {
             if (img == null || img.sprite == null) return;
@@ -449,7 +449,7 @@ namespace Hollowbrook.Checkpoint
                     new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[1] },
                 };
                 if (_gameRoot.Session.Clues.FoundCount >= 6)
-                    lines.Add(new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "That face. The old school photo — the staff member who never aged. It's them." });
+                    lines.Add(new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "That face. The old school photo - the staff member who never aged. It's them." });
                 lines.Add(new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[2] });
                 SayLine("AT THE WINDOW", "A formal coat. A briefcase. A smile that arrives a half-second late.");
                 // the scripted introduction hands over to the branching conversation: same

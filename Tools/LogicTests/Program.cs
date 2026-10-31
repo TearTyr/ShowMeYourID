@@ -1,4 +1,4 @@
-// Show Me Your ID! — executable logic suite.
+// Show Me Your ID! - executable logic suite.
 // Runs the real Assets/_Project/Scripts/GameLogic code on .NET (that folder is
 // engine-free by design), so these are actual rule executions, not simulations.
 using System;
@@ -35,7 +35,7 @@ namespace Hollowbrook.LogicTests
 
         private static int Main(string[] args)
         {
-            Console.WriteLine("Show Me Your ID! — logic suite (real GameLogic assemblies, no Unity)");
+            Console.WriteLine("Show Me Your ID! - logic suite (real GameLogic assemblies, no Unity)");
 
             IdRulesTests();
             ContentTests();
@@ -44,6 +44,8 @@ namespace Hollowbrook.LogicTests
             RosterFairnessTests();
             AdministratorTests();
             ClassroomQuestionTests();
+            InterviewRuleTests();
+            CreditsTests();
             AdminHuntTests();
             HuntEndingTests();
             InspectionRulesTests();
@@ -91,7 +93,7 @@ namespace Hollowbrook.LogicTests
         // ------------------------------------------------------------------ IDs
         private static void IdRulesTests()
         {
-            Group("IdRules — HB-YYYY-NNNN format");
+            Group("IdRules - HB-YYYY-NNNN format");
             Check(IdRules.IsFormatValid("HB-2026-0001"), "valid id accepted");
             Check(IdRules.IsFormatValid("HB-2023-9999"), "earliest/latest year+serial accepted");
             Check(!IdRules.IsFormatValid("HB-2022-0001"), "year before 2023 rejected");
@@ -118,8 +120,8 @@ namespace Hollowbrook.LogicTests
         // -------------------------------------------------------------- content
         private static void ContentTests()
         {
-            Group("Content — approved constants & roster");
-            Eq(Content.TotalStudents, 14, "student pool size");
+            Group("Content - approved constants & roster");
+            Eq(Content.TotalStudents, 7, "student pool size");
             var roster = Content.BuildStudentRoster();
             Eq(roster.Count, Content.TotalStudents, "roster matches TotalStudents");
             Eq(roster.Select(s => s.FullName).Distinct().Count(), roster.Count, "roster names unique");
@@ -132,7 +134,7 @@ namespace Hollowbrook.LogicTests
             // day-number mapping must be strictly monotonic ACROSS THE WINDOW THE GAME
             // ACTUALLY GENERATES (Jun 2026 .. Mar 2027). The model uses 30-day months, so
             // it is only an approximation: 2026-12-31 and 2027-01-01 both map to 1060.
-            // No generated content lands in that gap, so ordering is safe — but the
+            // No generated content lands in that gap, so ordering is safe - but the
             // collision is asserted here so anyone extending the date range sees it.
             Check(Content.DayNumberOfDate(2026, 11, 2) < Content.DayNumberOfDate(2026, 11, 3), "day numbers increase within a month");
             Check(Content.DayNumberOfDate(2026, 6, 1) < Content.DayNumberOfDate(2026, 10, 20), "expired-ID window is ordered");
@@ -149,7 +151,7 @@ namespace Hollowbrook.LogicTests
         // ------------------------------------------------------------ shift plan
         private static void ShiftPlanTests()
         {
-            Group("ShiftPlan — approved 4/6/7/8/8+admin progression");
+            Group("ShiftPlan - approved 4/6/7/8/8+admin progression");
             var shifts = ShiftPlan.Build();
             Eq(shifts.Count, ShiftPlan.TotalShifts, "five shifts");
             Eq(shifts.Count, 5, "TotalShifts is 5");
@@ -185,7 +187,7 @@ namespace Hollowbrook.LogicTests
         // ------------------------------------------------------------ clue set
         private static void ClueRegistryTests()
         {
-            Group("ClueRegistry — the ten environmental clues (§2.6)");
+            Group("ClueRegistry - the ten environmental clues (§2.6)");
             var clues = ClueRegistry.Build();
             Eq(clues.Count, 10, "ten clues");
             Eq(clues.Select(c => c.Order).Distinct().Count(), 10, "orders unique");
@@ -204,7 +206,7 @@ namespace Hollowbrook.LogicTests
         private static void RosterFairnessTests()
         {
             const int Seeds = 60;
-            Group($"RosterFactory — fairness invariants over {Seeds} seeds x 5 shifts");
+            Group($"RosterFactory - fairness invariants over {Seeds} seeds x 5 shifts");
 
             // determinism: same seed must regenerate an identical roster (saves rely on it)
             var a = new RosterFactory(1234).GenerateShift(ShiftPlan.Get(3));
@@ -283,7 +285,8 @@ namespace Hollowbrook.LogicTests
                                   $"seed {seed} shift {shift.Number}: anomaly carries {v.Defects.Count} defects > cap {shift.MaxDefectsPerAnomaly}");
                             // the tell is on the papers, or in an answer that disagrees with the file
                             bool detectable = docDefects.Count > 0
-                                              || (v.Defects.Contains(DefectType.ClassroomMismatch) && !AnswerMatchesFile(v));
+                                              || (v.Defects.Contains(DefectType.ClassroomMismatch) && !AnswerMatchesFile(v))
+                                              || (v.Defects.Contains(DefectType.SpokenMismatch) && SpokenLieIsProvable(v));
                             Eq(AnswerMatchesFile(v), !v.Defects.Contains(DefectType.ClassroomMismatch),
                                $"seed {seed} shift {shift.Number}: an anomaly lies about the classroom exactly when it carries ClassroomMismatch");
                             Check(detectable,
@@ -322,7 +325,7 @@ namespace Hollowbrook.LogicTests
         // mechanical power (talking never stamps).
         private static void AdminTalkSuite()
         {
-            Group("AdminTalk — the administrator's questions and answers");
+            Group("AdminTalk - the administrator's questions and answers");
 
             var problems = AdminTalk.ValidateScript();
             Check(problems.Count == 0,
@@ -428,7 +431,7 @@ namespace Hollowbrook.LogicTests
         // Lose > Secret > Win priority holds even when everything else is satisfied.
         private static void EndingAuditSuite()
         {
-            Group("EndingRules audit — admin gate, idempotent fold, priority");
+            Group("EndingRules audit - admin gate, idempotent fold, priority");
 
             GameSession FiveShifts(bool adminRejected, bool adminAllowed)
             {
@@ -518,7 +521,7 @@ namespace Hollowbrook.LogicTests
         // appended exactly once and last, never in earlier shifts, never in the run modes.
         private static void AdminRosterSuite()
         {
-            Group("Shift rosters — the administrator's place in line");
+            Group("Shift rosters - the administrator's place in line");
             int[] want = { 4, 6, 7, 8, 8 };
             for (int shift = 1; shift <= 5; shift++)
             {
@@ -565,15 +568,109 @@ namespace Hollowbrook.LogicTests
 
         // ---------------------------------------------------- classroom question
         // "Rooms the file would say": the answer is "Room 202, Genetics." and the file prints
-        // "Room 202 · Genetics" — the same room and class, spelled for a different reader.
+        // "Room 202 · Genetics" - the same room and class, spelled for a different reader.
         private static bool AnswerMatchesFile(VisitorData v) =>
             v.ClassroomAnswer.TrimEnd('.').Replace(", ", " · ") == v.RecordFirstClassroom;
 
+        // A spoken lie is provable when the answer to the chosen question is not what the card says.
+        private static bool SpokenLieIsProvable(VisitorData v)
+        {
+            if (v.SpokenLieQuestion < 0 || v.SpokenLieQuestion >= InterviewRules.Count) return false;
+            return v.Answers[v.SpokenLieQuestion] != CardSpeech(v, (QuestionId)v.SpokenLieQuestion);
+        }
+
+        // What an honest student with this card would say to a question.
+        private static string CardSpeech(VisitorData v, QuestionId q)
+        {
+            switch (q)
+            {
+                case QuestionId.Course: return InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex]);
+                case QuestionId.Year: return InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1]);
+                case QuestionId.Status: return InterviewRules.StatusSpeech(v.IdIsTransferee);
+                default: return v.ClassroomAnswer;
+            }
+        }
+
+        private static void CreditsTests()
+        {
+            Group("Credits - every role has people, and the text is clean");
+            bool filled = CreditsData.Team.Length > 0;
+            foreach (var sec in CreditsData.Team)
+            {
+                filled &= !string.IsNullOrWhiteSpace(sec.Role) && sec.People != null && sec.People.Length > 0;
+                if (sec.People != null)
+                    foreach (var person in sec.People) filled &= !string.IsNullOrWhiteSpace(person);
+            }
+            Check(filled, "every credit has a role and at least one name");
+            string text = CreditsData.Build();
+            bool allThere = true;
+            foreach (var sec in CreditsData.Team)
+            {
+                allThere &= text.Contains(sec.Role);
+                foreach (var person in sec.People) allThere &= text.Contains(person);
+            }
+            Check(allThere, "the built credits text lists every role and every name");
+            Check(!text.Contains((char)0x2014) && !text.Contains("procedurally"),
+                  "the credits have no em dash and no stale 'generated at runtime' note");
+            Check(text.Contains("Unity") && text.Contains("Bahnschrift"), "the credits thank the engine and the fonts");
+        }
+
+        private static void InterviewRuleTests()
+        {
+            Group("Interview rules - two questions per student, two of them locked until you look");
+            int mask = 0;
+            Check(InterviewRules.Remaining(mask) == 2 && InterviewRules.CanAsk(mask, QuestionId.Course), "a new student has 2 questions");
+            mask |= InterviewRules.Bit(QuestionId.Course);
+            Check(InterviewRules.Remaining(mask) == 1, "one question used leaves one");
+            mask |= InterviewRules.Bit(QuestionId.Classroom);
+            Check(InterviewRules.Remaining(mask) == 0, "two questions used leaves none");
+            Check(!InterviewRules.CanAsk(mask, QuestionId.Year), "a third new question is refused");
+            Check(InterviewRules.CanAsk(mask, QuestionId.Course), "an answer already given can be heard again for free");
+            Check(!InterviewRules.Unlocked(QuestionId.Year, false, true) && InterviewRules.Unlocked(QuestionId.Year, true, false),
+                  "the year question needs the ID flipped");
+            Check(!InterviewRules.Unlocked(QuestionId.Status, true, false) && InterviewRules.Unlocked(QuestionId.Status, false, true),
+                  "the status question needs their file opened");
+            Check(InterviewRules.Unlocked(QuestionId.Course, false, false) && InterviewRules.Unlocked(QuestionId.Classroom, false, false),
+                  "course and classroom are always open");
+            Check(InterviewRules.LockedHint(QuestionId.Year).Length > 0 && InterviewRules.LockedHint(QuestionId.Status).Length > 0,
+                  "the locked questions say what unlocks them");
+            Check(InterviewRules.AskedCount(0xF) == 4 && InterviewRules.AskedCount(0) == 0, "asked count follows the mask");
+
+            int spokenLiars = 0; var lieQuestions = new HashSet<int>();
+            for (int seed = 1; seed <= 200; seed++)
+            {
+                var rf = new RosterFactory(seed);
+                foreach (var shift in ShiftPlan.Build())
+                    foreach (var v in rf.GenerateShift(shift))
+                    {
+                        if (v.IsAdministrator) continue;
+                        for (int qi = 0; qi < InterviewRules.Count; qi++)
+                            Check(!string.IsNullOrEmpty(v.Answers[qi]), $"seed {seed}: every visitor has an answer to question {qi}");
+                        bool liar = v.Defects.Contains(DefectType.SpokenMismatch);
+                        if (!liar)
+                            for (int qi = 0; qi < 3; qi++)
+                                Check(v.Answers[qi] == CardSpeech(v, (QuestionId)qi),
+                                      $"seed {seed}: '{v.ClaimedName}' repeats their card unless they carry SpokenMismatch (question {qi})");
+                        if (!shift.ClassroomLieAllowed)
+                            Check(!liar, $"seed {seed} shift {shift.Number}: spoken lie used before it is unlocked");
+                        if (!liar) continue;
+                        spokenLiars++; lieQuestions.Add(v.SpokenLieQuestion);
+                        Check(SpokenLieIsProvable(v), $"seed {seed}: a spoken lie always differs from the card");
+                    }
+            }
+            Check(spokenLiars > 100, "enough spoken liars to be worth asking (" + spokenLiars + ")");
+            Check(lieQuestions.Count == 3, "the spoken lie covers course, year and status");
+        }
+
         private static void ClassroomQuestionTests()
         {
-            Group("Classroom question — one free question, a lie provable against the file");
-            Check(!string.IsNullOrEmpty(ClassroomQuestion.ButtonLabel) && !string.IsNullOrEmpty(ClassroomQuestion.Spoken),
-                  "the question has its button text and its spoken line");
+            Group("Questions - four to choose from, a lie provable against the card or the file");
+            bool textsOk = true;
+            for (int qi = 0; qi < InterviewRules.Count; qi++)
+                textsOk &= !string.IsNullOrEmpty(InterviewRules.Button((QuestionId)qi)) &&
+                           !string.IsNullOrEmpty(InterviewRules.Spoken((QuestionId)qi)) &&
+                           !string.IsNullOrEmpty(InterviewRules.Tag((QuestionId)qi));
+            Check(textsOk, "every question has its button text, tag and spoken line");
             var canon = Content.BuildStudentRoster();
             int wrongRoom = 0, missingRoom = 0, wrongClass = 0, liars = 0;
             for (int seed = 1; seed <= 200; seed++)
@@ -679,7 +776,7 @@ namespace Hollowbrook.LogicTests
 
         private static void AdminHuntTests()
         {
-            Group("AdminHunt — always ends, never stuck, fair outcomes");
+            Group("AdminHunt - always ends, never stuck, fair outcomes");
             var tun = HuntTuning.Default;
             Check(tun.StunsToWin >= 1 && tun.ServerSeconds > 30f, "default tuning is sane");
 
@@ -768,7 +865,7 @@ namespace Hollowbrook.LogicTests
         // the hunt decides how the last night ends
         private static void HuntEndingTests()
         {
-            Group("Hunt endings — win needs the hunt won, loss is its own ending, state is saved");
+            Group("Hunt endings - win needs the hunt won, loss is its own ending, state is saved");
             GameSession Night5(HuntState hunt) => new GameSession
             {
                 CurrentShift = ShiftPlan.TotalShifts, CompletedShifts = ShiftPlan.TotalShifts,
@@ -792,7 +889,7 @@ namespace Hollowbrook.LogicTests
         // ----------------------------------------------------- verdict matrix
         private static void InspectionRulesTests()
         {
-            Group("InspectionRules — verdict / false-rejection / breach matrix");
+            Group("InspectionRules - verdict / false-rejection / breach matrix");
             var rf = new RosterFactory(11);
             var visitors = rf.GenerateShift(ShiftPlan.Get(3));
             var legit = visitors.First(x => !x.IsAnomaly);
@@ -818,7 +915,7 @@ namespace Hollowbrook.LogicTests
                 Check(forced.Correct && !forced.FalseRejection,
                       "rejecting under an official rule mutation is correct and NOT a false rejection");
             }
-            else Console.WriteLine("   (no legit visitor matched 'strict_expiry' in this shift — rule path covered by mutation unit checks)");
+            else Console.WriteLine("   (no legit visitor matched 'strict_expiry' in this shift - rule path covered by mutation unit checks)");
 
             Check(!strict.ForcesReject(anomaly), "mutations never force-reject an anomaly (it is already Reject)");
             var noTransferees = new RuleMutationDef("no_transferees", "test");
@@ -885,7 +982,7 @@ namespace Hollowbrook.LogicTests
         // ---------------------------------------------------------- endings
         private static void EndingRulesTests()
         {
-            Group("EndingRules — Win / Lose / Secret with Lose priority (conflict C4)");
+            Group("EndingRules - Win / Lose / Secret with Lose priority (conflict C4)");
             Eq(EndingRules.LoseThreshold, 3, "lose threshold is 3");
 
             var fresh = new GameSession { Mode = GameMode.Normal, CompletedShifts = 0 };
@@ -934,7 +1031,7 @@ namespace Hollowbrook.LogicTests
         // ---------------------------------------------------------- session
         private static void SessionTests()
         {
-            Group("GameSession — counters, sanity, shift completion");
+            Group("GameSession - counters, sanity, shift completion");
             var rf = new RosterFactory(5);
             var visitors = rf.GenerateShift(ShiftPlan.Get(3));
             var legit = visitors.First(x => !x.IsAnomaly);
@@ -980,7 +1077,7 @@ namespace Hollowbrook.LogicTests
             adminSession.RecordVerdict(InspectionRules.Apply(admin, Verdict.Allow, null));
             Check(adminSession.AdminAllowed, "allowing the administrator sets AdminAllowed");
 
-            Group("SanityStacks — wrong calls speed the drain up for a while");
+            Group("SanityStacks - wrong calls speed the drain up for a while");
             var st0 = new SanityStacks();
             Eq(st0.Count, 0, "no stacks at the start");
             Eq(st0.Multiplier, 0.85f, "the baseline drain is 0.85x");
@@ -1013,7 +1110,7 @@ namespace Hollowbrook.LogicTests
             Eq(SanityStacks.SecondsFor(99), 30f, "an out-of-range count clamps to the maximum");
             Eq(SanityStacks.MultiplierFor(-4), 0.85f, "a negative count clamps to the baseline");
 
-            Group("ShiftFailureRules — what a failed night costs the next one");
+            Group("ShiftFailureRules - what a failed night costs the next one");
             Eq(ShiftFailureRules.Severity(0, ShiftFailure.None), 0, "no failure = no severity");
             Eq(ShiftFailureRules.Severity(1, ShiftFailure.Breach), 1, "one anomaly let in = severity 1");
             Eq(ShiftFailureRules.Severity(3, ShiftFailure.Breach), 3, "three let in = severity 3");
@@ -1031,7 +1128,7 @@ namespace Hollowbrook.LogicTests
             Eq(ShiftFailureRules.StartStacks(5), SanityStacks.MaxStacks, "stacks are capped at the stack cap");
             Check(!ShiftFailureRules.RoamingAtStart(0) && ShiftFailureRules.RoamingAtStart(1), "an anomaly is already roaming after any failed night");
 
-            Group("GameSession — a failed night is paid for by the next one");
+            Group("GameSession - a failed night is paid for by the next one");
             var fail = new GameSession { Mode = GameMode.Normal, CurrentShift = 2, Sanity = 0f };
             fail.ShiftBreaches = 1;
             fail.RecordShiftFailure(ShiftFailure.Blackout);
@@ -1059,7 +1156,7 @@ namespace Hollowbrook.LogicTests
             breachSess.RecordVerdict(InspectionRules.Apply(legit, Verdict.Allow, null));
             Eq(breachSess.ShiftBreaches, 1, "a correct call does not");
 
-            Group("GameSession — drain stacks scale losses, a correct call refills gradually");
+            Group("GameSession - drain stacks scale losses, a correct call refills gradually");
             var drain = new GameSession { Mode = GameMode.Normal, Sanity = 100f };
             drain.ApplySanity(-10f);
             Check(Math.Abs(drain.Sanity - 91.5f) < 1e-3f, "a loss at the baseline costs 0.85x (10 -> 8.5)");
@@ -1120,7 +1217,7 @@ namespace Hollowbrook.LogicTests
         // ------------------------------------------------------- clue tracker
         private static void ClueTrackerTests()
         {
-            Group("ClueTracker — intended sequence gates the secret ending");
+            Group("ClueTracker - intended sequence gates the secret ending");
             var ordered = ClueRegistry.Build().OrderBy(x => x.Order).Select(x => x.Key).ToList();
 
             var t = new ClueTracker();
@@ -1163,9 +1260,9 @@ namespace Hollowbrook.LogicTests
         // ----------------------------------------------------------- saving
         private static void SaveFormatTests()
         {
-            Group("SaveFormat — round-trip, checksum tamper detection, bad input");
+            Group("SaveFormat - round-trip, checksum tamper detection, bad input");
             Eq(SaveFormat.Header, "SMYIDSAVE", "header constant");
-            Eq(SaveFormat.Version, 2, "version constant");
+            Eq(SaveFormat.Version, 3, "version constant");
 
             var save = new SaveGame { SavedAtLabel = "NIGHT 3 - 02:14" };
             save.Session.Mode = GameMode.Challenge;
@@ -1288,9 +1385,9 @@ namespace Hollowbrook.LogicTests
         // ------------------------------------------------ tracking / reveal / tokens
         private static void TrackingAndTokenTests()
         {
-            Group("TrackingPolicy — Focus advances, observation holds, darkness decays");
+            Group("TrackingPolicy - Focus advances, observation holds, darkness decays");
             Eq(TrackingPolicy.RatePerSecond(true, false), TrackingPolicy.FocusRatePerSecond, "Focus is the only beam that ADVANCES the meter");
-            Eq(TrackingPolicy.RatePerSecond(false, true), TrackingPolicy.HoldRatePerSecond, "observation (sweep/lit room) only HOLDS — ambient light never resolves");
+            Eq(TrackingPolicy.RatePerSecond(false, true), TrackingPolicy.HoldRatePerSecond, "observation (sweep/lit room) only HOLDS - ambient light never resolves");
             Eq(TrackingPolicy.HoldRatePerSecond, 0f, "hold rate is exactly zero");
             Check(TrackingPolicy.RatePerSecond(false, false) < 0f, "unobserved anomalies decay");
             Check(TrackingPolicy.FocusRatePerSecond > TrackingPolicy.HoldRatePerSecond, "Focus beats ambient light");
@@ -1318,7 +1415,7 @@ namespace Hollowbrook.LogicTests
             Check(TrackingPolicy.HallucinationDispelled(0.5f), "0.5s of Focus truth-checks a hallucination");
             Check(TrackingPolicy.GraceSeconds > 0f, "losing Focus has a short grace window before decay");
 
-            Group("AnomalyEncounter — one authoritative progression path (additive to the frozen suite)");
+            Group("AnomalyEncounter - one authoritative progression path (additive to the frozen suite)");
             var t2 = EncounterTuning.Default;
             Check(t2.ExposeMeter > 0f && t2.ExposeMeter < t2.RepelMeter, "expose threshold sits between zero and the repel meter");
             EncounterStep S(AnomalyState st, float meter, float timer, bool lit, bool foc, float dist, float dt = 0.1f)
@@ -1345,7 +1442,7 @@ namespace Hollowbrook.LogicTests
             Check(!S(AnomalyState.Repelled, 1f, 0f, true, true, 0.4f).Threatening, "a repelled anomaly next to you is not threatening");
             Check(!S(AnomalyState.Recovering, 0f, 1f, false, false, 0.4f).Threatening, "a recovering anomaly is not threatening");
 
-            Group("BeamGeometry — true cone coverage (direction, range, angle, body radius)");
+            Group("BeamGeometry - true cone coverage (direction, range, angle, body radius)");
             var sweep = BeamGeometry.DefaultParamsFor(LightMode.Sweep);
             var focus = BeamGeometry.DefaultParamsFor(LightMode.Focus);
             var off = BeamGeometry.DefaultParamsFor(LightMode.Off);
@@ -1362,7 +1459,7 @@ namespace Hollowbrook.LogicTests
             Check(!BeamGeometry.Covers(0, 0, 1, 0, sweep, 4, sweepHalfAt4 + 0.1f, 0f), "outside the sweep cone edge at 4u");
             float focusHalfAt4 = 4f * focus.HalfTan;
             Check(BeamGeometry.Covers(0, 0, 1, 0, focus, 4, focusHalfAt4 - 0.05f, 0f), "inside the focus cone edge at 4u");
-            Check(!BeamGeometry.Covers(0, 0, 1, 0, focus, 4, focusHalfAt4 + 0.15f, 0f), "outside the focus cone edge at 4u — the modes really differ");
+            Check(!BeamGeometry.Covers(0, 0, 1, 0, focus, 4, focusHalfAt4 + 0.15f, 0f), "outside the focus cone edge at 4u - the modes really differ");
             Check(BeamGeometry.Covers(0, 0, -1, 0, sweep, -3, 0, 0f), "aiming left covers the left side");
             Check(!BeamGeometry.Covers(0, 0, -1, 0, sweep, 3, 0, 0f), "aiming left does NOT cover the right side");
             Check(BeamGeometry.Covers(0, 0, 0, 1, sweep, 0, 3, 0f), "aiming up covers above");
@@ -1376,7 +1473,7 @@ namespace Hollowbrook.LogicTests
             Eq(p.Range, 9f, "ParamsFor picks the Focus numbers");
             Eq(p.HalfAngleDeg, 6f, "ParamsFor picks the Focus angle");
 
-            Group("FlashlightInput — latch/hold arbitration (F/Q/L + mouse holds)");
+            Group("FlashlightInput - latch/hold arbitration (F/Q/L + mouse holds)");
             FlashlightLatches l;
             var none = new FlashlightLatches();
             Eq(FlashlightInput.Resolve(none, false, false, false, false, false, false, out l), LightMode.Off, "no input => Off");
@@ -1384,7 +1481,7 @@ namespace Hollowbrook.LogicTests
             Check(l.Sweep && !l.Focus, "F sets only the sweep latch");
             var sweepLatched = new FlashlightLatches { Sweep = true };
             Eq(FlashlightInput.Resolve(sweepLatched, false, true, false, false, false, false, out l), LightMode.Focus, "Q switches to Focus");
-            Check(l.Focus && !l.Sweep, "keyboard toggles are mutually exclusive — Q clears the sweep latch");
+            Check(l.Focus && !l.Sweep, "keyboard toggles are mutually exclusive - Q clears the sweep latch");
             var focusLatched = new FlashlightLatches { Focus = true };
             Eq(FlashlightInput.Resolve(focusLatched, false, true, false, false, false, false, out l), LightMode.Off, "Q again toggles Focus off");
             Eq(FlashlightInput.Resolve(sweepLatched, false, false, true, false, false, false, out l), LightMode.Off, "L switches the beam off");
@@ -1395,20 +1492,20 @@ namespace Hollowbrook.LogicTests
             Eq(FlashlightInput.Resolve(focusLatched, false, false, false, true, false, false, out l), LightMode.Sweep, "held LMB temporarily beats a Focus latch");
             Eq(FlashlightInput.Resolve(none, false, false, false, true, true, false, out l), LightMode.Focus, "both buttons held: Focus wins");
             Eq(FlashlightInput.Resolve(sweepLatched, false, false, false, false, false, true, out l), LightMode.Off, "a dead battery forces Off");
-            Check(!l.Sweep && !l.Focus, "a dead battery clears the latches — revival needs deliberate input");
+            Check(!l.Sweep && !l.Focus, "a dead battery clears the latches - revival needs deliberate input");
             Eq(FlashlightInput.Resolve(sweepLatched, true, false, false, false, false, true, out l), LightMode.Off, "toggling F while dead does nothing");
             Check(!l.Sweep, "toggling F while dead does not re-latch");
             Eq(FlashlightInput.Resolve(sweepLatched, false, false, true, true, false, false, out l), LightMode.Sweep, "L+hold same frame: the hold still shows a beam this frame");
             Eq(FlashlightInput.Resolve(l, false, false, false, false, false, false, out l), LightMode.Off, "...and L's clear sticks after the hold is released");
 
-            Group("BatteryModel — drain, recover, death and deliberate reboot");
+            Group("BatteryModel - drain, recover, death and deliberate reboot");
             var bp = new BatteryParams { DrainSweepPerSecond = 2.5f, DrainFocusPerSecond = 6f, RecoverDarkPerSecond = 4f, RecoverLitPerSecond = 8f, RebootFraction = 0.2f };
             bool jd, jr;
             var s0 = new BatteryState { Charge = 1f };
             var s1 = BatteryModel.Tick(s0, LightMode.Sweep, false, 1f, bp, out jd, out jr);
             Check(Math.Abs(s1.Charge - 0.975f) < 1e-4f, "Sweep drains 2.5% per second");
             var s2 = BatteryModel.Tick(s0, LightMode.Focus, false, 1f, bp, out jd, out jr);
-            Check(Math.Abs(s2.Charge - 0.94f) < 1e-4f, "Focus drains 6% per second — faster than Sweep");
+            Check(Math.Abs(s2.Charge - 0.94f) < 1e-4f, "Focus drains 6% per second - faster than Sweep");
             Check(!jd && !jr, "no transitions mid-drain");
             var s3 = BatteryModel.Tick(s0, LightMode.Off, true, 1f, bp, out jd, out jr);
             Check(Math.Abs(s3.Charge - 1f) < 1e-4f, "charge clamps at full");
@@ -1443,7 +1540,7 @@ namespace Hollowbrook.LogicTests
             Check(afterBoot.Charge < recovering.Charge && !afterBoot.Dead, "after a deliberate relight the beam works again");
             Check(BatteryModel.Tick(s0, LightMode.Sweep, false, 0f, bp, out jd, out jr).Charge == 1f, "zero dt is a no-op");
 
-            Group("BehaviorRules — four distinct anomalies, explicit per-kind numbers");
+            Group("BehaviorRules - four distinct anomalies, explicit per-kind numbers");
             var bt = BehaviorTuning.Default;
             var blink = BehaviorProfile.For(AnomalyBehaviorKind.Blink, bt);
             var slide = BehaviorProfile.For(AnomalyBehaviorKind.Slide, bt);
@@ -1454,7 +1551,7 @@ namespace Hollowbrook.LogicTests
                 "each behavior moves at its own configured speed");
             Check(sprint.DashSpeed > sprint.MoveSpeed, "Sprint's burst is faster than its patrol");
             Check(sprint.TelegraphSeconds > 0f && blink.TelegraphSeconds == 0f && slide.TelegraphSeconds == 0f && hug.TelegraphSeconds == 0f,
-                "only Sprint has a windup telegraph — the reaction window is explicit");
+                "only Sprint has a windup telegraph - the reaction window is explicit");
             Check(sprint.BeamInterruptsBurst && !blink.BeamInterruptsBurst, "only Sprint's windup is beam-interruptible");
             Check(blink.FreezesWhenObserved && !slide.FreezesWhenObserved && !sprint.FreezesWhenObserved && !hug.FreezesWhenObserved,
                 "only Blink freezes when observed");
@@ -1462,7 +1559,7 @@ namespace Hollowbrook.LogicTests
                 "only CoverHug is the ceiling lurker (Focus-only identification)");
             Check(blink.CatchGraceSeconds == bt.CatchGraceBlink && slide.CatchGraceSeconds == bt.CatchGraceSlide &&
                   sprint.CatchGraceSeconds == bt.CatchGraceSprint && hug.CatchGraceSeconds == bt.CatchGraceCoverHug,
-                "catch windups are per-behavior — no shared coverHug-named constant");
+                "catch windups are per-behavior - no shared coverHug-named constant");
             Check(Math.Abs(hug.SpawnY - 4.4f) < 1e-3f && hug.SpawnY >= hug.MinY && hug.SpawnY <= hug.MaxY,
                 "CoverHug spawns INSIDE its own clamp band (no contradictory coordinates)");
             Check(hug.MinY > blink.MaxY, "the ceiling band sits above the ground walkers");
@@ -1473,7 +1570,7 @@ namespace Hollowbrook.LogicTests
             Eq(BehaviorProfile.For(AnomalyBehaviorKind.CoverHug, customB).CatchGraceSeconds, 5f, "CoverHug grace is tunable on its own");
             Eq(BehaviorProfile.For(AnomalyBehaviorKind.Blink, customB).CatchGraceSeconds, bt.CatchGraceBlink, "...without touching the other three");
 
-            Group("RoomGraph — roaming through connected rooms, never teleporting");
+            Group("RoomGraph - roaming through connected rooms, never teleporting");
             Eq(RoomGraph.Roamable.Length, 3, "three roamable rooms");
             Check(!RoomGraph.IsRoamable(RoomId.Security), "the security exit is not a patrol route");
             Check(RoomGraph.Connected(RoomId.Hallway, RoomId.Classroom1) && RoomGraph.Connected(RoomId.Classroom1, RoomId.Hallway), "hallway ↔ classroom 1");
@@ -1481,16 +1578,16 @@ namespace Hollowbrook.LogicTests
             Check(!RoomGraph.Connected(RoomId.Classroom1, RoomId.Classroom2), "classrooms are NOT directly connected");
             Check(float.IsNaN(RoomGraph.DoorX(RoomId.Classroom1, RoomId.Classroom2)), "no phantom door between classrooms");
             Check(float.IsNaN(RoomGraph.DoorX(RoomId.Hallway, RoomId.Hallway)), "no self doors");
-            Eq(RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), -4.0f, "hallway C1 door anchor == RoomBuilder placement");
-            Eq(RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), 4.6f, "hallway C2 door anchor == RoomBuilder placement");
-            Eq(RoomGraph.DoorX(RoomId.Classroom1, RoomId.Hallway), 4.9f, "classroom 1 hallway door anchor == RoomBuilder placement");
-            Eq(RoomGraph.DoorX(RoomId.Classroom2, RoomId.Hallway), 4.9f, "classroom 2 hallway door anchor == RoomBuilder placement");
+            Eq(RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), -5.6f, "hallway C1 door anchor == RoomBuilder placement");
+            Eq(RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), 3.6f, "hallway C2 door anchor == RoomBuilder placement");
+            Eq(RoomGraph.DoorX(RoomId.Classroom1, RoomId.Hallway), 7.6f, "classroom 1 hallway door anchor == RoomBuilder placement");
+            Eq(RoomGraph.DoorX(RoomId.Classroom2, RoomId.Hallway), 7.6f, "classroom 2 hallway door anchor == RoomBuilder placement");
             Eq(RoomGraph.NextHop(RoomId.Classroom1, RoomId.Classroom2), RoomId.Hallway, "classroom→classroom routes through the hallway");
             Eq(RoomGraph.NextHop(RoomId.Hallway, RoomId.Classroom2), RoomId.Classroom2, "hallway→classroom is one hop");
             Eq(RoomGraph.NextHop(RoomId.Classroom1, RoomId.Classroom1), RoomId.Classroom1, "already there: no hop");
             Eq(RoomGraph.NextHop(RoomId.Security, RoomId.Hallway), RoomId.Security, "off-graph origins do not route");
 
-            Group("Tokens — collection persists with the run");
+            Group("Tokens - collection persists with the run");
             var ses = new GameSession();
             Eq(ses.TokensCollected, 0, "a fresh run holds no tokens");
             ses.TokensCollected = 3;
@@ -1515,7 +1612,7 @@ namespace Hollowbrook.LogicTests
 
         private static void QueueBusyHurryTests()
         {
-            Group("CheckpointQueue — the busy-window hurry multiplier");
+            Group("CheckpointQueue - the busy-window hurry multiplier");
 
             var roster = RosterFor(11, 2);
             var q = new CheckpointQueue();
@@ -1540,7 +1637,7 @@ namespace Hollowbrook.LogicTests
 
         private static void StampRulesTests()
         {
-            Group("InspectionRules — detain verdict + warnings/fines (stamp rework)");
+            Group("InspectionRules - detain verdict + warnings/fines (stamp rework)");
             var roster = RosterFor(3, 2);
             VisitorData legit = null, anom = null;
             foreach (var v in roster) { if (legit == null && !v.IsAnomaly) legit = v; if (anom == null && v.IsAnomaly) anom = v; }
@@ -1563,7 +1660,7 @@ namespace Hollowbrook.LogicTests
 
         private static void FloorFileTests()
         {
-            Group("RecordSearch — floor folders for the FLOOR FILES cabinet");
+            Group("RecordSearch - floor folders for the FLOOR FILES cabinet");
             var canon = new RosterFactory(12).Canon;
             var folders = RecordSearch.BuildFloorFolders(canon);
             Eq(folders.Count, 2, "the roster files under exactly two floors");
@@ -1612,13 +1709,13 @@ namespace Hollowbrook.LogicTests
         // almost instantly, decelerate, and never bounce?" is a testable claim, not a vibe.
         private static void DrawerMotionTests()
         {
-            Group("DrawerMotion — the floor-files pull drawer");
+            Group("DrawerMotion - the floor-files pull drawer");
             Eq(DrawerMotion.EaseOut(0f), 0f, "the pull starts at 0");
             Eq(DrawerMotion.EaseOut(1f), 1f, "the pull ends at 1");
             Check(DrawerMotion.EaseOut(0.5f) > 0.5f,
                   $"an ease-out covers more than half the travel in half the time ({DrawerMotion.EaseOut(0.5f):F3})");
             Check(DrawerMotion.EaseOut(0.25f) > 0.5f,
-                  $"...and over half of it in the first quarter ({DrawerMotion.EaseOut(0.25f):F3}) — it answers the click");
+                  $"...and over half of it in the first quarter ({DrawerMotion.EaseOut(0.25f):F3}) - it answers the click");
             bool monotonic = true, noOvershoot = true;
             float prev = 0f;
             for (int i = 0; i <= 200; i++)
@@ -1643,7 +1740,7 @@ namespace Hollowbrook.LogicTests
             Check(pull >= 1f && Math.Abs(frames * (1f / 60f) - DrawerMotion.DurationSeconds) < 1f / 60f + 1e-4f,
                   $"a full pull takes its stated {DrawerMotion.DurationSeconds * 1000f:F0} ms ({frames} frames at 60 Hz)");
             Check(DrawerMotion.DurationSeconds <= 0.2f,
-                  $"the whole motion is under a fifth of a second ({DrawerMotion.DurationSeconds:F3}s) — it feels immediate");
+                  $"the whole motion is under a fifth of a second ({DrawerMotion.DurationSeconds:F3}s) - it feels immediate");
 
             Eq(DrawerMotion.BodyOffset(0f), 0f, "a shut drawer has travelled 0px");
             Eq(DrawerMotion.BodyOffset(1f), DrawerMotion.TravelPx, "an open drawer has travelled the full depth");
@@ -1672,8 +1769,8 @@ namespace Hollowbrook.LogicTests
         // the sealed / comfort rooms distinguishable from the patrol rooms.
         private static void FloorPlanTests()
         {
-            Group("FloorPlan — HOLLOWBROOK COLLEGE ground floor");
-            Eq(FloorPlan.Title, "HOLLOWBROOK COLLEGE — GROUND FLOOR", "the sheet carries the full title");
+            Group("FloorPlan - HOLLOWBROOK COLLEGE ground floor");
+            Eq(FloorPlan.Title, "HOLLOWBROOK COLLEGE - GROUND FLOOR", "the sheet carries the full title");
             Check(FloorPlan.LayoutIsSane(out string problem),
                 "every room is on the sheet and no two rooms overlap" +
                 (problem != null ? " (" + problem + ")" : ""));
@@ -1709,10 +1806,9 @@ namespace Hollowbrook.LogicTests
                 $"Room 101 sits WEST of Room 202 along the north wall ({c1.Value.Right} <= {c2.Value.Left})");
             Check(sec.Value.Top >= hall.Value.Bottom - 0.01f && sec.Value.X < hall.Value.X,
                 $"the security checkpoint hangs BELOW the hallway's west end ({sec.Value.Top} >= {hall.Value.Bottom})");
-            var crN = FloorPlan.ForKey("room_comfort_north").Value;
-            var crS = FloorPlan.ForKey("room_comfort_south").Value;
-            Check(crN.Left >= hall.Value.Right - 0.01f && crS.Left >= hall.Value.Right - 0.01f,
-                "the comfort rooms hang off the EAST end, clear of the corridor");
+            var crN = FloorPlan.ForKey("room_comfort").Value;
+            Check(crN.Left >= hall.Value.Right - 0.01f,
+                "the comfort room hangs off the EAST end, clear of the corridor");
             Check(server.Value.Left >= hall.Value.Right - 0.01f,
                 $"the sealed room is on the RIGHT ({server.Value.Left} >= {hall.Value.Right})");
             Check(hall.Value.W > 2.5f * Math.Max(hall.Value.H, 1f) &&
@@ -1724,16 +1820,16 @@ namespace Hollowbrook.LogicTests
 
             // comfort rooms: present, labelled, and out of the way
             var comfort = FloorPlan.ComfortRooms();
-            Eq(comfort.Count, 2, "the plan carries two comfort rooms");
+            Eq(comfort.Count, 1, "the plan carries one comfort room");
             foreach (var cr in comfort)
             {
-                Check(cr.Comfort && !cr.Room.HasValue && !cr.Sealed,
-                      "'" + cr.Key + "' is a comfort room, not a patrol room and not sealed");
+                Check(cr.Comfort && cr.Room == RoomId.ComfortRoom && !cr.Sealed,
+                      "'" + cr.Key + "' is the comfort room you can walk into, and it is not sealed");
                 Check(cr.Label.ToUpperInvariant().Contains("COMFORT ROOM"),
                       "'" + cr.Key + "' is labelled as a comfort room");
                 Check(!cr.Overlaps(hall.Value) && !cr.Overlaps(c1.Value) && !cr.Overlaps(c2.Value) &&
                       !cr.Overlaps(sec.Value) && !cr.Overlaps(server.Value),
-                      "'" + cr.Key + "' obstructs nothing — not the hallway, not a room");
+                      "'" + cr.Key + "' obstructs nothing - not the hallway, not a room");
                 Check(cr.DoorX.HasValue && cr.DoorY.HasValue, "'" + cr.Key + "' has a doorway on the plan");
             }
 
@@ -1770,12 +1866,12 @@ namespace Hollowbrook.LogicTests
         // never unreadable" is a proved property rather than a screenshot someone squinted at.
         private static void MapSheetLayoutTests()
         {
-            Group("MapSheetLayout — the centred ground-floor sheet");
+            Group("MapSheetLayout - the centred ground-floor sheet");
             var baseFit = MapSheetLayout.Fit(1280f, 720f);
             Check(baseFit.SheetW > 0f && baseFit.SheetH > 0f, "the sheet has a real size");
             Check(Math.Abs(baseFit.SheetW / baseFit.SheetH - FloorPlan.DesignW / FloorPlan.DesignH) < 1e-4f,
                   $"the sheet keeps the plan's aspect ({baseFit.SheetW / baseFit.SheetH:F4} vs " +
-                  $"{FloorPlan.DesignW / FloorPlan.DesignH:F4}) — the drawing is scaled, never stretched");
+                  $"{FloorPlan.DesignW / FloorPlan.DesignH:F4}) - the drawing is scaled, never stretched");
             Check(baseFit.FitsIn(1280f, 720f), "the sheet and its CLOSE row fit inside 1280x720");
 
             // CLOSE is anchored to the screen's bottom edge while the sheet is centred, so the
@@ -1808,7 +1904,7 @@ namespace Hollowbrook.LogicTests
                 if (Math.Abs(fit.GapUnderSheet(visible[1]) - MapSheetLayout.CloseGap) > 0.01f ||
                     fit.CloseBottomMargin < 0f) allGap = false;
                 // centred BY CONSTRUCTION: the sheet is anchored to the centre with no offset,
-                // so the only thing that can break centring is a size that overflows — hence
+                // so the only thing that can break centring is a size that overflows - hence
                 // the fit check above. Assert the margin symmetry that follows from it.
                 float sideMargin = (visible[0] - fit.SheetW) / 2f;
                 float topMargin = (visible[1] - fit.SheetH) / 2f;
@@ -1844,7 +1940,7 @@ namespace Hollowbrook.LogicTests
 
         private static void SlipFairnessTests()
         {
-            Group("Slip generation — fairness across seeds and shifts");
+            Group("Slip generation - fairness across seeds and shifts");
             bool legitOk = true, mismatchOk = true;
             int mismatchSeen = 0;
             for (int seed = 1; seed <= 6; seed++)
@@ -1867,7 +1963,7 @@ namespace Hollowbrook.LogicTests
 
         private static void SeatPlannerTests()
         {
-            Group("SeatPlanner — determinism, distinct seats, overflow, duplicates");
+            Group("SeatPlanner - determinism, distinct seats, overflow, duplicates");
             var ids = new List<string> { "HB-2026-0001", "HB-2026-0002", "HB-2026-0003", "HB-2026-0004" };
             int[] a = SeatPlanner.Plan(ids, 6, new GameRng(42));
             int[] b = SeatPlanner.Plan(ids, 6, new GameRng(42));
@@ -1892,14 +1988,14 @@ namespace Hollowbrook.LogicTests
 
         private static void CultureRoundTripTests()
         {
-            Group("SaveFormat/SettingsData — locale independence (I-05)");
+            Group("SaveFormat/SettingsData - locale independence (I-05)");
             var saved = System.Threading.Thread.CurrentThread.CurrentCulture;
             System.Globalization.CultureInfo comma = null;
             try { comma = new System.Globalization.CultureInfo("de-DE"); }
             catch (System.Globalization.CultureNotFoundException) { }
             if (comma == null)
             {
-                Check(true, "skipped here: invariant-globalization process — rerun with ICU for the de-DE pass");
+                Check(true, "skipped here: invariant-globalization process - rerun with ICU for the de-DE pass");
                 return;
             }
             System.Threading.Thread.CurrentThread.CurrentCulture = comma;
@@ -1931,7 +2027,7 @@ namespace Hollowbrook.LogicTests
 
         private static void ResumeReplayTests()
         {
-            Group("RosterFactory — resume replays identical visitors (I-09)");
+            Group("RosterFactory - resume replays identical visitors (I-09)");
             var plan = ShiftPlan.Build();
             var played = new RosterFactory(99);
             List<VisitorData> shift4Played = null;
@@ -1947,10 +2043,10 @@ namespace Hollowbrook.LogicTests
 
         private static void QueueInvariantTests()
         {
-            Group("CheckpointQueue — FIFO invariant + warned-edge persistence (audit fixes)");
+            Group("CheckpointQueue - FIFO invariant + warned-edge persistence (audit fixes)");
 
             // 1) a free window with a waiting line belongs to the head of the line: a fresh
-            //    arrival must never jump it. State is built through restore — the only path
+            //    arrival must never jump it. State is built through restore - the only path
             //    that can legitimately hold Active==null with a non-empty line.
             var roster = RosterFor(7, 1);
             var q = new CheckpointQueue();
@@ -1973,7 +2069,7 @@ namespace Hollowbrook.LogicTests
             Check(q.WaitingCount == 2 && q.WaitingLine.First() == roster[2],
                   "FIFO: line order is preserved behind the promoted head");
 
-            // 2) the pressure warning is once per shift — including across save/continue
+            // 2) the pressure warning is once per shift - including across save/continue
             var t = new QueueTuning
             {
                 MissingStudentChance = 0f,
@@ -2038,10 +2134,10 @@ namespace Hollowbrook.LogicTests
 
         // ------------------------------------------------------- speech bubble (task 4)
         // The bubble beside the student's head: a line STAYS until the next line replaces
-        // it or the desk clears it — there is no timeout and no hover rule any more.
+        // it or the desk clears it - there is no timeout and no hover rule any more.
         private static void SpeechBubbleTests()
         {
-            Group("SpeechBubbleClock — a line stays until replaced or cleared");
+            Group("SpeechBubbleClock - a line stays until replaced or cleared");
 
             var b = new SpeechBubbleClock();
             Check(!b.Visible && b.Generation == 0, "born hidden, with no generations spent");
@@ -2056,7 +2152,7 @@ namespace Hollowbrook.LogicTests
 
             // nothing but a new line or a cleanup may change what is on screen
             Check(b.Visible && b.Text == "Good evening.",
-                "the line is still up later — there is no timer to take it away");
+                "the line is still up later - there is no timer to take it away");
 
             b.Say("AT THE WINDOW", "Second visit.");
             Check(b.Visible && b.Generation == 2, "the next line replaces it (generation 2)");
@@ -2079,10 +2175,10 @@ namespace Hollowbrook.LogicTests
 
             int g0 = b.Generation;
             for (int i = 0; i < 10; i++) b.Say("AT THE WINDOW", "line " + i);
-            Eq(b.Generation, g0 + 10, "generations are strictly monotonic — every line gets its own");
+            Eq(b.Generation, g0 + 10, "generations are strictly monotonic - every line gets its own");
             Eq(b.Text, "line 9", "the bubble always shows the newest line only (no overlap)");
 
-            Group("SpeechBubbleLayout — wrap estimate, truncation, bubble height");
+            Group("SpeechBubbleLayout - wrap estimate, truncation, bubble height");
 
             Eq(SpeechBubbleLayout.Wrap("", 10).Count, 1, "empty text is one empty line");
             Eq(SpeechBubbleLayout.Wrap(null, 10).Count, 1, "null text is one empty line");
@@ -2143,7 +2239,7 @@ namespace Hollowbrook.LogicTests
         // scale, tilt) and the printable-area clamp that keeps the mark on the paper.
         private static void StampPlacementTests()
         {
-            Group("StampPlacement — desk drop point -> slip-local spot");
+            Group("StampPlacement - desk drop point -> slip-local spot");
 
             var p = StampPlacement.DeskToLocal(100f, 50f, 0f, 0f, 1f, 0f);
             Check(Math.Abs(p.X - 100f) < 1e-4f && Math.Abs(p.Y - 50f) < 1e-4f,
@@ -2165,7 +2261,7 @@ namespace Hollowbrook.LogicTests
                 "180° flips both axes");
 
             // the shipping case: slip at (660,440), zoom 1.5, resting tilt 1.2°,
-            // dropped at its visual centre (810,530) — hand-computed expectations
+            // dropped at its visual centre (810,530) - hand-computed expectations
             p = StampPlacement.DeskToLocal(810f, 530f, 660f, 440f, 1.5f, 1.2f);
             Check(Math.Abs(p.X - 98.72f) < 0.02f && Math.Abs(p.Y - 62.08f) < 0.02f,
                 $"the zoomed, tilted slip maps its centre drop to ~(98.72,62.08) (got {p.X:F2},{p.Y:F2})");
@@ -2190,7 +2286,7 @@ namespace Hollowbrook.LogicTests
             Check(!float.IsNaN(p.X) && !float.IsNaN(p.Y) && !float.IsInfinity(p.X) && !float.IsInfinity(p.Y),
                 "a zero scale never produces NaN/inf (epsilon-guarded)");
 
-            Group("StampPlacement — tilted half extent + printable-area clamp");
+            Group("StampPlacement - tilted half extent + printable-area clamp");
 
             Check(Math.Abs(StampPlacement.TiltedHalfExtent(56f, 0f) - 28f) < 1e-4f,
                 "untilted: the half extent is half the mark size");
@@ -2241,7 +2337,7 @@ namespace Hollowbrook.LogicTests
 
         private static void HallwayDarknessTests()
         {
-            Group("HallwayDarkness — corridor ambient + the limited-visibility pool");
+            Group("HallwayDarkness - corridor ambient + the limited-visibility pool");
 
             float vsLit = HallwayDarkness.DarkerThanLitRoom(0.12f);
             Check(vsLit > 0.70f && vsLit < 0.85f,
@@ -2257,7 +2353,7 @@ namespace Hollowbrook.LogicTests
             float mid = HallwayDarkness.DepthAt(
                 (HallwayDarkness.ClearRadius + HallwayDarkness.DepthRadius) / 2f);
             Check(mid > 0.2f && mid < 0.8f,
-                $"the falloff passes through the middle ({mid:F2}) — a grade, not a step");
+                $"the falloff passes through the middle ({mid:F2}) - a grade, not a step");
 
             float prev = HallwayDarkness.DepthAt(0f); bool monotone = true; bool smooth = true;
             float slope = 0f;
@@ -2298,7 +2394,7 @@ namespace Hollowbrook.LogicTests
         // compared exactly as the sprites render it (features + the distortion overlay).
         private static void FaceTruthTests()
         {
-            Group("Face comparison truth — the cue follows the rendered faces, never a coin flip");
+            Group("Face comparison truth - the cue follows the rendered faces, never a coin flip");
             int pairs = 0, mismatched = 0;
             bool neverGreenOnBookedMismatch = true, ruleHolds = true, anomalyNeverMatches = true;
             for (int seed = 1; seed <= 12; seed++)
@@ -2321,7 +2417,7 @@ namespace Hollowbrook.LogicTests
             Check(ruleHolds,
                 "the cue agrees with the faces AS RENDERED (features, distortion, anomaly variant)");
             Check(anomalyNeverMatches,
-                "an anomaly never shows a matching cue — its in-world face is the altered variant");
+                "an anomaly never shows a matching cue - its in-world face is the altered variant");
             Check(mismatched > 0 && mismatched < pairs,
                 $"rosters contain both outcomes to find ({mismatched} mismatched of {pairs})");
             var p = new Portrait { HairStyle = 1, FaceVariant = 2, Accessory = 0 };
@@ -2335,13 +2431,13 @@ namespace Hollowbrook.LogicTests
 
         private static void FaceAssetMappingTests()
         {
-            Group("FaceAssets — stable identity mapping for the temporary face set");
-            Check(FaceAssets.StudentKey(0) == "student_face_01" &&
-                  FaceAssets.StudentKey(FaceAssets.StudentFaceCount) == "student_face_01",
+            Group("FaceAssets - stable identity mapping for the temporary face set");
+            Check(FaceAssets.StudentKey(0) == "char_student_01" &&
+                  FaceAssets.StudentKey(FaceAssets.StudentFaceCount) == "char_student_01",
                 "student keys wrap stably over the shipped set");
-            Check(FaceAssets.AnomalyKey(0) == "student_face_01_anomaly" &&
-                  FaceAssets.AnomalyKey(6) == "student_face_07_anomaly",
-                "anomaly keys are PAIRED with their student: student_face_NN_anomaly");
+            Check(FaceAssets.AnomalyKey(0) == "char_student_01_anomaly" &&
+                  FaceAssets.AnomalyKey(6) == "char_student_07_anomaly",
+                "anomaly keys are PAIRED with their student: char_student_NN_anomaly");
             Check(FaceAssets.WindowKey(-1, false) == null && FaceAssets.IdKey(-1) == null,
                 "no asset index (old saves, administrator) -> the procedural painter, never a broken image");
             bool cardIsReal = true, anomalyIsPaired = true;
@@ -2354,16 +2450,25 @@ namespace Hollowbrook.LogicTests
             }
             Check(cardIsReal, "the ID card ALWAYS shows the real student's face art");
             Check(anomalyIsPaired,
-                "an altered window face is THAT STUDENT's anomaly variant — paired, explicit, never random");
+                "an altered window face is THAT STUDENT's anomaly variant - paired, explicit, never random");
             var seen = new Dictionary<string, int>();
             for (int i = 0; i < FaceAssets.StudentFaceCount; i++) seen[FaceAssets.StudentKey(i)] = i;
             Check(seen.Count == FaceAssets.StudentFaceCount,
                 "every shipped student face maps to exactly one identity slot (no shared faces)");
+            var names = Content.BuildStudentRoster();
+            string[] want = { "Carlo Mendoza", "Nathaniel Aquino", "Maria Clara Santos", "Liza May Ramos",
+                              "Raffy Isidro", "Renielle Waterbonia", "Rhevster Estrellita" };
+            bool namesOk = names.Count == want.Length && Content.TotalStudents == FaceAssets.StudentFaceCount;
+            for (int i = 0; namesOk && i < want.Length; i++) namesOk = names[i].FullName == want[i];
+            Check(namesOk, "the registry has the seven students in face-art order (row N wears char_student_NN)");
+            var numbers = new HashSet<string>();
+            foreach (var st in names) numbers.Add(st.IdNumber);
+            Check(numbers.Count == names.Count, "every student has their own ID number");
         }
 
         private static void CheckpointQueueTests()
         {
-            Group("CheckpointQueue — start gate, arrival clock, FIFO line, window promotion");
+            Group("CheckpointQueue - start gate, arrival clock, FIFO line, window promotion");
 
             var roster = RosterFor(11, 2);           // night 2: six visitors, two anomalies
             Eq(roster.Count, 6, "test roster has six visitors");
@@ -2431,7 +2536,7 @@ namespace Hollowbrook.LogicTests
             Check(q.TimerSeconds < 0f, "the arrival clock goes idle once the source is dry");
             Check(!q.Tick(60f).Any, "a dry clock never fabricates arrivals");
 
-            Group("CheckpointQueue — pressure warning once, overwhelmed collapse once");
+            Group("CheckpointQueue - pressure warning once, overwhelmed collapse once");
 
             var bigRoster = RosterFor(5, 4);         // night 4: eight visitors
             Eq(bigRoster.Count, 8, "pressure roster has eight visitors");
@@ -2467,7 +2572,7 @@ namespace Hollowbrook.LogicTests
             Check(EndingRules.Evaluate(new GameSession { Mode = GameMode.Normal }).Ending == EndingType.None,
                   "a clean session still evaluates to None (additive change)");
 
-            Group("CheckpointQueue — missing student (finite roster, one incident per shift)");
+            Group("CheckpointQueue - missing student (finite roster, one incident per shift)");
 
             // (a) probability-failure path: chance 0 changes nothing
             var r0 = RosterFor(11, 2);
@@ -2575,7 +2680,7 @@ namespace Hollowbrook.LogicTests
                   "a processed visitor is never chosen as the victim");
             Check(rL.Vanished == null || rL.Vanished.VisitorIndex >= 2, "victim comes from the un-arrived source");
 
-            Group("CheckpointQueue — snapshot, save round-trip, legacy resume, run-mode source");
+            Group("CheckpointQueue - snapshot, save round-trip, legacy resume, run-mode source");
 
             var snapRoster = RosterFor(seedWait, 2);
             var sq = new CheckpointQueue();
@@ -2646,7 +2751,7 @@ namespace Hollowbrook.LogicTests
             Eq(runQ.MissingIncidents, 0, "missing-student is a finite-roster (Normal) mechanic");
             Check(!new CheckpointQueue().IsAttached, "a detached queue reports unattached (PersistRun guard)");
 
-            Group("CheckpointQueue — two-phase resolution (quit mid-banner can never re-stamp)");
+            Group("CheckpointQueue - two-phase resolution (quit mid-banner can never re-stamp)");
             var twoPhase = RosterFor(11, 2);
             var tq = new CheckpointQueue();
             tq.AttachRoster(twoPhase, new QueueTuning
@@ -2696,7 +2801,7 @@ namespace Hollowbrook.LogicTests
         // --------------------------------------------- display policy + options layout
         private static void DisplayAndOptionsTests()
         {
-            Group("DisplayPolicy — resolution choices, fallbacks, revert window");
+            Group("DisplayPolicy - resolution choices, fallbacks, revert window");
             Eq(DisplayPolicy.RevertSeconds, 15, "unconfirmed display changes revert after 15s");
 
             var raw = new List<ModeSize>
@@ -2739,7 +2844,7 @@ namespace Hollowbrook.LogicTests
             Eq(DisplayPolicy.Fallback(null, new ModeSize(1234, 567)).W, 1234, "null list is safe");
 
             // ------------------------------------------------ options sheet layout budget
-            Group("Options sheet — row budget fits the left sheet at 1280x720 reference");
+            Group("Options sheet - row budget fits the left sheet at 1280x720 reference");
             // Mirrors SettingsView.Init row heights + VStack spacing 8: the simplified
             // audio-only modal (Phase 10.3) is AUDIO header + three volume rows. If a row
             // is added, this fails on purpose: the sheet must never overflow its column.
@@ -2755,7 +2860,7 @@ namespace Hollowbrook.LogicTests
             Check(638f - 295f >= 20f, "action button keeps >=20px clearance below the column");
 
             // ------------------------------------------------ settings persistence shape
-            Group("SettingsData — display fields persist; old saves still load");
+            Group("SettingsData - display fields persist; old saves still load");
             var d = new SettingsData
             {
                 MasterVolume = 0.4f, SfxVolume = 1f, TextScale = 2, Fullscreen = false,

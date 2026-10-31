@@ -10,7 +10,7 @@ One dump therefore renders every breakpoint: only the pixels-per-unit changes.
 Sprites resolve against the REAL Resources tree (the SecurityRoom kit first), 9-slice
 borders are honoured in reference units (converted from texture pixels through the
 sprite's pixelsPerUnit, exactly like uGUI), and text is set with the SAME font files the
-game loads (kit Bahnschrift/Chiller extracted from Art/SecurityRoom/1. Fonts/*.zip),
+game loads (kit Bahnschrift/Chiller extracted from Art/UI/SecurityDesk/1. Fonts/*.zip),
 so what you see here is what the editor resolves - not a stand-in typeface.
 """
 import json, os, re, sys

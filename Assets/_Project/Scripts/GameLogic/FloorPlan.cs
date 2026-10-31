@@ -3,12 +3,12 @@ using System.Collections.Generic;
 namespace Hollowbrook.Logic
 {
     /// <summary>One room on the ground-floor plan. Pure data: the map view reads it, the
-    /// headless proofs read it, and nothing in it touches the engine — so "is the sealed
+    /// headless proofs read it, and nothing in it touches the engine - so "is the sealed
     /// server room clickable?" and "do the comfort rooms overlap the hallway?" are questions
     /// that can be answered by a unit test instead of by eyeballing a screenshot.</summary>
     public struct FloorRoom
     {
-        /// <summary>Stable hierarchy name ("room_hallway") — the map builds one node per room
+        /// <summary>Stable hierarchy name ("room_hallway") - the map builds one node per room
         /// and the proofs look them up by this.</summary>
         public string Key;
         /// <summary>Hand-written label, \n separated.</summary>
@@ -16,13 +16,13 @@ namespace Hollowbrook.Logic
         /// <summary>Centre in the floor plan's own design space (see FloorPlan.DesignW/H).</summary>
         public float X, Y;
         public float W, H;
-        /// <summary>The patrol room this square represents. Comfort rooms are map-only and
-        /// carry null: they are on the plan, they are not part of the patrol graph.</summary>
+        /// <summary>The patrol room this square represents. The sealed server room carries null:
+        /// it is on the plan but there is nothing to walk into.</summary>
         public RoomId? Room;
         /// <summary>The sealed server / identification room: restricted styling, never
-        /// clickable — its locked behaviour is intentional (ClueRegistry "door").</summary>
+        /// clickable - its locked behaviour is intentional (ClueRegistry "door").</summary>
         public bool Sealed;
-        /// <summary>Comfort room (CR): labelled on the plan, no patrol mechanics.</summary>
+        /// <summary>Comfort room (CR): a room you can walk into (press E at its door in the hallway).</summary>
         public bool Comfort;
         /// <summary>Where the door to the hallway is drawn, in design space. Null = no door
         /// drawn (the sealed room's is drawn as a barred plate instead).</summary>
@@ -39,12 +39,11 @@ namespace Hollowbrook.Logic
             Left < o.Right && o.Left < Right && Top < o.Bottom && o.Top < Bottom;
     }
 
-    /// <summary>HOLLOWBROOK COLLEGE — GROUND FLOOR: the single source of truth for the map's
+    /// <summary>HOLLOWBROOK COLLEGE - GROUND FLOOR: the single source of truth for the map's
     /// layout, rebuilt to match the owner's hand-drawn reference plan: one long central
     /// hallway; BOTH classrooms (101 west of 202) along its north wall; the security
     /// checkpoint at the south-west, under the hallway's west end; the sealed server /
-    /// identification room capping the east end with the two comfort rooms north and south
-    /// of it; and the reference's stair hatch ("2ND FLOOR??") under the corridor's
+    /// identification room capping the east end with the comfort room north of it; and the reference's stair hatch ("2ND FLOOR??") under the corridor's
     /// east-centre long wall.
     ///
     /// Everything is expressed in a fixed DESIGN SPACE with the origin at the sheet's centre,
@@ -55,7 +54,7 @@ namespace Hollowbrook.Logic
     {
         public static readonly float DesignW = 940f;
         public static readonly float DesignH = 440f;
-        public const string Title = "HOLLOWBROOK COLLEGE — GROUND FLOOR";
+        public const string Title = "HOLLOWBROOK COLLEGE - GROUND FLOOR";
 
         /// <summary>The plan's own rooms, in draw order (hallway first so rooms sit on it).</summary>
         public static readonly FloorRoom[] Rooms =
@@ -91,29 +90,23 @@ namespace Hollowbrook.Logic
             {
                 // the sealed room caps the hallway's east end: the corridor runs to it and
                 // stops, which is exactly what the chain and the scratch marks say
-                Key = "room_server", Label = "SERVER / \nIDENTIFICATION ROOM\n— SEALED —",
+                Key = "room_server", Label = "SERVER / \nIDENTIFICATION ROOM\n- SEALED -",
                 X = 390f, Y = 0f, W = 150f, H = 130f, Room = null, Sealed = true,
                 DoorX = 315f, DoorY = 0f,      // its own west wall, where the corridor ends
             },
             new FloorRoom
             {
-                // the comfort rooms hang off the east end north and south of the sealed
-                // room (the reference's small north room), off a short chalk return
-                Key = "room_comfort_north", Label = "COMFORT ROOM\nCR-1",
-                X = 390f, Y = -115f, W = 150f, H = 70f, Room = null, Comfort = true,
+                // the comfort room hangs off the east end north of the sealed room, off a short
+                // chalk return. Its door opens onto the hallway's east end (press E to go in)
+                Key = "room_comfort", Label = "COMFORT ROOM\nCR",
+                X = 390f, Y = -115f, W = 150f, H = 70f, Room = RoomId.ComfortRoom, Comfort = true,
                 DoorX = 315f, DoorY = -115f,   // on the room's own west wall (X - W/2 = 315)
-            },
-            new FloorRoom
-            {
-                Key = "room_comfort_south", Label = "COMFORT ROOM\nCR-2",
-                X = 390f, Y = 115f, W = 150f, H = 70f, Room = null, Comfort = true,
-                DoorX = 315f, DoorY = 115f,    // on the room's own west wall
             },
         };
 
         /// <summary>Corridor stubs drawn as thin chalk runs between a room and the hallway
         /// (design-space segments, x0,y0 -> x1,y1). Purely decorative: they show that every
-        /// room hangs off the one central passage — the classrooms and the checkpoint
+        /// room hangs off the one central passage - the classrooms and the checkpoint
         /// straight into its long walls, the comfort rooms round an elbow return at the
         /// east end rather than blocking the corridor.</summary>
         public static readonly float[][] Corridors =
@@ -123,14 +116,12 @@ namespace Hollowbrook.Logic
             new[] { -160f, -55f, -160f, -35f },  // classroom 1 door -> hallway north wall
             new[] { 70f, -55f, 70f, -35f },      // classroom 2 door -> hallway north wall
             new[] { 310f, 0f, 315f, 0f },        // hallway east end -> the sealed plate
-            new[] { 315f, -115f, 300f, -115f },  // CR-1 door -> the return
+            new[] { 315f, -115f, 300f, -115f },  // CR door -> the return
             new[] { 300f, -115f, 300f, -35f },   // return -> hallway north wall
-            new[] { 315f, 115f, 300f, 115f },    // CR-2 door -> the return
-            new[] { 300f, 115f, 300f, 35f },     // return -> hallway south wall
         };
 
         /// <summary>The reference's stair hatch: short chalk ticks under the corridor's
-        /// east-centre long wall, with the custodian's scratch beside it. Decoration only —
+        /// east-centre long wall, with the custodian's scratch beside it. Decoration only -
         /// no room, no door, no mechanic; the patrol graph never learned about stairs.</summary>
         public static readonly float[][] StairsRuns =
         {
@@ -145,7 +136,7 @@ namespace Hollowbrook.Logic
         public const string StairsNote = "2ND FLOOR??";
         public const float StairsNoteX = 292f, StairsNoteY = 82f;
 
-        /// <summary>Every room that is part of the patrol graph must be on the plan — the
+        /// <summary>Every room that is part of the patrol graph must be on the plan - the
         /// proof that the map and RoomGraph never drift apart.</summary>
         public static FloorRoom? ForRoom(RoomId id)
         {
@@ -169,7 +160,7 @@ namespace Hollowbrook.Logic
         }
 
         /// <summary>True when no two rooms overlap and the whole plan stays inside the design
-        /// sheet — the layout invariant the reference drawing implies.</summary>
+        /// sheet - the layout invariant the reference drawing implies.</summary>
         public static bool LayoutIsSane(out string problem)
         {
             float halfW = DesignW / 2f, halfH = DesignH / 2f;
@@ -192,7 +183,7 @@ namespace Hollowbrook.Logic
             return true;
         }
 
-        /// <summary>Uniform scale that fits the design space inside (availW, availH) — the one
+        /// <summary>Uniform scale that fits the design space inside (availW, availH) - the one
         /// number MapView multiplies every coordinate by, so the plan is centred and never
         /// clipped whatever the window size.</summary>
         public static float FitScale(float availW, float availH)

@@ -13,7 +13,7 @@ namespace Hollowbrook.Logic
     {
         // ---- ambient levels -------------------------------------------------------------
         // A normally lit room sits at LightController.LitAlpha 0.12 (88% of the art's brightness).
-        // The corridor's base ambient leaves 24% — 73% darker than that lit room (inside the
+        // The corridor's base ambient leaves 24% - 73% darker than that lit room (inside the
         // 70-85% band) and 37% darker than a dark classroom (0.62 alpha / 38%). The low end of
         // the band is deliberate: the patrol placeholder art is near-black already (walls 0.13),
         // so 24% is what keeps the pool legible enough to navigate by eye.
@@ -23,7 +23,7 @@ namespace Hollowbrook.Logic
         public const float DepthAlpha = 0.72f;
 
         // ---- the pool (world units from the custodian) -----------------------------------
-        // Fully clear out to ClearRadius, fully deep from DepthRadius, smoothstep between — a
+        // Fully clear out to ClearRadius, fully deep from DepthRadius, smoothstep between - a
         // gradual radial falloff with zero slope at both ends, never a hard circular edge.
         public const float ClearRadius = 1.9f;
         public const float DepthRadius = 6.0f;
@@ -51,7 +51,7 @@ namespace Hollowbrook.Logic
         public const float ShroudWorldW = 2f * (HallwayHalfWidth + RoomDarkMargin + PlayerTravel + CoverMargin);
         public const float ShroudWorldH = 2f * (RoomDarkHalfHeight + PlayerYOffset + CoverMargin);
 
-        /// <summary>0 at the custodian, 1 once the corridor is fully deep — smoothstep, so the
+        /// <summary>0 at the custodian, 1 once the corridor is fully deep - smoothstep, so the
         /// falloff is gradual and has no visible band or hard edge.</summary>
         public static float DepthAt(float worldDistance)
         {
@@ -69,7 +69,7 @@ namespace Hollowbrook.Logic
         /// <summary>Fraction of the art's brightness still reaching the eye at a distance.</summary>
         public static float VisibleFractionAt(float worldDistance) => 1f - AlphaAt(worldDistance);
 
-        /// <summary>The pool's share of the on-screen width — the "how much can he see" number
+        /// <summary>The pool's share of the on-screen width - the "how much can he see" number
         /// (1.9u radius in a 17.78u-wide view = 21%).</summary>
         public static float PoolShareOfView(float cameraHalfWidth) =>
             cameraHalfWidth > 0f ? ClearRadius / cameraHalfWidth : 0f;

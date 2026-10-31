@@ -2,14 +2,6 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    // The one question the custodian asks at the window. It costs nothing and can be asked
-    // again; the answer is only worth something when you compare it with the student's file.
-    public static class ClassroomQuestion
-    {
-        public const string ButtonLabel = "WHICH CLASSROOM ARE YOU GOING TO?";
-        public const string Spoken = "Which classroom are you going to?";
-    }
-
     public static class InspectionRules
     {
         public class Outcome

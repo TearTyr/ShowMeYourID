@@ -6,7 +6,7 @@ are the rooms where the reference drawing puts them, do the labels fit?" would o
 be answered by reading code. This tool parses the actual numbers out of
 Assets/_Project/Scripts/GameLogic/FloorPlan.cs and the actual layout maths out of
 Assets/_Project/Scripts/UI/ProgressionScreens.cs (constants only), applies the same
-fit/centre formula the view applies, and draws the result — including a screen outline
+fit/centre formula the view applies, and draws the result - including a screen outline
 at several resolutions, so centring and clipping are visible rather than assumed.
 
 Usage:
@@ -76,7 +76,7 @@ def parse_floor_plan(path):
 
 # --------------------------------------- parse the sheet constants (pure layout module)
 def parse_sheet_constants(path):
-    """Reads MapSheetLayout's constants — the SAME source the view and LogicTests use."""
+    """Reads MapSheetLayout's constants - the SAME source the view and LogicTests use."""
     src = open(path, encoding="utf-8").read()
     C = {}
     for m in re.finditer(r"public const float (\w+) = ([0-9.]+)f", src):
@@ -157,7 +157,7 @@ def render(screen_w, screen_h, dw, dh, title, rooms, corridors, C, out_path,
 
     def plan_pt(x, y):
         """design space -> svg space. Design y points DOWN and so does svg y, so the drawing
-        is NOT mirrored here — which mirrors the view: ToAnchoredY negates for RectTransform's
+        is NOT mirrored here - which mirrors the view: ToAnchoredY negates for RectTransform's
         y-up space, and Anchor's y-up then puts it back down again."""
         return (ox + x * ps, oy - L["plan_centre_y"] + y * ps)
 
@@ -270,7 +270,7 @@ def render(screen_w, screen_h, dw, dh, title, rooms, corridors, C, out_path,
     s.append(f'<text x="{ox}" y="{oy+ph/2-m-28+lsize*0.8:.1f}" fill="{INK_FAINT}" font-size="{lsize}" '
              f'text-anchor="middle">RED HATCH = SEALED, NO ENTRY        RED DOT = A FINDING YOU HAVE LOGGED</text>')
     hint = ("Click a room to move there. Red dots are findings you have discovered."
-            if False else "From the checkpoint the map is reference only — use PATROL HALLWAY to investigate.")
+            if False else "From the checkpoint the map is reference only - use PATROL HALLWAY to investigate.")
     s.append(f'<text x="{ox}" y="{oy+ph/2-m-6+hsize*0.8:.1f}" fill="#e0dcd2" font-size="{hsize}" '
              f'text-anchor="middle">{hint}</text>')
     s.append('</g>')

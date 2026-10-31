@@ -89,10 +89,14 @@ namespace Hollowbrook.Logic
         // and the file. On legitimate visitors it always agrees (fairness invariant).
         public string SlipName;
         public string SlipIdNumber;
-        public string SlipReason = "NIGHT CLASS — LATE LIST";
+        public string SlipReason = "NIGHT CLASS - LATE LIST";
         // What the visitor answers to "Which classroom are you going to?". It matches the
         // file (RecordFirstClassroom) unless the visitor carries the ClassroomMismatch defect.
         public string ClassroomAnswer = "…";
+        // What they say to each question (index = QuestionId). The card is what they claim, so an
+        // honest answer repeats the card; a SpokenMismatch visitor lies about SpokenLieQuestion.
+        public string[] Answers = new string[InterviewRules.Count];
+        public int SpokenLieQuestion = -1;
         public ToneTag ClassroomTone = ToneTag.Normal;
         // Which student's face is shown at the window (a PhotoMismatch shows somebody else's).
         public int WindowFaceIndex = -1;
@@ -104,7 +108,7 @@ namespace Hollowbrook.Logic
 
         public bool PhotoMatches => WindowPortrait == IdPhoto;
 
-        /// <summary>Do the two faces AS DISPLAYED agree — portrait features AND the anomaly
+        /// <summary>Do the two faces AS DISPLAYED agree - portrait features AND the anomaly
         /// distortion overlay (the administrator's glitched window face is his photo tell, and
         /// Portrait equality ignores Distorted on purpose for the scoring rules). This is the
         /// truth the desk's face-comparison cue shows; it never contradicts the rendered sprites.
@@ -129,11 +133,12 @@ namespace Hollowbrook.Logic
                     case DefectType.RecordNameMismatch: lines.Add("The ID says '" + ClaimedName + "' but the file for this ID number says '" + RecordName + "'."); break;
                     case DefectType.NotInDatabase: lines.Add("ID number not found in the student database."); break;
                     case DefectType.DuplicateId: lines.Add("ID number already used by a visitor from " + DuplicateOfShift + "."); break;
+                    case DefectType.SpokenMismatch: lines.Add("Said '" + (SpokenLieQuestion >= 0 ? Answers[SpokenLieQuestion] : "") + "' when asked about their " + (SpokenLieQuestion >= 0 ? InterviewRules.Tag((QuestionId)SpokenLieQuestion).ToLowerInvariant() : "card") + ", which is not what the ID says."); break;
                     case DefectType.ClassroomMismatch: lines.Add("Said they were going to " + ClassroomAnswer.TrimEnd('.') + ", but the file says " + RecordFirstClassroom + "."); break;
                     case DefectType.SlipMismatch: lines.Add("The paper slip (" + SlipName + " / " + SlipIdNumber + ") does not match the ID card."); break;
                 }
             }
-            if (lines.Count == 0) lines.Add("No discrepancies — documents were consistent.");
+            if (lines.Count == 0) lines.Add("No discrepancies - documents were consistent.");
             return lines;
         }
     }
@@ -201,9 +206,9 @@ namespace Hollowbrook.Logic
 
     public static class Content
     {
-        public const int TotalStudents = 14;          // 8 core + 6 variations (approved asset plan)
+        public const int TotalStudents = 7;           // one per illustrated character (char_student_01 to 07)
 
-        /// <summary>"Room 101" / "Room 202" — the two classrooms of the school.</summary>
+        /// <summary>"Room 101" / "Room 202" - the two classrooms of the school.</summary>
         public static string RoomName(RoomId room) => room == RoomId.Classroom1 ? "Room 101" : "Room 202";
 
         /// <summary>How a student says where they are going: "Room 101, Data Structures."</summary>
@@ -211,8 +216,7 @@ namespace Hollowbrook.Logic
 
         public static readonly string[] Courses =
         {
-            "BS Information Technology", "BS Accountancy", "AB Communication", "BS Nursing",
-            "BS Criminology", "BS Psychology", "BS Biology", "BA Multimedia Arts",
+            "BS Information Technology", "BS Computer Science", "BS Entertainment Multimedia Computing",
         };
 
         public static readonly string[] YearNames = { "1st Year", "2nd Year", "3rd Year", "4th Year" };
@@ -243,33 +247,29 @@ namespace Hollowbrook.Logic
 
         public static List<StudentIdentity> BuildStudentRoster()
         {
+            // One row per student, in face-art order: row N wears char_student_NN.
+            // name, year level, course (index into Courses), transferee (1 = yes), hair, face
+            // and accessory (only the code-drawn fallback portrait uses these), classroom
+            // (1 or 2), subject, student number
             string[,] core =
             {
-                { "Ana Delgado",     "3", "0", "0", "0", "0", "1", "1", "Data Structures" },
-                { "Marco Reyes",     "2", "4", "0", "1", "1", "0", "2", "Criminal Law" },
-                { "Liza Santos",     "4", "1", "0", "2", "2", "1", "1", "Taxation Review" },
-                { "Jerome Cruz",     "1", "7", "0", "3", "3", "3", "2", "Digital Sketching" },
-                { "Bea Villanueva",  "3", "3", "1", "4", "4", "2", "1", "Anatomy" },
-                { "Carlo Mendoza",   "2", "0", "0", "5", "5", "0", "2", "Networking" },
-                { "Trisha Ramos",    "4", "2", "0", "0", "3", "2", "1", "Media Ethics" },
-                { "Miguel Bautista", "1", "5", "1", "1", "4", "0", "2", "Intro Psychology" },
-                { "Grace Lim",       "3", "6", "0", "2", "5", "1", "1", "Genetics" },
-                { "Paolo Soriano",   "2", "1", "1", "3", "0", "0", "2", "Bookkeeping" },
-                { "Kim Alonzo",      "4", "4", "0", "4", "1", "3", "1", "Forensics" },
-                { "Rica Fernandez",  "1", "2", "0", "5", "2", "2", "2", "Public Speaking" },
-                { "Diego Navarro",   "3", "5", "0", "0", "4", "0", "1", "Abnormal Psych" },
-                { "Faith Gonzales",  "2", "3", "1", "1", "5", "1", "2", "Pharmacology" },
+                { "Carlo Mendoza",       "3", "0", "0", "0", "0", "1", "1", "Networking",       "HB-2024-0101" },
+                { "Nathaniel Aquino",    "1", "0", "1", "1", "1", "0", "2", "Programming Basics", "HB-2026-0153" },
+                { "Maria Clara Santos",  "4", "1", "0", "2", "2", "1", "1", "Algorithms",       "HB-2023-0143" },
+                { "Liza May Ramos",      "3", "1", "0", "3", "3", "3", "2", "Data Structures",  "HB-2024-0341" },
+                { "Raffy Isidro",        "4", "2", "0", "4", "4", "2", "2", "Media Ethics",     "HB-2023-0129" },
+                { "Renielle Waterbonia", "2", "1", "1", "5", "5", "0", "1", "Discrete Math",     "HB-2025-0187" },
+                { "Rhevster Estrellita", "2", "2", "0", "0", "3", "2", "1", "Digital Sketching", "HB-2025-0053" },
             };
 
             var list = new List<StudentIdentity>();
             for (int i = 0; i < TotalStudents; i++)
             {
                 int year = int.Parse(core[i, 1]);
-                int enrollYear = 2027 - year;
                 var id = new StudentIdentity
                 {
                     FullName = core[i, 0],
-                    IdNumber = "HB-" + enrollYear + "-" + (101 + i * 37).ToString("D4"),
+                    IdNumber = core[i, 9],
                     YearLevel = year,
                     CourseIndex = int.Parse(core[i, 2]),
                     IsTransferee = core[i, 3] == "1",

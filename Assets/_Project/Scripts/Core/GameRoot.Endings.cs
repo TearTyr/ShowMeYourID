@@ -39,13 +39,13 @@ namespace Hollowbrook.Core
             var lose = new EndingRules.Evaluation
             {
                 Ending = EndingType.Lose, ReasonKey = "blackout",
-                ReasonText = "Your sanity gave out in the dark. The last thing you remember is the lights going — and the corridor was not empty.",
+                ReasonText = "Your sanity gave out in the dark. The last thing you remember is the lights going - and the corridor was not empty.",
             };
             PlayFailure(() => { ShiftFailing = false; TriggerEnding(lose); });
         }
 
         // A failed night (nights 1-4): record how and what it will cost, play the scene, then close
-        // the shift out. From the patrol the desk scene has to load first — the results screen lives there.
+        // the shift out. From the patrol the desk scene has to load first - the results screen lives there.
         private void FailShift(ShiftFailure kind)
         {
             if (ShiftFailing) return;

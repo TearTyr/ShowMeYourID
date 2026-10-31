@@ -11,7 +11,7 @@ using UnityEngine;
 namespace Hollowbrook.Core
 {
     /// <summary>Central game orchestrator (the "root"). Owns services, the run session and
-    /// explicit references to every view — assigned once by CoreBootstrap + the scene bootstraps.
+    /// explicit references to every view - assigned once by CoreBootstrap + the scene bootstraps.
     /// Gameplay code never uses GameObject.Find; it goes through this class or the EventBus.</summary>
     public partial class GameRoot : MonoBehaviour
     {
@@ -39,10 +39,10 @@ namespace Hollowbrook.Core
         public RoomId? PeekRoom { get; internal set; }
         public int EndlessProcessed { get; private set; }
 
-        /// <summary>The checkpoint arrival queue — persistent run state. Owned here (not by
+        /// <summary>The checkpoint arrival queue - persistent run state. Owned here (not by
         /// the desk view) so the waiting line, roster cursor, arrival timer and start gate
         /// survive scene reloads; the desk view is only its presenter and ticker. The clock
-        /// runs while the desk is the active screen — patrol explicitly pauses the line.</summary>
+        /// runs while the desk is the active screen - patrol explicitly pauses the line.</summary>
         public CheckpointQueue Queue { get; private set; } = new CheckpointQueue();
         private bool _continuePending;
 
@@ -121,7 +121,7 @@ namespace Hollowbrook.Core
         }
 
         // shift clock (22:00 → 02:00): real time x Config rate in any in-shift scene,
-        // plus a bump per processed visitor. Atmosphere only — dawn never ends a shift early.
+        // plus a bump per processed visitor. Atmosphere only - dawn never ends a shift early.
         private float _shiftMinutes;
         /// <summary>One frame's worth of simulated time. Clamped so a stall (tab-out, GC hitch,
         /// debugger) can never fast-forward the night or burn run-timer seconds in one jump:
@@ -165,7 +165,7 @@ namespace Hollowbrook.Core
         }
 
         // Tab-out / alt-tab: the OS stops painting us, so the first frame back carries a huge
-        // deltaTime. Pause the moment focus goes instead of letting the night jump forward —
+        // deltaTime. Pause the moment focus goes instead of letting the night jump forward -
         // only during a live run, never from menus, and never while already paused.
         private void OnApplicationFocus(bool focused)
         {
@@ -194,7 +194,7 @@ namespace Hollowbrook.Core
             }
         }
 
-        // Endless / Challenge countdown — only while actually inspecting (and only
+        // Endless / Challenge countdown - only while actually inspecting (and only
         // once the shift has begun; the sticky note must not burn run time).
         private void TickRunCountdown()
         {
@@ -344,7 +344,7 @@ namespace Hollowbrook.Core
             Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Menu);
         }
 
-        /// <summary>True while a run is actually in progress — the menu's blank session
+        /// <summary>True while a run is actually in progress - the menu's blank session
         /// must never be persisted over a real save (EXIT on the menu must never wipe a save).</summary>
         private bool InRunProgress() =>
             Session != null && Session.Mode == GameMode.Normal && !Session.RunFinished &&

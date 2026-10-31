@@ -1,6 +1,6 @@
-# Options menu — finish & polish report
+# Options menu - finish & polish report
 
-**Scope:** make the Options sheet look finished, behave correctly, and own every setting it shows —
+**Scope:** make the Options sheet look finished, behave correctly, and own every setting it shows -
 without redesigning the game. Visual reference: the existing left-sheet main menu.
 **SFX-only rule respected:** no music slider was added and no music system was introduced.
 
@@ -14,12 +14,12 @@ without redesigning the game. Visual reference: the existing left-sheet main men
    column. That is exactly your screenshot: three bare tracks touching the sheet edge, no labels.
    (`ToggleRow` had already been fixed in v1.0.2; `SliderRow` never was.)
 2. **No display settings at all.** No fullscreen toggle, no resolution list, nothing persisted.
-3. **Reset lived only as the F2×3 shortcut** in `MainMenuView.Update`, with its confirmation inline —
+3. **Reset lived only as the F2×3 shortcut** in `MainMenuView.Update`, with its confirmation inline -
    so Options had no reset and the two paths could drift apart.
 4. **Options never re-read saved values on open** (`Show()` only refreshed the text-size buttons),
    so a reopened sheet could show stale slider positions.
 5. Settings themselves were already well-behaved (PlayerPrefs, applied immediately, survive a data
-   reset) — that part was kept, not rewritten.
+   reset) - that part was kept, not rewritten.
 
 ## 2. What changed, file by file
 
@@ -30,7 +30,7 @@ without redesigning the game. Visual reference: the existing left-sheet main men
 | `Assets/_Project/Scripts/Core/SettingsSystem.cs` | Owns display state exclusively: `SupportedModes`, `MenuChoices`, `SetDisplay`, `ApplyCurrentDisplay`, `ApplyStoredDisplay` (boot-time, self-clearing), `RestoreDisplaySnapshot`; persists `fullscreen/displayW/displayH` in the same `smyid.settings.` namespace |
 | `Assets/_Project/Scripts/GameLogic/DisplayPolicy.cs` | **New, engine-free:** dedupe/min-size/sort of supported modes, menu choice selection (preferred heights + always the current mode, capped), support test, aspect-then-area fallback, 15 s revert constant. Fully unit-tested |
 | `Assets/_Project/Scripts/GameLogic/GameSession.cs` | `SettingsData` gains `Fullscreen`, `DisplayWidth`, `DisplayHeight`; `Encode`/`Decode` extended **tolerantly** (old 7-field strings still decode; truncated input rejected instead of throwing) |
-| `Assets/_Project/Scripts/Core/GameRoot.cs` | Applies the stored display once at service init; new `RequestDataReset(afterReset)` — the single confirmation + reset path shared by F2×3 and Options |
+| `Assets/_Project/Scripts/Core/GameRoot.cs` | Applies the stored display once at service init; new `RequestDataReset(afterReset)` - the single confirmation + reset path shared by F2×3 and Options |
 | `README.md` | New, written from verified facts only (see §6) |
 | `Tools/LogicTests/Program.cs` | +31 assertions: display policy, fallback ordering, options row budget, settings round-trip incl. legacy strings |
 
@@ -39,7 +39,7 @@ Nothing else was touched. Challenge Mode / Extras remain absent from every menu 
 
 ## 3. Behaviour notes (decisions, with reasons)
 
-- **Audio:** two sliders — *Master volume* and *SFX volume* — both live, both persisted, both
+- **Audio:** two sliders - *Master volume* and *SFX volume* - both live, both persisted, both
   clamped 0..1 so mute and max are exact. The SFX slider feeds `SettingsSystem.SfxVolume`
   (= master × sfx) which `AudioDirector` already consumes on `SettingsChanged`, so it cannot touch
   anything else. No music slider, per the brief. *Honest note:* the build does contain ambient
@@ -53,13 +53,13 @@ Nothing else was touched. Challenge Mode / Extras remain absent from every menu 
   KEEP persists. Launch applies the stored mode and silently clears preferences the current display
   no longer supports.
 - **Reset:** Options → `RESET DATA…` and F2×3 both call `GameRoot.RequestDataReset`, which shows one
-  confirmation naming what is erased (progress, records, endings) and what is kept (all settings —
+  confirmation naming what is erased (progress, records, endings) and what is kept (all settings -
   they live in PlayerPrefs, the save file does not hold them). Cancel = `ConfirmationPopup` No, which
   touches nothing. F2 still needs three presses ≤1.5 s apart and disarms on gaps.
 - **States:** buttons keep their hover/focus/pressed ColorBlock; sliders brighten handle+label on
   hover and show a % value; toggles tint their row on hover; selected resolution / text-size buttons
   use the same raised fill as before; unused resolution buttons are hidden, never dead.
-- **The red "X"** in a checked box is the sheet's on-state mark (`AccentBright`) — kept for
+- **The red "X"** in a checked box is the sheet's on-state mark (`AccentBright`) - kept for
   consistency with the rest of the game's single-red language.
 
 ## 4. Resolution / aspect-ratio checklist
@@ -70,7 +70,7 @@ Nothing else was touched. Challenge Mode / Extras remain absent from every menu 
 | Options row budget ≤ 505 px column at the 1280×720 reference (13 stacked rows + spacing) | **PASS** (unit test) |
 | ≥20 px clearance between the column bottom and CONTROLS/BACK | **PASS** (unit test) |
 | Revert window cannot re-flow or overflow rows (anchored outside the column) | **PASS** (unit test + code) |
-| 1920×1080 · 2560×1080 (21:9) · 1024×768 (4:3) · windowed 1366×768 / 1600×900 | **NOT TESTED** — needs the Unity editor; `AspectMatchGuard` math for these was verified in the previous hotfix |
+| 1920×1080 · 2560×1080 (21:9) · 1024×768 (4:3) · windowed 1366×768 / 1600×900 | **NOT TESTED** - needs the Unity editor; `AspectMatchGuard` math for these was verified in the previous hotfix |
 | Text-size Large with long labels ("Photosensitivity safe (no strobe, softened scares)") | **NOT TESTED** in editor; labels wrap (VerticalWrapMode.Wrap) and rows are fixed-height by design |
 
 ## 5. Functional checklist
@@ -85,7 +85,7 @@ Nothing else was touched. Challenge Mode / Extras remain absent from every menu 
 | Resolution list from supported modes, deduped, current included | **PASS** policy (unit tests); `Screen.resolutions` read runtime not tested |
 | Unsupported/failed display change recovers | **PASS** policy fallback + 15 s revert + boot-time clearing (unit tests for policy; Screen calls runtime not tested) |
 | No redundant Apply button (everything is immediate) | **PASS** |
-| Controls screen matches real bindings | **PASS** — A/D + ←/→, Shift run, E interact, F flashlight, M map, Esc pause, mouse desk, click/Space/Enter/E dialogue, mouse-only security room, F2×3 / Options reset (`PlayerController.cs:57-72,159`, `DialogueView.cs:156`, `CheckpointView`, `SecurityRoomView`) |
+| Controls screen matches real bindings | **PASS** - A/D + ←/→, Shift run, E interact, F flashlight, M map, Esc pause, mouse desk, click/Space/Enter/E dialogue, mouse-only security room, F2×3 / Options reset (`PlayerController.cs:57-72,159`, `DialogueView.cs:156`, `CheckpointView`, `SecurityRoomView`) |
 | No remapping UI shown | **PASS** (display-only, as permitted) |
 | Reset shows confirmation, explains scope, offers Cancel | **PASS** (code) |
 | Reset and F2×3 share one path | **PASS** (`GameRoot.RequestDataReset`) |
@@ -95,7 +95,7 @@ Nothing else was touched. Challenge Mode / Extras remain absent from every menu 
 | Challenge Mode / Extras hidden | **PASS** (static audit asserts their absence) |
 | No dead/misleading buttons | **PASS** by construction (every button has an onClick; unused resolution buttons are hidden) |
 | Logic suite (rules + display policy + layout budget) | **PASS 27,106 / 27,106** |
-| Play-mode feel, audio mix, pixel layout, Windows build | **NOT TESTED** — no Unity editor in this environment |
+| Play-mode feel, audio mix, pixel layout, Windows build | **NOT TESTED** - no Unity editor in this environment |
 
 ## 6. README
 
@@ -120,10 +120,10 @@ explicitly marked.
 6. Your screenshot 2 shows a navy rounded box at the bottom-right that ignores the Game-view border
    (it overlaps editor chrome), so it is most likely an OS/overlay artifact, not game UI. If it
    persists, pause Play, click it, and read
-   `EventSystem.current.currentSelectedGameObject.name` / the hovered raycast target — if it ever
+   `EventSystem.current.currentSelectedGameObject.name` / the hovered raycast target - if it ever
    names one of our objects, tell me the name and I'll trace it.
 
 ## 8. Before / after (schematics)
 
 `docs/ui/options_before.svg` and `docs/ui/options_after.svg` are **diagrams generated from the layout
-constants**, not editor captures — this sandbox has no Unity, so true screenshots remain yours to take.
+constants**, not editor captures - this sandbox has no Unity, so true screenshots remain yours to take.

@@ -21,10 +21,13 @@ radio reports a roll-call discrepancy, and the absence is permanent.
 cabinet (pick Room 101 or Room 202, A-Z files), the **ID card** and **paper slip** (already on your
 desk), the **rules note** and **tonight's log** (with ID numbers), and the **questions panel**.
 
-- **The one question:** *Which classroom are you going to?* (button or `1`). It is free. The
-  answer shows in the bubble and stays in the panel under "THEY ANSWERED". Compare it with the
-  student's file. A lie is one of: the other real room, a room the school does not have (303, 305,
-  410), or the right room with the wrong class. Lies only start on night 2.
+- **The four questions:** your course, your year, regular or transferee, first classroom (buttons
+  or keys `1` to `4`). You can ask only **2 per student** (the panel shows `2/2`), so choose. Year
+  unlocks once you have flipped the ID, status once you have opened their file; hearing an answer
+  again is free. The answer shows in the bubble and stays on its button. Compare it with the card
+  and the student's file. An anomaly lies about the room (the other room, a room the school does
+  not have, or the wrong class) or about course, year or status. Lies start on night 2, and a
+  strange tone of voice tells you something is off before you spend the second question.
 - **The ID** flips only by its black spine (or `F`). Click it to inspect it enlarged; an open file
   stays visible next to it. The face at the window vs the ID photo is **your own eyes**.
 - **Faces:** the ID always shows the real student. The window shows the same person unless the
@@ -37,10 +40,14 @@ desk), the **rules note** and **tonight's log** (with ID numbers), and the **que
   either ends the run on the last night.
 - The prompt line at the top always names the next step.
 
-**Patrol (A/D or arrows, Shift run, E interact):** every room is entered **dark**. Each has a wall
+**Patrol (A/D or arrows, Shift run, E interact):** the corridor, both classrooms and the comfort room
+are painted (the hallway art changes with the lights), and inspecting a clue shows its close up
+beside the text. every room is entered **dark**. Each has a wall
 switch (E). The handheld **flashlight** is separate: `F` sweep on/off, `Q` focus, `L` off. Rooms
 1 and 2 are inspected by **peeking** from the doorway with a cursor lamp (`F` on/off, `Q` wide/tight);
-the exit is the bottom edge or `E` on the doorway. The beam runs on a battery. Holding Focus on a
+the exit is the bottom edge or `E` on the doorway. The hallway's east end has a door to the
+**comfort room** (press `E`, next to the sealed server door): a room you walk into, dimmed far
+more than the others, so only the flashlight shows anything. The same door takes you back out. The beam runs on a battery. Holding Focus on a
 roaming anomaly fills TRACK: roaming -> stalking -> detected -> exposed -> repelled (it retreats and
 drops a token, and may return). Ten clues across three rooms, found in order, open the secret ending.
 

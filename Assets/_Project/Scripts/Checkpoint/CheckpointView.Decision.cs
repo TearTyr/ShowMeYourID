@@ -27,7 +27,8 @@ namespace Hollowbrook.Checkpoint
             qHead.font = UIFactory.UiFontBold;
             L.Place(qHead.rectTransform, L.Inner.QHead);
             qHead.rectTransform.localScale = new Vector3(0.72f, 1f, 1f);   // condensed, like the board
-            _qKeyHint = UIFactory.Label(qPanel, "keyhint", "KEY [1]", 14, UIFactory.NsMid, TextAnchor.MiddleRight);
+            // "2/2": how many questions are left for this student (the concept's counter)
+            _qKeyHint = UIFactory.Label(qPanel, "keyhint", "2/2", 24, UIFactory.NsChalk, TextAnchor.MiddleRight);
             _qKeyHint.font = UIFactory.UiFontBold;
             _qKeyHint.horizontalOverflow = HorizontalWrapMode.Overflow;
             L.Place(_qKeyHint.rectTransform, L.Inner.QKeyHint);
@@ -38,32 +39,26 @@ namespace Hollowbrook.Checkpoint
             L.Place(_qEmpty.rectTransform, new L.Region(L.Inner.QBtnX, 100f, L.Inner.QBtnW, 20));
             _qEmpty.gameObject.SetActive(false);
 
-            _questionBtn = UIFactory.StandardButton(qPanel, "q0", ClassroomQuestion.ButtonLabel, AskClassroom,
-                (int)L.Inner.QBtnW, (int)L.Inner.QBtnH);
-            L.Place(_questionBtn.GetComponent<RectTransform>(),
-                new L.Region(L.Inner.QBtnX, L.Inner.QContentY0 + 2f, L.Inner.QBtnW, L.Inner.QBtnH));
-            SizeLabel(_questionBtn, 14);
-            var bt = _questionBtn.GetComponentInChildren<UnityEngine.UI.Text>();
-            if (bt != null)
+            // four buttons, top to bottom: course, year, status, classroom (keys 1 to 4)
+            for (int i = 0; i < InterviewRules.Count; i++)
             {
-                bt.font = UIFactory.UiFont;
-                bt.color = UIFactory.NsChalk;
-                bt.horizontalOverflow = HorizontalWrapMode.Wrap;   // the question needs two lines
-                bt.verticalOverflow = VerticalWrapMode.Truncate;
+                var q = (QuestionId)i;
+                var b = UIFactory.StandardButton(qPanel, "q" + i, InterviewRules.Button(q), () => Ask(q),
+                    (int)L.Inner.QBtnW, (int)L.Inner.QBtnH);
+                L.Place(b.GetComponent<RectTransform>(), new L.Region(L.Inner.QBtnX,
+                    L.Inner.QContentY0 + 2f + i * L.Inner.QBtnStep, L.Inner.QBtnW, L.Inner.QBtnH));
+                SizeLabel(b, 13);
+                var bt = b.GetComponentInChildren<UnityEngine.UI.Text>();
+                if (bt != null)
+                {
+                    bt.font = UIFactory.UiFont;
+                    bt.color = UIFactory.NsChalk;
+                    bt.horizontalOverflow = HorizontalWrapMode.Wrap;   // an answer can take two lines
+                    bt.verticalOverflow = VerticalWrapMode.Truncate;
+                }
+                b.gameObject.SetActive(false);
+                _questionBtns[i] = b;
             }
-            _questionBtn.gameObject.SetActive(false);
-
-            // what the student answered stays here, so it can be checked against the file
-            _qAnswerHead = UIFactory.Label(qPanel, "answerhead", "THEY ANSWERED:", 11,
-                UIFactory.NsMid, TextAnchor.MiddleLeft);
-            _qAnswerHead.font = UIFactory.UiFontBold;
-            L.Place(_qAnswerHead.rectTransform, L.Inner.QAnswerHead);
-            _qAnswer = UIFactory.Label(qPanel, "answer", "", 16, UIFactory.NsChalk, TextAnchor.UpperLeft);
-            _qAnswer.font = UIFactory.UiFontBold;
-            _qAnswer.horizontalOverflow = HorizontalWrapMode.Wrap;
-            L.Place(_qAnswer.rectTransform, L.Inner.QAnswer);
-            _qAnswerHead.gameObject.SetActive(false);
-            _qAnswer.gameObject.SetActive(false);
         }
 
         private void BuildToolsRow()
@@ -77,7 +72,7 @@ namespace Hollowbrook.Checkpoint
                 () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, L.UtilityRecords, L.TiltLog);
             Reg("records", _recordsBtn, L.UtilityRecords);
             // the mockup's inline college map: a panel-button (click still opens the full
-            // overlay) whose chalk list mirrors the ground-floor plan the overlay draws —
+            // overlay) whose chalk list mirrors the ground-floor plan the overlay draws -
             // same rooms, same order, same wording, so the two can never disagree
             _mapBtn = GridButton(_desk, "map", "", () => _gameRoot.OpenMap(), L.UtilityMap, 16);
             Reg("map", _mapBtn, L.UtilityMap);
@@ -96,7 +91,7 @@ namespace Hollowbrook.Checkpoint
             L.Place(mf.rectTransform, new L.Region(14, 42, 90, 14));
             mf.font = UIFactory.UiFont;
             // hand-drawn room boxes (map-local): the reference plan's composition in
-            // miniature — both classrooms along the north wall, the hall between them and
+            // miniature - both classrooms along the north wall, the hall between them and
             // the security room, the checkpoint south-west, the comfort rooms north and
             // south of the sealed server room at the east end. Same rooms, same order as
             // the full plan, so the two can never disagree.
@@ -108,7 +103,7 @@ namespace Hollowbrook.Checkpoint
                 new float[] { 214, 84, 52, 26 },
             };
             string[] tags = { "ROOM 101", "ROOM 202", "MAIN HALL", "SECURITY",
-                              "CR-1", "CR-2", "SERVER — SEALED" };
+                              "CR-1", "CR-2", "SERVER - SEALED" };
             for (int i = 0; i < boxes.Length; i++)
             {
                 bool sealedRoom = i == boxes.Length - 1;
@@ -122,7 +117,7 @@ namespace Hollowbrook.Checkpoint
                 UIFactory.AnchorsFull(bl.rectTransform);
                 bl.font = UIFactory.UiFont;
             }
-            var mh = UIFactory.Label(_mapBtn.transform, "mhint", "CLICK — OPEN THE FULL PLAN", 9,
+            var mh = UIFactory.Label(_mapBtn.transform, "mhint", "CLICK - OPEN THE FULL PLAN", 9,
                 UIFactory.NsMid, TextAnchor.MiddleRight);
             L.Place(mh.rectTransform, new L.Region(90, 150, 190, 12));
             mh.font = UIFactory.UiFont;
@@ -140,7 +135,7 @@ namespace Hollowbrook.Checkpoint
             Reg("notes", _notesBtn, L.UtilityNotes);
 
             // verdicts are physical: drag a stamp onto the slip to commit.
-            // No confirm buttons anywhere — the stamp act IS the confirmation.
+            // No confirm buttons anywhere - the stamp act IS the confirmation.
         }
 
         // A paper prop: kit sheet art on the desk, tilted like the concept art paints it,
@@ -162,19 +157,31 @@ namespace Hollowbrook.Checkpoint
             return b;
         }
 
-        // The questions panel at a glance: the button label colour and the answer note.
+        // The questions panel at a glance: which questions are open, which are used up, and the
+        // answer on every button that has been asked.
         private void RefreshQuestionsPanel(bool atWindow)
         {
             Color ink = _kitOn ? UIFactory.NsInk : UIFactory.NsChalk;
-            var t = _questionBtn.GetComponentInChildren<Text>();
-            if (t != null) t.color = ink;
-            bool answered = atWindow && _classroomAsked && _current != null;
-            _qAnswerHead.gameObject.SetActive(answered);
-            _qAnswer.gameObject.SetActive(answered);
-            if (!answered) return;
-            _qAnswerHead.color = _kitOn ? new Color(0.30f, 0.30f, 0.30f) : UIFactory.NsMid;
-            _qAnswer.color = ink;
-            _qAnswer.text = _current.ClassroomAnswer;
+            if (_qKeyHint != null)
+                _qKeyHint.text = InterviewRules.Remaining(_questionMask) + "/" + InterviewRules.Budget;
+            for (int i = 0; i < InterviewRules.Count; i++)
+            {
+                var b = _questionBtns[i];
+                if (b == null) continue;
+                b.gameObject.SetActive(atWindow);
+                var t = ButtonLabel(b);
+                if (t == null || _current == null) continue;
+                var q = (QuestionId)i;
+                bool asked = InterviewRules.Asked(_questionMask, q);
+                bool open = InterviewRules.Unlocked(q, _idFlipped, _fileOpened) && InterviewRules.CanAsk(_questionMask, q);
+                if (asked)
+                    t.text = InterviewRules.Tag(q) + ": " + (q == QuestionId.Classroom ? _current.ClassroomAnswer : _current.Answers[i]);
+                else if (!InterviewRules.Unlocked(q, _idFlipped, _fileOpened))
+                    t.text = InterviewRules.Button(q) + " [" + InterviewRules.LockedTag(q) + "]";
+                else t.text = InterviewRules.Button(q);
+                float k = open || asked ? 1f : 0.45f;   // locked and used-up questions are dimmed, not hidden
+                t.color = new Color(ink.r * k, ink.g * k, ink.b * k, 1f);
+            }
         }
 
         private void BuildStampTray()
@@ -203,8 +210,8 @@ namespace Hollowbrook.Checkpoint
         }
 
         // Papers, Please stamping: the mark lands WHERE the player released the stamp on
-        // the slip. The drop centre (desk space) is converted into the slip's own space —
-        // position, scale and resting tilt included — then clamped so the whole
+        // the slip. The drop centre (desk space) is converted into the slip's own space -
+        // position, scale and resting tilt included - then clamped so the whole
         // tilted mark stays inside the printable area: a drop near a corner stamps near
         // that corner, a drop in the middle stamps the middle, nothing ever hangs off the
         // paper. It records a PENDING verdict: nothing is scored until hand-back.
@@ -246,13 +253,13 @@ namespace Hollowbrook.Checkpoint
         // inspection; the clamp budget (StampMaxTilt) covers the tilt's corners.
         //
         // 60px on the 200x120 slip, big enough to read at a glance
-        // and 30% of the slip's width — the same footprint class as the original 56px art, with
+        // and 30% of the slip's width - the same footprint class as the original 56px art, with
         // the temp ink asset's tighter margins keeping the NAME / ID lines readable around it.
         // Square sizeDelta + preserveAspect keep the ink undistorted; the printable clamp
         // (margin 39.8px) still holds the whole tilted mark on the paper. internal so the
         // headless proofs clamp and measure with the SAME numbers the view renders with.
         internal const float StampMarkSize = 60f;
-        internal const float StampMaxTilt = 18f;   // |−12 + [−6..+6]| — the seeded tilt span
+        internal const float StampMaxTilt = 18f;   // |−12 + [−6..+6]| - the seeded tilt span
         internal const float StampEdgePad = 2f;    // breathing room between mark and edge
 
         private void PlaceStampMark(Verdict v, Vector2 localCentre)
@@ -307,10 +314,8 @@ namespace Hollowbrook.Checkpoint
             bool collapsed = Queue != null && Queue.Collapsed;
             bool atWindow = _current != null && !_verdictLocked && !collapsed;
             bool live = atWindow && _documentsTaken;
-            _questionBtn.gameObject.SetActive(atWindow);
             _qEmpty.gameObject.SetActive(!atWindow);
             _qKeyHint.gameObject.SetActive(atWindow);
-            UIFactory.SetButtonEnabled(_questionBtn, atWindow);
             RefreshQuestionsPanel(atWindow);
             RefreshStamps(live);
             bool patrolOn = !atWindow && Queue != null && Queue.Started && !collapsed;
@@ -327,8 +332,8 @@ namespace Hollowbrook.Checkpoint
         public void Stamp(Verdict verdict)
         {
             if (_current == null || _verdictLocked || !_documentsTaken) return;
-            if (Queue != null && Queue.Collapsed) return;   // the line overran the checkpoint — verdicts are dead
-            _verdictLocked = true; // §2.4 — decisions are permanent
+            if (Queue != null && Queue.Collapsed) return;   // the line overran the checkpoint - verdicts are dead
+            _verdictLocked = true; // §2.4 - decisions are permanent
             var mutation = _gameRoot.Session.Mode == GameMode.Challenge ? _gameRoot.Session.ActiveMutation : null;
             var outcome = InspectionRules.Apply(_current, verdict, mutation);
 
@@ -338,12 +343,12 @@ namespace Hollowbrook.Checkpoint
             // silent verdict: the log records the call, never whether it was right
             _tonightsLog.Append("  ").Append(_current.IsAdministrator ? "ADMINISTRATOR" : _current.ClaimedName)
                 .Append(" (").Append(_current.IdNumber).Append(")")
-                .Append(" — ").Append(verdict == Verdict.Allow ? "ALLOWED" : "REJECTED").Append("\n");
+                .Append(" - ").Append(verdict == Verdict.Allow ? "ALLOWED" : "REJECTED").Append("\n");
 
             var resolved = _current;
             _gameRoot.OnVerdictResolved(resolved, outcome);           // counters update BEFORE the banner reads them
             if (_gameRoot.State == AppViewState.Ending) { Hide(); return; } // ending took over (C3/C4)
-            if (Queue != null) Queue.CommitActiveResolution();                // the queue books it NOW — a
+            if (Queue != null) Queue.CommitActiveResolution();                // the queue books it NOW - a
                                                                       // quit mid-banner can never make
                                                                       // this visitor stampable again
             RefreshHud();
@@ -351,7 +356,7 @@ namespace Hollowbrook.Checkpoint
             StartCoroutine(AfterStamp(resolved));
         }
 
-        // Silent verdict: the banner states the decision and nothing else — never whether
+        // Silent verdict: the banner states the decision and nothing else - never whether
         // the call was correct. The thrill lives in not knowing until the night judges you.
 
         private IEnumerator StampPunch(Verdict verdict)
@@ -376,7 +381,7 @@ namespace Hollowbrook.Checkpoint
         }
 
         // The post-stamp beat: the mark lands, the subject leaves, the next steps up.
-        // Deliberately wordless — feedback is the stamp, the sound, the walking figure.
+        // Deliberately wordless - feedback is the stamp, the sound, the walking figure.
         private IEnumerator AfterStamp(VisitorData resolved)
         {
             yield return WaitUnpaused(BannerSeconds);

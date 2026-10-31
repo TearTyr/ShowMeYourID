@@ -116,7 +116,7 @@ namespace Hollowbrook.Logic
         private static AdminTalkOption Back() =>
             O("back", "[Go back to the other questions.]", HubId, AdminTalkCond.None, true);
         private static AdminTalkOption Refuse() =>
-            O("refuse", "[REFUSE ENTRY — stamp him away.]", "", AdminTalkCond.None, true, AdminTalkAction.Refuse);
+            O("refuse", "[REFUSE ENTRY - stamp him away.]", "", AdminTalkCond.None, true, AdminTalkAction.Refuse);
         private static AdminTalkOption StepBack() =>
             O("end", "[Step back from the glass. The stamp is yours.]", "", AdminTalkCond.None, true, AdminTalkAction.StepBack);
 
@@ -155,7 +155,7 @@ namespace Hollowbrook.Logic
             Topic(s, "name",
                 "Marlowe, Vance. District paperwork is a river, custodian; names bend in it. The memo confirms an administrator is expected tonight. It confirms me.",
                 "Then read the memo with me. Out loud.",
-                "…'R. Vance — DA-1147.' Fine. Vance is my supervisor's line-item. The district sends a face, not a surname. You stamp for the face in front of you.");
+                "…'R. Vance - DA-1147.' Fine. Vance is my supervisor's line-item. The district sends a face, not a surname. You stamp for the face in front of you.");
             Topic(s, "num",
                 "DA-0233 is my field number. DA-1147 is my office number. The district issues both. I did not expect a night custodian to have opinions about its numbering scheme.",
                 "The rule says badge and memo must match. They don't.",

@@ -12,7 +12,7 @@ namespace Hollowbrook.UI
 {
     // The black NIGHT title card behind intro dialogue. Created by each scene bootstrap.
     // PlayNightTitle fades the card's words in slowly, holds them, then hands over to the
-    // dialogue box — a click skips ahead.
+    // dialogue box - a click skips ahead.
     public class LoadingView : MonoBehaviour, IScreenView
     {
         private Text _label, _sub;
@@ -34,7 +34,7 @@ namespace Hollowbrook.UI
             kitBg.rectTransform.SetAsFirstSibling();
             _label = UIFactory.Label(_bg.transform, "label", "", 40, UIFactory.Ink, TextAnchor.MiddleCenter);
             UIFactory.Anchor(_label.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(900, 80), new Vector2(0, 30));
-            _sub = UIFactory.Label(_bg.transform, "sub", "HOLLOWBROOK COLLEGE — NIGHT CUSTODIAN PROGRAM", 15, UIFactory.InkFaint, TextAnchor.MiddleCenter);
+            _sub = UIFactory.Label(_bg.transform, "sub", "HOLLOWBROOK COLLEGE - NIGHT CUSTODIAN PROGRAM", 15, UIFactory.InkFaint, TextAnchor.MiddleCenter);
             UIFactory.Anchor(_sub.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(900, 30), new Vector2(0, -30));
             // a click anywhere on the card skips the title (only live while a title is playing)
             var skip = _bg.AddComponent<Button>();

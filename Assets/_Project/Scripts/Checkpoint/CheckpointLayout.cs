@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Hollowbrook.Checkpoint
 {
     // The approved desk grid: absolute rects in 1280x720 reference pixels, origin top-left,
-    // y down — transcribed 1:1 from desk_layout_wireframe.svg. Everything on the desk and in
+    // y down - transcribed 1:1 from desk_layout_wireframe.svg. Everything on the desk and in
     // the HUD top bar is a child of one fixed, centred frame and is placed only through
     // Place() => UIFactory.PlaceTL. No corner pins, no per-element anchor choices, no layout
     // maths anywhere else.
@@ -59,9 +59,9 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region Station = new Region(40, 85, 305, 160);   // FLOOR FILES registry
         // the floor-files drawer: the cabinet MOUTH, a fixed grid rect under the station.
         // It never moves (the layout audit pins it); the drawer body inside it slides out on
-        // a fast ease-out — see CheckpointView.FileDrawer + DrawerMotion. Same left-column
+        // a fast ease-out - see CheckpointView.FileDrawer + DrawerMotion. Same left-column
         // width, in the free gap between the station (bottom 259) and the queue strip
-        // (top 482). The pulled record sheet (home 16,168 320x290) lands on top of it — the
+        // (top 482). The pulled record sheet (home 16,168 320x290) lands on top of it - the
         // mouth is built before the papers layer, so a pulled file always covers the drawer.
         // 202px tall: it stops clear of the waiting-line strip at y=482 (bottom 516).
         public static readonly Region FileDrawer = new Region(55, 255, 275, 290);
@@ -73,7 +73,7 @@ namespace Hollowbrook.Checkpoint
         // counter edge: the student slides the ID here on arrival (root is scaled 0.6,
         // so the drawn card rests on the sill at ~132x99)
         public static readonly Region OfferedId = new Region(405, 208, 320, 220);  // rests on the counter, in front of the glass
-        // the paper slip rides beside it on the counter — container == drawn slip
+        // the paper slip rides beside it on the counter - container == drawn slip
         // (SlipArt x SlipScale), clear of the stamps and the button row
         public static readonly Region CounterSlip = new Region(678, 505, SlipArtW * SlipScale, SlipArtH * SlipScale);
 
@@ -110,7 +110,7 @@ namespace Hollowbrook.Checkpoint
         // slot) so the right column stays balanced: questions above, stamps below,
         // open desk underneath for spreading papers. Sized at ~78% of the original 152x150
         // boxes (a 22% linear cut) and centred in the same 296..446 band: 8px apart, the D
-        // box's right edge flush with the old one, both rows aligned — same colours, labels
+        // box's right edge flush with the old one, both rows aligned - same colours, labels
         // and typography, a smaller footprint with a comfortable 118x117 grab area.
         // Re-baselined to the owner's SecurityRoom kit: the tray circles sit where the kit's
         // Stamp BG layer paints them (measured from the 2880x1620 export), enlarged to keep the
@@ -140,7 +140,7 @@ namespace Hollowbrook.Checkpoint
         // the reading sheet for the rules note / tonight's log: centred over the desk with
         // room for crest, hand title, the hand-written block AND the printed live text
         // the reading sheet: the kit's photographed paper at its OWN aspect (789x879),
-        // centred — the art carries crest, title, the hand-written block and the baked
+        // centred - the art carries crest, title, the hand-written block and the baked
         // tilt, so nothing is re-typeset or rotated over it
         public static readonly Region PaperOverlay = new Region(362, 24, 556, 620);
         public static readonly Region FullDesk = new Region(0, 0, 1280, 720);
@@ -149,7 +149,7 @@ namespace Hollowbrook.Checkpoint
         // Waiting-line silhouette strips stand in the free gaps either side of the booth:
         // left column ends at x=336, the window sill ends at x=875, END SHIFT at x=880.
         // The right strip carries the waiting-count badge above its figures. The full
-        // QUEUE/CURRENT readout is the banner's second line (Inner.BannerQueue) — the
+        // QUEUE/CURRENT readout is the banner's second line (Inner.BannerQueue) - the
         // top bar's right side is fully claimed by the frozen wireframe (clock, pause,
         // findings), so no new top-level top-bar region exists to take it.
         public static readonly Region QueueStripL = new Region(350, 108, 123, 34);
@@ -171,14 +171,14 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region TrackCap = new Region(6, 4, 60, 14);
             public static readonly Region TrackTrack = new Region(6, 20, 108, 12);
 
-            // floor-files station (panel-local): caption and the two folder tabs — all
+            // floor-files station (panel-local): caption and the two folder tabs - all
             // centred in the cabinet width so the front reads as one symmetric face
             public static readonly Region StationCap = new Region(22.5f, 15, 260, 20);
             public const float FolderTabX = 37.5f, FolderTabY0 = 40f, FolderTabStep = 35f,
                                FolderTabW = 230f, FolderTabH = 34f;
             // floor-files drawer (body-local): the drawer front lip covers the top of the
             // mouth while shut, the header rides just under it, and the file rows start below
-            // both — 7 rows fit the pulled drawer (see DrawerRowCapacity)
+            // both - 7 rows fit the pulled drawer (see DrawerRowCapacity)
             public const float DrawerFrontH = 25f;                           // the pulled front bracket
             public const float DrawerLipH = 28f;                   // the mask the body slides behind
             public const float DrawerBodyH = 255f;                 // the row sheet inside the mouth
@@ -203,7 +203,7 @@ namespace Hollowbrook.Checkpoint
             // id card (sprite is printed 1:1 at 320x220)
             public static readonly Region IdHeader = new Region(0, 2, 320, 24);
             public static readonly Region IdPhoto = new Region(10, 46, 90, 118);
-            // the photo frame printed on the student card template (id_card_template.png)
+            // the photo frame printed on the student card template (sec_id_card_template.png)
             public static readonly Region IdPhotoTemplate = new Region(18, 85, 80, 94);
             public const float IdRowX = 112f, IdRowW = 200f, IdRowH = 16f;
             public static readonly float[] IdRules = { 52f, 75f, 99f, 123f, 146f, 179f };
@@ -223,13 +223,13 @@ namespace Hollowbrook.Checkpoint
             public const float BubbleLineHKit = 18f;
             public const float BubbleKitTailW = 48f, BubbleKitEdgeW = 14f, BubbleKitWhiteMargin = 6f;
             public const float BubbleKitInsetX = 10f, BubbleKitInsetY = 12f;
-            // the sec_bubble master's pixels per layout unit (ProceduralArt.FilePpus) — 480px tail = 48u
+            // the sec_bubble master's pixels per layout unit (ProceduralArt.FilePpus) - 480px tail = 48u
             public const float BubbleKitArtPxPerUnit = 10f;
             public static readonly Region BubbleTail = new Region(-34, 26, 44, 36);
 
             // the counter slip (panel-local): the written lines own the sheet. The verdict
             // mark lands WHERE the player drops the stamp (Papers, Please style), clamped
-            // fully inside the paper by StampPlacement — no printed target box.
+            // fully inside the paper by StampPlacement - no printed target box.
             public static readonly Region SlipReason = new Region(8, 52, 184, 56);
 
             // questions panel (panel-local): the header strip, then the one question button and
@@ -238,7 +238,7 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region QHead = new Region(16, 14, 150, 24);
             public static readonly Region QKeyHint = new Region(214, 14, 68, 24);
             public const float QBtnX = 16f, QBtnW = 266f;
-            public const float QContentY0 = 44f, QBtnH = 44f;
+            public const float QContentY0 = 44f, QBtnH = 34f, QBtnStep = 38f;   // four buttons fit above the painted border
             public static readonly Region QAnswerHead = new Region(16, 100, 266, 14);
             public static readonly Region QAnswer = new Region(16, 116, 266, 76);
 

@@ -10,7 +10,7 @@ namespace Hollowbrook.Bootstrap
         public const int Rate = 44100;
         private static readonly Dictionary<string, AudioClip> Cache = new Dictionary<string, AudioClip>();
         // Keys whose clip was LOADED from Resources/Audio: that clip is an imported asset and
-        // Destroy on it is refused by Unity ("Destroying assets is not permitted") — ClearCache
+        // Destroy on it is refused by Unity ("Destroying assets is not permitted") - ClearCache
         // drops the reference only. Clips built by Make() below are runtime objects and are freed.
         private static readonly HashSet<string> FileBacked = new HashSet<string>();
 

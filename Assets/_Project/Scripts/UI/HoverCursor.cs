@@ -10,7 +10,7 @@ namespace Hollowbrook.UI
     // Added by CheckpointView.Papers' SpineHandle beside the spine's Button.
     public class HoverCursor : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
-        // The fingertip pixel of cursor_hand (canvas row 0 is the TOP) — Unity's hotspot is
+        // The fingertip pixel of cursor_hand (canvas row 0 is the TOP) - Unity's hotspot is
         // measured from the texture's top-left, so this is the point that "clicks".
         private static readonly Vector2 Hotspot = new Vector2(8f, 2f);
 

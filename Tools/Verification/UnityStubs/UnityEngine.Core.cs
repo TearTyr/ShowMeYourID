@@ -18,7 +18,7 @@ namespace UnityEngine
         internal bool destroyed;
         // Set on stand-ins fabricated by Resources.Load: they represent IMPORTED ASSETS on
         // disk. The real engine refuses to Destroy those (editor and builds alike) and logs
-        // "Destroying assets is not permitted to avoid data loss." — the stub mirrors that
+        // "Destroying assets is not permitted to avoid data loss." - the stub mirrors that
         // guard so asset-destroy bugs surface headlessly instead of only in the owner's
         // editor console.
         internal bool isPersistentAsset;
@@ -102,7 +102,7 @@ namespace UnityEngine
         /// <summary>HEADLESS STUB BEHAVIOR: runs the enumerator synchronously (yielded
         /// instructions complete instantly) with an iteration guard, so game flow
         /// (transitions, banners, typewriters) executes in smoke tests. Real Unity paces
-        /// these over frames — engine code is written for real semantics.</summary>
+        /// these over frames - engine code is written for real semantics.</summary>
         public Coroutine StartCoroutine(IEnumerator routine)
         {
             RunSync(routine);
@@ -339,7 +339,7 @@ namespace UnityEngine
     public static class Debug
     {
         public static bool isDebugBuild = true;
-        // total LogError/LogException calls so far — proofs diff this around risky
+        // total LogError/LogException calls so far - proofs diff this around risky
         // operations (e.g. teardown) to assert the engine logged nothing
         public static int ErrorCount { get; private set; }
         public static void Log(object m) => Console.WriteLine("[LOG] " + m);
@@ -432,7 +432,7 @@ namespace UnityEngine
     public static class Resources
     {
         // Headless stand-in for Unity's Resources folder: Texture2D loads probe the REAL
-        // Assets/_Project/Resources tree (PNG header only — no pixel memory), so drop-in art
+        // Assets/_Project/Resources tree (PNG header only - no pixel memory), so drop-in art
         // (faces, stamps, the SecurityRoom kit) is exercised by the headless proofs exactly as
         // the editor would resolve it. Every other type stays null, as before.
         public static T Load<T>(string path) where T : Object
@@ -443,7 +443,7 @@ namespace UnityEngine
                 if (tex != null) return (T)(Object)tex;
             }
             // Fonts probe the real Resources tree too (file presence, no parsing): the kit
-            // families extracted from Art/SecurityRoom/1. Fonts/*.zip therefore win the
+            // families extracted from Art/UI/SecurityDesk/1. Fonts/*.zip therefore win the
             // UIFactory load order headless exactly as they do in the editor, and the proofs
             // can assert WHICH family a label ends up wearing.
             if (typeof(T) == typeof(Font))

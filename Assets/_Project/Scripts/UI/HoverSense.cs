@@ -13,7 +13,7 @@ namespace Hollowbrook.UI
         public Action OnEnter;
         public Action OnExit;
 
-        /// <summary>True between enter and exit — owners use it to ignore duplicate exits.</summary>
+        /// <summary>True between enter and exit - owners use it to ignore duplicate exits.</summary>
         public bool Hovering { get; private set; }
 
         public void OnPointerEnter(PointerEventData eventData)

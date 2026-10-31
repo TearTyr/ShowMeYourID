@@ -21,7 +21,7 @@ wait; completion only when source dry + line empty + window free. `GameRoot` own
 survives scene reloads - patrol pauses the clock (the desk view, the only ticker, is destroyed) and
 snapshots (waiting line, cursor, timer, asked flag) ride in the save. Anomaly arrivals can vanish
 one legitimate student (seeded roll, once per shift, line-first, permanent). Patrol is a
-side-scroller: ViewManager owns rooms, transitions and the combined illumination queries
+side-scroller: ViewManager owns rooms (hallway, two peek-only classrooms, the walkable comfort room), transitions and the combined illumination queries
 (BeamCovers / IsFocusLit / RoomLit); each room's LightController owns ONLY ambient light (wall
 switch + flicker); FlashlightRig owns ONLY the handheld beam (pure `BeamGeometry` cone,
 `FlashlightInput` arbitration, `BatteryModel`); RoomSpawner owns the single live-threat slot,
@@ -30,7 +30,7 @@ ambient spawn odds and recovery returns; WanderingAnomaly owns one encounter dri
 
 **One visitor, event flow:** sticky note gates the shift start (`Queue.Started`) -> `VisitorArrived`
 (desk presents from the queue; ID and slip are already on the desk) -> `QuestionAsked` (optional,
-free: the classroom answer goes to the bubble and the questions panel) -> stamp dropped on the slip
+up to 2 of 4 questions per student; the answer goes to the bubble and stays on its button) -> stamp dropped on the slip
 (a later stamp replaces it) -> ID dragged back to the window -> `VerdictStamped` (InspectionRules
 scores, `GameRoot.OnVerdictResolved` counts, exactly once) -> short pause -> `CompleteActive`
 promotes the oldest waiter, or the arrival clock runs, or `ShiftEnded` when the queue reports

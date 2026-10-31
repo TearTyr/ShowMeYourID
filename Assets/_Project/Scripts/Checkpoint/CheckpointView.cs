@@ -13,7 +13,7 @@ namespace Hollowbrook.Checkpoint
 {
     // The inspection desk: papers, questions, stamps, banners. Created by CheckpointSceneBootstrap.
     // Every element lives in one fixed 1280x720 DeskFrame and is placed only through the
-    // CheckpointLayout grid — see desk_layout_wireframe.svg for the approved design.
+    // CheckpointLayout grid - see desk_layout_wireframe.svg for the approved design.
     public partial class CheckpointView : MonoBehaviour, IScreenView
     {
         /// <summary>The ID card's resting display scale. The inspect
@@ -23,7 +23,7 @@ namespace Hollowbrook.Checkpoint
         private bool _kitOn;
         /// <summary>True once the HUD's live sanity meter got its kit tint (HUD is built after the desk).</summary>
         private bool _kitSanityApplied;
-        private const string BulletinShort = "⚠ DISTRICT BULLETIN — NEW RULE IN EFFECT · SEE RULES NOTE";
+        private const string BulletinShort = "⚠ DISTRICT BULLETIN - NEW RULE IN EFFECT · SEE RULES NOTE";
 
         private GameRoot _gameRoot;
         private RectTransform _root;
@@ -39,7 +39,9 @@ namespace Hollowbrook.Checkpoint
 
         private ShiftDef _shift;
         private VisitorData _current;
-        private bool _classroomAsked;   // the classroom question was asked of the current visitor
+        private int _questionMask;      // which questions were asked of the current visitor (InterviewRules.Bit)
+        private bool _idFlipped, _fileOpened;   // this visit: unlocks the year and status questions
+        private bool _classroomAsked => InterviewRules.Asked(_questionMask, QuestionId.Classroom);
         private bool _verdictLocked = true;
         private bool _flowActive;
 
@@ -61,8 +63,8 @@ namespace Hollowbrook.Checkpoint
         private Text _recName, _recNumber, _recYear, _recCourse, _recStatus, _recClassroom, _recHeader, _recEnrolled;
         private StringBuilder _tonightsLog = new StringBuilder();
 
-        private Button _questionBtn;
-        private Text _qKeyHint, _qAnswerHead, _qAnswer;
+        private Button[] _questionBtns = new Button[InterviewRules.Count];
+        private Text _qKeyHint;   // "2/2": questions left for this student
         private Text _qEmpty;   // deliberate empty state for the questions panel
         private GameObject _slipGo;
         private GameObject _papersLayer;
@@ -130,7 +132,7 @@ namespace Hollowbrook.Checkpoint
             gameObject.SetActive(false);
         }
 
-        // Places on the grid AND registers for the one-time rect audit — the only way desk
+        // Places on the grid AND registers for the one-time rect audit - the only way desk
         // elements get positioned.
         private void Reg(string name, RectTransform rt, L.Region r)
         {
@@ -189,7 +191,7 @@ namespace Hollowbrook.Checkpoint
             Show();
 
             // returning from patrol: the queue survived in GameRoot (clock paused while
-            // the desk was gone) — rebuild the presentation from it
+            // the desk was gone) - rebuild the presentation from it
             RestoreQueuePresentation();
         }
 
@@ -250,7 +252,7 @@ namespace Hollowbrook.Checkpoint
         // ---------------------------------------------------------------- queue drive
         // One frame of the arrival clock. Ticked on SCALED time from Update, so pause
         // (timeScale 0) and blocking sheets freeze it; the desk being destroyed (patrol)
-        // stops it entirely — the chosen rule: the line waits while you walk.
+        // stops it entirely - the chosen rule: the line waits while you walk.
         public void AdvanceQueue(float dt)
         {
             if (!_flowActive || Queue == null || !Queue.Started || Queue.Collapsed) return;
@@ -277,15 +279,15 @@ namespace Hollowbrook.Checkpoint
             }
             if (r.MissingStudent)
             {
-                // the radio speaks through the HUD toast — never through the student's bubble
+                // the radio speaks through the HUD toast - never through the student's bubble
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    "RADIO: ROSTER DISCREPANCY — an expected student never reached the checkpoint."));
+                    "RADIO: ROSTER DISCREPANCY - an expected student never reached the checkpoint."));
                 _gameRoot.Audio.PlaySfx("sfx_static", 0.25f);
             }
             if (r.PressureWarning)
             {
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    "RADIO: QUEUE PRESSURE — " + Queue.WaitingCount + " waiting at the gate."));
+                    "RADIO: QUEUE PRESSURE - " + Queue.WaitingCount + " waiting at the gate."));
                 _gameRoot.Audio.PlaySfx("sfx_intercom", 0.6f);
             }
             if (r.Overwhelmed)
@@ -309,7 +311,9 @@ namespace Hollowbrook.Checkpoint
         {
             Debug.Log("[Flow] PresentVisitor " + v.ClaimedName);
             _current = v;
-            _classroomAsked = restoreAsked && Queue != null && Queue.ActiveQuestionAsked;
+            _questionMask = restoreAsked && Queue != null ? Queue.ActiveQuestionMask : 0;
+            _idFlipped = false;
+            _fileOpened = false;
             _verdictLocked = false;
             // fresh hand-over state: nothing on the desk until the ID is offered and taken
             _documentsTaken = false;
@@ -326,7 +330,7 @@ namespace Hollowbrook.Checkpoint
         internal void DebugTakeDocuments() { TakeId(); DockIdToSlot(); }
 
         // The tap/debug docking: the card's top-left lands on its slot corner. (Centring
-        // the SLOT RECT would drift now that the card draws smaller than the rect —
+        // the SLOT RECT would drift now that the card draws smaller than the rect -
         // IdCardScale 0.82.)
         private void DockIdToSlot()
         {
@@ -334,7 +338,7 @@ namespace Hollowbrook.Checkpoint
             if (drag != null) drag.PlaceAt(new Vector2(L.IdCard.X, L.IdCard.Y));
         }
 
-        // One visitor reached the window: portrait and voices only — the papers arrive
+        // One visitor reached the window: portrait and voices only - the papers arrive
         // through the hand-over step (OnWindowClicked -> TakeId), not automatically.
         private void PresentVisitor(VisitorData v)
         {
@@ -364,17 +368,17 @@ namespace Hollowbrook.Checkpoint
             _gameRoot.EnterExploration();   // the queue rides in GameRoot; the clock pauses off-desk
         }
 
-        // Flip the held ID — its black spine is the click handle; the F key flips whichever
+        // Flip the held ID - its black spine is the click handle; the F key flips whichever
         // paper you touched last. The back face carries the subtle tier. The papers are
         // DECOUPLED: flipping one never touches the other (the slip used to ride along
         // because both flips rode one shared "last paper" state).
         internal void FlipId() => FlipPaper(_idCardGo);
 
-        // Keyboard flip (F): only the ID has a back face — the slip never flips.
+        // Keyboard flip (F): only the ID has a back face - the slip never flips.
         internal void FlipLastPaper() => FlipPaper(_idCardGo);
 
         // Both faces of one paper back to their born state: back hidden, front shown. The
-        // stamp mark is left exactly as it is — it is a layer of the slip and is cleared
+        // stamp mark is left exactly as it is - it is a layer of the slip and is cleared
         // (alpha + sprite) by the hand-over reset, never by a flip.
         // The printed faces live on the paper's scaled art layer (cardart / slipart); the
         // container only carries the pointer surface and the desk rect.
@@ -406,6 +410,7 @@ namespace Hollowbrook.Checkpoint
                 if (ch.name.EndsWith("back")) { bt = ch; break; }
             if (bt == null) return;
             bool on = !bt.gameObject.activeSelf;
+            if (on && paper == _idCardGo) _idFlipped = true;   // they have seen the back: the year question unlocks
             bt.gameObject.SetActive(on);
             foreach (Transform ch in root)
             {
@@ -429,7 +434,7 @@ namespace Hollowbrook.Checkpoint
         // (stub MonoBehaviours never get Update calls).
         internal void TickHotkeys()
         {
-            // Escape belongs to an open overlay sheet (Options/Controls/Credits) first —
+            // Escape belongs to an open overlay sheet (Options/Controls/Credits) first -
             // without this guard Esc over the pause menu would close Options AND unpause.
             // Esc closes an open desk sheet (rules / log) first; with none open it pauses
             if (Input.GetKeyDown(KeyCode.Escape) && !_gameRoot.BlockingOverlayOpen && InputGate.TryEscape())
@@ -448,8 +453,11 @@ namespace Hollowbrook.Checkpoint
             // T speaks with the administrator (or steps back out of the conversation); it is
             // inert unless the administrator is actually at the window
             if (Input.GetKeyDown(KeyCode.T)) ToggleAdminTalkByKey();
-            // 1 asks the classroom question (the panel shows the key)
-            if (Input.GetKeyDown(KeyCode.Alpha1)) AskClassroom();
+            // 1 to 4 ask the questions, top to bottom
+            if (Input.GetKeyDown(KeyCode.Alpha1)) Ask(QuestionId.Course);
+            if (Input.GetKeyDown(KeyCode.Alpha2)) Ask(QuestionId.Year);
+            if (Input.GetKeyDown(KeyCode.Alpha3)) Ask(QuestionId.Status);
+            if (Input.GetKeyDown(KeyCode.Alpha4)) Ask(QuestionId.Classroom);
             // F flips the ID (its spine does too). Verdicts and the hand-back have NO key: a
             // stamp is dragged onto the slip and the ID is dragged back to the window by hand.
             if (Input.GetKeyDown(KeyCode.F)) FlipLastPaper();
@@ -496,7 +504,7 @@ namespace Hollowbrook.Checkpoint
         {
             if (_gameRoot == null) return;
             // Bootstrap builds the desk BEFORE the HUD, so ApplyKitSkin could not tint the
-            // live sanity meter at Init — land it lazily on the first refresh where the HUD exists.
+            // live sanity meter at Init - land it lazily on the first refresh where the HUD exists.
             if (_kitOn && !_kitSanityApplied && _gameRoot.HUD != null)
             {
                 _gameRoot.HUD.ApplyKitSanity(true);

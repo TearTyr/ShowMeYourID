@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Hollowbrook.World
 {
     // The handheld beam: modes (Off/Sweep/Focus), cursor aiming, cone coverage, battery.
-    // Created by ViewManager. It never writes the room's LightController — ambient light and
+    // Created by ViewManager. It never writes the room's LightController - ambient light and
     // handheld light are separate systems; ViewManager answers combined illumination queries.
     //
     // Coordinate space: every query and placement uses the shared world/room plane (the world
@@ -38,7 +38,7 @@ namespace Hollowbrook.World
         private float _coneWorldW = 8f, _coneWorldH = 4.5f;   // light_cone: 512x288 px @ 64 ppu
         // ONE authoritative illumination pair: the stencil mask cuts the room darkness, the cone
         // sprite paints the warm beam on top. The mask's alpha cutoff is dropped to 0.05 so the
-        // hole reaches into the cone sprite's faintest feather — the reveal edge lands where the
+        // hole reaches into the cone sprite's faintest feather - the reveal edge lands where the
         // beam art is already almost transparent, which reads as a soft falloff with no second
         // layer, no rect artifacts and nothing that can desynchronise.
         private const float MaskOverScale = 1.06f;
@@ -58,11 +58,16 @@ namespace Hollowbrook.World
             _mask = maskGo.AddComponent<SpriteMask>();
             _mask.sprite = cone != null ? cone.sprite : null;
             _mask.isCustomRangeActive = true;
-            _mask.frontSortingOrder = 60;
-            _mask.backSortingOrder = 70;
+            // same rule as the peek lamp: the range must contain the darkness layer (and the hallway
+            // shroud, which draws on the same order), with front and back equal so it cannot be inverted
+            _mask.frontSortingOrder = WorldLayers.Darkness;
+            _mask.backSortingOrder = WorldLayers.Darkness;
             _mask.alphaCutoff = MaskAlphaCutoff;   // soft-edge hole: cut where the art is ~invisible
             ApplyBeam(LightMode.Off, true);
         }
+
+        /// <summary>The beam's sprite mask (headless diagnostics check its sorting range).</summary>
+        internal SpriteMask Mask => _mask;
 
         /// <summary>Is a world point inside the beam's actual cone? Sweep and Focus use their
         /// own range/angle; Off and dead battery cover nothing.</summary>
@@ -79,7 +84,7 @@ namespace Hollowbrook.World
         /// can never leave the player without a way to stun him.</summary>
         public void Recharge() { _battery = new BatteryState { Charge = 1f, Dead = false }; }
 
-        /// <summary>Room-entry reset: arriving in a room ALWAYS means arriving dark — the
+        /// <summary>Room-entry reset: arriving in a room ALWAYS means arriving dark - the
         /// beam goes off, latches clear, silently (no toast spam on every door); revival
         /// needs a deliberate F/Q. Called by ViewManager on every entry, patrol starts
         /// and peek returns included, so a transition can never carry a lit beam over
@@ -101,7 +106,7 @@ namespace Hollowbrook.World
         internal void Tick(float dt)
         {
             // peek rests the corridor beam: force Off AND clear the latches, so stepping back
-            // never re-lights it by itself — revival needs a deliberate F/Q (acceptance 7)
+            // never re-lights it by itself - revival needs a deliberate F/Q (acceptance 7)
             if (_gameRoot.State == AppViewState.RoomPeek)
             {
                 if (Beam != LightMode.Off) ApplyBeam(LightMode.Off, true);
@@ -122,7 +127,7 @@ namespace Hollowbrook.World
             (_gameRoot.Views != null && _gameRoot.Views.Transitioning);
 
         // Keyboard-only beam input: F sweeps (toggle on/off), Q focuses (toggle), L puts it
-        // out. The mouse buttons are deliberately NOT beam input — a held click (doors,
+        // out. The mouse buttons are deliberately NOT beam input - a held click (doors,
         // switches, dialogue) used to light the beam without any F press, which read as the
         // flashlight turning itself on. FlashlightInput keeps its momentary
         // hold parameters for the pure-logic suites; the rig simply never feeds them.
@@ -152,13 +157,13 @@ namespace Hollowbrook.World
 
             bool on = m != LightMode.Off && !BatteryDead;
             // SWITCHING THE LAMP ON IS INSTANT. The damped aim and the damped mode morph exist
-            // so a HELD lamp glides instead of jittering with the mouse — but on the press
+            // so a HELD lamp glides instead of jittering with the mouse - but on the press
             // itself there is nothing to glide from: the cone was invisible a moment ago, so
             // any smoothing there reads as lag (the owner's "the beam takes a moment to show
             // up"). So on an off->on transition the displayed aim and the displayed geometry
             // snap to their targets and the sprite is placed in the SAME call, which puts a
             // correctly-aimed, correctly-shaped, fully-lit beam on screen on the activation
-            // frame — no timer, no coroutine, no fade, no waiting for the next AimBeam.
+            // frame - no timer, no coroutine, no fade, no waiting for the next AimBeam.
             if (on && !wasOn)
             {
                 _aimSmooth = AimFromCursor(out _origin, out _dir);
@@ -211,7 +216,7 @@ namespace Hollowbrook.World
         // together. The DISPLAYED aim and geometry are damped towards their targets so a held
         // beam glides instead of flickering/stretching with raw mouse jitter, while the logical
         // cone test (_params/_dir) stays exact for gameplay. Switching the beam ON bypasses the
-        // damping entirely (see ApplyBeam) — the lamp is lit and aimed on the press itself.
+        // damping entirely (see ApplyBeam) - the lamp is lit and aimed on the press itself.
         private void AimBeam(float dt)
         {
             if (_cone == null || _cam == null) return;
@@ -275,7 +280,7 @@ namespace Hollowbrook.World
                 RecoverLitPerSecond = cfg.batteryRecoverLitPerSecond,
                 RebootFraction = cfg.batteryRebootFraction,
             };
-            // the REAL ambient state of the room — never a beam mode stored on the light
+            // the REAL ambient state of the room - never a beam mode stored on the light
             bool roomLit = _gameRoot.Views != null && _gameRoot.Views.RoomLit;
             float before = _battery.Charge;
             _battery = BatteryModel.Tick(_battery, Beam, roomLit, dt, p, out bool justDied, out bool justRebooted);
@@ -284,12 +289,12 @@ namespace Hollowbrook.World
             {
                 _latches = default;                        // deliberate input required to relight
                 ApplyBeam(LightMode.Off, false);
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the flashlight dies — let it breathe*", 2.4f, null));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the flashlight dies - let it breathe*", 2.4f, null));
                 _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.5f);
             }
             else if (justRebooted)
             {
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the flashlight coughs back to life — pick a beam*", 2f, null));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the flashlight coughs back to life - pick a beam*", 2f, null));
             }
 
             _pubThrottle -= dt;

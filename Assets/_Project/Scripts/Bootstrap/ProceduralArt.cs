@@ -23,15 +23,10 @@ namespace Hollowbrook.Bootstrap
         // unit, so world placeholder quads can scale in plain units (see MakeSolid).
         public const float QuadPpu = 4f;
 
-        // Temporary-asset aliases: a shipped placeholder can stand in for a procedural key
-        // without renaming anything. Removing the file restores the previous art instantly.
-        private static readonly Dictionary<string, string> FileAlias =
-            new Dictionary<string, string> { { "stamp_allow", "stamp_approval_temp" } };
-
         // 9-slice borders in TEXTURE PIXELS for kit sprites that must stretch without dragging
         // their detail: the dialogue bubble keeps its left tail and its rough edge intact.
         // Measured on the TRIMMED master (2879x1031): the tail+left edge run to x=480, the
-        // torn top/bottom/right edges to ~140. (x=left, y=bottom, z=right, w=top —
+        // torn top/bottom/right edges to ~140. (x=left, y=bottom, z=right, w=top -
         // UnityEngine's Sprite.border order.)
         private static readonly Dictionary<string, Vector4> FileBorders =
             new Dictionary<string, Vector4> { { "sec_bubble", new Vector4(480f, 140f, 140f, 140f) } };
@@ -41,26 +36,51 @@ namespace Hollowbrook.Bootstrap
         // lands as a real 48-unit border. At the default UI PPU the same slice would draw as
         // a 5-unit sliver and the bubble would lose its tail.
         private static readonly Dictionary<string, float> FilePpus =
-            new Dictionary<string, float> { { "sec_bubble", 10f } };
+            new Dictionary<string, float>
+            {
+                { "sec_bubble", 10f },
+                // the guard's frames are 452 px tall and the old drawn guard stood 3.5 world units
+                // high, so 129 px per unit keeps him the same size
+                { "char_guard_idle", 129f }, { "char_guard_walk_a", 129f }, { "char_guard_walk_b", 129f },
+                // backdrops: the three screen wide hallway covers 30 units, a room 17.8 (the camera's
+                // 16:9 view), the bathroom 17.1
+                { "bg_hallway_lit", 128f }, { "bg_hallway_unlit", 128f },
+                { "bg_classroom_1", 108f }, { "bg_classroom_2", 108f }, { "bg_comfort_room", 112f },
+                // props drawn about 3.4 units tall (doors), a 1.5 unit wall clock, a half unit token
+                { "prop_door_classroom_1", 308f }, { "prop_door_classroom_2", 299f },
+                { "prop_door_comfort", 225f }, { "prop_door_security", 215f }, { "prop_server_door", 219f },
+                { "prop_clock", 524f }, { "token", 1154f },
+            };
 
-        /// <summary>True when a real file (or a cached sprite) exists for the key — callers that
+        /// <summary>True when a real file (or a cached sprite) exists for the key - callers that
         /// have their own painter use this to fall back instead of showing a broken image.</summary>
-        // The owner's layered UI kit ships under its own folder; a key resolves from the flat
-        // Art folder first (long-standing convention), then from the kit folder, then from the
-        // procedural painter. Adding art never means renaming a key.
+        // The art folders under Resources/Art, in the order they are searched. A key is the
+        // file name without the extension and is unique across all folders (see
+        // docs/ART-NAMING.md), so adding art never means renaming a key. A key with no file
+        // falls back to the procedural painter.
+        private static readonly string[] ArtFolders =
+        {
+            "Art/",
+            "Art/Characters/",
+            "Art/UI/SecurityDesk/",
+            "Art/UI/MainMenu/",
+            "Art/Environment/Hallway/",
+            "Art/Environment/Rooms/",
+            "Art/Environment/Props/",
+            "Art/Environment/Inspect/",
+        };
+
         private static Texture2D LoadFileTexture(string key)
         {
-            string fileKey = FileAlias.TryGetValue(key, out var a) ? a : key;
-            var tex = Resources.Load<Texture2D>("Art/" + fileKey);
-            if (tex == null) tex = Resources.Load<Texture2D>("Art/" + key);
-            if (tex == null) tex = Resources.Load<Texture2D>("Art/SecurityRoom/" + fileKey);
-            if (tex == null) tex = Resources.Load<Texture2D>("Art/SecurityRoom/" + key);
-            if (tex == null) tex = Resources.Load<Texture2D>("Art/MainMenu/" + fileKey);
-            if (tex == null) tex = Resources.Load<Texture2D>("Art/MainMenu/" + key);
-            return tex;
+            foreach (var folder in ArtFolders)
+            {
+                var tex = Resources.Load<Texture2D>(folder + key);
+                if (tex != null) return tex;
+            }
+            return null;
         }
 
-        /// <summary>Every cached sprite key — the headless sprite export walks this.</summary>
+        /// <summary>Every cached sprite key - the headless sprite export walks this.</summary>
         public static System.Collections.Generic.IEnumerable<string> CachedKeys => Cache.Keys;
 
         public static bool TryGet(string key, out Sprite sprite)
@@ -97,7 +117,7 @@ namespace Hollowbrook.Bootstrap
                     return spr;
                 }
             }
-            catch (Exception) { /* no resources — fall through to procedural */ }
+            catch (Exception) { /* no resources - fall through to procedural */ }
 
             var built = Build(key);
             if (built != null) Cache[built.name] = built;
@@ -223,7 +243,7 @@ namespace Hollowbrook.Bootstrap
 
         private static Color G(float v, float a = 1f) => new Color(v, v, v, a);
 
-        /// <summary>Every sprite key the procedural painter knows — the exact list an asset
+        /// <summary>Every sprite key the procedural painter knows - the exact list an asset
         /// drop-in can replace (Resources/Art/&lt;key&gt;.png wins over the painter) and the list
         /// the asset manifest and the headless proofs cross-check against. Kept next to Build so
         /// a new case and a new name land in the same edit.</summary>
@@ -247,9 +267,9 @@ namespace Hollowbrook.Bootstrap
             "map_paper", "map_room", "map_sealed", "map_door",
         };
 
-        /// <summary>The Main Menu art kit (Assets/_Project/Resources/Art/MainMenu/&lt;key&gt;.png,
-        /// cut from Art/MainMenu by Tools/prep_mainmenu_art.py). Kit keys live OUTSIDE AllKeys —
-        /// they have no procedural painter, exactly like the SecurityRoom kit — but they resolve
+        /// <summary>The Main Menu art kit (Assets/_Project/Resources/Art/UI/MainMenu/&lt;key&gt;.png,
+        /// cut from Art/MainMenu by Tools/prep_mainmenu_art.py). Kit keys live OUTSIDE AllKeys -
+        /// they have no procedural painter, exactly like the SecurityRoom kit - but they resolve
         /// through the same Get()/LoadFileTexture() path and the same manifest rows. FlowCheck
         /// proves the folder ships whole (`== Main Menu art kit ==`).</summary>
         public static readonly string[] MainMenuKitKeys =
@@ -323,7 +343,7 @@ namespace Hollowbrook.Bootstrap
                 case "map_sealed": return MakeMapSealed(160, 120);
                 case "map_door": return MakeMapDoor(24, 20);
                 default:
-                    Debug.LogWarning("[ProceduralArt] unknown sprite key '" + key + "' — returning solid.");
+                    Debug.LogWarning("[ProceduralArt] unknown sprite key '" + key + "' - returning solid.");
                     return MakeSolid(G(1f, 0f));
             }
         }
@@ -459,13 +479,13 @@ namespace Hollowbrook.Bootstrap
                 if (spr == null) continue;
                 if (FileBacked.Contains(kv.Key))
                 {
-                    // kit/drop-in sprite: the texture belongs to the imported asset — releasing
+                    // kit/drop-in sprite: the texture belongs to the imported asset - releasing
                     // it is forbidden (and wrong: the next session reloads the same asset).
                     // Only the Sprite.Create wrapper is ours, so only that gets destroyed.
                     UnityEngine.Object.Destroy(spr);
                     continue;
                 }
-                // procedural sprite: texture and wrapper were both allocated here — free both.
+                // procedural sprite: texture and wrapper were both allocated here - free both.
                 if (spr.texture != null) UnityEngine.Object.Destroy(spr.texture);
                 UnityEngine.Object.Destroy(spr);
             }

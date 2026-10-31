@@ -3,7 +3,7 @@ using System;
 namespace Hollowbrook.Logic
 {
     /// <summary>The floor-files drawer's presentation maths: how far the body has come out,
-    /// how far each file has emerged, and how deep the shadow under the lip is — all as pure
+    /// how far each file has emerged, and how deep the shadow under the lip is - all as pure
     /// functions of one normalized 0..1 pull value. Engine-free so the motion curve is
     /// unit-testable and so the headless harness can assert the exact same numbers the view
     /// renders with (CheckpointView.FileDrawer).
@@ -25,7 +25,7 @@ namespace Hollowbrook.Logic
         /// pulled one shows every file row with nothing left off the bottom of the mouth.</summary>
         public static float TravelPx { get; set; } = 150f;
 
-        /// <summary>Extra px each file row slides up from as the drawer opens — the files
+        /// <summary>Extra px each file row slides up from as the drawer opens - the files
         /// emerge from the body rather than being pasted onto it.</summary>
         public const float RowEmergePx = 14f;
 
@@ -33,11 +33,11 @@ namespace Hollowbrook.Logic
         /// starts moving when the body has finished).</summary>
         public const float RowLag = 0.35f;
 
-        /// <summary>Scale the body grows through while coming out — a small "toward the
+        /// <summary>Scale the body grows through while coming out - a small "toward the
         /// player" cue that sells depth on a flat 2D desk.</summary>
         public const float NearScale = 1.035f;
 
-        /// <summary>Deepest alpha of the shaded cavity at the top of the drawer body — the
+        /// <summary>Deepest alpha of the shaded cavity at the top of the drawer body - the
         /// darkness under the front lip that the files slide out of.</summary>
         public const float CavityShadeAlpha = 0.55f;
 
@@ -58,7 +58,7 @@ namespace Hollowbrook.Logic
 
         /// <summary>Advance one pull value by dt seconds. <paramref name="opening"/> picks the
         /// direction; the result is clamped to [0,1] so a held/repeated request can never
-        /// run away (one drawer, one animation — see the view's guard).</summary>
+        /// run away (one drawer, one animation - see the view's guard).</summary>
         public static float Advance(float pull, float dt, bool opening)
         {
             if (DurationSeconds <= 0f) return opening ? 1f : 0f;
@@ -72,7 +72,7 @@ namespace Hollowbrook.Logic
         /// <summary>The body's scale at this pull: 1 while shut, NearScale fully out.</summary>
         public static float BodyScale(float pull) => 1f + (NearScale - 1f) * EaseOut(pull);
 
-        /// <summary>0..1 visibility of the files inside the body — they lag the body so they
+        /// <summary>0..1 visibility of the files inside the body - they lag the body so they
         /// read as emerging from it instead of appearing with it.</summary>
         public static float RowReveal(float pull)
         {
@@ -86,7 +86,7 @@ namespace Hollowbrook.Logic
         /// <summary>Cavity-shade alpha under the lip: deepens as the body comes out.</summary>
         public static float CavityShadeAt(float pull) => CavityShadeAlpha * EaseInOut(pull);
 
-        /// <summary>True when the motion has finished in the given direction — the view uses
+        /// <summary>True when the motion has finished in the given direction - the view uses
         /// it to snap to the exact end state (no sub-pixel drift left behind).</summary>
         public static bool Finished(float pull, bool opening) => opening ? pull >= 1f : pull <= 0f;
 

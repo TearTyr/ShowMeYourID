@@ -1,4 +1,4 @@
-# UI reference match — the live desk re-grid to `uploads/UI Reference.jpg`
+# UI reference match - the live desk re-grid to `uploads/UI Reference.jpg`
 
 The owner supplied a UI reference screenshot (640x360, treated as the 1280x720 desk space) as
 the layout source of truth and asked that the live UI be modified until a grid comparison of a
@@ -35,64 +35,64 @@ ship in the UI.
 
 ## Cause -> change -> fix -> verification, per defect
 
-1. **Every region above** — `Checkpoint/CheckpointLayout.cs` is the single grid table; all rects
+1. **Every region above** - `Checkpoint/CheckpointLayout.cs` is the single grid table; all rects
    re-targeted in one edit, inner grids (tabs, rows, question buttons, dock, banner) with them.
    FlowCheck's `ExpectRegion` literals, inner-grid pins, the stamp-spacing pin (23 -> 15) and the
    overlap matrix were updated in the same commit-shaped step; the matrix re-proves all pairs
    disjoint (station left the always-on "B" tag for the checkpoint "C" tag once the hint strip and
    the cabinet would otherwise have shared pixels).
-2. **Kit band geometry** — the three shutter bands are stretched full-frame layers; their painted
+2. **Kit band geometry** - the three shutter bands are stretched full-frame layers; their painted
    furniture lands where the band rect puts it. The old rects were solved against the concept art,
    not the reference: lintel drew at 187-212, frame at 187-537, sill at 538. Measuring the furniture
    in the OLD render gave each feature's band-fraction; solving the linear map for the reference
    targets gave top (0,-10,1280,207), glass (0,185,1280,265), base (0,447,1280,272). Re-render put
    lintel/frame/interior/sill/base on the reference rows within a pixel.
-3. **Header typography** — the reference board line is a condensed stencil bold; the shipped face
+3. **Header typography** - the reference board line is a condensed stencil bold; the shipped face
    is wide, so the line wrapped ("NIGHT 1 - MONDAY -/ NOVEMBER 2") at any size that fit 375px.
    Fix: `ContentData.ShiftDatesLong` + `ShiftDef.LongDateLabel` supply the full
    "MONDAY - NOVEMBER 2" form, the label draws at 34px with `horizontalOverflow = Overflow` and a
    0.72 horizontal squeeze (clock 30px/0.75); QUESTIONS head likewise 24px/0.72. Two harness bugs
    surfaced here and were fixed: `WalkScreen` multiplied a node's OWN localScale into its
-   anchoredPosition (Unity scales about the pivot, after placement — the clock dumped at x=750),
+   anchoredPosition (Unity scales about the pivot, after placement - the clock dumped at x=750),
    and the preview renderer applied the squeeze to the font SIZE instead of the glyph width (caps
    shrank); it now lays lines out unscaled and squeezes the surface, fed by a new `sc` field in the
    dump.
-4. **Drawer read/front/rows** — the reference pulls the worn front BELOW the row sheet (handle
+4. **Drawer read/front/rows** - the reference pulls the worn front BELOW the row sheet (handle
    bracket at 520-545), prints the registry readout where a pulled sheet can never cover it, and
    reads "ROOM 202" + dark ink on light paper. The front now rides at body-bottom +10 (its
    travel-fraction offset fades out as the pull settles, so a settled drawer lands exactly on the
    reference bracket), the readout moved to the cabinet front's free strip, rows became a dark
    160px name pill plus the registry number on the paper beside it, tabs and head carry the room
    number alone, and the kit pass inks head/front/handle in the paper language. `RefreshHandle`
-   kept overwriting the kit handle colour every frame — it now branches on `_kitOn`.
-5. **Question rows born inactive** — the kit pass restyles row labels via
+   kept overwriting the kit handle colour every frame - it now branches on `_kitOn`.
+5. **Question rows born inactive** - the kit pass restyles row labels via
    `GetComponentInChildren<Text>()`, which skips the rows while they wait for a visitor (they are
    built hidden), so the reference's left-aligned-after-the-arrow labels never applied and rows
    rendered centred. The lookup now searches inactive children (and the `bg/label` path).
-6. **Bubble** — the kit bubble's sliced left border (48u) carries its painted tail, which pushed
+6. **Bubble** - the kit bubble's sliced left border (48u) carries its painted tail, which pushed
    the white panel 53px right of the reference box and left the speaker tag bleeding over the
    wall. The panel now hangs that border outside the registered box (white lands exactly on
    737..919), the tag line is retired under the kit (the tail points at the speaker), and the text
    rect clears the border. FlowCheck's panel-growth pin now asserts the white zone equals the box.
-7. **Map** — `map_paper` is the night overlay's DARK sheet; the reference desk map is light torn
+7. **Map** - `map_paper` is the night overlay's DARK sheet; the reference desk map is light torn
    paper. The composite now stretches `paper_flat`, pins two tape tabs, and draws title, floor
    line, five room boxes (server room sealed in red) and the open-plan hint; click still opens the
    full overlay, and the overlay remains the single source of room truth.
-8. **Proofs that asserted the old look** — budget pips ("1 LEFT ●○"), the drawer-head floor
+8. **Proofs that asserted the old look** - budget pips ("1 LEFT ●○"), the drawer-head floor
    wording, the taken-slip rest x (it encodes 740 - slipW/2), the bubble tag/marker checks and the
    panel-width pin all described the pre-reference UI. Each was rewritten to the new contract
-   ("1/2", "ROOM 101 — 7 FILES", tag-less kit bubble, tail-border-outside panel) rather than
+   ("1/2", "ROOM 101 - 7 FILES", tag-less kit bubble, tail-border-outside panel) rather than
    weakened.
 
 ## Verification
 
-- `bash Tools/Verify/verify.sh` — compile clean + audit clean (107 scripts).
-- `dotnet run --project Tools/FlowCheck` — **1127 OK / 0 BAD** (layout pins, overlap matrix,
+- `bash Tools/Verify/verify.sh` - compile clean + audit clean (107 scripts).
+- `dotnet run --project Tools/FlowCheck` - **1127 OK / 0 BAD** (layout pins, overlap matrix,
   drawer/bubble/budget proofs, teardown proof).
-- `dotnet run --project Tools/LogicTests` — **27,773 PASS / 0 FAIL**.
-- `dotnet run --project Tools/Verification/LogicTests` (frozen) — **663 / 663**.
+- `dotnet run --project Tools/LogicTests` - **27,773 PASS / 0 FAIL**.
+- `dotnet run --project Tools/Verification/LogicTests` (frozen) - **663 / 663**.
 - Renders: `preview/ref_occupied`, `preview/ref_empty` (1920x1080), `preview/ref_occ_1024`
-  (1024x768, narrower), `preview/ref_occ_1280x600` (1280x600, shorter) — grid-compared against
+  (1024x768, narrower), `preview/ref_occ_1280x600` (1280x600, shorter) - grid-compared against
   `gridwork/grid_ref.png`; the narrower/shorter viewports letterbox the fixed 1280x720 frame with
   nothing clipped and nothing reflowed.
 
@@ -106,7 +106,7 @@ ship in the UI.
   owner's kit art stretched full-frame, not a layout choice.
 - The desk map's room boxes are filled chips (the overlay's room ink) where the reference draws
   outlined hand boxes; the sealed room still reads red.
-- Stamps keep their verdict tint (green/red) — the established allow/deny language — where the
+- Stamps keep their verdict tint (green/red) - the established allow/deny language - where the
   reference mockup is monochrome.
 - Kept although absent from the reference, because they are essential gameplay: the talk dock
   (slimmed to 22px under the button row), the red prompt strip, the findings counter.
@@ -115,7 +115,7 @@ ship in the UI.
 
 Tree left UNCOMMITTED by standing instruction.
 
-# Teardown fix — "Destroying assets is not permitted" floods the editor console on exit
+# Teardown fix - "Destroying assets is not permitted" floods the editor console on exit
 
 The owner's real Unity editor session (first Play Mode run after the UI bug-fix pass) ended with
 ~38 copies of this error on exiting play:
@@ -129,42 +129,42 @@ The owner's real Unity editor session (first Play Mode run after the UI bug-fix 
 - **Cause:** `ProceduralArt.Cache` mixes two kinds of sprites. Procedural ones own their
   `Texture2D` (painted in `Canvas2D.ToSprite`); file-backed ones (drop-in faces/stamps and the
   38 SecurityRoom kit layers) are `Sprite.Create` wrappers around textures **imported from
-  Resources** — assets on disk. `ClearCache()` destroyed `sprite.texture` indiscriminately, so
+  Resources** - assets on disk. `ClearCache()` destroyed `sprite.texture` indiscriminately, so
   every editor exit attempted one forbidden asset-destroy per cached kit layer. The engine
-  refuses (no-op + error log), so nothing was corrupted — but the console flooded. The headless
+  refuses (no-op + error log), so nothing was corrupted - but the console flooded. The headless
   harness could not catch it: the stub `Resources` probes the real art tree, yet the stub
-  `Object.Destroy` had no asset guard — another editor-vs-stub divergence (same species as the
+  `Object.Destroy` had no asset guard - another editor-vs-stub divergence (same species as the
   blank question-row labels). `ProceduralAudio.Get` carried the identical latent bug for clips
   loaded from `Resources/Audio`.
 - **Change:**
-  - `Bootstrap/ProceduralArt.cs` — new `FileBacked` key set, registered by `Get()`'s file
+  - `Bootstrap/ProceduralArt.cs` - new `FileBacked` key set, registered by `Get()`'s file
     branch; `ClearCache()` destroys only the runtime `Sprite` wrapper for file-backed entries
     (never the borrowed imported texture) and frees texture+wrapper for procedural entries.
-  - `Bootstrap/ProceduralAudio.cs` — same split: loaded clips are dropped by reference only,
+  - `Bootstrap/ProceduralAudio.cs` - same split: loaded clips are dropped by reference only,
     synthesised clips are destroyed.
-  - `Tools/Verification/UnityStubs/UnityEngine.Core.cs` — the stubs now mirror the engine guard:
+  - `Tools/Verification/UnityStubs/UnityEngine.Core.cs` - the stubs now mirror the engine guard:
     `Resources` probes mark their stand-ins `isPersistentAsset`; `Object.Destroy` and
     `DestroyImmediate(obj)` refuse persistent assets with Unity's exact error text (the new
     `DestroyImmediate(obj, true)` overload permits it, as in the engine); `Debug` gained an
     `ErrorCount` so proofs can diff around risky calls.
-  - `Tools/FlowCheck/Program.cs` — new `TeardownProof` (8 checks) invoking both `ClearCache()`s
+  - `Tools/FlowCheck/Program.cs` - new `TeardownProof` (8 checks) invoking both `ClearCache()`s
     exactly as `GameRoot.OnDestroy` does: zero engine errors logged, the imported kit texture
     survives, procedural texture and both sprite wrappers are freed, the cache is empty, and
     the next `Get()` rebuilds fresh around the surviving asset.
-- **Fix:** exiting play is silent — the forbidden destroys are gone, not suppressed; every
+- **Fix:** exiting play is silent - the forbidden destroys are gone, not suppressed; every
   runtime allocation is still released with the core.
 - **Verification:** `bash Tools/Verify/verify.sh` compile+audit clean (107 scripts, 19,726
-  lines); `dotnet run --project Tools/FlowCheck` — **1139 OK / 0 BAD**, zero `[ERR]` on stderr.
+  lines); `dotnet run --project Tools/FlowCheck` - **1139 OK / 0 BAD**, zero `[ERR]` on stderr.
   **Negative control:** with the old indiscriminate destroy temporarily reintroduced, FlowCheck
   goes **BAD** ("teardown logs no engine error", exit 1) and logs the owner's exact message 51×
-  (every file-backed texture cached across the walk) — the regression net now catches this bug
+  (every file-backed texture cached across the walk) - the regression net now catches this bug
   class headlessly. `Tools/LogicTests` 27,773/0; frozen `Tools/Verification/LogicTests` 663/0.
   Re-rendered the occupied-desk dump is **pixel-identical** to
-  `preview/after_occupied/screen_1920x1080.png` (0 differing pixels) — zero visual impact.
+  `preview/after_occupied/screen_1920x1080.png` (0 differing pixels) - zero visual impact.
   Unity Play Mode re-run by the owner remains the final confirmation (no editor in this
   environment); repro: exit play and check the console stays empty.
 
-# UI bug-fix pass — the seven rendering defects from the owner's screenshots
+# UI bug-fix pass - the seven rendering defects from the owner's screenshots
 
 Four owner screenshots (`uploads/Screenshot 2026-10-27 231239.png` intro, `231303.png` +
 `231347.png` occupied desk, `231600.png` empty booth) showed seven distinct rendering defects
@@ -174,45 +174,45 @@ against REAL RENDERED OUTPUT: `dotnet run --project Tools/FlowCheck -- --dump-st
 hierarchy dump, `Tools/Preview/render_screen.py` rasterises it at 1920×1080, and the sheets in
 `preview/` show concept / before / after side by side.
 
-## 1 — White shape obscuring the intro dialogue
+## 1 - White shape obscuring the intro dialogue
 
 - **Cause:** `DialogueView.Init` skinned the 1000×170 narration panel with the kit's white torn
   speech bubble `sec_bubble` (9-slice). Its white centre tile painted over the narration and the
   white ink on white paper made the text invisible.
-- **Change:** `UI/DialogueView.cs` — removed the `sec_bubble` panel-skin block; the dark cinematic
+- **Change:** `UI/DialogueView.cs` - removed the `sec_bubble` panel-skin block; the dark cinematic
   panel returns.
 - **Fix:** narration reads light-on-dark with the red heading; no white shape anywhere in frame.
 - **Verification:** `preview/after_intro/screen_1920x1080.png` (`--dump-state=intro`), row 1 of
   `preview/compare_after_fix.png`.
 
-## 2 — Red prompt overlapping the sanity pill (and duplicating the objective)
+## 2 - Red prompt overlapping the sanity pill (and duplicating the objective)
 
 - **Cause:** `L.Prompt` was (450,62,400,18) carrying a 20 pt label → the line wrapped to two rows
   that collided with the sanity pill; the grey `_objective` strip mirrored the same prompt text,
   so the player read it twice.
-- **Change:** `UI/HUDView.cs` — prompt font 20→15 and the prompt is no longer mirrored into
+- **Change:** `UI/HUDView.cs` - prompt font 20→15 and the prompt is no longer mirrored into
   `_objective` (the strip keeps `root.ObjectiveText` from the checkpoint); `CheckpointLayout.cs`
-  — Prompt (450,62,440,20).
+  - Prompt (450,62,440,20).
 - **Fix:** one-line red prompt tucked under the pill; objective strip shows only the checkpoint
   objective. FlowCheck asserts prompt/objective duplication is gone.
 - **Verification:** `preview/after_occupied`, rows 2/4/5 of `compare_after_fix.png`, FlowCheck
   duplication assertions.
 
-## 3 — Questions counter wrapping vertically off the panel
+## 3 - Questions counter wrapping vertically off the panel
 
-- **Cause:** `Inner.QBudget` was (272,18,**30**,22) — a 30 px box for "QUESTIONS: 2 LEFT ● ●", so
+- **Cause:** `Inner.QBudget` was (272,18,**30**,22) - a 30 px box for "QUESTIONS: 2 LEFT ● ●", so
   the words stacked vertically and bled over the panel edge.
-- **Change:** `CheckpointLayout.cs` — QHead (16,18,120,22), QBudget (140,18,153,22);
-  `CheckpointView.Decision.cs` — `_budgetLabel.horizontalOverflow = Overflow` as belt-and-braces.
+- **Change:** `CheckpointLayout.cs` - QHead (16,18,120,22), QBudget (140,18,153,22);
+  `CheckpointView.Decision.cs` - `_budgetLabel.horizontalOverflow = Overflow` as belt-and-braces.
 - **Fix:** the counter sits on one line inside the questions panel at every budget value.
 - **Verification:** FlowCheck `ExpectRegion` literals + rendered rows 2/4/5.
 
-## 4 — Sanity pill reading as an all-black slab
+## 4 - Sanity pill reading as an all-black slab
 
 - **Cause:** the kit tint set the FILL to `NsInk` (near-black) on the white pill, so at sanity 100
   the whole track was a black slab; the track bed was alpha-0, so filled and unfilled were
   indistinguishable at any value.
-- **Change:** `UI/HUDView.cs` `ApplyKitSanity` — track bed = `NsInk` alpha 1 (a dark recess;
+- **Change:** `UI/HUDView.cs` `ApplyKitSanity` - track bed = `NsInk` alpha 1 (a dark recess;
   non-kit builds keep `PanelAlt`), fill inset `offsetMin(1,1)/offsetMax(-1,-1)` as a keyline;
   kit `FillInk`: Stable = paper white (0.93,0.92,0.89), Uneasy = warm paper (0.93,0.86,0.72),
   Breaking/Shaken alarm colours unchanged.
@@ -221,41 +221,41 @@ hierarchy dump, `Tools/Preview/render_screen.py` rasterises it at 1920×1080, an
   25 = orange at 25 %), `--dump-state=occ45/occ25`, FlowCheck kit-sanity proof now asserts dark
   bed (alpha > 0.9, r < 0.2) + paper-white stable fill (r > 0.8).
 
-## 5 — Question labels invisible in the real editor (stub-vs-Unity divergence)
+## 5 - Question labels invisible in the real editor (stub-vs-Unity divergence)
 
 - **Cause:** `StandardButton` labels use a point anchor (0.5,0.5); `KitSkin` assigned
   `offsetMin/offsetMax`, which real Unity resolves to a NEGATIVE sizeDelta (−34,−4) → the text
   draws nothing. The verification stub tolerated the negative delta, so only the owner's editor
   caught it.
-- **Change:** `CheckpointView.KitSkin.cs` — question labels get `anchorMin=zero / anchorMax=one`
+- **Change:** `CheckpointView.KitSkin.cs` - question labels get `anchorMin=zero / anchorMax=one`
   BEFORE the offsets are assigned, so stretch semantics apply and the offsets mean what they say.
 - **Fix:** labels render on their pills in the editor and headless alike.
 - **Verification:** rendered rows 2/4/5 (labels visible on pills); `verify.sh` audit clean; the
   divergence is documented in the stub comment from the talk-dock fix entry.
 
-## 6 — Empty booth: grey slabs, squeezed blinds, no empty state
+## 6 - Empty booth: grey slabs, squeezed blinds, no empty state
 
 - **Cause:** `sec_window_*_glass` sprites carry art only in the centred ~36 % of their 2880 px
   export; `KitRect` stretched them into `L.Glass` (422 wide), squeezing the blinds to a third of
   the frame, and the unfaded `tint` child of `glass` painted grey side panels. After hand-back the
   visitor silhouette also lingered with no explanation.
-- **Change:** `CheckpointView.KitSkin.cs` — glass band region → `new L.Region(0,187,1280,350)`
-  (full-width stretch) and `"tint"` added to the fade list; `CheckpointView.Decision.cs` — new
+- **Change:** `CheckpointView.KitSkin.cs` - glass band region → `new L.Region(0,187,1280,350)`
+  (full-width stretch) and `"tint"` added to the fade list; `CheckpointView.Decision.cs` - new
   `_qEmpty` label "NO VISITOR AT THE WINDOW" (16,104,277,20) shown while `!atWindow`;
-  `CheckpointView.Window.cs` — `SetVisitorVisible` made `internal` so the harness can land the
+  `CheckpointView.Window.cs` - `SetVisitorVisible` made `internal` so the harness can land the
   post-verdict beat (stub coroutines are no-ops headless).
 - **Fix:** full-width blinds, no grey slabs, an explicit empty-state line, visitor gone after
   hand-back.
 - **Verification:** `preview/after_empty/screen_1920x1080.png` (`--dump-state=empty`), row 3 of
   `compare_after_fix.png`.
 
-## 7 — Stamp legibility, document crowding, bottom-row clipping
+## 7 - Stamp legibility, document crowding, bottom-row clipping
 
 - **Cause:** `SkinStamp` pasted a 46 px black disc (`sec_icon_accept/decline`) over the stamp
   handle silhouette, burying it; the log/rules papers' regions ended exactly at y=720 so their
   tilt pushed corners off-screen; the ID card rest slot overlapped the patrol/end-shift row.
 - **Change:** stamp badge 46 px → 26 px at offset (0,40) on the head knob; `CheckpointLayout.cs`
-  — IdCard (456,500,200,137), PatrolBtn (453,640,172,47), EndShiftBtn (653,640,181,47),
+  - IdCard (456,500,200,137), PatrolBtn (453,640,172,47), EndShiftBtn (653,640,181,47),
   TalkDock (440,690,420,24), UtilityRecords (97,540,134,164), UtilityNotes (231,548,181,152).
 - **Fix:** stamps read as stamps with a small head badge; documents sit inside their frames; the
   whole bottom row is on screen at every tested breakpoint.
@@ -266,31 +266,31 @@ hierarchy dump, `Tools/Preview/render_screen.py` rasterises it at 1920×1080, an
 
 ## Suites after the pass (re-run for real, this turn)
 
-- `bash Tools/Verify/verify.sh` — compile clean vs both Unity assembly sets + audit clean
+- `bash Tools/Verify/verify.sh` - compile clean vs both Unity assembly sets + audit clean
   (107 scripts, 19,694 lines).
-- `dotnet run --project Tools/FlowCheck` — **1131 OK / 0 BAD** (includes the new
+- `dotnet run --project Tools/FlowCheck` - **1131 OK / 0 BAD** (includes the new
   `--dump-state=intro|empty|occupied|occ45|occ25` proofs, the prompt/objective duplication
   assertions and the kit-sanity bed/fill assertions).
-- `dotnet run --project Tools/LogicTests` — **27,773 / 27,773**.
-- `dotnet run --project Tools/Verification/LogicTests` (frozen) — **663 / 663**.
+- `dotnet run --project Tools/LogicTests` - **27,773 / 27,773**.
+- `dotnet run --project Tools/Verification/LogicTests` (frozen) - **663 / 663**.
 - Rendered evidence: `preview/compare_after_fix.png` (concept + five before/after rows),
   `preview/after_*/screen_1920x1080.png`, `preview/sanity_after_sheet.png`,
   `preview/breakpoints_after_sheet.png`, `preview/resp_occ/`, `preview/resp_empty/`.
 - **NOT RUN:** Unity Play Mode in the real editor and the Windows build (no editor in this
-  environment) — issue 5 was exactly a stub-vs-editor divergence, so an editor smoke pass remains
+  environment) - issue 5 was exactly a stub-vs-editor divergence, so an editor smoke pass remains
   the one check this pass cannot give itself.
 
-# Editor compile fix — the talk dock used a stub-only InputField API
+# Editor compile fix - the talk dock used a stub-only InputField API
 
 The owner's Unity editor flagged two CS1061 errors the headless harness could not see:
-`CheckpointView.TalkDock.cs` called `InputField.Focus()` — a member the Verification stub had
+`CheckpointView.TalkDock.cs` called `InputField.Focus()` - a member the Verification stub had
 invented. Real uGUI has no `Focus()`; the equivalent is `ActivateInputField()` (which also makes
 the field the EventSystem's selected object, exactly the semantics the stub's Focus had, so
 `UIFactory.TypingInField()` behaves identically).
 
 - `CheckpointView.TalkDock.cs`: both call sites (post-send refocus, `FocusTalk()` for `V`) now
   call `ActivateInputField()`.
-- `UnityStubs/UnityEngine.UI.cs`: the invented `Focus()` is REMOVED, not aliased — the stub now
+- `UnityStubs/UnityEngine.UI.cs`: the invented `Focus()` is REMOVED, not aliased - the stub now
   exposes only the real uGUI surface (plus the explicitly test-only `SimulateEnter`/
   `SimulateTyping` helpers, which Assets never calls), so the next stub-vs-editor divergence
   fails `verify.sh` instead of the owner's build. A comment documents the rule.
@@ -298,7 +298,7 @@ the field the EventSystem's selected object, exactly the semantics the stub's Fo
 - Re-run green after the change: verify.sh compile+audit clean (107 scripts); FlowCheck
   1130 OK / 0 BAD; LogicTests 27,773 / 0; frozen Verification 663 / 0.
 
-# Complete UI overhaul & dialogue input integration — the desk speaks, the concept leads
+# Complete UI overhaul & dialogue input integration - the desk speaks, the concept leads
 
 Two stacked owner directives in one uncommitted pass: make the long-dead dialogue text box a
 REAL input wired into the interaction loop, and redesign the desk to the concept art
@@ -307,10 +307,10 @@ placement). Everything below is on top of the kit-integration pass; contracts ke
 cap, physical stamp + hand-back verdict, Lose > Secret > Win ending priority, sanity =
 atmosphere, no scanner/checklist restoration.
 
-## The dialogue text box (P0) — typed window talk, not a prop
+## The dialogue text box (P0) - typed window talk, not a prop
 
 - `GameLogic/SpokenChat.cs` (new, pure): Normalize / TryMatchQuestion / Classify / Route plus a
-  capped 24-line WindowTranscript. No Unity types — LogicTests covers it with 36 checks.
+  capped 24-line WindowTranscript. No Unity types - LogicTests covers it with 36 checks.
 - `CheckpointView.TalkDock.cs` (new): a dock strip under the tray (440,692,420,26) holding a real
   `UIFactory.TextField`, and a transcript sheet (440,462,420,226) behind a LOG toggle. `V`
   focuses, `Esc` blurs; Enter submits, Shift+Enter inserts a newline (the stub InputField's
@@ -328,13 +328,13 @@ atmosphere, no scanner/checklist restoration.
   duplicate/empty blocks and the dead-window placeholder; LogicTests `SpokenChatTests` covers
   the router.
 
-## Concept rebase — one grid, measured from the art
+## Concept rebase - one grid, measured from the art
 
 - `CheckpointLayout` regions re-based to the concept measurements: header board, booth glass,
   questions column, cabinet + drawer, papers, tray, dock. The board layer rides at (0,-31) so
   its painted cut-outs meet the re-baselined meters (its own white strips are painted out in
   prep: `sec_upper_panel_clean`); the kit window is shorter than the concept booth, so the
-  shutter is three bands (`sec_window_*_{top,glass,base}`) — hood/base keep painted proportions,
+  shutter is three bands (`sec_window_*_{top,glass,base}`) - hood/base keep painted proportions,
   only glass stretches.
 - ID card and slip became containers (audited rect + invisible raycast image) with scaled art
   children (`cardart` 320x220 @0.625, `slipart` 200x120 @0.75): concept footprints coexist with
@@ -362,7 +362,7 @@ atmosphere, no scanner/checklist restoration.
   renderer, fed raw texture pixels as reference units, drew nothing). Fixed on all three
   layers: prep trims `sec_bubble` to its alpha box (2879x1031), `ProceduralArt.FileBorders`
   measures the real art (480/140/140/140) with a PPU-10 override, the dump emits
-  `pixelsPerUnit`, and the renderer converts borders through it — source crops stay in texture
+  `pixelsPerUnit`, and the renderer converts borders through it - source crops stay in texture
   pixels, destinations in screen pixels, exactly like uGUI.
 - Stale proofs un-retired: the shutter proof referenced the pre-band `sec_window` node and
   silently skipped; it now checks all three bands swap together, every kit-layer click-through
@@ -385,10 +385,10 @@ atmosphere, no scanner/checklist restoration.
 
 FlowCheck 1130 OK / 0 BAD; LogicTests 27,773 / 0; frozen Verification suite 663 / 0;
 verify.sh compile + audit clean (107 scripts). NOT RUN (no Unity editor here): Play Mode,
-Windows build, on-screen feel of flicker/tilt — geometry verified by the dump/render pipeline
+Windows build, on-screen feel of flicker/tilt - geometry verified by the dump/render pipeline
 instead.
 
-# SecurityRoom art-kit integration pass — the booth wears the owner's UI
+# SecurityRoom art-kit integration pass - the booth wears the owner's UI
 
 Kit (`origin/main` commit f68b0f8, `Art/SecurityRoom/`, 8 numbered export folders + 2 font
 zips) integrated end-to-end without moving a single audited interaction:
@@ -405,7 +405,7 @@ zips) integrated end-to-end without moving a single audited interaction:
   caption bars, dark-paper TL/RN buttons, tilted-paper overlays, and the 9-sliced speech box
   (`sec_bubble`, border 430/90/90/90) on both the desk bubble and the intro dialogue panel.
   `LoadingView` and the shift summary wear the shutter composites as backdrops.
-- Geometry: the header grid was re-baselined ONCE, to the kit board — TopBar (30,30,1220,77),
+- Geometry: the header grid was re-baselined ONCE, to the kit board - TopBar (30,30,1220,77),
   Banner (34,38,300,32), Clock (940,38,140,32), SanityMeter (478,50,331,36) and Pause
   (1098,50,132,36) in the board's painted cut-outs, the hint/findings/run-stats strip at
   y90..114, patrol meters at y112; the verdict tray was re-baselined to the kit's circles
@@ -415,7 +415,7 @@ zips) integrated end-to-end without moving a single audited interaction:
 - Fonts: `UIFactory` tries the kit families first (Bahnschrift regular/bold for UI, Chiller for
   the display face) with the bundled open-licence faces as fallbacks; headless keeps GameFont.
 - Headless verification gained teeth: the Unity stubs' `Resources.Load<Texture2D>` now probes
-  the real `Resources` tree (PNG header only — no pixel memory), so drop-in art is exercised by
+  the real `Resources` tree (PNG header only - no pixel memory), so drop-in art is exercised by
   the proofs exactly as the editor resolves it; stubs also grew `Sprite.Create`'s 9-slice
   overload, `Transform.SetSiblingIndex` and `Vector4.magnitude`.
 - FlowCheck: new `SecurityRoom art kit` proof (32 sprites ship + resolve to their own names,
@@ -424,16 +424,16 @@ zips) integrated end-to-end without moving a single audited interaction:
   covers the kit rows; `docs/asset-manifest.csv` grows to 162 rows (36 shipped-kit).
 - Suites after the pass: FlowCheck 1151 OK / 0 BAD, LogicTests 27,737 / 0, verify.sh compile +
   audit clean (105 scripts, 18,795 lines). NOT RUN (no Unity editor in this environment):
-  Play Mode, Windows build, on-screen feel of the flicker/tilt — alignment was verified with
+  Play Mode, Windows build, on-screen feel of the flicker/tilt - alignment was verified with
   the PIL composite `preview/kit_alignment2.png` instead.
 
-# Refactor log — readability pass (branch refactor/readability)
+# Refactor log - readability pass (branch refactor/readability)
 
-## Issue #1 review pass — verified bugs, design gaps, cleanup
+## Issue #1 review pass - verified bugs, design gaps, cleanup
 
 Blocking/high: (1) menu EXIT no longer overwrites the save (InRunProgress guard, also on
 OnApplicationQuit); menu prompt now "Quit to desktop?". (2) exhibitionMode default false +
-asset key added — NEW GAME is the five-night story; FlowCheck opts into the booth explicitly.
+asset key added - NEW GAME is the five-night story; FlowCheck opts into the booth explicitly.
 (3) CONTINUE keeps the night: BeginShift(isResume) skips TonightLog/Admitted/pool resets,
 pool kinds derive from seed^shift, admitted list rides the save as roster indices and is
 remapped on resume; FlowCheck asserts all three survive. (4) the Night-5 memo is handed over
@@ -441,7 +441,7 @@ with the badge and registry searches can't replace it. (5) gameplay hotkeys/zoom
 while paused, in overlays, in dialogue or off-desk. (6) InputGate gives Esc/M one owner per
 frame across sheets, map, pause, desk, patrol, confirm popup (Confirm now closes on Esc and
 counts as a blocking overlay).
-Design: (7) catching an anomaly no longer resolves it — it stays outstanding and returns;
+Design: (7) catching an anomaly no longer resolves it - it stays outstanding and returns;
 outstanding anomalies count as breaches when the run's books close, so patrol feeds endings.
 Robustness: (8) crash-safe save write (File.Replace + .bak, Read falls back to .bak/.tmp),
 settings persist once on sheet close/quit instead of per slider tick, RoomSpawner and
@@ -454,16 +454,16 @@ FlowCheck: +issue proofs (menu-EXIT save guard, .bak fallback, pause gate, Esc s
 admin memo, resume fidelity) and pool-resolve before story clock-outs; 837 OK.
 
 
-## Owner-feedback pass — desk order & sizes (Messenger notes + redlined screenshot)
+## Owner-feedback pass - desk order & sizes (Messenger notes + redlined screenshot)
 
 - Owner asks (chat): questions already out, press the question itself (no gate button); the ID
   slides out automatically per student (no click); the dialogue box was far too big for its
   content; TL / RN as two compact buttons; MAP as its own box; A/D as two big stamp boxes; and
-  the CAMERA is the scan device — you put the ID on it to scan.
+  the CAMERA is the scan device - you put the ID on it to scan.
 - New desk grid: centre = window, counter papers on the sill, compact DIALOGUE strip under the
   window (470x44, three lines), ID default slot below, patrol/end-shift at the very bottom;
   left = terminal, file window, TL + RN buttons, MAP box; right = questions, SCAN, CAMERA panel
-  (drop-the-ID-to-scan, readout inside), then the two big stamps A—ACCEPT / D—DENY.
+  (drop-the-ID-to-scan, readout inside), then the two big stamps A-ACCEPT / D-DENY.
 - FlowCheck table + proofs follow the new grid (837 OK), including "drop the ID on the CAMERA
   scans it" and the dialogue-strip position.
 
@@ -471,13 +471,13 @@ admin memo, resume fidelity) and pool-resolve before story clock-outs; 837 OK.
 ## Desk bug-fix + simplification pass (post-slip rework)
 
 Bugs (root causes from the desk-flow audit):
-1. Papers un-draggable in real Unity: `UIFactory.Img` defaults raycast off — idcard/record
+1. Papers un-draggable in real Unity: `UIFactory.Img` defaults raycast off - idcard/record
    frames now set `raycastTarget = true` (labels stay off; back faces are Panels = already on).
 2. Invisible stamp mark: `PlaceStampMark` re-anchored the overlay to a point anchor without a
-   size — now `sizeDelta 90x90`, `preserveAspect`, raycast off. Check/X marks show on the slip.
+   size - now `sizeDelta 90x90`, `preserveAspect`, raycast off. Check/X marks show on the slip.
 3. Papers drew behind the window: new `PapersLayer` (created after the window, before the
    stamps) parents ID, file and slip; opened/taken papers rise via SetAsLastSibling.
-4. Terminal unusable: the full-size tap button swallowed clicks — rebuilt as one visible
+4. Terminal unusable: the full-size tap button swallowed clicks - rebuilt as one visible
    search box (own background, "ID or name" placeholder, box is the InputField targetGraphic so
    click focuses), Enter/FIND searches, one result line; body-tap toggle removed; file opens in
    PapersLayer with its X close.
@@ -497,7 +497,7 @@ drop, PapersLayer sibling order above the window, hint text per hand-over state,
 focus wiring (targetGraphic + placeholder, no tap-swallower). 840 OK.
 
 
-## Desk flow rework — slips, stamps, records station (Papers-Please pass)
+## Desk flow rework - slips, stamps, records station (Papers-Please pass)
 
 - Detain retired: Accept / Deny only. Post-decision text/popups retired: the verdict banner,
   the admin outro dialogue and the post-verdict radio lines are gone; feedback is the stamp
@@ -518,15 +518,15 @@ focus wiring (targetGraphic + placeholder, no tap-swallower). 840 OK.
   (825 OK). LogicTests +RecordSearchTests +SlipFairnessTests (27,396 / 27,398 de-DE).
 
 
-## Inspection-table rework, slice A — verdicts become physical (Papers, Please pass)
+## Inspection-table rework, slice A - verdicts become physical (Papers, Please pass)
 
 - Verdicts are stamps, not buttons: APPROVE / DENY / DETAIN live in a tray and commit when
   dragged onto the subject's ID (DropStamp hit-test with padding); keyboard path A / D / T.
-  The round ALLOW / CALL PRINCIPAL buttons and the yes/no confirm popup are retired —
+  The round ALLOW / CALL PRINCIPAL buttons and the yes/no confirm popup are retired -
   stamping IS confirming (task: remove plain confirm-button steps).
 - New `Verdict.Detain` in pure rules: detaining an anomaly = correct stop; detaining a
   legitimate student = serious false rejection. Mistakes now book warnings; every third
-  warning draws a fine (score penalty) — penalties, never instant game over. Both persist
+  warning draws a fine (score penalty) - penalties, never instant game over. Both persist
   in the save (tolerant keys).
 - Stamps reuse DragPaper with ReturnsHome; the tray dims until an inspection is live.
 - FlowCheck: DeskLoop now stamps by drag (DropStamp helper), popup checks retired, stamp
@@ -534,7 +534,7 @@ focus wiring (targetGraphic + placeholder, no tap-swallower). 840 OK.
 - Rules, fairness, saves otherwise untouched; QuestionSystem budget unchanged here.
 
 
-## Papers pass — desk chat, physical papers, question-panel upgrade
+## Papers pass - desk chat, physical papers, question-panel upgrade
 
 - Chat (speech log) moved to the bottom-left column (16,362,320,342) with per-speaker inks
   (YOU / window / RADIO); the retired principal-note slot left the layout tables.
@@ -543,7 +543,7 @@ focus wiring (targetGraphic + placeholder, no tap-swallower). 840 OK.
   scans through the same rules path as the SCAN button. New `HoverHint` feeds the panel hint.
 - Question panel: budget pips, ASKED tags + disabled state, per-question cross-check hints,
   hotkeys 1-4, budget-spent reason line, scrolling testimony.
-- Layout contract updated in one place (CheckpointLayout) — DeskLayoutAudit and FlowCheck's
+- Layout contract updated in one place (CheckpointLayout) - DeskLayoutAudit and FlowCheck's
   wireframe table follow; FlowCheck gained a 14-check PapersProof (drag clamps, drop-scan
   exactly-once, pips, asked-state, hotkeys, reason line, scroll, chat position + colours).
 - Rules, fairness and saves untouched: dragging is positional only; scanning path unchanged.
@@ -551,22 +551,22 @@ focus wiring (targetGraphic + placeholder, no tap-swallower). 840 OK.
 
 ## Readability pass for a beginner team (five committed steps)
 
-1. **Showcase-cut cleanup** — `ShowcaseBuild` owns presentation cuts; checklist cut for good
+1. **Showcase-cut cleanup** - `ShowcaseBuild` owns presentation cuts; checklist cut for good
    (see the entry below).
-2. **`ProceduralArt` split by art family** — one `partial class` over five files (core cache +
+2. **`ProceduralArt` split by art family** - one `partial class` over five files (core cache +
    key switch + Canvas2D, then `.Rooms / .Props / .Faces / .Documents`). 1042 lines became
    338 + four ~200-line files; zero call-site changes.
-3. **One helper vocabulary** — `UIFactoryLocal` (RoomBuilder) merged into `UIFactory`;
+3. **One helper vocabulary** - `UIFactoryLocal` (RoomBuilder) merged into `UIFactory`;
    `NewRect` / `FullImage` live with the rest of the rect vocabulary.
-4. **`WanderingAnomaly` long methods split** — `MoveBehavior` is a 5-line dispatch over
+4. **`WanderingAnomaly` long methods split** - `MoveBehavior` is a 5-line dispatch over
    `MoveBlink / MoveSlide / MoveSprint / MoveCoverHug` (one rule sheet per behavior; adding a
    behavior = adding one method, as ARCHITECTURE promises); `TickStates` lands reactions via
    `ApplyStateStep / AnnounceExposure / AnnounceRepel / TickCatch`.
-5. **`CheckpointView` split by desk area** — same class over nine partial files
+5. **`CheckpointView` split by desk area** - same class over nine partial files
    (`TopBar, Papers, Window, Speech, Interview, Decision, Overlays, QueueLine, Sticky`);
    the core file keeps the state machine, shared fields and orchestration (1371 → 427 lines).
    Chosen over extracting widget classes on purpose: the desk is one tightly-coupled state
-   machine, and partial files give per-area navigation without callback/context plumbing —
+   machine, and partial files give per-area navigation without callback/context plumbing -
    the friendlier read for a beginner team. Promoting an area to a real class later stays
    possible, one area at a time, with FlowCheck as the safety net.
 
@@ -577,7 +577,7 @@ verify.sh (compile vs real Unity assemblies + static audit). All green at every 
 
 - `ShowcaseBuild` (Core) now owns the build's presentation cuts; first flag: `LineDisplay`
   (waiting-line silhouettes + banner readout). The strips are built **only when the flag is
-  on** — nothing is ever built-then-hidden — and refresh paths null-guard, so flag off means
+  on** - nothing is ever built-then-hidden - and refresh paths null-guard, so flag off means
   the code paths simply do not exist at runtime. FlowCheck asserts each line element is
   present exactly when the flag says so.
 - The checklist clipboard was cut for good (it was built hidden with a commented-out show
@@ -592,13 +592,13 @@ verify.sh (compile vs real Unity assemblies + static audit). All green at every 
 brighter when dark, solid white while peeking); rooms sit on pure black; doors and wall-switch
 plates draw as invisible dots even though their prompts and interactions still work.
 
-**Root cause:** `ProceduralArt.MakeSolid` built `solid_white` — the one flat quad sprite every
-world placeholder is scaled from — as a 4x4 texture at `UiPpu` (100 px/unit), i.e. a native size
+**Root cause:** `ProceduralArt.MakeSolid` built `solid_white` - the one flat quad sprite every
+world placeholder is scaled from - as a 4x4 texture at `UiPpu` (100 px/unit), i.e. a native size
 of 0.04x0.04 world units. Placeholders set `localScale` in world units assuming a 1x1-unit quad,
 so every one of them drew at 1/25th of its authored size: the room darkness overlay (scale
 26.8x11) degenerated into the 1.07x0.44 floating box, door slabs into 4x8 px dots, switch plates
 into sub-pixel specks. Headless proof: the FlowCheck dump printed
-`darkness ... size=(1.07x0.44) screen=(632..692, 268..293)` — exactly the box in the screenshot.
+`darkness ... size=(1.07x0.44) screen=(632..692, 268..293)` - exactly the box in the screenshot.
 
 **Fixes:**
 - `solid_white` is now natively 1x1 world unit (`QuadPpu = 4`); uGUI Images ignore pixelsPerUnit,
@@ -682,21 +682,21 @@ No Debug.LogError and no exception appears in the FlowCheck output.
 - `SettingsView` scroll viewport had a Mask with no Graphic (B12).
 - `UIFactory.Label` base-size bookkeeping ignored manual fontSize writes (B5).
 
-## Desk UI Fixes Pass — scanner stacking, ID stripe & flip, FIND alignment, record X (October 2026)
+## Desk UI Fixes Pass - scanner stacking, ID stripe & flip, FIND alignment, record X (October 2026)
 Four targeted desk fixes (task list from the owner's web-style report, mapped to Unity):
-1. **ID over scanner (stacking):** root cause was build order — the right column (camera/tools) was
+1. **ID over scanner (stacking):** root cause was build order - the right column (camera/tools) was
    built after `PapersLayer`, so the scan device drew OVER dragged papers. `Init` now builds in
    explicit stacking order: window → questions → tools/camera → **papers layer** → stamp tray →
    overlays; `BuildRightColumn` split into `BuildQuestionsPanel` / `BuildToolsAndCamera` /
    `BuildStampTray`. The slip is built inside the papers layer (`BuildSlip`). FlowCheck asserts
    `camera < PapersLayer < stamp tray` sibling order.
-2. **Black spine + reliable flip:** the held ID card carries a 14-unit black stripe — left edge on
+2. **Black spine + reliable flip:** the held ID card carries a 14-unit black stripe - left edge on
    the front, mirrored right on the back. The whole card is now a `Button` (transition None, no
    tint): pointer click flips, and because it's a Selectable the EventSystem fires it on
    Enter/Space when focused. Tap reliability root cause: `DragPaper._moved` accumulated raw screen
-   pixels against a 6-unit threshold — at canvas scale >1 every small drag exceeded it and clicks
+   pixels against a 6-unit threshold - at canvas scale >1 every small drag exceeded it and clicks
    never counted as taps; movement now accumulates in canvas units with a 10-unit threshold.
-3. **FIND alignment:** the station's box and button now share a `searchrow` container — the input
+3. **FIND alignment:** the station's box and button now share a `searchrow` container - the input
    stretches to fill and FIND is right-pinned (anchor 1, full height): flush at any scale, no
    pixel nudges (root cause was independent `PlaceTL` coordinates that could drift).
 4. **Record exit button:** `closefile` is anchored top-right (anchor/pivot 1,1 at −4,−4) instead of
@@ -707,12 +707,12 @@ can never lag presentation; a duplicate `BuildStamp` pair left by the column spl
 (caught by FlowCheck reading the stale first instance).
 FlowCheck: 842 checks green. LogicTests invariant + ICU/de-DE green. Frozen suite 663/663. verify.sh clean.
 
-## Floor Files pass — registry terminal replaced by a folder cabinet (October 2026)
+## Floor Files pass - registry terminal replaced by a folder cabinet (October 2026)
 The typed **REGISTRY TERMINAL** (header, "ID or name" input, FIND button) is gone. The station is
 now the **FLOOR FILES** cabinet: two manila folder tabs (procedural `folder_tab` sprite, dark
 manila, hover brighten) for **1ST FLOOR · ROOM 101** and **2ND FLOOR · ROOM 202**.
 1. **Folders → drawer (accordion):** clicking a tab slides the drawer open at the new grid region
-   `FileDrawer (16,188 320x270)` — under the station, above TL/RN, under the papers layer — and
+   `FileDrawer (16,188 320x270)` - under the station, above TL/RN, under the papers layer - and
    lists that floor's files (name + registry number per row, manila left edge); clicking the open
    tab again collapses it. The open tab stays lit (`FolderOpen` tint).
 2. **Direct selection replaces search:** clicking a file row runs the same record-window path the
@@ -737,13 +737,13 @@ ICU/de-DE green (+13 floor-folder checks). Frozen suite 663/663. verify.sh clean
 Three owner-facing fixes, one per system:
 1. **Rooms are entered dark (patrol):** `RoomBuilder` builds every room `startLit: false` (the
    Classroom-2 exception is retired) and `ViewManager.EnterRoomImmediate` calls the new silent
-   `LightController.ForceDarkOnEntry()` on EVERY entry — peek returns included. No toast fires on
-   entry; the HUD reads `LIGHTS: OFF — wall switch [E]` until the switch is thrown. The wall
+   `LightController.ForceDarkOnEntry()` on EVERY entry - peek returns included. No toast fires on
+   entry; the HUD reads `LIGHTS: OFF - wall switch [E]` until the switch is thrown. The wall
    switch still toggles freely (the player is never locked in the dark) and the beam keys are
-   untouched: `F` sweeps, `Q` focuses, `L` off — the handheld beam stays the portable light.
+   untouched: `F` sweeps, `Q` focuses, `L` off - the handheld beam stays the portable light.
    Balance reads (battery recovery, dark sanity drain, dark 1.6x spawn odds, anomaly observation)
-   all consume the same `Lit` state as before — darkness is now simply the starting condition.
-2. **The ID flips by its black spine only (desk):** the whole-card `Button` is gone — the card
+   all consume the same `Lit` state as before - darkness is now simply the starting condition.
+2. **The ID flips by its black spine only (desk):** the whole-card `Button` is gone - the card
    body only drags. Both spines (front-left `idstripe`, mirrored back-right `idstripeback`) carry
    raycast + a subtle brighten Button (multiplied up; the spine is near-black) + the new
    `HoverCursor` component (procedural `cursor_hand` sprite; hand cursor while hovering the
@@ -760,50 +760,50 @@ checkpoint + patrol paragraphs.
 FlowCheck: 894 checks green (new: W2 dark-entry arc, HUD readout, entry reset, relight guarantee;
 spine-handle presence, body-not-a-button, both-ways spine flips, slip tap-flip, stamp-rides-slip,
 decoupling proof, F routing, face-up carry-over). LogicTests 27,409 invariant + 27,411 ICU/de-DE
-green (counts unchanged — no pure-logic change). Frozen suite 663/663. verify.sh clean.
+green (counts unchanged - no pure-logic change). Frozen suite 663/663. verify.sh clean.
 
 ## Verification & patrol audit pass: scroll-resize, scanner removal, flashlight, stamp box, appearance check (October 2026)
 Six-part owner audit, one commit-sized change per task:
 1. **Papers keep their size while scrolling (desk):** the wheel-zoom listener in
-   `CheckpointView.Update` is gone — scrolling no longer resizes the ID or the slip anywhere.
+   `CheckpointView.Update` is gone - scrolling no longer resizes the ID or the slip anywhere.
    The deliberate `Z` toggle survives and moved into `TickHotkeys` (same desk-live gating,
    now headless-testable). Drag-lift (1.04x while held) and the 1..1.8 `DragPaper.Zoom`
    clamp are unchanged; overlay text scrolling (ScrollRect) untouched.
 2. **The ID scanner is removed:** SCAN button, the CAMERA monitor panel + readout,
    `DoScan()`, the drop-ID-on-scanner/camera zones, `EventIds.ScanPerformed` and the
    "SCANNER READY" init are all gone; the layout grid retires `UtilityScan`/`Monitor`
-   (their slot now carries the appearance check — no dead space). Question-budget refusals
+   (their slot now carries the appearance check - no dead space). Question-budget refusals
    ("ALREADY ASKED THAT." / "NO MORE QUESTIONS") surface as HUD toasts instead of the dead
-   readout. `RosterFactory.Scan`/`ScanResult`/`PresentationLog` stay in GameLogic — the
+   readout. `RosterFactory.Scan`/`ScanResult`/`PresentationLog` stay in GameLogic - the
    frozen verification suite and LogicTests still exercise the pure duplicate-ID rule, and
    the verdict path still records presentations; only the desk UI stopped calling it.
    ID display, photo and manual verification (documents, floor files, questions) preserved.
-3. **The patrol flashlight behaves (world):** rooms already entered dark — now the handheld
+3. **The patrol flashlight behaves (world):** rooms already entered dark - now the handheld
    beam arrives OFF too. `ViewManager.EnterRoomImmediate` calls the new silent
    `FlashlightRig.ForceBeamOffOnEntry()` on every entry (patrol start, doors, peek returns):
    latches clear, cone sprite + light mask deactivate, so "LIGHTS: OFF" finally means dark.
    `F` toggles the beam ON (sweep) / OFF; `Q`/`L` stay. Mouse buttons are no longer beam
-   input — a held LMB/RMB (doors, switches, dialogue) used to light the beam without any key
+   input - a held LMB/RMB (doors, switches, dialogue) used to light the beam without any key
    press, which is what read as "the flashlight turns itself on". The HUD room line now
    carries the live beam state (`BEAM: OFF/SWEEP/FOCUS`, refreshed via the battery publish
    every `ApplyBeam` already fires), so status text and real illumination can never disagree.
 4. **The stamp mark respects the slip (desk):** the verdict check/X used to land 90x90 at the
-   raw drop point — smothering the written lines or hanging off the paper edge. The slip now
+   raw drop point - smothering the written lines or hanging off the paper edge. The slip now
    prints a `stampbox` (130,52 60x60; REASON narrowed to 116 wide, clear of it) and
-   `PlaceStampMark` snaps a 56x56 mark into that box with the seeded tilt — provably inside
+   `PlaceStampMark` snaps a 56x56 mark into that box with the seeded tilt - provably inside
    the paper and off the text at every zoom and viewport. Drop-to-stamp, A/D keys, the punch
    animation, one-stamp-per-slip and pending-until-hand-back all unchanged.
 5. **Conditional appearance question (desk):** new `GameLogic/AppearanceCheck.cs` (pure) +
    `CheckpointView.Appearance.cs` panel in the retired camera's slot: "Does the student's
-   current appearance differ from their ID photo?" — YES reveals "Why does the student look
-   different…?" with a one-line reason field (the field's GO carries the InputField alone —
+   current appearance differ from their ID photo?" - YES reveals "Why does the student look
+   different…?" with a one-line reason field (the field's GO carries the InputField alone -
    never two Selectables on one object); NO hides it AND clears the previous explanation, so
    stale text can never be submitted. YES without a reason refuses BOTH stamp paths with a
    toast (the stamp is the submit). While the field has focus every desk hotkey stands down
    (a typed "a" never stamps) and Esc returns focus. The answered check rides into TONIGHT'S
    LOG with the verdict (unanswered = excluded), syncs to `CheckpointQueue.ActiveAppearance*`
    and persists through the queue snapshot (`queueAppear`/`queueAppearWhy`; newline-flattened,
-   '=' safe; pre-feature saves load unanswered). No face recognition anywhere — the player's
+   '=' safe; pre-feature saves load unanswered). No face recognition anywhere - the player's
    Yes/No IS the data.
 Docs: README (loop, controls, fairness, save note), ControlsView sheet, GAMEPLAY-OVERVIEW
 (checkpoint + patrol paragraphs).
@@ -817,20 +817,20 @@ compile + audit clean.
 ## Owner audit pass 2: manual peek lamp, drop-position stamping, face-check removal, speech bubble, smaller ID (October 2026)
 Seven-part owner prompt, one scoped change per task:
 1. **The flashlight stays off until F (world):** the beam side was already manual (previous
-   pass); the remaining auto-on light was the classroom PEEK itself: `PeekLight` — the
-   cursor-locked lamp — switched on the moment the room was entered, without any key press.
+   pass); the remaining auto-on light was the classroom PEEK itself: `PeekLight` - the
+   cursor-locked lamp - switched on the moment the room was entered, without any key press.
    The peek SESSION and the LAMP are now separate states: `Active` (the room is framed;
    cursor tracking, prompts and the E exit keep working, so the dark can never trap the
-   player) and `Lit` (the light itself — born OFF on EVERY entry, toggled by `F` alone;
+   player) and `Lit` (the light itself - born OFF on EVERY entry, toggled by `F` alone;
    mask + glow + the `Covers`/`IsPeekLit` illumination query all answer to the same flag).
    Mouse movement never lights anything. Every toggle publishes `LightModeChanged` + a
    toast, and the HUD room line reads `LAMP: ON/OFF` while peeking (`BEAM:` on patrol), so
    the indicator cannot disagree with the real light. The handheld beam still forces off on
-   every room entry / peek / patrol restart (one press on, one press off — no double-F).
+   every room entry / peek / patrol restart (one press on, one press off - no double-F).
 2. **The stamp lands where you drop it (desk):** Papers, Please style. The printed
    `stampbox` is gone (the REASON line is full width again) and the new pure
    `GameLogic/StampPlacement.cs` maps the drop point from desk space into the slip's own
-   space — position, zoom scale and resting tilt included — then clamps so the whole tilted
+   space - position, zoom scale and resting tilt included - then clamps so the whole tilted
    56px mark stays inside the printable area (2px edge padding): a centre drop marks the
    centre, a corner drop marks the corner (clamped in, never overhanging). The mark stays a
    child layer of the slip, so it rides drags, flips and zooms. `A`/`D` keyboard verdicts
@@ -841,16 +841,16 @@ Seven-part owner prompt, one scoped change per task:
    and every `Inner.App*` sub-rect retired; the YES/NO buttons, the follow-up question, the
    reason InputField + typing-focus hotkey guard, the stamp gate, the per-visitor reset, the
    queue sync (`ActiveAppearance*`) and the snapshot/save keys (`queueAppear`/
-   `queueAppearWhy`) are all gone — old saves still load (unknown keys are ignored). The
+   `queueAppearWhy`) are all gone - old saves still load (unknown keys are ignored). The
    RULES NOTE text no longer teaches the form. The ID card, photo, student info and the four
    existing questions are untouched; no replacement face/appearance system was added. The
    verdict stamp tray moved UP into the vacated slot so the right column stays balanced
    (questions above, stamps below, open desk underneath). Night 3's objective/rule note were
-   also cleaned — they still told the player to "Use SCAN" (scanner retired last pass).
+   also cleaned - they still told the player to "Use SCAN" (scanner retired last pass).
 4. **Student dialogue is a speech bubble beside the head (desk):** the rectangular DIALOGUE
    strip under the window is gone; `CheckpointView.Speech.cs` now builds a comic-style
-   bubble at `L.SpeechBubble (718,100,248,210)` — right of the portrait's head, never over
-   the face — in the desk's paper stock + border, with a new procedural `bubble_tail`
+   bubble at `L.SpeechBubble (718,100,248,210)` - right of the portrait's head, never over
+   the face - in the desk's paper stock + border, with a new procedural `bubble_tail`
    sprite pointing at the student (borderless base buried under the panel for a seamless
    comics seam). The bubble grows DOWN with the wrapped line count (pure
    `SpeechBubbleLayout`: greedy wrap estimate, word-boundary truncation with an ellipsis,
@@ -861,11 +861,11 @@ Seven-part owner prompt, one scoped change per task:
    pile-up). The countdown freezes while paused, behind blocking sheets and while the
    scripted `DialogueView` sequence is still talking (the admin's typed lines end first,
    then the 2 s start). Leaving the desk (patrol), a new shift, or the visitor walking off
-   hides the bubble instantly — no timer survives the room change. The bubble only speaks
+   hides the bubble instantly - no timer survives the room change. The bubble only speaks
    with the student's voice: radio warnings and district bulletins go to HUD toasts. The
    bubble is raycast-transparent and renders under the papers layer.
 5. **The ID card's default display is slightly smaller (desk):** `DragPaper.BaseScale`
-   (new, default 1) — `Zoom` now reads/writes RELATIVE to it (clamp still 1..1.8). The held
+   (new, default 1) - `Zoom` now reads/writes RELATIVE to it (clamp still 1..1.8). The held
    ID is born and rests at `IdCardScale = 0.82` (~18% smaller), the whole card scaling
    uniformly: the 304x209 slot rect, the aspect, the photo, every row and the spine flip
    handle stay exactly as designed and readable; drag/lift/clamp honour the smaller size.
@@ -876,9 +876,9 @@ Seven-part owner prompt, one scoped change per task:
    negative proofs (no SCAN button / camera monitor / readout) still run, and the manual
    verification workflow (documents, floor files, questions) is preserved.
 Docs: README (loop, controls, layout tree), ControlsView sheet, GAMEPLAY-OVERVIEW
-(checkpoint + patrol paragraphs — including the stale "two chalk circles" sentence),
+(checkpoint + patrol paragraphs - including the stale "two chalk circles" sentence),
 ShiftPlan night-3 text.
-FlowCheck: 910 checks green (new: W10 peek-lamp arc — dark entry, mouse-never-lights, one-F
+FlowCheck: 910 checks green (new: W10 peek-lamp arc - dark entry, mouse-never-lights, one-F
 toggle both ways, mask/glow hidden, coverage query agreement, HUD LAMP sync + toast + hint
 line, dark prompt/E exit, second-classroom reset; BubbleProof timing/geometry/cleanup;
 StampPlaceProof drop-point mapping on a zoomed slip + mark-rides-slip + verdict art;
@@ -890,7 +890,7 @@ StampPlacement checks). Frozen suite 663/663. verify.sh compile + audit clean.
 
 ## Readable bubble, compact tray, graded beam light, focus everywhere, face check pass (October 2026)
 Six owner requests, one pass; every change rides the existing systems.
-1. **Hover-to-read speech bubble:** `SpeechBubbleClock` gains `Hovering`/`SetHover` — entering the
+1. **Hover-to-read speech bubble:** `SpeechBubbleClock` gains `Hovering`/`SetHover` - entering the
    bubble suspends the 2 s countdown, leaving RESTARTS it from zero (and changes nothing while the
    dialogue is still talking, because the countdown only begins once it ends). The bubble's border
    panel becomes the single raycast target in the bubble (`UI/HoverSense.cs`, fill/text/tail stay
@@ -911,14 +911,14 @@ Six owner requests, one pass; every change rides the existing systems.
    to their own black. OFF removes cone + mask + penumbra together.
 5. **Focus, everywhere:** patrol Focus (Q) was already the arbitration; it now also concentrates
    (core tint 0.30 -> 0.42) while Sweep stays the wide wash. The classroom peek lamp gains the same
-   language: Q toggles wide (2.6 u) <-> focus (1.3 u, hotter glow) — reshapes real coverage
+   language: Q toggles wide (2.6 u) <-> focus (1.3 u, hotter glow) - reshapes real coverage
    (`EffectiveRadius` drives mask, glow AND `Covers`), never lights the lamp, and OFF wins over
    whichever mode was last set. HUD reads `LAMP: ON · FOCUS`.
 6. **Face check returns, interactive and truthful:** click the ID PHOTO (`Checkpoint/IdPhotoSelect`
-   — a clean click selects with a thin pale frame on the photo alone; a real drag is forwarded to
+   - a clean click selects with a thin pale frame on the photo alone; a real drag is forwarded to
    the card past 6 px, so selecting never yanks the card), then click the face at the window
    (`UI/ClickSense`). The answer is the run's own data: `VisitorData.DisplayedFacesMatch` (window
-   portrait vs printed photo, features AND the anomaly distortion — the administrator's glitched
+   portrait vs printed photo, features AND the anomaly distortion - the administrator's glitched
    window face is her tell), i.e. exactly what the sprites render and what PhotoMismatch/
    PhotoSubtleMismatch book. A brief frame answers: muted green = same face, muted amber = not; it
    informs only (no verdict, no deny). Wrong order asks for the photo first; selection resets on a
@@ -946,7 +946,7 @@ LogicTests 27,548/27,548; FlowCheck 982 OK / 0 BAD; frozen 663/663.
 2. **Lighting state audit:** new FlowCheck `CheckLightSync` walks entry, L-off, dark corridor, peek
    entry/exit and pause/resume asserting cone + stencil mask + penumbra activity AND the HUD readout
    all agree with the single beam state (peek swaps the readout to the lamp line). All green: no
-   desync exists — the beam graphic, its illumination and the indicator derive from one state
+   desync exists - the beam graphic, its illumination and the indicator derive from one state
    (`FlashlightRig.Beam`), and OFF deactivates all three layers together.
 3. **Stamp:** `StampMarkSize` 45 -> 60 px (+33.3%, inside the requested 30-40%), square +
    preserveAspect, clamp margin 39.8 px keeps the tilted mark on the 200x120 slip, drop-point
@@ -959,7 +959,7 @@ LogicTests 27,548/27,548; FlowCheck 982 OK / 0 BAD; frozen 663/663.
    saved, -1 fallback) + `GameLogic/FaceAssets` keys; `Bootstrap/FaceArt` picks asset-vs-procedural
    per face: window = student asset (anomaly asset when the run says the window portrait is
    distorted), card = the SAME asset only when `PhotoMatches`, else the procedural painter of the
-   card's own portrait triple — so a mismatch always SHOWS two different people and the cue never
+   card's own portrait triple - so a mismatch always SHOWS two different people and the cue never
    contradicts the pixels. `ProceduralArt.TryGet` + a `stamp_allow -> stamp_approval_temp` alias make
    missing files fall back gracefully (no broken images); deleting a file restores the old art.
    Previews: `Tools/face_asset_preview.png`, raws kept in `Tools/faces_raw/`.
@@ -969,14 +969,14 @@ faces, distorted => anomaly key, procedural fallback). verify.sh compile+audit c
 15,793 lines); LogicTests 27,555/27,555; FlowCheck 1001 OK / 0 BAD; frozen 663/663.
 
 ## Flashlight overhaul, white-square fix, paired anomaly faces pass (October 2026)
-1. **White square over the ID photo — root cause:** five portrait Images (`idphoto`, the counter
+1. **White square over the ID photo - root cause:** five portrait Images (`idphoto`, the counter
    `photo`, `visitor`, the security-room and dialogue portraits) were built with `sprite = null`
    and uGUI's default `Color.white`; a null-sprite Image renders the engine's white texture, i.e. a
    solid white rectangle over the photo slot until a sprite lands. Fix: a designed
    `face_placeholder` sprite (dark photo-gray backdrop + muted silhouette bust, same language as the
    real portraits) is now the build-time sprite everywhere, `FaceArt` can never return null, and a
    FlowCheck proof asserts no visible white sprite-less Image exists on the desk.
-2. **Flashlight overhaul:** one pure profile (`GameLogic/BeamProfile`) now feeds every layer —
+2. **Flashlight overhaul:** one pure profile (`GameLogic/BeamProfile`) now feeds every layer -
    `light_cone` repainted as a soft tapered beam (hot pool at the lamp, feathered shoulders,
    long decay at the reach, faint sub-cutoff halo that lifts nearby surfaces without cutting the
    stencil), `beam_penumbra` repainted as its exact inverse so the graded reveal lands on the room's
@@ -986,14 +986,14 @@ faces, distorted => anomaly key, procedural fallback). verify.sh compile+audit c
    and burns hotter (tint 0.42 vs 0.30); OFF deactivates cone + mask + penumbra together; the
    classroom lamp's independent F/Q controls are untouched. New proofs: cross-section shoulder,
    along-beam decay, sub-cutoff halo, plus the six-point `CheckLightSync` state audit.
-   (A first bake forgot the wedge's u/t normalisation and produced a cylinder — caught by the sim
+   (A first bake forgot the wedge's u/t normalisation and produced a cylinder - caught by the sim
    and the profile proofs, fixed in both bakers.)
 3. **Paired anomaly faces:** six AI-derived variants of the shipped student portraits
    (`student_face_01_anomaly.png` .. `_06_anomaly.png`, same framing/grain, restrained uncanny
    tells: milky mis-set pupil, too-wide unblinking eyes, over-symmetric smile, blacked cap shadow,
    double-exposure ghost edge, opaque lenses). `FaceAssets.AnomalyKey` is now the PAIRED key, and
    `FaceArt` renders the window face with the student's own variant whenever the run's data says
-   `IsAnomaly` (or distorted) while the ID card keeps the NORMAL reference — so the mismatch is
+   `IsAnomaly` (or distorted) while the ID card keeps the NORMAL reference - so the mismatch is
    visible by eye and `DisplayedFacesMatch` (now `PhotoMatches && !IsAnomaly && distortion-equal`)
    still agrees with the pixels. The three generic `anomaly_face_0*.png` files were retired.
 Docs: `docs/ui/hallway_lighting_sim.png` (v4), `Tools/anomaly_pair_preview.png` (pairs at 48/96 px).
@@ -1023,21 +1023,21 @@ FlowCheck 1003 OK / 0 BAD; frozen 663/663.
 
 ## Screenshot-driven Unity hotfix pass (October 2026)
 Four defects visible in the owner's editor screenshots, all root-caused and fixed:
-1. **White square over the ID photo:** the selection/comparison cues were `BorderedPanel`s — whose
-   OUTER Image is a FILLED rect — so a selected photo (or a playing cue) painted a pale solid square
+1. **White square over the ID photo:** the selection/comparison cues were `BorderedPanel`s - whose
+   OUTER Image is a FILLED rect - so a selected photo (or a playing cue) painted a pale solid square
    over the photograph. Both cues now use a new hollow `outline_frame` sprite (opaque border,
    transparent centre): they outline, never cover.
 2. **Dark trapezoids flanking the beam:** the penumbra sheet added its darkness ON TOP of the room
    darkness outside the wedge but inside its rect (double-dark corners). New `BeamAreaMask`
    (SpriteMask, range 60..70, 0.98x the penumbra sheet) cuts the base+pool layers exactly where the
    penumbra takes over, so the penumbra REPLACES the ambient inside the beam area and equals it at
-   the boundary — one coherent beam, no geometric shadows.
+   the boundary - one coherent beam, no geometric shadows.
 3. **HUD collisions under the top bar:** LightMeter/TrackMeter moved to (348,84,200,40) /
    (568,84,110,40), clear of Findings/RoomInfo and of each other's captions.
 4. **Portrait framing:** `ShowVisitorPortrait` re-asserts the portrait rect + preserveAspect on
    every present, so no stale rect/anchor can leave the face off-centre.
 5. **§6 automation:** `ResetHandover` now offers AND auto-takes both papers (TakeId + DockIdToSlot +
-   TakeSlipAt) — the inspection never gates on dragging; dragging still arranges. The earlier
+   TakeSlipAt) - the inspection never gates on dragging; dragging still arranges. The earlier
    auto-take attempt had deleted the Offer calls (which fill + activate the slip); restored before
    the take. ControlsView/README wording updated.
 FlowCheck proofs rewired (auto-docs, hollow frames, area mask, HUD row). verify.sh compile+audit
@@ -1060,10 +1060,10 @@ them). The ID photo, the window portrait and the counter photo are now `raycastT
 with **no** component but their `Image`, so no handler can fire from them and a drag that starts
 on the photograph reaches the card's `DragPaper` again. Deliberately KEPT: `FaceArt`,
 `VisitorData.PhotoMatches` / `DisplayedFacesMatch`, `DefectType.PhotoMismatch` /
-`PhotoSubtleMismatch` and the face assets — anomaly detection, scoring and the fairness invariant
+`PhotoSubtleMismatch` and the face assets - anomaly detection, scoring and the fairness invariant
 all read those, and the eye-check is still a real way to catch an impostor. `FrameToSlot` (the
 letterbox centring) moved to `CheckpointView.Window.cs`; it is portrait framing, not the mechanic.
-Proof: `FaceMatchRetiredProof` — nodes gone, no pointer handler of ANY kind on either face, no
+Proof: `FaceMatchRetiredProof` - nodes gone, no pointer handler of ANY kind on either face, no
 "click the ID photo" wording anywhere in the desk/HUD text, card still draggable from the photo,
 and both faces still render real sprites at their exact letterbox rects.
 
@@ -1077,7 +1077,7 @@ right; damping the press that creates it is lag. Fix: `ApplyBeam` detects off→
 new `PlaceBeam()` so the cone and its stencil mask are positioned, rotated and scaled in the same
 call. No timer, no coroutine, no fade: full tint on frame one. A held beam keeps its glide and a
 Sweep↔Focus change while lit keeps its morph. `AimFromCursor` is now the single source for the aim
-used by both paths, so the art and the logical cone cannot disagree. Proof: W2c — one
+used by both paths, so the art and the logical cone cannot disagree. Proof: W2c - one
 `PressKey(F)` frame and the cone is at the cursor's angle, at `sweepRange` length, mask riding
 1.06x on it, both on the aim mid-point, alpha already 0.30; five on/off cycles all instant and
 each aimed at the NEW cursor; `L` still puts it out at once.
@@ -1107,7 +1107,7 @@ body parks back exactly where it started) plus `DrawerMotionTests` in LogicTests
 
 **4 & 5. The ground-floor map is a new hand-drawn plan, centred by construction.**
 Root cause of the off-centre sheet: five hard-coded pixel offsets (`(0,10)` sheet, `(0,-64)` title,
-`(0,74)` hint, `(0,34)` CLOSE) that only balanced at 1280x720 — the hint and CLOSE actually
+`(0,74)` hint, `(0,34)` CLOSE) that only balanced at 1280x720 - the hint and CLOSE actually
 overlapped in the y band 74..76, and the room boxes were asymmetric inside the sheet (left edge
 -445, right edge +420), so the drawing looked pushed left even when the panel was centred.
 Replaced with data + one fit: `GameLogic/FloorPlan` owns the rooms in a fixed 940x440 design space
@@ -1122,8 +1122,8 @@ reference by aspect). Styling: new procedural `map_paper` (aged, stained, folded
 district stamp), `map_room` (wobbly double-stroked outline over a soft fill), `map_sealed` (red
 hatch + chain + padlock) and `map_door`, chalk corridor runs, handwritten `CaveatBrush` title,
 dark paper under a night lamp so the horror UI is never blown out. Sealed stays sealed: no `Button`
-and `raycastTarget = false`, and it is not in `RoomGraph`. Comfort rooms are map-only by design —
-no `RoomId`, no patrol mechanics — but they answer a click with a radio line instead of nothing.
+and `raycastTarget = false`, and it is not in `RoomGraph`. Comfort rooms are map-only by design -
+no `RoomId`, no patrol mechanics - but they answer a click with a radio line instead of nothing.
 Patrol rooms keep `TravelViaMap`, findings keep their red dots, YOU keeps its marker. The desk's
 inline map widget now lists the same rooms in the same words.
 Proofs: MAP block (dead-centre at 1280x720, sheet keeps the plan's aspect, every room inside the
@@ -1141,7 +1141,7 @@ column) and `dotnet run --project Tools/FlowCheck -- --dump-drawer=DIR` (boots t
 the real NEW GAME path and draws the built hierarchy at shut / click-frame / +2 / +5 / open).
 Looking at the first dumps caught four things the numeric proofs had not: the title rule was drawn
 through the title's descenders; the cavity shade was 0px wide (a stretched anchor makes `sizeDelta`
-a delta, not a size — every drawer rect now goes through `PlaceTL`, the desk's one placement rule);
+a delta, not a size - every drawer rect now goes through `PlaceTL`, the desk's one placement rule);
 the registry readout would have been hidden behind the pulled drawer front; and the y flip between
 design space and RectTransform space needed pinning in ONE function (`MapSheetLayout.ToAnchoredY`)
 with a test on it, because getting it backwards silently puts Classroom 1 under the hallway.
@@ -1156,13 +1156,13 @@ objects, five shifts of 4/6/7/8/8+admin students, modes, endings). Delivered
 with per-key format, pixel spec, ppu, priority tier mapped to the shifts, and current status.
 To keep the list honest:
 1. `ProceduralArt.AllKeys` / `ProceduralAudio.AllKeys` now expose the exact key sets, and a new
-   FlowCheck section (`== asset manifest sync ==`) reads the CSV and proves both directions —
+   FlowCheck section (`== asset manifest sync ==`) reads the CSV and proves both directions -
    every row is a real key, every key has a row, every key resolves to a sprite/clip named after
    itself, and every "temp-shipped" row has its file. That proof immediately caught two real
    fallback bugs: `token` and `rough_panel_dark` were painted by shared painters that named the
    sprite after the FIRST key, so a dropped-in file for either would have kept showing the
    other's art.
-2. Faces: the approved 14-student plan is now named in full — `student_face_01..14` plus
+2. Faces: the approved 14-student plan is now named in full - `student_face_01..14` plus
    `_anomaly` variants (01-06 ship as temps) and `admin_face` / `admin_face_glitch`, the latter
    wired into `FaceArt` for the Night-5 badge photo and window tell. Manifest note: bump
    `FaceAssets.StudentFaceCount` 6->14 on the day 07-14 ship.
@@ -1171,7 +1171,7 @@ To keep the list honest:
    was an anonymous white quad, and the clue objects (notice board, photo, clock, chalkboard,
    window, lost ID, light fixture) had no visual at all. `RoomBuilder` now draws the real keys
    standing on the floor line (new key `prop_lightswitch`), and `AddClue` hangs an optional sprite
-   off each clue anchor — so every name in the manifest is visible in-game today as a placeholder
+   off each clue anchor - so every name in the manifest is visible in-game today as a placeholder
    and becomes final art the moment a PNG lands.
 verify.sh compile+audit clean (102 scripts, 17,194 lines).
 
@@ -1181,13 +1181,13 @@ preserving every established rule (physical stamps, 2-question cap, clue order, 
 contracts, Lose > Secret > Win). Audit first, then the smallest architecture-compatible build.
 
 **Audit findings fixed (proven gaps, not style):**
-1. `EndingRules.Evaluate` awarded the ordinary Win on "five shifts completed" alone — the design's
+1. `EndingRules.Evaluate` awarded the ordinary Win on "five shifts completed" alone - the design's
    Win definition names the administrator's rejection explicitly. The Secret branch keeps its
    clue-chain gate (it is the clue chain's own prize); the Win branch now requires
    `Session.AdminRejected`, and a completed run with the administrator neither rejected nor
    allowed returns `None/admin_unresolved` (no ending invented, no Win leaked). Regression tests in
    `EndingAuditSuite`.
-2. `GameSession.EvaluateEnding` folded `Pool.Pending` into `Breaches` on EVERY call — a repeated
+2. `GameSession.EvaluateEnding` folded `Pool.Pending` into `Breaches` on EVERY call - a repeated
    evaluation (ending screen, summary, resumed save) could count the same outstanding anomalies
    twice and flip a Win into a Lose. The fold now happens exactly once (`PoolFolded`, pool closed
    with the books) with regression tests calling the evaluator three times.
@@ -1196,7 +1196,7 @@ contracts, Lose > Secret > Win). Audit first, then the smallest architecture-com
    and on continue). That guard immediately exposed a fourth bug:
 4. `RosterFactory.BuildAdministrator` never set `VisitorIndex` (only the roster-generation call
    site did), so a harness-presented administrator carried index 0 and collided with visitor 0.
-   The index assignment moved into the builder — the administrator IS the extra final entry
+   The index assignment moved into the builder - the administrator IS the extra final entry
    (`shift.VisitorCount`), by construction, on every path.
 
 **The conversation (new, pure + thin view):**
@@ -1208,7 +1208,7 @@ contracts, Lose > Secret > Win). Audit first, then the smallest architecture-com
   hub returns); counters are the administrator's memory. `ValidateScript()` proves unique ids, real
   destinations, reachability, escapability from every node, and token sanity; LogicTests walks every
   branch for real.
-- Contract enforced by tests: choices move ONLY `Session.AdminTalk` (node, used-mask, counters) —
+- Contract enforced by tests: choices move ONLY `Session.AdminTalk` (node, used-mask, counters) -
   never the question budget, never clues, never a verdict, never an ending; the stamp + hand-back
   transaction is untouched and remains the single decision point; silence is counted, pausing is
   presentation-only, and always returns to a usable hub.
@@ -1220,7 +1220,7 @@ contracts, Lose > Secret > Win). Audit first, then the smallest architecture-com
   an ordinary student's stamp can never mark the encounter completed. State lives in
   `Session.AdminTalk`, saved as one `adminTalk=` KV (forward-compatible: old saves decode as an
   unopened conversation; a torn node id falls back to the hub).
-- Location decision (brief §5): the encounter stays in the `Checkpoint` state — `AppViewState.
+- Location decision (brief §5): the encounter stays in the `Checkpoint` state - `AppViewState.
   AdminEncounter` remains reserved exactly as `docs/HANDOFF.md` A8 documents; one state machine
   (CheckpointView) owns the interaction, no parallel encounter, nothing moved into the School
   scene's late-arrival prototype.
@@ -1235,20 +1235,20 @@ the Windows build and the audio/visual feel remain NOT RUN in this environment (
 
 ---
 
-## 2026-10-29 — Registry drawer, questions containment, kit paper & caption assets, dock retirement, clean stamps
+## 2026-10-29 - Registry drawer, questions containment, kit paper & caption assets, dock retirement, clean stamps
 
 Owner UI pass over the inspection desk (six coordinated fixes, one shared root-cause theme: the
 kit skin painted furniture the layout constants never measured, and two interfaces re-typeset
 content the photographed kit art already carries).
 
 1. **Floor Files drawer** (`CheckpointView.FileDrawer.cs`, `CheckpointLayout.cs`): the shut
-   cabinet showed only the dark `sec_cabinet1` void — the mouth (and with it the front + handle)
+   cabinet showed only the dark `sec_cabinet1` void - the mouth (and with it the front + handle)
    stayed `SetActive(false)` until pulled, so nothing read as a drawer. The cabinet face now
    carries a worn drawer front (`cabfront` group: recess shadow, light face, grip slot,
    `OPEN ▾` tag, contact shadow) that fades out on the same `pull` float that drives the body
    (`ApplyDrawerPull`), so shut face and pulled drawer can never paint at once; hover brightens
    face + grip through the existing `HoverSense`. The permanent `stationout` readout
-   ("FOUND: …") is retired with its label — the pulled sheet + paper sfx IS the feedback, and the
+   ("FOUND: …") is retired with its label - the pulled sheet + paper sfx IS the feedback, and the
    one registry refusal (administrator) rides the HUD toast like every other desk refusal.
 2. **Questions panel** (`CheckpointView.Decision.cs`, `CheckpointLayout.cs`): the 4th pill crossed
    the kit panel's PAINTED bottom border (measured at local y≈198 of the 305x215 rect) because the
@@ -1256,18 +1256,18 @@ content the photographed kit art already carries).
    edge crossed the painted right border (290 > 287). The column is now one parent-driven layout
    (`LayoutQuestionRow`/`LayoutQuestions`): header + counter in the top strip, the content box
    (44..193) divided evenly between the visible choices, uniform gap, wrap-on labels with the
-   existing best-fit floor — every state stays inside the frame.
+   existing best-fit floor - every state stays inside the frame.
 3. **Dialogue vs narration assets** (`DialogueView.cs`, `CheckpointView.Speech.cs`): pre-gameplay
-   narration now rides `sec_caption_bar` — the torn bar at its own 325:90 proportions (uniform
+   narration now rides `sec_caption_bar` - the torn bar at its own 325:90 proportions (uniform
    scale, dark ink inside the torn edges, speaker line in the desk red) instead of the dark box;
    the desk bubble keeps `sec_bubble` (9-slice, kit tail) and long answers now trade type size for
    line budget (13→10 px, 24→39 chars, kit 4 lines / tagged 3) before the designed ellipsis, so
    real content lines fit whole inside the visible bubble.
 4. **Rules & log papers** (`CheckpointView.Overlays.cs`, `CheckpointLayout.cs`): the reading sheet
-   IS the photographed document now — `sec_rules_paper` / `sec_log_paper` centred at their own
+   IS the photographed document now - `sec_rules_paper` / `sec_log_paper` centred at their own
    aspect, no re-typeset crest/title/handwriting/checklist (that ink is printed on the art), no
    extra tilt (the print carries its own). The LIVE body (per-night briefing / tonight's entries)
-   rides a typed addendum slip pinned over the sheet's blank bottom band — the rules paper's
+   rides a typed addendum slip pinned over the sheet's blank bottom band - the rules paper's
    printed ink ends at y≈801/879, so the slip starts under it (596) and hangs off the sheet edge
    like a clipped page; the CLOSE [X] pill keeps its wording and click on the sheet's blank
    top-right corner. Desk props unchanged.
@@ -1290,5 +1290,5 @@ questions content-box proof replaces the wireframe-grid proof, talk-dock proof r
 refusal now proved through the HUD toast); LogicTests 27,775/27,775. Rendered through
 Tools/Preview at 1280x720 and 1024x768: closed + open + record drawer states, questions live /
 asked / empty, bubble short + long lines, rules + log sheets, intro caption bar, post-verdict
-desk — all contained, no overlap, no clipped ink. Unity Play Mode and the Windows build remain
+desk - all contained, no overlap, no clipped ink. Unity Play Mode and the Windows build remain
 NOT RUN in this environment (no editor).

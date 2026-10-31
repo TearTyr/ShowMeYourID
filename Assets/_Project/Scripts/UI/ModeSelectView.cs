@@ -22,7 +22,7 @@ namespace Hollowbrook.UI
             UIFactory.Dimmer(transform, "dim", 0.88f);
             var sheet = UIFactory.LeftSheet(transform, "SELECT ASSIGNMENT", "The contract, or the long night.", out var col);
 
-            BuildCard(sheet, new Vector2(320, -180), "NORMAL — THE CONTRACT",
+            BuildCard(sheet, new Vector2(320, -180), "NORMAL - THE CONTRACT",
                 "Five nights at Hollowbrook. Verify students, keep anomalies out, investigate the school.",
                 () => _gameRoot.StartNewGame(GameMode.Normal), out _);
             BuildCard(sheet, new Vector2(320, -330), "ENDLESS WATCH",

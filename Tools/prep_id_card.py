@@ -2,7 +2,7 @@
 """Build the blank student ID card from the owner's PSD.
 
 Source: Art/UI and Design Assets/ID/SMYI-ID.psd
-Output: Assets/_Project/Resources/Art/id_card_template.png
+Output: Assets/_Project/Resources/Art/UI/SecurityDesk/sec_id_card_template.png
 The sample card has Mark's name, number, major, grade, status, expiry and photo baked in as
 separate layers. They are hidden here, so the game prints the live values itself on the
 printed labels (NAME, STUDENT NUMBER, MAJOR, GRADE, STATUS). The card is extended with a white
@@ -15,7 +15,7 @@ from psd_tools import PSDImage
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "Art", "UI and Design Assets", "ID", "SMYI-ID.psd")
-DST = os.path.join(ROOT, "Assets", "_Project", "Resources", "Art", "id_card_template.png")
+DST = os.path.join(ROOT, "Assets", "_Project", "Resources", "Art", "UI", "SecurityDesk", "sec_id_card_template.png")
 HIDE = {"Mark mendoza", "HB-2024-0101", "bs information technology", "freshman", "regular",
         "expires 2027 - 04 - 12", "Markfinalizedsas"}
 OUT_W = 1170          # 320 design units x ~3.66

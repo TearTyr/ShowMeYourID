@@ -49,8 +49,8 @@ namespace Hollowbrook.Core
             var lines = new List<DialogueLine>
             {
                 new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = "Then I will let myself in." },
-                new DialogueLine { Speaker = "RADIO", Text = "The gate! He is through the gate — he is inside the school!" },
-                new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "The server room. That is where he is going. Find him in the classrooms and stop him — the lamp, and the beam." },
+                new DialogueLine { Speaker = "RADIO", Text = "The gate! He is through the gate - he is inside the school!" },
+                new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "The server room. That is where he is going. Find him in the classrooms and stop him - the lamp, and the beam." },
             };
             if (Dialogue != null) Dialogue.Play(lines, () => EnterExploration(RoomId.Hallway));
             else EnterExploration(RoomId.Hallway);
