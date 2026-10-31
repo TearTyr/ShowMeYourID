@@ -45,6 +45,7 @@ namespace Hollowbrook.Logic
         public int Breaches = 0;            // anomalies allowed in (includes administrator if allowed)
         public int AnomaliesRejected = 0;
         public int TokensCollected = 0;
+        public int TokenNight = 0;   // the last night whose token was picked up
         public int VisitorIndexAtSave = 0;   // where a mid-shift continue resumes
         public bool AdminAllowed = false;
         public bool AdminRejected = false;

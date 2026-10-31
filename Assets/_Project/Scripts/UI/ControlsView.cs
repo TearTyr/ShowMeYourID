@@ -53,10 +53,6 @@ namespace Hollowbrook.UI
                 "   L                    beam off\n" +
                 "   M                    map (at the security desk only)     ESC   pause\n" +
                 "   The HUD reads the flashlight state (FLASHLIGHT: OFF / SWEEP / FOCUS).\n\n" +
-                "SECURITY ROOM (School scene prototype, mouse)\n" +
-                "   Click the door panel to admit or deny late night students.\n" +
-                "   Click the marked spots to check the rooms for anomalies.\n\n" +
-                "DIALOGUE\n" +
                 "   CLICK / SPACE / ENTER / E     advance\n\n" +
                 "SYSTEM\n" +
                 "   F2 ×3 on the main menu, or OPTIONS → RESET DATA\n" +

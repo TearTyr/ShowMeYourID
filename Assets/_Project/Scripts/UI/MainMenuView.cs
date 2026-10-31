@@ -143,8 +143,7 @@ namespace Hollowbrook.UI
         {
             var records = SavedRecords();
             if (records.ModesUnlocked) { _gameRoot.SetState(AppViewState.ModeSelect); return; }
-            ShowNote("Repel anomalies on patrol and collect " + RecordsData.TokensToUnlockModes +
-                     " tokens to unlock Endless and Challenge.");
+            ShowNote("Find " + RecordsData.TokensToUnlockModes + " tokens on patrol to unlock Endless and Challenge.");
         }
 
         private static Sprite Kit(string key) => ProceduralArt.Get(key);

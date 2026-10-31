@@ -13,6 +13,16 @@ namespace Hollowbrook.World
         private SpriteRenderer _sr;
         private RoomInstance _room;
         private float _faceDir = 1f;
+
+        /// <summary>1 facing right, -1 facing left. The art is drawn facing right, so left is a flip.</summary>
+        public float Facing => _faceDir;
+
+        /// <summary>Turn the guard (and with him, his flashlight).</summary>
+        public void Face(float dir)
+        {
+            _faceDir = dir < 0f ? -1f : 1f;
+            var s = transform.localScale; s.x = _faceDir; transform.localScale = s;
+        }
         private float _stepTimer, _animTimer;
         private int _animStep;   // where we are in the walk cycle
         // The walk cycle: step, stand, other step, stand. The standing pose is also the idle pose.

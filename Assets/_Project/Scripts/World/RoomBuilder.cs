@@ -102,6 +102,7 @@ namespace Hollowbrook.World
                         SpriteGO(root.transform, "lockers", ProceduralArt.Get("prop_lockers"), new Vector3(-1.4f, floorY + 2.5f, 0), 8);
                         SpriteGO(root.transform, "lockers2", ProceduralArt.Get("prop_lockers"), new Vector3(7.8f, floorY + 2.5f, 0), 8);
                     }
+                    AddNightToken(room, floorY);
                     room.PlayerSpawn = new Vector3(-12.6f, 0, 0);
                     room.AnomalySpawnPoints.Add(new Vector3(12.0f, 0, 0));
                     room.AnomalySpawnPoints.Add(new Vector3(-6.5f, 0, 0));
@@ -215,6 +216,22 @@ namespace Hollowbrook.World
             if (sprite == null || sprite.rect.width <= 8f) return false;
             SpriteGO(parent, key, sprite, Vector3.zero, 0);
             return true;
+        }
+
+        // One token lies somewhere in the hallway each night until it is picked up. Tokens are
+        // spent on the main menu. Night 5 has none: he is the only thing in the building.
+        private static readonly float[] TokenSpots = { -6.0f, -3.0f, 2.0f, 4.2f, 7.4f };
+
+        private void AddNightToken(RoomInstance room, float floorY)
+        {
+            var session = _root.Session;
+            if (session.CurrentShift >= ShiftPlan.TotalShifts || session.TokenNight >= session.CurrentShift) return;
+            var rng = new GameRng(session.Seed + session.CurrentShift * 37);
+            float x = TokenSpots[rng.NextInt(0, TokenSpots.Length)];
+            var go = SpriteGO(room.Root.transform, "night_token", ProceduralArt.Get("token"), new Vector3(x, floorY + 0.3f, 0), 12);
+            var pickup = go.AddComponent<TokenPickup>();
+            pickup.Init(_root, room, x);
+            room.Interactables.Add(pickup);
         }
 
         // Every door along the hallway, in the map's order. FloorPlan says where each one stands.

@@ -39,11 +39,12 @@ namespace Hollowbrook.World
         {
             if (_gameRoot == null || _gameRoot.Session == null) return;
             _gameRoot.Session.TokensCollected++;
+            _gameRoot.Session.TokenNight = _gameRoot.Session.CurrentShift;
             _gameRoot.Records.TokensBanked++;   // spent on the main menu: see MainMenuView
             if (Room != null) Room.Interactables.Remove(this);
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.TokenCollected, _gameRoot.Session.TokensCollected));
             _gameRoot.Audio.PlaySfx("sfx_scan_ok", 0.6f);
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*you pocket the token - evidence*", 2.4f, null));
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*you pocket a token*", 2.4f, null));
             _gameRoot.PersistRun();   // a token is kept even if the run is abandoned
             Destroy(gameObject);
         }

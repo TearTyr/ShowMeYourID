@@ -60,6 +60,7 @@ namespace Hollowbrook.World
 
         public void UpdateSpawner(float dt)
         {
+            if (!_root.Config.patrolAnomalies) return;   // anomalies only come to the security window
             if (_root.State != AppViewState.Exploration) return;
             if (_views.Current == null || _views.Transitioning) return;
             // on night 5 the administrator is the only thing in the building
@@ -131,7 +132,7 @@ namespace Hollowbrook.World
         /// (uncaught == outstanding); phantoms are always the gliding shape (they never grab).</summary>
         public void SpawnAnomaly(bool hallucination)
         {
-            if (_views.Current == null) return;
+            if (_views.Current == null || !_root.Config.patrolAnomalies) return;
             if (!hallucination && _liveAnomaly != null) return;
             if (_rng == null) _rng = new GameRng(_root.Session.Seed + 31 + _root.Session.CurrentShift);
             var kind = hallucination ? AnomalyBehaviorKind.Slide : _root.Session.Pool.PeekKind(_rng);

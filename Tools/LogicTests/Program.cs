@@ -1804,7 +1804,7 @@ namespace Hollowbrook.LogicTests
                 $"Room 101 sits WEST of Room 202 along the north wall ({c1.Value.Right} <= {c2.Value.Left})");
             Check(sec.Value.Top >= hall.Value.Bottom - 0.01f && sec.Value.X < hall.Value.X,
                 $"the security checkpoint hangs BELOW the hallway's west end ({sec.Value.Top} >= {hall.Value.Bottom})");
-            var crN = FloorPlan.ForKey("room_comfort").Value;
+            var crN = FloorPlan.ForKey("room_cr1").Value;
             Check(crN.Left >= hall.Value.Right - 0.01f,
                 "the comfort room hangs off the EAST end, clear of the corridor");
             Check(server.Value.Left >= hall.Value.Right - 0.01f,
@@ -1818,13 +1818,12 @@ namespace Hollowbrook.LogicTests
 
             // comfort rooms: present, labelled, and out of the way
             var comfort = FloorPlan.ComfortRooms();
-            Eq(comfort.Count, 1, "the plan carries one comfort room");
+            Eq(comfort.Count, 2, "the plan carries CR-1 and CR-2, like the desk map");
             foreach (var cr in comfort)
             {
-                Check(cr.Comfort && cr.Room == RoomId.ComfortRoom && !cr.Sealed,
-                      "'" + cr.Key + "' is the comfort room you can walk into, and it is not sealed");
-                Check(cr.Label.ToUpperInvariant().Contains("COMFORT ROOM"),
-                      "'" + cr.Key + "' is labelled as a comfort room");
+                Check(cr.Comfort && (cr.Room == RoomId.ComfortRoom || cr.Room == RoomId.ComfortRoom2) && !cr.Sealed,
+                      "'" + cr.Key + "' is a comfort room you can peek into, and it is not sealed");
+                Check(cr.Label.StartsWith("CR-"), "'" + cr.Key + "' is labelled like the desk map");
                 Check(!cr.Overlaps(hall.Value) && !cr.Overlaps(c1.Value) && !cr.Overlaps(c2.Value) &&
                       !cr.Overlaps(sec.Value) && !cr.Overlaps(server.Value),
                       "'" + cr.Key + "' obstructs nothing - not the hallway, not a room");

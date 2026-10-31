@@ -166,7 +166,7 @@ namespace Hollowbrook.World
             // frame - no timer, no coroutine, no fade, no waiting for the next AimBeam.
             if (on && !wasOn)
             {
-                _aimSmooth = AimFromCursor(out _origin, out _dir);
+                _aimSmooth = AimFromFacing(out _origin, out _dir);
                 _dispRange = _params.Range;
                 _dispHalfTan = _params.HalfTan;
             }
@@ -188,47 +188,26 @@ namespace Hollowbrook.World
             PublishBattery();
         }
 
-        /// <summary>The aim direction the cursor asks for right now: the beam origin on the
-        /// player's shoulder and the unit vector toward the mouse on the world z=0 plane.
-        /// Shared by the per-frame damping and the activation snap so the two can never
-        /// disagree about where the lamp points.</summary>
-        private Vector3 AimFromCursor(out Vector3 origin, out Vector3 dir)
+        /// <summary>Where the beam points right now: from the guard's shoulder, straight ahead the
+        /// way he faces. Walking left turns him and the beam left, walking right turns them back.</summary>
+        private Vector3 AimFromFacing(out Vector3 origin, out Vector3 dir)
         {
             var views = _gameRoot != null ? _gameRoot.Views : null;
-            var player = views != null && views.Player != null
-                ? views.Player.transform.localPosition : Vector3.zero;
+            var guard = views != null ? views.Player : null;
+            var player = guard != null ? guard.transform.localPosition : Vector3.zero;
             origin = new Vector3(player.x, player.y + 0.2f, 0f);
-            dir = _dir;                                  // keep the last aim if it degenerates
-            if (_cam != null)
-            {
-                var mouse = Input.mousePosition;
-                mouse.z = -_cam.transform.position.z;    // project onto the z=0 world plane
-                var aim = _cam.ScreenToWorldPoint(mouse);
-                aim.z = 0f;
-                var d = aim - origin; d.z = 0f;
-                if (d.magnitude > 1e-4f) dir = d.normalized;
-            }
+            dir = new Vector3(guard != null ? guard.Facing : 1f, 0f, 0f);
             return dir;
         }
 
-        // Cursor aiming in world space: convert the mouse on the camera's z-plane, aim the cone
-        // from the player's shoulder along (aim - origin), rotate sprite, mask AND penumbra
-        // together. The DISPLAYED aim and geometry are damped towards their targets so a held
-        // beam glides instead of flickering/stretching with raw mouse jitter, while the logical
-        // cone test (_params/_dir) stays exact for gameplay. Switching the beam ON bypasses the
-        // damping entirely (see ApplyBeam) - the lamp is lit and aimed on the press itself.
+        // The beam turns with the guard at once: he only ever faces left or right.
         private void AimBeam(float dt)
         {
             if (_cone == null || _cam == null) return;
-            _aimSmooth = Vector3.Lerp(_aimSmooth, AimFromCursor(out _origin, out _dir), AimDamping(dt));
-            if (_aimSmooth.magnitude > 1e-4f) _aimSmooth = _aimSmooth.normalized;
-            else _aimSmooth = _dir;
+            _aimSmooth = AimFromFacing(out _origin, out _dir);
             PlaceBeam();
             ScaleBeam(dt);
         }
-
-        // damped aim: fast enough to feel instant, slow enough to read as a held lamp
-        private static float AimDamping(float dt) => 1f - (float)System.Math.Exp(-14d * Mathf.Max(dt, 0f));
 
         /// <summary>Put the cone sprite and its stencil mask on the current displayed aim:
         /// one mid-point, one rotation, so the visible beam and the hole it cuts in the
