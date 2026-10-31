@@ -149,7 +149,6 @@ namespace FlowCheck
             QueueProof(root);
             SettingsProof(root);
             WorldLoop(root);
-            StudentsProof(root);
 
             Console.WriteLine("== one persistent core across the scene chain ==");
             Check(ReferenceEquals(root, GameRoot.Instance),
@@ -1466,7 +1465,7 @@ namespace FlowCheck
             string[] envKeys = { "bg_hallway_unlit", "bg_classroom_1", "bg_classroom_2", "bg_comfort_room",
                 "prop_door_classroom_1", "prop_door_classroom_2", "prop_door_comfort", "prop_door_security", "prop_server_door",
                 "prop_clock", "token", "inspect_noticeboard", "inspect_photoframe", "inspect_clock", "inspect_light_bulb",
-                "inspect_light_switch", "inspect_clipboard", "inspect_server_door", "inspect_lockers" };
+                "inspect_clipboard", "inspect_server_door", "inspect_lockers" };
             string envMissing = "";
             foreach (var k in envKeys) if (FindArt(rootDir, k) == null) envMissing += k + " ";
             Check(envMissing.Length == 0, "FM: the hallway, room, prop and close up art ships under Resources/Art/Environment" +
@@ -2414,52 +2413,6 @@ namespace FlowCheck
         // never receive Update() calls, so ViewManager.TickWorld steps light, player, beam,
         // anomalies and spawner in a deterministic order - the real components, the real
         // config, the real event traffic. Mirrors the manual test sequence from the task.
-        private static void StudentsProof(GameRoot root)
-        {
-            Console.WriteLine("== classroom students (F-01/F-02) ==");
-            var sp = root.Students;
-            Check(sp != null && sp.Room != null && sp.Room.Seats.Length == 6,
-                  "F-01: the school scene wires a spawner and a 6-seat placeholder");
-            if (sp == null) return;
-
-            var list = new List<StudentData>
-            {
-                new StudentData { Id = "HB-2026-0001", Name = "Ana", IsAnomaly = false },
-                new StudentData { Id = "HB-2026-0002", Name = "Bre", IsAnomaly = true },
-                new StudentData { Id = "HB-2026-0001", Name = "Ana dup", IsAnomaly = false },
-            };
-            sp.Spawn(list, 42);
-            int[] first = sp.Students.Select(s => s.Seat).ToArray();
-            for (int i = 0; i < 400; i++) sp.Tick(0.05f);
-            Check(sp.Students.Count == 3 && sp.SeatedCount == 3,
-                  "F-01: three bodies enter one by one and sit (duplicate id shares a seat)");
-            Check(first[0] == first[2] && first[1] != first[0], "F-02: duplicate ids map to one seat, others distinct");
-            sp.Spawn(list, 42);
-            Check(sp.Students.Select(s => s.Seat).SequenceEqual(first), "F-02: same seed + same list = same seating");
-
-            var big = new List<StudentData>();
-            for (int i = 0; i < 10; i++) big.Add(new StudentData { Id = "HB-2026-" + (100 + i), Name = "S" + i });
-            sp.Spawn(big, 7);
-            var seats = sp.Students.Select(s => s.Seat).Where(s => s >= 0).ToList();
-            Check(sp.Students.Count == 6 && seats.Count == 6 && seats.Distinct().Count() == 6,
-                  "F-02: overflow beyond the seats is warned and skipped, seats stay distinct");
-
-            sp.Spawn(null, 1);
-            sp.Spawn(new List<StudentData>(), 1);
-            Check(sp.Students.Count == 0, "F-01: null/empty admitted list is a silent no-op");
-
-            sp.Spawn(list, 42);
-            root.TogglePause(true);
-            for (int i = 0; i < 50; i++) sp.Tick(0.05f);
-            Check(sp.SeatedCount == 0 && sp.Students.All(s => !s.gameObject.activeSelf),
-                  "F-01: pause freezes both entry and walking");
-            root.TogglePause(false);
-            for (int i = 0; i < 400; i++) sp.Tick(0.05f);
-            Check(sp.SeatedCount == 3, "F-01: unpausing finishes the seating");
-            sp.Clear();
-            Check(sp.Students.Count == 0, "F-01: Clear empties the room at patrol end");
-        }
-
         private static void ResolvePool(GameRoot root)
         {
             while (root.Session.Pool.Pending > 0)
@@ -2700,7 +2653,7 @@ namespace FlowCheck
                 if (r == null) continue;
                 if (FindDeep(r.Root.transform, "lightswitch") != null) anySwitch = true;
                 foreach (var it in r.Interactables)   // a dead switch to inspect lights nothing
-                    if (!(it is ExamineSpot) && it.Prompt != null && it.Prompt.ToLowerInvariant().Contains("switch")) anySwitch = true;
+                    if (it.Prompt != null && it.Prompt.ToLowerInvariant().Contains("switch")) anySwitch = true;
             }
             Check(!anySwitch, "W2: no room has a light switch - the flashlight is the only light");
             Check(FindDeep(views.Room(RoomId.Classroom1).Root.transform, "door_security_office") == null,
@@ -2795,7 +2748,31 @@ namespace FlowCheck
             {
                 int spots = 0;
                 foreach (var it in hall.Interactables) if (it is ExamineSpot) spots++;
-                Check(spots == 4, "HALL: clipboard, switch and both lockers can be inspected");
+                Check(spots == 3, "HALL: the clipboard and both lockers can be inspected, and no light switch");
+
+            // Classroom 2 and CR-2 are mirror images: each spot sits opposite its unflipped place
+            var cr1Spots = views.Room(RoomId.ComfortRoom).Interactables;
+            var cr2Spots = views.Room(RoomId.ComfortRoom2).Interactables;
+            bool crMirrored = cr1Spots.Count == cr2Spots.Count && cr1Spots.Count > 0;
+            for (int i = 0; crMirrored && i < cr1Spots.Count; i++)
+                crMirrored = Mathf.Abs(cr1Spots[i].AnchorX + cr2Spots[i].AnchorX) < 0.001f &&
+                             Mathf.Abs(cr1Spots[i].AnchorY - cr2Spots[i].AnchorY) < 0.001f;
+            Check(crMirrored, "FLIP: every CR-2 spot mirrors its CR-1 place");
+            float windowX = 0f, cabinetX = 0f;
+            foreach (var it in views.Room(RoomId.Classroom2).Interactables)
+            {
+                if (it.Prompt.Contains("Window")) windowX = it.AnchorX;
+                if (it.Prompt.Contains("Cabinet")) cabinetX = it.AnchorX;
+            }
+            Check(windowX > 0f && cabinetX > 0f, "FLIP: Room 202's window and cabinet moved to the right with the painting");
+            var flip2 = FindDeep(views.Room(RoomId.Classroom2).Root.transform, "bg_classroom_2");
+            var flip1 = FindDeep(views.Room(RoomId.Classroom1).Root.transform, "bg_classroom_1");
+            Check(flip2 != null && flip1 != null && flip2.GetComponent<SpriteRenderer>().flipX && !flip1.GetComponent<SpriteRenderer>().flipX,
+                  "FLIP: Room 202's painting is flipped, Room 101's is not");
+            var crArt1 = FindDeep(views.Room(RoomId.ComfortRoom).Root.transform, "bg_comfort_room");
+            var crArt2 = FindDeep(views.Room(RoomId.ComfortRoom2).Root.transform, "bg_comfort_room");
+            Check(crArt1 != null && crArt2 != null && !crArt1.GetComponent<SpriteRenderer>().flipX && crArt2.GetComponent<SpriteRenderer>().flipX,
+                  "FLIP: CR-2's painting is flipped, CR-1's is not");
                 Check(Mathf.Abs(RoomInstance.FloorY - HallwayDarkness.FloorY) < 0.001f && RoomInstance.FloorY <= -3f,
                       "HALL: the floor line matches the painted floor");
             }
@@ -3241,10 +3218,8 @@ namespace FlowCheck
                       "W10: the cover draws over the room, with a real hole (no tinted glow)");
                 Check(FindDeep(views.PeekLight.transform, "Glow") == null && FindDeep(views.PeekLight.transform, "PeekMask") == null,
                       "W10: the old glow circle and sprite mask are gone");
-                bool markersUnder = true;
                 foreach (var r in views.Current.Root.GetComponentsInChildren<SpriteRenderer>(true))
-                    if (r.gameObject.name == "found_marker" && r.sortingOrder >= holeProof.sortingOrder) markersUnder = false;
-                Check(markersUnder, "W10: nothing in the room floats above the dark");
+                    Check(r.gameObject.name != "found_marker", "W10: no red dot on anything");
                 var beamMask = root.Views.Flashlight.Mask;
                 Check(beamMask.isCustomRangeActive && beamMask.frontSortingOrder == coverProof.sortingOrder &&
                       beamMask.backSortingOrder == coverProof.sortingOrder,

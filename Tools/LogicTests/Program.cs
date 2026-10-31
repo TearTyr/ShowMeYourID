@@ -74,7 +74,6 @@ namespace Hollowbrook.LogicTests
             EndingAuditSuite();
             AdminRosterSuite();
             SlipFairnessTests();
-            SeatPlannerTests();
             CultureRoundTripTests();
             ResumeReplayTests();
 
@@ -1988,31 +1987,6 @@ namespace Hollowbrook.LogicTests
             Check(legitOk, "legitimate slips always agree with the card (fairness invariant)");
             Check(mismatchSeen > 0, "slip discrepancies really occur on anomalies");
             Check(mismatchOk, "a slip disagrees exactly when the SlipMismatch defect is booked");
-        }
-
-        private static void SeatPlannerTests()
-        {
-            Group("SeatPlanner - determinism, distinct seats, overflow, duplicates");
-            var ids = new List<string> { "HB-2026-0001", "HB-2026-0002", "HB-2026-0003", "HB-2026-0004" };
-            int[] a = SeatPlanner.Plan(ids, 6, new GameRng(42));
-            int[] b = SeatPlanner.Plan(ids, 6, new GameRng(42));
-            Check(a.SequenceEqual(b), "same seed + same list = identical seating");
-            Check(a.Where(s => s >= 0).Distinct().Count() == 4, "four students, four distinct seats");
-            Check(a.All(s => s >= 0 && s < 6), "every seat index is inside the room");
-
-            var many = new List<string>();
-            for (int i = 0; i < 10; i++) many.Add("HB-2026-" + (100 + i));
-            var over = SeatPlanner.Plan(many, 6, new GameRng(7));
-            Check(over.Count(s => s >= 0) == 6 && over.Count(s => s < 0) == 4,
-                  "overflow: six seated, four skipped with -1, no exception");
-            Check(over.Where(s => s >= 0).Distinct().Count() == 6, "overflow: seated seats stay distinct");
-
-            var dup = new List<string> { "HB-2026-0001", "HB-2026-0002", "HB-2026-0001" };
-            var dp = SeatPlanner.Plan(dup, 6, new GameRng(42));
-            Check(dp[0] == dp[2] && dp[1] != dp[0], "duplicate id shares one seat (one body)");
-            Check(SeatPlanner.Plan(new List<string>(), 6, new GameRng(1)).Length == 0, "empty list: empty plan");
-            Check(SeatPlanner.Plan(null, 6, new GameRng(1)).Length == 0, "null list: empty plan, no exception");
-            Check(SeatPlanner.Plan(ids, 0, new GameRng(1)).All(s => s == -1), "zero seats: everyone skipped");
         }
 
         private static void CultureRoundTripTests()

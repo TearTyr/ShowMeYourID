@@ -49,7 +49,7 @@ namespace Hollowbrook.Bootstrap
                 // props drawn about 3.4 units tall (doors), a 1.5 unit wall clock, a half unit token
                 { "prop_door_classroom_1", 308f }, { "prop_door_classroom_2", 299f },
                 { "prop_door_comfort", 196f }, { "prop_door_security", 188f }, { "prop_server_door", 191f },
-                { "prop_light_switch", 950f }, { "prop_clipboard", 918f },
+                { "prop_clipboard", 918f },
                 { "prop_clock", 524f }, { "token", 1154f },
             };
 

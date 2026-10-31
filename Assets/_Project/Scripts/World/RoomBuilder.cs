@@ -94,7 +94,6 @@ namespace Hollowbrook.World
                     AddClue(room, "photo", 3.0f, floorY, "Old School Photo", painted ? null : "prop_photoframe", 1.1f);
                     AddClue(room, "clock", -1.8f, floorY, "Wall Clock", "prop_clock", 2.6f);
                     AddExamine(room, "Patrol Clipboard", -11.0f, floorY, "Tonight's round sheet. Every line above yours is signed by a custodian the school has no record of.", "inspect_clipboard", "prop_clipboard", 2.4f);
-                    AddExamine(room, "Light Switch", -6.9f, floorY, "You flip it twice. Nothing. Someone has cut the power to this hallway.", "inspect_light_switch", "prop_light_switch", 2.0f);
                     AddExamine(room, "Lockers", 5.2f, floorY, "Deep scratches around the handles. They were made from the inside.", "inspect_lockers");
                     AddExamine(room, "Open Locker", 6.7f, floorY, "This one is empty except for a school ID with the photo cut out.", "inspect_lockers_open");
                     if (!painted)
@@ -131,11 +130,13 @@ namespace Hollowbrook.World
                 {
                     room.DisplayName = id == RoomId.ComfortRoom ? "CR-1" : "CR-2";
                     room.HalfWidth = 8.2f;
-                    bool painted = AddRoomBackdrop(root.transform, "bg_comfort_room");
+                    // CR-2 is CR-1's mirror image, so its spots mirror too
+                    float side = id == RoomId.ComfortRoom2 ? -1f : 1f;
+                    bool painted = AddRoomBackdrop(root.transform, "bg_comfort_room", id == RoomId.ComfortRoom2);
                     if (!painted) PlaceholderBg(root.transform, floorY);
-                    AddExamine(room, "Mirror", 6.0f, floorY, "It shows the row of stalls behind you. One of the doors is open. You did not hear it open.", null, null, 0f, 1.7f, 5.7f, 4.4f);
-                    AddExamine(room, "Sinks", 4.7f, floorY, "All four taps are dry, but the basins are wet.", null, null, 0f, -2.2f, 8.3f, 3.3f);
-                    AddExamine(room, "Stalls", -6.1f, floorY, "Every door is latched from the inside. Nobody answers when you knock.", null, null, 0f, 1f, 3.4f, 6f);
+                    AddExamine(room, "Mirror", 6.0f * side, floorY, "It shows the row of stalls behind you. One of the doors is open. You did not hear it open.", null, null, 0f, 1.7f, 5.7f, 4.4f);
+                    AddExamine(room, "Sinks", 4.7f * side, floorY, "All four taps are dry, but the basins are wet.", null, null, 0f, -2.2f, 8.3f, 3.3f);
+                    AddExamine(room, "Stalls", -6.1f * side, floorY, "Every door is latched from the inside. Nobody answers when you knock.", null, null, 0f, 1f, 3.4f, 6f);
                     room.PlayerSpawn = Vector3.zero;
                     break;
                 }
@@ -143,10 +144,11 @@ namespace Hollowbrook.World
                 {
                     room.DisplayName = "CLASSROOM 2";
                     room.HalfWidth = 8.2f;
-                    bool painted = AddRoomBackdrop(root.transform, "bg_classroom_2");
+                    // the painting is flipped, so the window and cabinet sit on the right
+                    bool painted = AddRoomBackdrop(root.transform, "bg_classroom_2", true);
                     if (!painted) PlaceholderBg(root.transform, floorY);
-                    AddClue(room, "window", -6.7f, floorY, "Classroom Window", painted ? null : "prop_window", 1.2f, 2.2f, 4.2f, 4.6f);
-                    AddClue(room, "cabinet", -3.1f, floorY, "Filing Cabinet", null, 0.8f, 0.1f, 1.5f, 2.1f);
+                    AddClue(room, "window", 6.7f, floorY, "Classroom Window", painted ? null : "prop_window", 1.2f, 2.2f, 4.2f, 4.6f);
+                    AddClue(room, "cabinet", 3.1f, floorY, "Filing Cabinet", null, 0.8f, 0.1f, 1.5f, 2.1f);
                     if (!painted)
                         SpriteGO(root.transform, "cabinetprop", ProceduralArt.Get("prop_cabinet"), new Vector3(7.6f, floorY + 2.1f, 0), 9);
                     room.PlayerSpawn = new Vector3(4.0f, 0, 0);
@@ -210,11 +212,11 @@ namespace Hollowbrook.World
         }
 
         // A room backdrop centred on the camera's frame (rooms are looked at from x = 0).
-        private bool AddRoomBackdrop(Transform parent, string key)
+        private bool AddRoomBackdrop(Transform parent, string key, bool flip = false)
         {
             var sprite = ProceduralArt.Get(key);
             if (sprite == null || sprite.rect.width <= 8f) return false;
-            SpriteGO(parent, key, sprite, Vector3.zero, 0);
+            SpriteGO(parent, key, sprite, Vector3.zero, 0).GetComponent<SpriteRenderer>().flipX = flip;
             return true;
         }
 

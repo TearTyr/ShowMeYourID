@@ -25,7 +25,6 @@ PROPS = [
     ("Hallway/PROP_SERVER DOOR.png", "prop_server_door"),
     ("Hallway/PROP CLOCK.png", "prop_clock"),
     ("Hallway/TOKEN.png", "token"),
-    ("Hallway/PROP_LIGHT SWITCH.png", "prop_light_switch"),
     ("Hallway/CLIPBOARD_RESERVED.png", "prop_clipboard"),
 ]
 INSPECT = [
@@ -33,7 +32,6 @@ INSPECT = [
     ("Hallway/PROP_PHOTOFRAME.png", "inspect_photoframe"),
     ("Hallway/PROP CLOCK.png", "inspect_clock"),
     ("Hallway/PROP_LIGHT FIXTURE_BULB.png", "inspect_light_bulb"),
-    ("Hallway/PROP_LIGHT SWITCH.png", "inspect_light_switch"),
     ("Hallway/CLIPBOARD_RESERVED.png", "inspect_clipboard"),
     ("Hallway/PROP_SERVER DOOR.png", "inspect_server_door"),
     ("Hallway/HALLWAY LOCKER_1.png", "inspect_lockers"),

@@ -64,7 +64,6 @@ namespace Hollowbrook.Core
         public ShiftResultsView ShiftResults;
         public ConfirmationPopup Confirm;
         public CaptionBar Captions;
-        public Hollowbrook.World.StudentSpawner Students;
         public SanityController SanityCtl;
         public ScareSystem Scares;
         public HallucinationSystem Hallucinations;
