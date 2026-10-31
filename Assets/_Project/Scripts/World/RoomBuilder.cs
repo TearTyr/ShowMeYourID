@@ -86,30 +86,30 @@ namespace Hollowbrook.World
                     // flyer, so those are not drawn a second time (the doors stay as invisible anchors)
                     bool painted = AddHallwayBackdrop(room, root.transform);
                     if (!painted) PlaceholderBg(root.transform, floorY);     // depth shroud is sized from it
-                    AddDoor(room, "Security Door", -10.6f, floorY, RoomId.Security, "prop_door_security");
+                    AddDoor(room, "Security Door", -13.8f, floorY, RoomId.Security, "prop_door_security");
                     AddDoor(room, "Classroom 1", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), floorY, RoomId.Classroom1, "prop_door", !painted);
                     AddDoor(room, "Classroom 2", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), floorY, RoomId.Classroom2, "prop_door", !painted);
                     AddDoor(room, "Comfort Room", RoomGraph.ComfortDoorX, floorY, RoomId.ComfortRoom, "prop_door_comfort");
                     var serverSprite = ProceduralArt.Get("prop_server_door");
                     float serverH = serverSprite.rect.height / Mathf.Max(1f, serverSprite.pixelsPerUnit);
                     SpriteGO(root.transform, "server_door_art", serverSprite,
-                        new Vector3(10.4f, floorY + serverH / 2f, 0), 10);
+                        new Vector3(13.2f, floorY + serverH / 2f, 0), 10);
                     // clue anchors sit on the painted things (fixture, notice board, flyer); the wall clock
                     // is not in the painting, so it hangs between the notice board and the second door
-                    AddClue(room, "light", -9.7f, floorY, "Flickering Light (ceiling fixture)", painted ? null : "prop_lightfixture", 1.5f);
-                    AddClue(room, "door", 10.0f, floorY, "Sealed Door");
-                    AddClue(room, "board", -1.3f, floorY, "Notice Board", painted ? null : "prop_noticeboard", 1.0f);
-                    AddClue(room, "photo", 6.2f, floorY, "Old School Photo", painted ? null : "prop_photoframe", 1.1f);
-                    AddClue(room, "clock", 1.4f, floorY, "Wall Clock", "prop_clock", 1.9f);
+                    AddClue(room, "light", -12.9f, floorY, "Flickering Light (ceiling fixture)", painted ? null : "prop_lightfixture", 1.5f);
+                    AddClue(room, "door", 13.0f, floorY, "Sealed Door");
+                    AddClue(room, "board", -4.5f, floorY, "Notice Board", painted ? null : "prop_noticeboard", 1.0f);
+                    AddClue(room, "photo", 3.0f, floorY, "Old School Photo", painted ? null : "prop_photoframe", 1.1f);
+                    AddClue(room, "clock", -1.8f, floorY, "Wall Clock", "prop_clock", 1.9f);
                     if (!painted)
                     {
                         SpriteGO(root.transform, "lockers", ProceduralArt.Get("prop_lockers"), new Vector3(-1.4f, floorY + 2.5f, 0), 8);
                         SpriteGO(root.transform, "lockers2", ProceduralArt.Get("prop_lockers"), new Vector3(7.8f, floorY + 2.5f, 0), 8);
                     }
-                    room.PlayerSpawn = new Vector3(-9.4f, 0, 0);
-                    room.AnomalySpawnPoints.Add(new Vector3(9.5f, 0, 0));
-                    room.AnomalySpawnPoints.Add(new Vector3(-2f, 0, 0));
-                    room.AnomalySpawnPoints.Add(new Vector3(5.5f, 0, 0));
+                    room.PlayerSpawn = new Vector3(-12.6f, 0, 0);
+                    room.AnomalySpawnPoints.Add(new Vector3(12.0f, 0, 0));
+                    room.AnomalySpawnPoints.Add(new Vector3(-6.5f, 0, 0));
+                    room.AnomalySpawnPoints.Add(new Vector3(3.0f, 0, 0));
                     break;
                 }
                 case RoomId.Classroom1:
@@ -200,10 +200,10 @@ namespace Hollowbrook.World
             return room;
         }
 
-        // The painted hallway: two screen sized images (lights on, lights off) drawn as one sprite
-        // that swaps with the room light. PanoramaLeft is where its left edge sits so the painted
+        // The painted hallway: two 30 unit wide images (lights on, lights off) drawn as one sprite
+        // that swaps with the room light. PanoramaLeft is where its left edge sits (the walkable hallway spans the whole image) so the painted
         // doors land on the door anchors in RoomGraph. False when the art is missing.
-        private const float PanoramaLeft = -11.84f, PanoramaWidth = 30f, PanoramaCentreY = 0.1f;
+        private const float PanoramaLeft = -15f, PanoramaWidth = 30f, PanoramaCentreY = 0.1f;
 
         private bool AddHallwayBackdrop(RoomInstance room, Transform parent)
         {

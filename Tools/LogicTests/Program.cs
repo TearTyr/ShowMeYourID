@@ -1578,8 +1578,8 @@ namespace Hollowbrook.LogicTests
             Check(!RoomGraph.Connected(RoomId.Classroom1, RoomId.Classroom2), "classrooms are NOT directly connected");
             Check(float.IsNaN(RoomGraph.DoorX(RoomId.Classroom1, RoomId.Classroom2)), "no phantom door between classrooms");
             Check(float.IsNaN(RoomGraph.DoorX(RoomId.Hallway, RoomId.Hallway)), "no self doors");
-            Eq(RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), -5.6f, "hallway C1 door anchor == RoomBuilder placement");
-            Eq(RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), 3.6f, "hallway C2 door anchor == RoomBuilder placement");
+            Eq(RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), -8.8f, "hallway C1 door anchor == RoomBuilder placement");
+            Eq(RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), 0.4f, "hallway C2 door anchor == RoomBuilder placement");
             Eq(RoomGraph.DoorX(RoomId.Classroom1, RoomId.Hallway), 7.6f, "classroom 1 hallway door anchor == RoomBuilder placement");
             Eq(RoomGraph.DoorX(RoomId.Classroom2, RoomId.Hallway), 7.6f, "classroom 2 hallway door anchor == RoomBuilder placement");
             Eq(RoomGraph.NextHop(RoomId.Classroom1, RoomId.Classroom2), RoomId.Hallway, "classroom→classroom routes through the hallway");

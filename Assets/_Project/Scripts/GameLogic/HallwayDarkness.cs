@@ -32,7 +32,7 @@ namespace Hollowbrook.Logic
         // The depth layer is ONE quad that follows the player, so it has to cover the room's whole
         // darkness region from either end of the corridor. Inputs are the hallway's own layout
         // numbers (RoomBuilder/PlayerController read them from here, so they cannot drift):
-        public const float HallwayHalfWidth = 11.4f;    // RoomBuilder: room.HalfWidth
+        public const float HallwayHalfWidth = 14.6f;    // RoomBuilder: room.HalfWidth (the painted corridor is 30 wide)
         public const float RoomDarkMargin = 2f;         // the darkness quad is HalfWidth*2 + 4 wide
         public const float RoomDarkHalfHeight = 5.5f;   // ...and 11 tall, centred on y = 0
         public const float PlayerClampInset = 0.6f;     // PlayerController clamps x to ±(HalfWidth-0.6)
@@ -41,13 +41,13 @@ namespace Hollowbrook.Logic
         public const float CoverMargin = 1f;            // slack so the shroud edge is never on screen
 
         /// <summary>How far the custodian can walk from the room's centre line.</summary>
-        public const float PlayerTravel = HallwayHalfWidth - PlayerClampInset;          // 10.8
+        public const float PlayerTravel = HallwayHalfWidth - PlayerClampInset;          // 14.0
         /// <summary>The player's fixed height on the shared plane (the pool is centred on him).</summary>
         public const float PlayerY = FloorY + PlayerBodyLift;                           // -0.7
         public const float PlayerYOffset = -PlayerY;                                    // 0.7 (const maths)
 
         /// <summary>World size of the player-following depth quad: room half-extent + how far the
-        /// player can be from the centre + margin, per axis. 50.4 x 14.4 for the hallway.</summary>
+        /// player can be from the centre + margin, per axis. 63.2 x 14.4 for the hallway.</summary>
         public const float ShroudWorldW = 2f * (HallwayHalfWidth + RoomDarkMargin + PlayerTravel + CoverMargin);
         public const float ShroudWorldH = 2f * (RoomDarkHalfHeight + PlayerYOffset + CoverMargin);
 
