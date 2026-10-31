@@ -41,7 +41,7 @@ namespace Hollowbrook.UI
         private const float Wide2Y = 179.56f;                         // CONTINUE top
         private const float SqW = 71.11f, SqH = 72f;                  // 160x162 frame
         private const float SqY = 591.56f;                            // icon row top
-        private const float Sq1X = 48.44f, Sq2X = 134.67f, Sq3X = 218.67f;
+        private const float Sq1X = 48.44f, Sq2X = 134.67f, Sq3X = 218.67f, Sq4X = 302.67f;
         private const float LogoW = 543.11f, LogoH = 350.22f;         // 1222x788 plate
         private const float LogoRight = 322.22f;                      // centre offset from right
         private const float LogoTop = 223.11f;                        // centre offset from top
@@ -102,6 +102,14 @@ namespace Hollowbrook.UI
             SquareButton(col, "CREDITS", "menu_icon_credits", new Vector2(49.33f, 33.78f),
                 new Vector2(0f, 1.78f), () => { Click(); _gameRoot.OpenCredits(); }, Sq3X, SqY);
 
+            // tokens from repelled anomalies are banked here; enough of them open the other modes
+            var tokens = SquareButton(col, "TOKENS", "token", new Vector2(44f, 44f), new Vector2(0f, 6f),
+                () => { Click(); OnTokensClicked(); }, Sq4X, SqY);
+            _tokenCount = UIFactory.Label(tokens.transform, "count", "0", 14, UIFactory.Ink, TextAnchor.MiddleCenter);
+            _tokenCount.font = UIFactory.UiFontBold;
+            _tokenCount.raycastTarget = false;
+            UIFactory.Anchor(_tokenCount.rectTransform, new Vector2(0.5f, 0f), new Vector2(SqW, 18f), new Vector2(0f, 13f));
+
             // transient messages (F2 reset arming / save erased) - empty means invisible
             _menuNote = UIFactory.Label(transform, "note", "", 14, new Color(1f, 1f, 1f, 0.75f),
                 TextAnchor.MiddleLeft);
@@ -117,6 +125,27 @@ namespace Hollowbrook.UI
         }
 
         private Text _menuNote;
+        private Text _tokenCount;
+
+        // What the save has banked (the session is not loaded yet on the menu).
+        private RecordsData SavedRecords()
+        {
+            var save = _gameRoot.Saves != null ? _gameRoot.Saves.Read() : null;
+            return save != null && save.Records != null ? save.Records : new RecordsData();
+        }
+
+        private void RefreshTokens()
+        {
+            if (_tokenCount != null) _tokenCount.text = SavedRecords().TokensBanked + "/" + RecordsData.TokensToUnlockModes;
+        }
+
+        private void OnTokensClicked()
+        {
+            var records = SavedRecords();
+            if (records.ModesUnlocked) { _gameRoot.SetState(AppViewState.ModeSelect); return; }
+            ShowNote("Repel anomalies on patrol and collect " + RecordsData.TokensToUnlockModes +
+                     " tokens to unlock Endless and Challenge.");
+        }
 
         private static Sprite Kit(string key) => ProceduralArt.Get(key);
 
@@ -247,6 +276,7 @@ namespace Hollowbrook.UI
         {
             gameObject.SetActive(true);
             RefreshContinue();
+            RefreshTokens();
             _menuNote.text = "";
             _noteUntil = -1f;
             FitBackground();

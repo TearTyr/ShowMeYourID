@@ -136,7 +136,8 @@ namespace Hollowbrook.Checkpoint
 
         // ---- transient overlays (bounds-checked only; they cover the desk) ---
         public static readonly Region Toast = new Region(280, 94, 720, 30);
-        public static readonly Region Prompt = new Region(450, 62, 440, 20);         // hand-over guidance strip
+        public static readonly Region Prompt = new Region(420, 696, 440, 22);        // the next step, under the desk buttons
+        public static readonly Region PromptPeek = new Region(420, 650, 440, 22);    // ...and above the step back band
         // the reading sheet for the rules note / tonight's log: centred over the desk with
         // room for crest, hand title, the hand-written block AND the printed live text
         // the reading sheet: the kit's photographed paper at its OWN aspect (789x879),
@@ -235,10 +236,10 @@ namespace Hollowbrook.Checkpoint
             // questions panel (panel-local): the header strip, then the one question button and
             // the note of what the student answered. The content stops above the kit panel's
             // painted bottom border (measured at local y=198 on the 305x215 rect).
-            public static readonly Region QHead = new Region(16, 14, 150, 24);
-            public static readonly Region QKeyHint = new Region(214, 14, 68, 24);
-            public const float QBtnX = 16f, QBtnW = 266f;
-            public const float QContentY0 = 44f, QBtnH = 34f, QBtnStep = 38f;   // four buttons fit above the painted border
+            public static readonly Region QHead = new Region(32, 26, 130, 26);
+            public static readonly Region QKeyHint = new Region(196, 26, 78, 26);
+            public const float QBtnX = 32f, QBtnW = 242f;   // inside the painted border, like the concept
+            public const float QContentY0 = 58f, QBtnH = 24f, QBtnStep = 33.5f;   // four strips, as tall as the concept's
             public static readonly Region QAnswerHead = new Region(16, 100, 266, 14);
             public static readonly Region QAnswer = new Region(16, 116, 266, 76);
 
@@ -257,9 +258,9 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region BannerQueue = new Region(0, 18, 380, 16);
 
             // sticky note (shift-start gate)
-            public static readonly Region StickyTitle = new Region(30, 48, 440, 40);
-            public static readonly Region StickyBody = new Region(40, 116, 420, 100);
-            public static readonly Region StickyCta = new Region(40, 240, 420, 34);
+            public static readonly Region StickyTitle = new Region(30, 26, 440, 36);
+            public static readonly Region StickyBody = new Region(36, 68, 428, 196);
+            public static readonly Region StickyCta = new Region(40, 270, 420, 34);
         }
 
         // One fixed 1280x720 frame, centred in the canvas. Children use grid coordinates only.

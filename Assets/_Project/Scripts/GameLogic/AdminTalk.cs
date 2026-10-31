@@ -5,11 +5,13 @@ namespace Hollowbrook.Logic
     // The Night-5 administrator's questions and answers (pure rules + script, no UnityEngine).
     //
     // How it plays: the administrator is at the window. Press T (or the bar under the stamps)
-    // to talk. A "hub" lists what you can confront him with; each topic gets one answer and
-    // one follow-up, then you are back at the hub. From any screen you can:
+    // to talk. He gets no student questions: the hub lists what you can confront him with, built
+    // from his papers and the clues you found. Each topic gets one answer and one follow-up that
+    // catches him out, then you are back at the hub. From any screen you can:
     //   - REFUSE ENTRY: the same as stamping DENY (the hunt begins),
     //   - step back: close the conversation and go to the stamps.
-    // Talking never stamps, never gives clues and never changes the score by itself.
+    // Every follow-up is a lie EXPOSED, and each one shortens the night that follows
+    // (GameRoot.BuildHuntTuning). Talking never stamps and never gives clues.
     //
     // To change what he says: edit BuildScript below. Every line is plain text; the words in
     // {braces} are filled in from the papers on the desk (see Resolve).
@@ -20,7 +22,6 @@ namespace Hollowbrook.Logic
         None = 0,
         CluePhoto,        // found the old school photo
         ClueCabinet,      // found the work order in the cabinet
-        AskedClassroom,   // asked him "which classroom are you going to?"
     }
 
     /// <summary>What picking an option does besides moving to the next node.</summary>
@@ -53,7 +54,7 @@ namespace Hollowbrook.Logic
     public struct AdminTalkContext
     {
         public string BadgeName, MemoName, BadgeNumber, MemoNumber, AnswerClassroom;
-        public bool CluePhoto, ClueCabinet, AskedClassroom;
+        public bool CluePhoto, ClueCabinet;
     }
 
     /// <summary>Where the conversation stands. Saved with the run as one short string.</summary>
@@ -142,8 +143,7 @@ namespace Hollowbrook.Logic
                 O("ask_name", "The badge says {badge_name}. The memo says {memo_name}. Explain that.", "name"),
                 O("ask_num", "Badge {badge_num}. The memo lists {memo_num}. Which one is yours?", "num"),
                 O("ask_face", "The face at my glass is not the face on this badge.", "face"),
-                O("ask_server", "You said your first stop is the server room. Students aren't your business.", "server",
-                  AdminTalkCond.AskedClassroom),
+                O("ask_server", "You have no class in this building. Where do you go first?", "server"),
                 O("ask_photo", "The old school photo: a staff member who never aged. That's you.", "photo",
                   AdminTalkCond.CluePhoto),
                 O("ask_cabinet", "The work order names the server room. You came to wake it.", "cabinet",
@@ -165,7 +165,7 @@ namespace Hollowbrook.Logic
                 "Step into the light. Slowly.",
                 "…I will not perform for a doorbell camera. Note that I said doorbell. Note that I know what your booth is.");
             Topic(s, "server",
-                "\"{answer_server}\" I said, and I say again: an expression. The server room holds the identification records I am here to audit. Audits are conducted from inside the room, custodian.",
+                "\"{answer_server}\" The server room holds the identification records I am here to audit. Audits are conducted from inside the room, custodian.",
                 "Then audit it from outside the glass.",
                 "…Everyone else. Yes. The students with their little cards, and you, with your little window. All of you so certain the glass is a wall. It is a door, custodian. It has always been a door.");
             Topic(s, "photo",
@@ -201,9 +201,19 @@ namespace Hollowbrook.Logic
             {
                 case AdminTalkCond.CluePhoto: return ctx.CluePhoto;
                 case AdminTalkCond.ClueCabinet: return ctx.ClueCabinet;
-                case AdminTalkCond.AskedClassroom: return ctx.AskedClassroom;
                 default: return true;
             }
+        }
+
+        /// <summary>How many of his lies the player has caught: one per follow-up taken.</summary>
+        public static int LiesExposed(AdminTalkState st)
+        {
+            if (st == null) return 0;
+            int count = 0;
+            foreach (var n in Script)
+                foreach (var o in n.Options)
+                    if (o.Id.StartsWith("press_") && (st.UsedMask & (1 << OneShotIndex(o.Id))) != 0) count++;
+            return count;
         }
 
         /// <summary>Open (or re-open) the conversation at the hub.</summary>

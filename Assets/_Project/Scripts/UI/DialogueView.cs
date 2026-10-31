@@ -26,6 +26,9 @@ namespace Hollowbrook.UI
         private List<DialogueLine> _queue = new List<DialogueLine>();
         private int _qIndex;
         private Action _onDone;
+        private bool _fadeOutAtEnd;
+        private CanvasGroup _panelGroup;
+        private const float BoxFadeSeconds = 0.6f;
         private bool _typing;
         private string _fullText;
         private float _typed;
@@ -45,6 +48,7 @@ namespace Hollowbrook.UI
             // bubble's skin only: narration and student dialogue are two UI contexts.
             var panelRt = UIFactory.NewUI(transform, "panel_border");
             UIFactory.Anchor(panelRt, new Vector2(0.5f, 0f), new Vector2(940, 220), new Vector2(0, 202));
+            _panelGroup = panelRt.gameObject.AddComponent<CanvasGroup>();
             var bar = panelRt.gameObject.AddComponent<Image>();
             var barSprite = ProceduralArt.Get("sec_caption_bar");
             if (barSprite != null) { bar.sprite = barSprite; bar.color = Color.white; }
@@ -84,12 +88,14 @@ namespace Hollowbrook.UI
             HideVisuals();
         }
 
-        public void Play(List<DialogueLine> lines, Action onDone)
+        public void Play(List<DialogueLine> lines, Action onDone, bool fadeOutAtEnd = false)
         {
             if (lines == null || lines.Count == 0) { onDone?.Invoke(); return; }
             _queue = new List<DialogueLine>(lines);
             _qIndex = 0;
             _onDone = onDone;
+            _fadeOutAtEnd = fadeOutAtEnd;
+            _panelGroup.alpha = 1f;
             IsActive = true;
             ShowVisuals();
             ShowCurrent();
@@ -153,11 +159,26 @@ namespace Hollowbrook.UI
             _qIndex++;
             if (_qIndex < _queue.Count) { ShowCurrent(); return; }
             IsActive = false;
-            HideVisuals();
             var cb = _onDone;
             _onDone = null;
             Debug.Log("[Flow] dialogue finished, invoking callback");
+            if (_fadeOutAtEnd) { StartCoroutine(FadeAwayThen(cb)); return; }
+            HideVisuals();
             cb?.Invoke();
+        }
+
+        // The box dissolves, then whatever comes next runs.
+        private System.Collections.IEnumerator FadeAwayThen(Action then)
+        {
+            const int steps = 20;
+            for (int i = steps - 1; i >= 0; i--)
+            {
+                _panelGroup.alpha = i / (float)steps;
+                yield return new WaitForSecondsRealtime(BoxFadeSeconds / steps);
+            }
+            HideVisuals();
+            _panelGroup.alpha = 1f;
+            then?.Invoke();
         }
 
         private void Update()

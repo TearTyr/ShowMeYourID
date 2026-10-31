@@ -23,7 +23,7 @@ namespace Hollowbrook.Checkpoint
         // must be unlocked. Returns true when the student answered.
         public bool Ask(QuestionId q)
         {
-            if (_current == null || _verdictLocked) return false;
+            if (_current == null || _verdictLocked || _current.IsAdministrator) return false;
             if (_gameRoot == null || _gameRoot.State != AppViewState.Checkpoint || _gameRoot.Paused) return false;
             if (!InterviewRules.Unlocked(q, _idFlipped, _fileOpened))
             {

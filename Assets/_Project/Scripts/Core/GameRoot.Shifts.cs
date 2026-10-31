@@ -263,17 +263,18 @@ namespace Hollowbrook.Core
                 {
                     if (VerboseFlow) Debug.Log("[Flow] intro callback fired");
                     EnterCheckpoint(shift);
-                });
+                }, true);   // the box fades away before the booth appears
             else EnterCheckpoint(shift);
         }
 
         // The intro's end state, shared by the dialogue callback and the no-dialogue fallback.
         private void EnterCheckpoint(ShiftDef shift)
         {
-            if (Loading != null) Loading.Hide();
             SetState(AppViewState.Checkpoint);
             if (Checkpoint != null) Checkpoint.BeginRun(shift);
             else Debug.LogError("[GameRoot] intro finished but Checkpoint is still NULL.");
+            // the black lifts off the shut booth; the shutter opens when the first student arrives
+            if (Loading != null) Loading.RevealDesk();
             Debug.Log("[Flow] intro done -> checkpoint state");
         }
 
