@@ -96,9 +96,10 @@ namespace Hollowbrook.Checkpoint
             if (qOuter != null) Stretch(qOuter, "sec_qpanel");
             var qInner = FindImage(_desk, "qpanel");
             if (qInner != null) Fade(qInner);
-            var b = FindButton(_desk, "q0");
-            if (b != null)
+            for (int qi = 0; qi < InterviewRules.Count; qi++)
             {
+                var b = FindButton(_desk, "q" + qi);
+                if (b == null) continue;
                 SkinButton(b, "sec_btn_pill");
                 var t = ButtonLabel(b);
                 if (t != null)

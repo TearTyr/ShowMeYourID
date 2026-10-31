@@ -93,6 +93,10 @@ namespace Hollowbrook.Logic
         // What the visitor answers to "Which classroom are you going to?". It matches the
         // file (RecordFirstClassroom) unless the visitor carries the ClassroomMismatch defect.
         public string ClassroomAnswer = "…";
+        // What they say to each question (index = QuestionId). The card is what they claim, so an
+        // honest answer repeats the card; a SpokenMismatch visitor lies about SpokenLieQuestion.
+        public string[] Answers = new string[InterviewRules.Count];
+        public int SpokenLieQuestion = -1;
         public ToneTag ClassroomTone = ToneTag.Normal;
         // Which student's face is shown at the window (a PhotoMismatch shows somebody else's).
         public int WindowFaceIndex = -1;
@@ -129,6 +133,7 @@ namespace Hollowbrook.Logic
                     case DefectType.RecordNameMismatch: lines.Add("The ID says '" + ClaimedName + "' but the file for this ID number says '" + RecordName + "'."); break;
                     case DefectType.NotInDatabase: lines.Add("ID number not found in the student database."); break;
                     case DefectType.DuplicateId: lines.Add("ID number already used by a visitor from " + DuplicateOfShift + "."); break;
+                    case DefectType.SpokenMismatch: lines.Add("Said '" + (SpokenLieQuestion >= 0 ? Answers[SpokenLieQuestion] : "") + "' when asked about their " + (SpokenLieQuestion >= 0 ? InterviewRules.Tag((QuestionId)SpokenLieQuestion).ToLowerInvariant() : "card") + ", which is not what the ID says."); break;
                     case DefectType.ClassroomMismatch: lines.Add("Said they were going to " + ClassroomAnswer.TrimEnd('.') + ", but the file says " + RecordFirstClassroom + "."); break;
                     case DefectType.SlipMismatch: lines.Add("The paper slip (" + SlipName + " / " + SlipIdNumber + ") does not match the ID card."); break;
                 }

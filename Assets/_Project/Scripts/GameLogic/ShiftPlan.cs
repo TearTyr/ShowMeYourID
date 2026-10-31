@@ -15,8 +15,8 @@ namespace Hollowbrook.Logic
                     Number = 1, DateLabel = Content.ShiftDates[0],
                     VisitorCount = 4, AnomalyCount = 0, HasAdministrator = false,
                     Title = "Introduction",
-                    Objective = "Learn the checkpoint: inspect IDs, pull the student file, ask which classroom they are going to, and stamp Allow or Reject. Take a walk - learn how to leave the security room and come back.",
-                    RuleNoteAddendum = "NIGHT 1 - Welcome, custodian. Verify: ID number format (HB-YYYY-NNNN), photo vs. the person at the window, expiration date, year level, course, and Regular/Transferee status against the student file in the drawer. You may ask which classroom they are going to, as often as you like.",
+                    Objective = "Learn the checkpoint: inspect IDs, pull the student file, ask a question or two, and stamp Allow or Reject. Take a walk - learn how to leave the security room and come back.",
+                    RuleNoteAddendum = "NIGHT 1 - Welcome, custodian. Verify: ID number format (HB-YYYY-NNNN), photo vs. the person at the window, expiration date, year level, course, and Regular/Transferee status against the student file in the drawer. You may ask two questions per student.",
                     MaxDefectsPerAnomaly = 1, SubtleDefectsAllowed = false, DuplicateIdsAllowed = false,
                     ClassroomLieAllowed = false, ExplorationFocus = false,
                 },
@@ -74,8 +74,8 @@ namespace Hollowbrook.Logic
                 Objective = "One short night: check the papers, ask when in doubt, stamp once. " +
                             "One of the four is not a student - the papers or the voice will give it away.",
                 RuleNoteAddendum = "EXHIBITION - Verify: ID format (HB-YYYY-NNNN), photo vs the face at the " +
-                            "window, expiration, year, course, Regular/Transferee. Ask which classroom " +
-                            "they are going to and check the answer against their file.",
+                            "window, expiration, year, course, Regular/Transferee. Ask up to two " +
+                            "questions and check the answers against the card and the file.",
                 MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = false,
                 DuplicateIdsAllowed = false, ClassroomLieAllowed = true, ExplorationFocus = false,
             };

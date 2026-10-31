@@ -33,8 +33,9 @@ it automatically. The naming list is [docs/ASSET-MANIFEST.md](docs/ASSET-MANIFES
 
 1. **Sticky note** - click it to start the night.
 2. **The window** - a student steps up. Their ID and slip are already on your desk.
-3. **Ask** - press the question button (or `1`): *Which classroom are you going to?* It is free.
-   The answer stays in the questions panel.
+3. **Ask** - up to 2 of the 4 questions (buttons, or keys `1` to `4`): course, year, regular or
+   transferee, first classroom. Year unlocks after you flip the ID, status after you open their
+   file. The answer stays on its button.
 4. **Check** - compare the ID, the slip, the face and the answer with the student's **file**: click
    the cabinet (or `Tab`), pick the room folder, click the name. A wrong room, a room that does not
    exist, or the wrong class is a lie.
@@ -58,7 +59,7 @@ The numbers (stuns, seconds, head size…) are in `GameConfig.asset` under “Ad
 
 | Where | Keys |
 |---|---|
-| Desk | mouse to drag papers and stamps · `1` ask the classroom question · `Tab` file drawer · `F` flip the ID (or click its black spine) · `T` talk to the administrator · `X` or `Esc` close the rules/log sheet · `M` map · `Esc` pause |
+| Desk | mouse to drag papers and stamps · `1` to `4` ask the questions · `Tab` file drawer · `F` flip the ID (or click its black spine) · `T` talk to the administrator · `X` or `Esc` close the rules/log sheet · `M` map · `Esc` pause |
 | Patrol | `A`/`D` or arrows walk · `Shift` run · `E` interact (doors, clues, switches) · `F` flashlight on/off · `Q` focus beam · `L` beam off · `Esc` pause |
 | Peeking | mouse moves the lamp · `F` lamp on/off · `Q` wide/tight · `E` at the doorway or click the bottom edge to step back |
 | Dialogue | click / `Space` / `Enter` / `E` |

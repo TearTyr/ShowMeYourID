@@ -27,7 +27,8 @@ namespace Hollowbrook.Checkpoint
             qHead.font = UIFactory.UiFontBold;
             L.Place(qHead.rectTransform, L.Inner.QHead);
             qHead.rectTransform.localScale = new Vector3(0.72f, 1f, 1f);   // condensed, like the board
-            _qKeyHint = UIFactory.Label(qPanel, "keyhint", "KEY [1]", 14, UIFactory.NsMid, TextAnchor.MiddleRight);
+            // "2/2": how many questions are left for this student (the concept's counter)
+            _qKeyHint = UIFactory.Label(qPanel, "keyhint", "2/2", 24, UIFactory.NsChalk, TextAnchor.MiddleRight);
             _qKeyHint.font = UIFactory.UiFontBold;
             _qKeyHint.horizontalOverflow = HorizontalWrapMode.Overflow;
             L.Place(_qKeyHint.rectTransform, L.Inner.QKeyHint);
@@ -38,32 +39,26 @@ namespace Hollowbrook.Checkpoint
             L.Place(_qEmpty.rectTransform, new L.Region(L.Inner.QBtnX, 100f, L.Inner.QBtnW, 20));
             _qEmpty.gameObject.SetActive(false);
 
-            _questionBtn = UIFactory.StandardButton(qPanel, "q0", ClassroomQuestion.ButtonLabel, AskClassroom,
-                (int)L.Inner.QBtnW, (int)L.Inner.QBtnH);
-            L.Place(_questionBtn.GetComponent<RectTransform>(),
-                new L.Region(L.Inner.QBtnX, L.Inner.QContentY0 + 2f, L.Inner.QBtnW, L.Inner.QBtnH));
-            SizeLabel(_questionBtn, 14);
-            var bt = _questionBtn.GetComponentInChildren<UnityEngine.UI.Text>();
-            if (bt != null)
+            // four buttons, top to bottom: course, year, status, classroom (keys 1 to 4)
+            for (int i = 0; i < InterviewRules.Count; i++)
             {
-                bt.font = UIFactory.UiFont;
-                bt.color = UIFactory.NsChalk;
-                bt.horizontalOverflow = HorizontalWrapMode.Wrap;   // the question needs two lines
-                bt.verticalOverflow = VerticalWrapMode.Truncate;
+                var q = (QuestionId)i;
+                var b = UIFactory.StandardButton(qPanel, "q" + i, InterviewRules.Button(q), () => Ask(q),
+                    (int)L.Inner.QBtnW, (int)L.Inner.QBtnH);
+                L.Place(b.GetComponent<RectTransform>(), new L.Region(L.Inner.QBtnX,
+                    L.Inner.QContentY0 + 2f + i * L.Inner.QBtnStep, L.Inner.QBtnW, L.Inner.QBtnH));
+                SizeLabel(b, 13);
+                var bt = b.GetComponentInChildren<UnityEngine.UI.Text>();
+                if (bt != null)
+                {
+                    bt.font = UIFactory.UiFont;
+                    bt.color = UIFactory.NsChalk;
+                    bt.horizontalOverflow = HorizontalWrapMode.Wrap;   // an answer can take two lines
+                    bt.verticalOverflow = VerticalWrapMode.Truncate;
+                }
+                b.gameObject.SetActive(false);
+                _questionBtns[i] = b;
             }
-            _questionBtn.gameObject.SetActive(false);
-
-            // what the student answered stays here, so it can be checked against the file
-            _qAnswerHead = UIFactory.Label(qPanel, "answerhead", "THEY ANSWERED:", 11,
-                UIFactory.NsMid, TextAnchor.MiddleLeft);
-            _qAnswerHead.font = UIFactory.UiFontBold;
-            L.Place(_qAnswerHead.rectTransform, L.Inner.QAnswerHead);
-            _qAnswer = UIFactory.Label(qPanel, "answer", "", 16, UIFactory.NsChalk, TextAnchor.UpperLeft);
-            _qAnswer.font = UIFactory.UiFontBold;
-            _qAnswer.horizontalOverflow = HorizontalWrapMode.Wrap;
-            L.Place(_qAnswer.rectTransform, L.Inner.QAnswer);
-            _qAnswerHead.gameObject.SetActive(false);
-            _qAnswer.gameObject.SetActive(false);
         }
 
         private void BuildToolsRow()
@@ -162,19 +157,31 @@ namespace Hollowbrook.Checkpoint
             return b;
         }
 
-        // The questions panel at a glance: the button label colour and the answer note.
+        // The questions panel at a glance: which questions are open, which are used up, and the
+        // answer on every button that has been asked.
         private void RefreshQuestionsPanel(bool atWindow)
         {
             Color ink = _kitOn ? UIFactory.NsInk : UIFactory.NsChalk;
-            var t = _questionBtn.GetComponentInChildren<Text>();
-            if (t != null) t.color = ink;
-            bool answered = atWindow && _classroomAsked && _current != null;
-            _qAnswerHead.gameObject.SetActive(answered);
-            _qAnswer.gameObject.SetActive(answered);
-            if (!answered) return;
-            _qAnswerHead.color = _kitOn ? new Color(0.30f, 0.30f, 0.30f) : UIFactory.NsMid;
-            _qAnswer.color = ink;
-            _qAnswer.text = _current.ClassroomAnswer;
+            if (_qKeyHint != null)
+                _qKeyHint.text = InterviewRules.Remaining(_questionMask) + "/" + InterviewRules.Budget;
+            for (int i = 0; i < InterviewRules.Count; i++)
+            {
+                var b = _questionBtns[i];
+                if (b == null) continue;
+                b.gameObject.SetActive(atWindow);
+                var t = ButtonLabel(b);
+                if (t == null || _current == null) continue;
+                var q = (QuestionId)i;
+                bool asked = InterviewRules.Asked(_questionMask, q);
+                bool open = InterviewRules.Unlocked(q, _idFlipped, _fileOpened) && InterviewRules.CanAsk(_questionMask, q);
+                if (asked)
+                    t.text = InterviewRules.Tag(q) + ": " + (q == QuestionId.Classroom ? _current.ClassroomAnswer : _current.Answers[i]);
+                else if (!InterviewRules.Unlocked(q, _idFlipped, _fileOpened))
+                    t.text = InterviewRules.Button(q) + " [" + InterviewRules.LockedTag(q) + "]";
+                else t.text = InterviewRules.Button(q);
+                float k = open || asked ? 1f : 0.45f;   // locked and used-up questions are dimmed, not hidden
+                t.color = new Color(ink.r * k, ink.g * k, ink.b * k, 1f);
+            }
         }
 
         private void BuildStampTray()
@@ -307,10 +314,8 @@ namespace Hollowbrook.Checkpoint
             bool collapsed = Queue != null && Queue.Collapsed;
             bool atWindow = _current != null && !_verdictLocked && !collapsed;
             bool live = atWindow && _documentsTaken;
-            _questionBtn.gameObject.SetActive(atWindow);
             _qEmpty.gameObject.SetActive(!atWindow);
             _qKeyHint.gameObject.SetActive(atWindow);
-            UIFactory.SetButtonEnabled(_questionBtn, atWindow);
             RefreshQuestionsPanel(atWindow);
             RefreshStamps(live);
             bool patrolOn = !atWindow && Queue != null && Queue.Started && !collapsed;

@@ -48,6 +48,7 @@ namespace Hollowbrook.Logic
                 KV(sb, "queueVanished", JoinIdx(q.VanishedIdx));
                 sb.Append("queueMissing=").Append(q.MissingIncidents).Append('\n');
                 sb.Append("queueAsked=").Append(q.QuestionAsked ? 1 : 0).Append('\n');
+                sb.Append("queueMask=").Append(q.QuestionMask).Append('\n');
                 sb.Append("queueCollapsed=").Append(q.Overwhelmed ? 1 : 0).Append('\n');
                 sb.Append("queuePending=").Append(q.ResolutionPending ? 1 : 0).Append('\n');
                 sb.Append("queueWarned=").Append(q.Warned).Append('\n');
@@ -149,6 +150,7 @@ namespace Hollowbrook.Logic
                         VanishedIdx = IntList(Str(map, "queueVanished", "")),
                         MissingIncidents = Int(map, "queueMissing", 0),
                         QuestionAsked = Int(map, "queueAsked", 0) == 1,
+                        QuestionMask = Int(map, "queueMask", 0),
                         Overwhelmed = Int(map, "queueCollapsed", 0) == 1,
                         ResolutionPending = Int(map, "queuePending", 0) == 1,
                         Warned = map.ContainsKey("queueWarned") ? Int(map, "queueWarned", -1) : -1,

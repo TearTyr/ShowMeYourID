@@ -238,7 +238,7 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region QHead = new Region(16, 14, 150, 24);
             public static readonly Region QKeyHint = new Region(214, 14, 68, 24);
             public const float QBtnX = 16f, QBtnW = 266f;
-            public const float QContentY0 = 44f, QBtnH = 44f;
+            public const float QContentY0 = 44f, QBtnH = 34f, QBtnStep = 38f;   // four buttons fit above the painted border
             public static readonly Region QAnswerHead = new Region(16, 100, 266, 14);
             public static readonly Region QAnswer = new Region(16, 116, 266, 76);
 

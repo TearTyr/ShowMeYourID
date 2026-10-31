@@ -39,7 +39,9 @@ namespace Hollowbrook.Checkpoint
 
         private ShiftDef _shift;
         private VisitorData _current;
-        private bool _classroomAsked;   // the classroom question was asked of the current visitor
+        private int _questionMask;      // which questions were asked of the current visitor (InterviewRules.Bit)
+        private bool _idFlipped, _fileOpened;   // this visit: unlocks the year and status questions
+        private bool _classroomAsked => InterviewRules.Asked(_questionMask, QuestionId.Classroom);
         private bool _verdictLocked = true;
         private bool _flowActive;
 
@@ -61,8 +63,8 @@ namespace Hollowbrook.Checkpoint
         private Text _recName, _recNumber, _recYear, _recCourse, _recStatus, _recClassroom, _recHeader, _recEnrolled;
         private StringBuilder _tonightsLog = new StringBuilder();
 
-        private Button _questionBtn;
-        private Text _qKeyHint, _qAnswerHead, _qAnswer;
+        private Button[] _questionBtns = new Button[InterviewRules.Count];
+        private Text _qKeyHint;   // "2/2": questions left for this student
         private Text _qEmpty;   // deliberate empty state for the questions panel
         private GameObject _slipGo;
         private GameObject _papersLayer;
@@ -309,7 +311,9 @@ namespace Hollowbrook.Checkpoint
         {
             Debug.Log("[Flow] PresentVisitor " + v.ClaimedName);
             _current = v;
-            _classroomAsked = restoreAsked && Queue != null && Queue.ActiveQuestionAsked;
+            _questionMask = restoreAsked && Queue != null ? Queue.ActiveQuestionMask : 0;
+            _idFlipped = false;
+            _fileOpened = false;
             _verdictLocked = false;
             // fresh hand-over state: nothing on the desk until the ID is offered and taken
             _documentsTaken = false;
@@ -406,6 +410,7 @@ namespace Hollowbrook.Checkpoint
                 if (ch.name.EndsWith("back")) { bt = ch; break; }
             if (bt == null) return;
             bool on = !bt.gameObject.activeSelf;
+            if (on && paper == _idCardGo) _idFlipped = true;   // they have seen the back: the year question unlocks
             bt.gameObject.SetActive(on);
             foreach (Transform ch in root)
             {
@@ -448,8 +453,11 @@ namespace Hollowbrook.Checkpoint
             // T speaks with the administrator (or steps back out of the conversation); it is
             // inert unless the administrator is actually at the window
             if (Input.GetKeyDown(KeyCode.T)) ToggleAdminTalkByKey();
-            // 1 asks the classroom question (the panel shows the key)
-            if (Input.GetKeyDown(KeyCode.Alpha1)) AskClassroom();
+            // 1 to 4 ask the questions, top to bottom
+            if (Input.GetKeyDown(KeyCode.Alpha1)) Ask(QuestionId.Course);
+            if (Input.GetKeyDown(KeyCode.Alpha2)) Ask(QuestionId.Year);
+            if (Input.GetKeyDown(KeyCode.Alpha3)) Ask(QuestionId.Status);
+            if (Input.GetKeyDown(KeyCode.Alpha4)) Ask(QuestionId.Classroom);
             // F flips the ID (its spine does too). Verdicts and the hand-back have NO key: a
             // stamp is dragged onto the slip and the ID is dragged back to the window by hand.
             if (Input.GetKeyDown(KeyCode.F)) FlipLastPaper();

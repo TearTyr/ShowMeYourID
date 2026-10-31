@@ -190,8 +190,8 @@ namespace Hollowbrook.Checkpoint
             if (_current != null && !_verdictLocked)
             {
                 if (_slipStamped) want = "CHANGE YOUR MIND? STAMP AGAIN. OTHERWISE DRAG THE ID BACK TO THE WINDOW";
-                else if (!_classroomAsked && !_current.IsAdministrator)
-                    want = "ASK WHICH CLASSROOM THEY ARE GOING TO [1], THEN CHECK THEIR FILE IN THE DRAWER";
+                else if (_questionMask == 0 && !_current.IsAdministrator)
+                    want = "ASK UP TO 2 QUESTIONS [1-4], THEN CHECK THEIR FILE IN THE DRAWER";
                 else want = "CHECK THE PAPERS AND THE FILE, THEN DRAG A STAMP ONTO THE SLIP";
             }
             RefreshWindowCue();

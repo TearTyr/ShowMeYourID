@@ -31,6 +31,7 @@ namespace Hollowbrook.Logic
         NotInDatabase,        // ID number not in the student registry (ghost student)
         DuplicateId,          // ID number already used by an earlier visitor (shift 3+)
         ClassroomMismatch,    // papers are clean; the answer to "which classroom?" disagrees with the file
+        SpokenMismatch,       // papers are clean; the answer to course, year or status disagrees with the card
         SlipMismatch,           // the paper slip disagrees with the ID card (eye-check)
     }
 

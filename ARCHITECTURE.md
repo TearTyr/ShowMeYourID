@@ -30,7 +30,7 @@ ambient spawn odds and recovery returns; WanderingAnomaly owns one encounter dri
 
 **One visitor, event flow:** sticky note gates the shift start (`Queue.Started`) -> `VisitorArrived`
 (desk presents from the queue; ID and slip are already on the desk) -> `QuestionAsked` (optional,
-free: the classroom answer goes to the bubble and the questions panel) -> stamp dropped on the slip
+up to 2 of 4 questions per student; the answer goes to the bubble and stays on its button) -> stamp dropped on the slip
 (a later stamp replaces it) -> ID dragged back to the window -> `VerdictStamped` (InspectionRules
 scores, `GameRoot.OnVerdictResolved` counts, exactly once) -> short pause -> `CompleteActive`
 promotes the oldest waiter, or the arrival clock runs, or `ShiftEnded` when the queue reports

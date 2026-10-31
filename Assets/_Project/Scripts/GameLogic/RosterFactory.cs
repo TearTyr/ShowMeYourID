@@ -101,7 +101,7 @@ namespace Hollowbrook.Logic
             v.ExpirationDisplay = DisplayOf(expDay);
             v.FaceAssetIndex = _canon.IndexOf(id);   // stable face-asset identity
             v.WindowFaceIndex = v.FaceAssetIndex;    // the real student stands at the window
-            BuildClassroomAnswer(v, id);
+            BuildAnswers(v, id);
             v.SlipName = v.ClaimedName;             // legit slips always agree with the card
             v.SlipIdNumber = v.IdNumber;
             return v;
@@ -168,7 +168,7 @@ namespace Hollowbrook.Logic
                 ApplyDefect(v, DefectType.ExpiredId, id);
 
             v.InDatabase = IdRules.IsFormatValid(v.IdNumber) && _registry.Contains(v.IdNumber);
-            BuildClassroomAnswer(v, id);
+            BuildAnswers(v, id);
             // defects that rewrote the card ID (duplicate/format) resync an unbooked slip,
             // so a slip disagrees with the card exactly when SlipMismatch is booked
             if (!v.Defects.Contains(DefectType.SlipMismatch))
@@ -211,6 +211,7 @@ namespace Hollowbrook.Logic
             };
             if (shift.SubtleDefectsAllowed) pool.Add(DefectType.PhotoSubtleMismatch);
             if (shift.ClassroomLieAllowed) pool.Add(DefectType.ClassroomMismatch);
+            if (shift.ClassroomLieAllowed) pool.Add(DefectType.SpokenMismatch);
             if (shift.DuplicateIdsAllowed) pool.Add(DefectType.DuplicateId);
             if (shift.Number >= 2) pool.Add(DefectType.SlipMismatch);   // slip vs card, shift 2+
             return pool;
@@ -283,7 +284,10 @@ namespace Hollowbrook.Logic
                     break;
                 }
                 case DefectType.ClassroomMismatch:
-                    break;   // nothing on the papers: the lie is told in BuildClassroomAnswer
+                    break;   // nothing on the papers: the lie is told in BuildAnswers
+                case DefectType.SpokenMismatch:
+                    v.SpokenLieQuestion = _rng.NextInt(0, 3);   // course, year or status
+                    break;
                 case DefectType.SlipMismatch:
                     // the ticket disagrees with the card: serial nudge or name typo
                     v.SlipName = v.ClaimedName;
@@ -311,14 +315,41 @@ namespace Hollowbrook.Logic
             }
         }
 
-        // The answer to "Which classroom are you going to?". Everyone tells the truth (the room
-        // and class on their file) except a visitor carrying the ClassroomMismatch defect.
-        private void BuildClassroomAnswer(VisitorData v, StudentIdentity id)
+        // What the visitor says to each of the four questions. An honest student says what their
+        // card says (and the classroom on their file). Two kinds of anomaly lie out loud:
+        // ClassroomMismatch about the room, SpokenMismatch about course, year or status. The
+        // tone of voice is rolled once and belongs to the whole conversation.
+        private void BuildAnswers(VisitorData v, StudentIdentity id)
         {
+            v.Answers[(int)QuestionId.Course] = InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex]);
+            v.Answers[(int)QuestionId.Year] = InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1]);
+            v.Answers[(int)QuestionId.Status] = InterviewRules.StatusSpeech(v.IdIsTransferee);
             v.ClassroomAnswer = id.ClassroomSpeech;
             v.ClassroomTone = ToneFor(v);
             if (v.Defects.Contains(DefectType.ClassroomMismatch))
                 v.ClassroomAnswer = LieAboutClassroom(id);
+            v.Answers[(int)QuestionId.Classroom] = v.ClassroomAnswer;
+            if (v.Defects.Contains(DefectType.SpokenMismatch)) LieAboutCard(v);
+        }
+
+        // The spoken answer to the chosen question is never what the card says.
+        private void LieAboutCard(VisitorData v)
+        {
+            var q = (QuestionId)v.SpokenLieQuestion;
+            switch (q)
+            {
+                case QuestionId.Course:
+                    int other = (v.IdCourseIndex + 1 + _rng.NextInt(0, Content.Courses.Length - 1)) % Content.Courses.Length;
+                    v.Answers[(int)q] = InterviewRules.CourseSpeech(Content.Courses[other]);
+                    break;
+                case QuestionId.Year:
+                    int year = 1 + (v.IdYearLevel + _rng.NextInt(0, 3)) % 4;   // 1..4, never the card's
+                    v.Answers[(int)q] = InterviewRules.YearSpeech(Content.YearNames[year - 1]);
+                    break;
+                default:
+                    v.Answers[(int)q] = InterviewRules.StatusSpeech(!v.IdIsTransferee);
+                    break;
+            }
         }
 
         // Three kinds of lie, all provable against the file: the other room, a room the school
@@ -387,6 +418,8 @@ namespace Hollowbrook.Logic
             v.Defects.Add(DefectType.PhotoSubtleMismatch); // same glitch as the other anomalies
             v.ClassroomAnswer = "My first stop is your server room.";
             v.ClassroomTone = ToneTag.Echoing;
+            for (int q = 0; q < InterviewRules.Count; q++) v.Answers[q] = "That is not your concern.";
+            v.Answers[(int)QuestionId.Classroom] = v.ClassroomAnswer;
             v.WindowFaceIndex = -1;                        // the administrator has his own face art
             v.SlipName = v.ClaimedName;
             v.SlipIdNumber = v.IdNumber;

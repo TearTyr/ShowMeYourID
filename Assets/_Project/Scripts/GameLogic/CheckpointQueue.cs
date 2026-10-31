@@ -43,6 +43,7 @@ namespace Hollowbrook.Logic
         public List<int> VanishedIdx = new List<int>();
         public int MissingIncidents;
         public bool QuestionAsked;
+        public int QuestionMask;   // which questions were asked (InterviewRules.Bit)
         public bool Overwhelmed;
         public bool ResolutionPending;   // quit happened between the stamp and the banner end
         // -1 = the save file predates the key: RestoreFromSnapshot then reconstructs the
@@ -99,9 +100,16 @@ namespace Hollowbrook.Logic
         public int RosterCursor { get; private set; }
         /// <summary>Seconds until the next arrival; negative = clock not armed.</summary>
         public float TimerSeconds { get; private set; } = -1f;
-        /// <summary>True once the classroom question was asked of the visitor at the window.
-        /// Synced by the desk view so a quit/continue keeps the answer note on screen.</summary>
-        public bool ActiveQuestionAsked { get; set; }
+        /// <summary>Which questions were asked of the visitor at the window (one bit per
+        /// QuestionId). Synced by the desk view so a quit/continue keeps the answers on screen.</summary>
+        public int ActiveQuestionMask { get; set; }
+
+        /// <summary>True once any question was asked of the visitor at the window.</summary>
+        public bool ActiveQuestionAsked
+        {
+            get => ActiveQuestionMask != 0;
+            set { if (!value) ActiveQuestionMask = 0; else if (ActiveQuestionMask == 0) ActiveQuestionMask = 1; }
+        }
 
         public bool IsAttached => _roster != null || _runSource != null;
         public bool InfiniteSource => _runSource != null;
@@ -416,6 +424,7 @@ namespace Hollowbrook.Logic
                 ActiveIdx = Active != null ? Active.VisitorIndex : -1,
                 MissingIncidents = MissingIncidents,
                 QuestionAsked = ActiveQuestionAsked,
+                QuestionMask = ActiveQuestionMask,
                 Overwhelmed = Collapsed,
                 ResolutionPending = ResolutionPending,
                 Warned = _warned ? 1 : 0,
@@ -442,7 +451,7 @@ namespace Hollowbrook.Logic
             ProcessedCount = Math.Max(0, s.Processed);
             TimerSeconds = s.TimerSeconds;
             MissingIncidents = Math.Max(0, s.MissingIncidents);
-            ActiveQuestionAsked = s.QuestionAsked;
+            ActiveQuestionMask = s.QuestionMask != 0 ? s.QuestionMask : (s.QuestionAsked ? 1 : 0);
             Collapsed = s.Overwhelmed;
             ResolutionPending = s.ResolutionPending;
             _waiting.Clear();

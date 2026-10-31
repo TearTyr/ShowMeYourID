@@ -696,20 +696,36 @@ namespace FlowCheck
             idDrag.PlaceCenter(home);
             idDrag.EndDrag();
 
-            // question panel: ONE classroom question, free and repeatable; the answer stays in the panel
-            Check(FindDeep(cp.transform, "budget") == null && FindDeep(cp.transform, "q1") == null,
-                  "the old four-question budget panel is gone");
-            var q0 = FindDeep(cp.transform, "q0");
-            Check(q0.GetComponent<UnityEngine.UI.Button>().interactable,
-                  "the classroom question stays available after it was asked (it is free)");
-            var answerNote = FindDeep(cp.transform, "answer").GetComponent<UnityEngine.UI.Text>();
-            Check(answerNote.gameObject.activeSelf && answerNote.text == cp.CurrentVisitor.ClassroomAnswer,
-                  "the answer note shows exactly what the student said ('" + answerNote.text + "')");
+            // question panel: four questions, two per student; the answer stays on its button
+            for (int qi = 0; qi < InterviewRules.Count; qi++)
+                Check(FindDeep(cp.transform, "q" + qi) != null, "the questions panel has button q" + qi);
+            Func<int, string> qText = i => FindDeep(cp.transform, "q" + i).GetComponentInChildren<UnityEngine.UI.Text>(true).text;
+            var hint = FindDeep(cp.transform, "keyhint").GetComponent<UnityEngine.UI.Text>();
+            Check(qText(3) == "ROOM: " + cp.CurrentVisitor.ClassroomAnswer,
+                  "the classroom answer stays on its button ('" + qText(3) + "')");
+            Check(hint.text == "1/2", "one question asked leaves 1/2 (got '" + hint.text + "')");
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Alpha4);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            Check(hint.text == "1/2" && qText(3).StartsWith("ROOM: "),
+                  "hotkey 4 hears the same answer again without using a question");
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Alpha2);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            Check(hint.text == "1/2" && !qText(1).StartsWith("YEAR: "),
+                  "the year question is locked until the ID is flipped (got '" + qText(1) + "')");
+            cp.FlipId();
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Alpha2);
+            cp.TickHotkeys();
+            UnityEngine.Input.KeysDown.Clear();
+            Check(hint.text == "0/2" && qText(1) == "YEAR: " + cp.CurrentVisitor.Answers[(int)QuestionId.Year],
+                  "after flipping the ID the year question is answered (got '" + qText(1) + "')");
+            cp.FlipId();   // face-up again for the rest of the proof
             UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Alpha1);
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
-            Check(answerNote.text == cp.CurrentVisitor.ClassroomAnswer && q0.GetComponent<UnityEngine.UI.Button>().interactable,
-                  "hotkey 1 asks again without any penalty");
+            Check(hint.text == "0/2" && !qText(0).StartsWith("COURSE: "),
+                  "a third question is refused once the two are used (got '" + qText(0) + "')");
 
             // floor-files cabinet: the file opens only when the player pulls it
             Check(!FindDeep(cp.transform, "record").gameObject.activeSelf,
@@ -867,7 +883,7 @@ namespace FlowCheck
             slipDrag.PlaceCenter(new Vector2(760f, 500f));
             slipDrag.EndDrag();
             Check(cp.PendingVerdict == Verdict.None, "an unstamped slip commits nothing");
-            Check(PromptText(root).Contains("DRAG A STAMP ONTO THE SLIP") || PromptText(root).Contains("WHICH CLASSROOM"),
+            Check(PromptText(root).Contains("DRAG A STAMP ONTO THE SLIP") || PromptText(root).Contains("ASK UP TO 2 QUESTIONS"),
                   "prompt matches state: both papers on the desk (got '" + PromptText(root) + "')");
             Check(!HintText(root).Contains("DRAG A STAMP"),
                   "the grey objective strip no longer duplicates the red prompt (got '" + HintText(root) + "')");
@@ -1756,8 +1772,8 @@ namespace FlowCheck
             Check(FindDeep(desk, "idcard").gameObject.activeSelf &&
                   FindDeep(desk, "slip").gameObject.activeSelf,
                   "AUTO-DOCS: ID and slip are already on the desk when the inspection begins");
-            Check(PromptText(root).Contains("WHICH CLASSROOM"),
-                  "AUTO-DOCS: the prompt starts with the classroom question (got '" + PromptText(root) + "')");
+            Check(PromptText(root).Contains("ASK UP TO 2 QUESTIONS"),
+                  "AUTO-DOCS: the prompt starts with the question budget (got '" + PromptText(root) + "')");
             var cardPos = FindDeep(desk, "idcard").GetComponent<RectTransform>().anchoredPosition;
             var slipPos = FindDeep(desk, "slip").GetComponent<RectTransform>().anchoredPosition;
             Check(cardPos.y < 0 && slipPos.y < 0 && Mathf.Abs(slipPos.x - (765f - L.CounterSlip.W * 0.5f)) < 1f,
@@ -2097,9 +2113,9 @@ namespace FlowCheck
             Check(!FindDeep(cp.transform, "StickyNoteOverlay").gameObject.activeSelf, "Q8: a restored shift shows no note");
             Check(cp.CurrentVisitor != null && cp.CurrentVisitor.VisitorIndex == pRoster[2].VisitorIndex,
                   "Q8: the same visitor is back at the window");
-            var restoredNote = FindDeep(cp.transform, "answer").GetComponent<UnityEngine.UI.Text>();
-            Check(restoredNote.gameObject.activeSelf && restoredNote.text == cp.CurrentVisitor.ClassroomAnswer,
-                  "Q8: the answer note came back with the restored visitor");
+            var restoredNote = FindDeep(cp.transform, "q3").GetComponentInChildren<UnityEngine.UI.Text>(true);
+            Check(restoredNote.text == "ROOM: " + cp.CurrentVisitor.ClassroomAnswer,
+                  "Q8: the answer came back on its button with the restored visitor (got '" + restoredNote.text + "')");
             Check(root.Queue.WaitingCount == 1, "Q8: the waiting line was restored, not duplicated");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));

@@ -44,6 +44,7 @@ namespace Hollowbrook.LogicTests
             RosterFairnessTests();
             AdministratorTests();
             ClassroomQuestionTests();
+            InterviewRuleTests();
             AdminHuntTests();
             HuntEndingTests();
             InspectionRulesTests();
@@ -283,7 +284,8 @@ namespace Hollowbrook.LogicTests
                                   $"seed {seed} shift {shift.Number}: anomaly carries {v.Defects.Count} defects > cap {shift.MaxDefectsPerAnomaly}");
                             // the tell is on the papers, or in an answer that disagrees with the file
                             bool detectable = docDefects.Count > 0
-                                              || (v.Defects.Contains(DefectType.ClassroomMismatch) && !AnswerMatchesFile(v));
+                                              || (v.Defects.Contains(DefectType.ClassroomMismatch) && !AnswerMatchesFile(v))
+                                              || (v.Defects.Contains(DefectType.SpokenMismatch) && SpokenLieIsProvable(v));
                             Eq(AnswerMatchesFile(v), !v.Defects.Contains(DefectType.ClassroomMismatch),
                                $"seed {seed} shift {shift.Number}: an anomaly lies about the classroom exactly when it carries ClassroomMismatch");
                             Check(detectable,
@@ -569,11 +571,81 @@ namespace Hollowbrook.LogicTests
         private static bool AnswerMatchesFile(VisitorData v) =>
             v.ClassroomAnswer.TrimEnd('.').Replace(", ", " · ") == v.RecordFirstClassroom;
 
+        // A spoken lie is provable when the answer to the chosen question is not what the card says.
+        private static bool SpokenLieIsProvable(VisitorData v)
+        {
+            if (v.SpokenLieQuestion < 0 || v.SpokenLieQuestion >= InterviewRules.Count) return false;
+            return v.Answers[v.SpokenLieQuestion] != CardSpeech(v, (QuestionId)v.SpokenLieQuestion);
+        }
+
+        // What an honest student with this card would say to a question.
+        private static string CardSpeech(VisitorData v, QuestionId q)
+        {
+            switch (q)
+            {
+                case QuestionId.Course: return InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex]);
+                case QuestionId.Year: return InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1]);
+                case QuestionId.Status: return InterviewRules.StatusSpeech(v.IdIsTransferee);
+                default: return v.ClassroomAnswer;
+            }
+        }
+
+        private static void InterviewRuleTests()
+        {
+            Group("Interview rules - two questions per student, two of them locked until you look");
+            int mask = 0;
+            Check(InterviewRules.Remaining(mask) == 2 && InterviewRules.CanAsk(mask, QuestionId.Course), "a new student has 2 questions");
+            mask |= InterviewRules.Bit(QuestionId.Course);
+            Check(InterviewRules.Remaining(mask) == 1, "one question used leaves one");
+            mask |= InterviewRules.Bit(QuestionId.Classroom);
+            Check(InterviewRules.Remaining(mask) == 0, "two questions used leaves none");
+            Check(!InterviewRules.CanAsk(mask, QuestionId.Year), "a third new question is refused");
+            Check(InterviewRules.CanAsk(mask, QuestionId.Course), "an answer already given can be heard again for free");
+            Check(!InterviewRules.Unlocked(QuestionId.Year, false, true) && InterviewRules.Unlocked(QuestionId.Year, true, false),
+                  "the year question needs the ID flipped");
+            Check(!InterviewRules.Unlocked(QuestionId.Status, true, false) && InterviewRules.Unlocked(QuestionId.Status, false, true),
+                  "the status question needs their file opened");
+            Check(InterviewRules.Unlocked(QuestionId.Course, false, false) && InterviewRules.Unlocked(QuestionId.Classroom, false, false),
+                  "course and classroom are always open");
+            Check(InterviewRules.LockedHint(QuestionId.Year).Length > 0 && InterviewRules.LockedHint(QuestionId.Status).Length > 0,
+                  "the locked questions say what unlocks them");
+            Check(InterviewRules.AskedCount(0xF) == 4 && InterviewRules.AskedCount(0) == 0, "asked count follows the mask");
+
+            int spokenLiars = 0; var lieQuestions = new HashSet<int>();
+            for (int seed = 1; seed <= 200; seed++)
+            {
+                var rf = new RosterFactory(seed);
+                foreach (var shift in ShiftPlan.Build())
+                    foreach (var v in rf.GenerateShift(shift))
+                    {
+                        if (v.IsAdministrator) continue;
+                        for (int qi = 0; qi < InterviewRules.Count; qi++)
+                            Check(!string.IsNullOrEmpty(v.Answers[qi]), $"seed {seed}: every visitor has an answer to question {qi}");
+                        bool liar = v.Defects.Contains(DefectType.SpokenMismatch);
+                        if (!liar)
+                            for (int qi = 0; qi < 3; qi++)
+                                Check(v.Answers[qi] == CardSpeech(v, (QuestionId)qi),
+                                      $"seed {seed}: '{v.ClaimedName}' repeats their card unless they carry SpokenMismatch (question {qi})");
+                        if (!shift.ClassroomLieAllowed)
+                            Check(!liar, $"seed {seed} shift {shift.Number}: spoken lie used before it is unlocked");
+                        if (!liar) continue;
+                        spokenLiars++; lieQuestions.Add(v.SpokenLieQuestion);
+                        Check(SpokenLieIsProvable(v), $"seed {seed}: a spoken lie always differs from the card");
+                    }
+            }
+            Check(spokenLiars > 100, "enough spoken liars to be worth asking (" + spokenLiars + ")");
+            Check(lieQuestions.Count == 3, "the spoken lie covers course, year and status");
+        }
+
         private static void ClassroomQuestionTests()
         {
-            Group("Classroom question - one free question, a lie provable against the file");
-            Check(!string.IsNullOrEmpty(ClassroomQuestion.ButtonLabel) && !string.IsNullOrEmpty(ClassroomQuestion.Spoken),
-                  "the question has its button text and its spoken line");
+            Group("Questions - four to choose from, a lie provable against the card or the file");
+            bool textsOk = true;
+            for (int qi = 0; qi < InterviewRules.Count; qi++)
+                textsOk &= !string.IsNullOrEmpty(InterviewRules.Button((QuestionId)qi)) &&
+                           !string.IsNullOrEmpty(InterviewRules.Spoken((QuestionId)qi)) &&
+                           !string.IsNullOrEmpty(InterviewRules.Tag((QuestionId)qi));
+            Check(textsOk, "every question has its button text, tag and spoken line");
             var canon = Content.BuildStudentRoster();
             int wrongRoom = 0, missingRoom = 0, wrongClass = 0, liars = 0;
             for (int seed = 1; seed <= 200; seed++)

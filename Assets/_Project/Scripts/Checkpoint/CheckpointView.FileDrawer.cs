@@ -620,6 +620,7 @@ namespace Hollowbrook.Checkpoint
             _selectedCanon = canonIdx;
             _recordFromFile = true;
             FillRecordSheet(v);
+            if (_current != null && v.FullName == _current.RecordName) _fileOpened = true;   // their own file: the status question unlocks
             if (_recordGo != null)
             {
                 _recordGo.SetActive(true);
