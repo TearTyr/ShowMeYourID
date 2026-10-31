@@ -31,6 +31,39 @@ namespace Hollowbrook.Core
             Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.School);
         }
 
+        /// <summary>Is tonight's hiding anomaly in this room? It picks Room 101, Room 202 or a CR,
+        /// and "a CR" means whichever one the player opens, so it can never be walked past. Night 5
+        /// has none: he is the only thing in the building.</summary>
+        public bool PeekAnomalyIn(RoomId room)
+        {
+            if (Session.PeekAnomalyGone || HuntActive || (CurrentShiftDef != null && CurrentShiftDef.HasAdministrator)) return false;
+            int spot = new GameRng(Session.Seed ^ (Session.CurrentShift * 6151)).NextInt(0, 3);
+            if (spot == 0) return room == RoomId.Classroom1;
+            if (spot == 1) return room == RoomId.Classroom2;
+            return room == RoomId.ComfortRoom || room == RoomId.ComfortRoom2;
+        }
+
+        /// <summary>The lamp drove it out: the room counts now, and it leaves a token behind.</summary>
+        public void RepelPeekAnomaly()
+        {
+            Session.PeekAnomalyGone = true;
+            if (PeekRoom.HasValue) Session.ClearedRooms |= PatrolCycle.Bit(PeekRoom.Value);
+            ObjectiveText = PatrolObjective();
+            Audio.PlaySfx("sfx_glitch", 0.6f);
+            Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it folds into the dark and leaves a token behind*", 3f, null));
+            AwardToken();
+        }
+
+        /// <summary>A token goes straight to the save: it is kept even if the run is abandoned.</summary>
+        public void AwardToken()
+        {
+            Session.TokensCollected++;
+            Records.TokensBanked++;   // spent on the main menu: see MainMenuView
+            Bus.Publish(GameEvent.Of(EventIds.TokenCollected, Session.TokensCollected));
+            Audio.PlaySfx("sfx_scan_ok", 0.6f);
+            PersistRun();
+        }
+
         /// <summary>Normal nights 1 to 4 need one patrol cycle before END SHIFT.</summary>
         public bool PatrolRequired => Session != null && Session.Mode == GameMode.Normal &&
             Session.CurrentShift < ShiftPlan.TotalShifts && (Config == null || !Config.exhibitionMode);
@@ -61,7 +94,7 @@ namespace Hollowbrook.Core
         {
             if (Views == null) return;
             PeekRoom = room;
-            Session.ClearedRooms |= PatrolCycle.Bit(room);
+            if (!PeekAnomalyIn(room)) Session.ClearedRooms |= PatrolCycle.Bit(room);
             ObjectiveText = PatrolObjective();   // the hallway shows it again after the peek
             SetState(AppViewState.RoomPeek);
             Views.EnterPeek(room);

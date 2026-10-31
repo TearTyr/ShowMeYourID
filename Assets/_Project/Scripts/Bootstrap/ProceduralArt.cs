@@ -41,6 +41,7 @@ namespace Hollowbrook.Bootstrap
                 { "sec_bubble", 10f },
                 // the guard's frames are 452 px tall and the old drawn guard stood 3.5 world units
                 // high, so 129 px per unit keeps him the same size
+                { "char_anomaly", 155f },   // 4.8 units tall, feet on the floor at its centre height of 2.4
                 { "char_guard_idle", 129f }, { "char_guard_walk_a", 129f }, { "char_guard_walk_b", 129f },
                 // backdrops: the three screen wide hallway covers 30 units, a room 17.8 (the camera's
                 // 16:9 view), the bathroom 17.1
@@ -260,7 +261,6 @@ namespace Hollowbrook.Bootstrap
             "paper_flat", "school_facade", "camera_frame", "window_frame", "lamp_glow",
             "prop_photoframe", "prop_lightfixture", "prop_lostid",
             "custodian_0", "custodian_1",
-            "anomaly_blink", "anomaly_slide", "anomaly_sprint", "anomaly_coverhug",
             "face_placeholder",
             "record_sheet", "clipboard", "note_paper", "stamp_allow", "stamp_reject",
             "folder_tab", "cursor_hand", "icon_check", "icon_x", "bubble_tail",
@@ -323,10 +323,6 @@ namespace Hollowbrook.Bootstrap
                 case "prop_lostid": return MakeLostId(56, 36);
                 case "custodian_0": return MakeCustodian(96, 224, 0);
                 case "custodian_1": return MakeCustodian(96, 224, 1);
-                case "anomaly_blink": return MakeAnomaly(128, 336, AnomalyBehaviorKind.Blink);
-                case "anomaly_slide": return MakeAnomaly(128, 336, AnomalyBehaviorKind.Slide);
-                case "anomaly_sprint": return MakeAnomaly(160, 336, AnomalyBehaviorKind.Sprint);
-                case "anomaly_coverhug": return MakeAnomaly(192, 224, AnomalyBehaviorKind.CoverHug);
                 case "face_placeholder": return MakeFacePlaceholder(168, 208);
                 case "id_card_frame": return MakeIdCard();
                 case "record_sheet": return MakeRecordSheet();

@@ -88,8 +88,10 @@ namespace Hollowbrook.Core
         public float beamTargetRadius = BeamGeometry.DefaultTargetRadius;
 
         [Header("Patrol")]
-        [Tooltip("Roaming anomalies on patrol. Off: the only anomalies are the ones at the security window.")]
-        public bool patrolAnomalies = false;
+        [Tooltip("Seconds into a patrol before the first anomaly is guaranteed to appear.")][Range(2f, 60f)]
+        public float anomalyFirstSpawnSeconds = 15f;
+        [Tooltip("Seconds the lit lamp must stay on the anomaly hiding in a peek room to drive it out.")][Range(0.3f, 6f)]
+        public float peekRepelSeconds = 1.5f;
 
         [Header("Administrator hunt (night 5, after the DENY stamp)")]
         [Tooltip("Times he can catch you before he reaches the server door and you lose.")][Range(1, 10)]

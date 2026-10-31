@@ -26,7 +26,8 @@ namespace Hollowbrook.World
         private readonly ViewManager _views;
         private GameRng _rng;
         private WanderingAnomaly _liveAnomaly;
-        private float _spawnCooldown = 6f;
+        private float _spawnCooldown;
+        private bool _sightingDue = true;   // every patrol meets at least one
         private int _anomaliesInside;
         private float _returnTimer = -1f;
         private AnomalyBehaviorKind _returnKind;
@@ -40,6 +41,7 @@ namespace Hollowbrook.World
             _root = root;
             _views = views;
             _rng = rng;
+            _spawnCooldown = root.Config != null ? root.Config.anomalyFirstSpawnSeconds : 15f;
         }
 
         public void NoteBreach() { _anomaliesInside++; }
@@ -60,7 +62,6 @@ namespace Hollowbrook.World
 
         public void UpdateSpawner(float dt)
         {
-            if (!_root.Config.patrolAnomalies) return;   // anomalies only come to the security window
             if (_root.State != AppViewState.Exploration) return;
             if (_views.Current == null || _views.Transitioning) return;
             // on night 5 the administrator is the only thing in the building
@@ -81,11 +82,17 @@ namespace Hollowbrook.World
             }
 
             int shift = _root.Session.Mode == GameMode.Normal ? _root.Session.CurrentShift : 3;
-            if (_root.Session.Mode == GameMode.Normal && shift < 2) return; // anomalies wander from shift 2
             if (_liveAnomaly != null) return;
 
             _spawnCooldown -= dt;
             if (_spawnCooldown > 0f) return;
+            if (_sightingDue)
+            {
+                _sightingDue = false;
+                _spawnCooldown = 4f;
+                SpawnAnomaly(false);
+                return;
+            }
 
             float chance = _root.Config.anomalySpawnChancePerSecond * (0.6f + 0.2f * shift) *
                            (1f + 0.35f * _anomaliesInside + 0.3f * (int)_root.Session.Breaches) *
@@ -132,7 +139,7 @@ namespace Hollowbrook.World
         /// (uncaught == outstanding); phantoms are always the gliding shape (they never grab).</summary>
         public void SpawnAnomaly(bool hallucination)
         {
-            if (_views.Current == null || !_root.Config.patrolAnomalies) return;
+            if (_views.Current == null) return;
             if (!hallucination && _liveAnomaly != null) return;
             if (_rng == null) _rng = new GameRng(_root.Session.Seed + 31 + _root.Session.CurrentShift);
             var kind = hallucination ? AnomalyBehaviorKind.Slide : _root.Session.Pool.PeekKind(_rng);

@@ -156,7 +156,7 @@ namespace Hollowbrook.LogicTests
             Eq(shifts.Count, ShiftPlan.TotalShifts, "five shifts");
             Eq(shifts.Count, 5, "TotalShifts is 5");
             int[] wantVisitors = { 4, 6, 7, 8, 0 };
-            int[] wantAnomalies = { 0, 2, 3, 4, 0 };
+            int[] wantAnomalies = { 1, 2, 3, 4, 0 };
             for (int i = 0; i < shifts.Count; i++)
             {
                 var s = shifts[i];

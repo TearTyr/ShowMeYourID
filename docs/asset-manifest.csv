@@ -65,10 +65,6 @@ sec_window_close,art,kit,P0,shipped-kit,PNG,full-frame layer: window frame + clo
 sec_window_open,art,kit,P0,shipped-kit,PNG,full-frame layer: window frame + open glass; opening matches the Portrait rect,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 stamp_allow,art,desk-doc,P0,temp-shipped,PNG,"PNG RGBA square ~150 px @100 ppu, APPROVE rubber stamp mark, transparent outside the ink",CheckpointView stamp tray + slip mark,ships as Art/UI/SecurityDesk/stamp_allow.png; final ink replaces the file
 stamp_reject,art,desk-doc,P0,procedural,PNG,"PNG RGBA square ~150 px @100 ppu, DENY rubber stamp mark",CheckpointView stamp tray + slip mark,"pair of stamp_allow: same weight, same tilt language"
-anomaly_blink,art,character,P1,procedural,PNG,"PNG RGBA 128x336 px @64 ppu, silhouette: only moves unobserved",WanderingAnomaly,reads as a silhouette under the darkness overlay (order 40)
-anomaly_coverhug,art,character,P1,procedural,PNG,"PNG RGBA 128x336 px @64 ppu, ceiling hugger",WanderingAnomaly,
-anomaly_slide,art,character,P1,procedural,PNG,"PNG RGBA 128x336 px @64 ppu, lateral glider",WanderingAnomaly,
-anomaly_sprint,art,character,P1,procedural,PNG,"PNG RGBA 128x336 px @64 ppu, telegraph-then-burst runner",WanderingAnomaly,
 bubble_tail,art,desk-doc,P1,procedural,PNG,"PNG RGBA 48x40 px @100 ppu, comic-bubble tail pointing left",CheckpointView speech bubble,
 circle_paper,art,functional,P1,code-drawn,PNG,110 px flat paper circle (ID back seal),CheckpointView ID back,
 classroom1_bg,art,world-bg,P1,procedural,PNG,"PNG 1152x640 px @64 ppu, Room 101 side view",ViewManager classroom 1 / peek,

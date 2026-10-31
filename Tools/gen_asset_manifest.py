@@ -57,10 +57,6 @@ ART = [
     # ---- characters ----
     ("custodian_0",     "character", "P0", "procedural", "PNG RGBA 96x224 px @64 ppu, the guard: walk frame A", "PlayerController", "2-frame walk is enough; add _2/_3 later without renaming"),
     ("custodian_1",     "character", "P0", "procedural", "PNG RGBA 96x224 px @64 ppu, walk frame B", "PlayerController", ""),
-    ("anomaly_blink",   "character", "P1", "procedural", "PNG RGBA 128x336 px @64 ppu, silhouette: only moves unobserved", "WanderingAnomaly", "reads as a silhouette under the darkness overlay (order 40)"),
-    ("anomaly_slide",   "character", "P1", "procedural", "PNG RGBA 128x336 px @64 ppu, lateral glider", "WanderingAnomaly", ""),
-    ("anomaly_sprint",  "character", "P1", "procedural", "PNG RGBA 128x336 px @64 ppu, telegraph-then-burst runner", "WanderingAnomaly", ""),
-    ("anomaly_coverhug","character", "P1", "procedural", "PNG RGBA 128x336 px @64 ppu, ceiling hugger", "WanderingAnomaly", ""),
     ("hood_figure",     "character", "P1", "procedural", "PNG RGBA 24x48 px @100 ppu, waiting-line silhouette for the queue stands", "CheckpointView stands", ""),
 
     # ---- map sheet (this pass) ----

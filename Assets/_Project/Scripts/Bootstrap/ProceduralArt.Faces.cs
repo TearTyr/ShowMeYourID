@@ -142,58 +142,6 @@ namespace Hollowbrook.Bootstrap
             return c.ToSprite("custodian_" + frame, WorldPpu);
         }
 
-        private static Sprite MakeAnomaly(int w, int h, AnomalyBehaviorKind kind)
-        {
-            var c = new Canvas2D(w, h);
-            var body = G(0.02f);          // near-black silhouette
-            var eye = G(0.95f);
-            float cx = w / 2f;
-            switch (kind)
-            {
-                case AnomalyBehaviorKind.Blink: // unnaturally still, long arms
-                    c.FillEllipse(cx, h * 0.10f, 15, 19, body);
-                    c.FillRect((int)(cx - 17), (int)(h * 0.16f), 34, (int)(h * 0.42f), body);
-                    c.FillRect((int)(cx - 26), (int)(h * 0.19f), 9, (int)(h * 0.52f), body);   // long arms
-                    c.FillRect((int)(cx + 17), (int)(h * 0.19f), 9, (int)(h * 0.52f), body);
-                    c.FillRect((int)(cx - 13), (int)(h * 0.56f), 10, (int)(h * 0.42f), body);
-                    c.FillRect((int)(cx + 3), (int)(h * 0.56f), 10, (int)(h * 0.42f), body);
-                    c.FillEllipse(cx - 6, h * 0.09f, 2.6f, 3.4f, eye);
-                    c.FillEllipse(cx + 7, h * 0.115f, 2.2f, 3.0f, eye); // asymmetric eyes
-                    break;
-                case AnomalyBehaviorKind.Slide: // legless gliding shape
-                    c.FillEllipse(cx, h * 0.14f, 16, 20, body);
-                    c.FillEllipse(cx, h * 0.55f, 26, h * 0.42f, body);
-                    c.FillEllipse(cx - 7, h * 0.13f, 2.4f, 2.4f, eye);
-                    c.FillEllipse(cx + 7, h * 0.13f, 2.4f, 2.4f, eye);
-                    break;
-                case AnomalyBehaviorKind.Sprint: // leaning runner, stretched
-                    c.FillEllipse(cx + 14, h * 0.13f, 14, 17, body);
-                    c.FillRect((int)(cx - 24), (int)(h * 0.18f), 52, 26, body);      // leaning torso
-                    c.FillRect((int)(cx - 34), (int)(h * 0.30f), 30, 9, body);       // reaching arm
-                    c.FillRect((int)(cx - 6), (int)(h * 0.40f), 10, (int)(h * 0.4f), body);
-                    c.FillRect((int)(cx + 12), (int)(h * 0.40f), 10, (int)(h * 0.34f), body);
-                    c.FillEllipse(cx + 18, h * 0.125f, 2.2f, 3.0f, eye);
-                    c.FillEllipse(cx + 24, h * 0.13f, 2.2f, 3.0f, eye);
-                    break;
-                default: // CoverHug - crouched, arms spread wide (ceiling lurker)
-                    c.FillEllipse(cx, h * 0.30f, 22, 26, body);
-                    c.FillRect((int)(cx - 84), (int)(h * 0.24f), 76, 12, body);      // spread arms
-                    c.FillRect((int)(cx + 8), (int)(h * 0.24f), 76, 12, body);
-                    c.FillEllipse(cx, h * 0.62f, 34, h * 0.30f, body);
-                    c.FillEllipse(cx - 8, h * 0.27f, 2.4f, 3.2f, eye);
-                    c.FillEllipse(cx + 8, h * 0.27f, 2.4f, 3.2f, eye);
-                    break;
-            }
-            var r = new System.Random((int)kind * 977 + 13);
-            for (int i = 0; i < 40; i++)
-            {
-                int x = r.Next(w), y = r.Next(h);
-                if (c.Px[y * w + x].r < 0.1f)
-                    c.FillRect(x, y, 1 + r.Next(6), 1, G(r.Next(2) == 0 ? 0.9f : 0.05f, 0.5f));
-            }
-            return c.ToSprite("anomaly_" + kind.ToString().ToLowerInvariant(), WorldPpu);
-        }
-
         // Printed 1:1 at the desk panel size (320x220): flat card stock, header band,
         // photo slot, text rules and barcode exactly where CheckpointLayout.Inner expects.
         private static Sprite MakeIdCard()

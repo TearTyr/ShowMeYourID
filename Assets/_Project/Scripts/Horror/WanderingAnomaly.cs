@@ -37,6 +37,7 @@ namespace Hollowbrook.Horror
         private bool _resolved;                  // token + pool resolution, exactly once
         private bool _gone;                      // despawn handoff, exactly once
         private float _trackThrottle;
+        private float _lastX;
 
         private BehaviorProfile _profile;
         private BehaviorTuning _behavior;
@@ -83,11 +84,12 @@ namespace Hollowbrook.Horror
             };
 
             _sr = gameObject.AddComponent<SpriteRenderer>();
-            _sr.sprite = ProceduralArt.Get("anomaly_" + kind.ToString().ToLowerInvariant());
+            _sr.sprite = ProceduralArt.Get("char_anomaly");   // one body for now, behaviours differ
             _sr.sortingOrder = 40; // under the darkness overlay => silhouette in dim light
 
             // spawn INSIDE the behavior's own vertical band - no contradictory coordinates
             transform.localPosition = new Vector3(spawn.x, RoomInstance.FloorY + _profile.SpawnY, 0);
+            _lastX = spawn.x;
             _lifetime = hallucination ? 6.5f : 18f;
             PickWanderTarget(PlayerPos());
 
@@ -168,6 +170,7 @@ namespace Hollowbrook.Horror
                 if (_gone) return;   // recovery handoff despawned mid-tick
             }
             MoveBehavior(dt, views, sameRoom, active, roaming);
+            FaceTheWayItMoves();
             TickVisibility(views, sameRoom);
             if (active) ProximityEffects(dt, views);
         }
@@ -550,6 +553,14 @@ namespace Hollowbrook.Horror
             var c = _sr.color;
             if (!Mathf.Approximately(c.a, alpha) || _sr.sortingOrder != order)
             { c.a = alpha; _sr.color = c; _sr.sortingOrder = order; }
+        }
+
+        // The art faces right, so moving left is a flip.
+        private void FaceTheWayItMoves()
+        {
+            float x = transform.localPosition.x;
+            if (Mathf.Abs(x - _lastX) > 0.001f) _sr.flipX = x < _lastX;
+            _lastX = x;
         }
 
         // ---------------------------------------------------------------- resolution

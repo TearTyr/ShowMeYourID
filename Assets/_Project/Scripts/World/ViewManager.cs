@@ -30,6 +30,7 @@ namespace Hollowbrook.World
         public FlashlightRig Flashlight { get; private set; }
         private UnityEngine.UI.Image _fade;
         private PeekLight _peekLight;    // the cursor-locked lamp for classroom peeks (lazy)
+        private PeekAnomaly _peekAnomaly;
         private bool _peeking;           // true from EnterPeek until ExitPeek has finished
         private bool _peekExiting;       // guards the step-back routine (idempotent exit)
 
@@ -46,6 +47,7 @@ namespace Hollowbrook.World
 
         /// <summary>True while a classroom peek is on screen (fade-in through fade-out).</summary>
         public bool PeekActive => _peeking;
+        internal PeekAnomaly PeekedAnomaly => _peekAnomaly;
 
         /// <summary>True when the point is inside the peek light's circle - the only light
         /// that reveals anything while peeking.</summary>
@@ -281,6 +283,8 @@ namespace Hollowbrook.World
             if (Current != null && Current.Light != null) Current.Light.EnterPeek(true);
             EnsurePeekLight();
             _peekLight.Enter(Current, Hunt != null && Hunt.Running);   // the hunt starts the lamp ON
+            if (_gameRoot.PeekAnomalyIn(id))
+                _peekAnomaly = PeekAnomaly.Place(_gameRoot, Current, _peekLight, _gameRoot.Session.Seed + (int)id * 53);
             _cam.transform.position = new Vector3(0f, 0f, -10f);   // frozen frame of the room
             yield return FadeTo(0f, 0.34f);
             Transitioning = false;
@@ -291,6 +295,8 @@ namespace Hollowbrook.World
             yield return FadeTo(1f, 0.28f);
             var from = Current;
             if (_peekLight != null) _peekLight.Exit();
+            if (_peekAnomaly != null) Destroy(_peekAnomaly.gameObject);   // it waits for the next peek
+            _peekAnomaly = null;
             if (from != null && from.Light != null) from.Light.EnterPeek(false);
             EnterRoomImmediate(RoomId.Hallway, from);
             SetPlayerVisible(true);
@@ -367,6 +373,7 @@ namespace Hollowbrook.World
             if (_peeking)
             {
                 if (_peekLight != null) _peekLight.Tick(dt);
+                if (_peekAnomaly != null) _peekAnomaly.Tick(dt);
                 return;
             }
             if (Current.Light != null) Current.Light.Tick(dt);

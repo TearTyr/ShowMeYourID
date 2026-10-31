@@ -13,10 +13,10 @@ namespace Hollowbrook.Logic
                 new ShiftDef
                 {
                     Number = 1, DateLabel = Content.ShiftDates[0],
-                    VisitorCount = 4, AnomalyCount = 0, HasAdministrator = false,
+                    VisitorCount = 4, AnomalyCount = 1, HasAdministrator = false,
                     Title = "Introduction",
                     Objective = "Learn the checkpoint: inspect IDs, pull the student file, ask a question or two, and stamp Allow or Reject. Take a walk - learn how to leave the security room and come back.",
-                    RuleNoteAddendum = "NIGHT 1 - Welcome, custodian. Verify: ID number format (HB-YYYY-NNNN), photo vs. the person at the window, expiration date, year level, course, and Regular/Transferee status against the student file in the drawer. You may ask two questions per student.",
+                    RuleNoteAddendum = "NIGHT 1 - Welcome, custodian. Verify: ID number format (HB-YYYY-NNNN), photo vs. the person at the window, expiration date, year level, course, and Regular/Transferee status against the student file in the drawer. You may ask two questions per student. One of them tonight is not a student.",
                     MaxDefectsPerAnomaly = 1, SubtleDefectsAllowed = false, DuplicateIdsAllowed = false,
                     ClassroomLieAllowed = false, ExplorationFocus = false,
                 },
