@@ -1,7 +1,20 @@
 fileFormatVersion: 2
 guid: e0f9bba320940ab04bb5d00b0cca77da
-DefaultImporter:
+TrueTypeImporter:
   externalObjects: {}
+  serializedVersion: 2
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontNames: []
+  fallbackFontReferences: []
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  useLegacyBoundsCalculation: 0
+  shouldRoundAdvanceValue: 1
   userData: 
   assetBundleName: 
   assetBundleVariant: 

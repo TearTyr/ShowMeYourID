@@ -403,14 +403,15 @@ namespace FlowCheck
             ExpectRegion("MAP", L.UtilityMap, 955, 330, 290, 170);
             ExpectRegion("RN", L.UtilityNotes, 240, 570, 160, 150);
             ExpectRegion("sticky note", L.StickyNote, 390, 200, 500, 320);
-            // the question button and the answer note sit inside the kit panel's painted frame
-            // (local y 9..198 on the 305x215 rect), one under the other, never overlapping
-            Check(Math.Abs(L.Inner.QBtnX - 16) < 0.01f && Math.Abs(L.Inner.QBtnW - 266) < 0.01f &&
-                  L.Inner.QContentY0 >= 40f &&
-                  L.Inner.QContentY0 + L.Inner.QBtnH < L.Inner.QAnswerHead.Y &&
-                  L.Inner.QAnswerHead.Bottom <= L.Inner.QAnswer.Y &&
-                  L.Inner.QAnswer.Bottom <= 195f,
-                "question button and answer note stack inside the panel, clear of the painted frame");
+            // the four question strips sit inside the kit panel's painted frame (local x 32..274,
+            // y 9..198 on the 305x215 rect), under the heading, one under the other, never overlapping
+            float lastStripBottom = L.Inner.QContentY0 + 3 * L.Inner.QBtnStep + L.Inner.QBtnH;
+            Check(L.Inner.QBtnX >= 30f && L.Inner.QBtnX + L.Inner.QBtnW <= 276f &&
+                  L.Inner.QHead.Bottom <= L.Inner.QContentY0 &&
+                  L.Inner.QKeyHint.Bottom <= L.Inner.QContentY0 &&
+                  L.Inner.QBtnStep > L.Inner.QBtnH &&
+                  lastStripBottom <= 195f,
+                "four question strips stack inside the panel under the heading, clear of the painted frame");
             // folder tabs: station-local grid; file rows: drawer-body grid, starting under the
             // 52px front lip and the 18px header - a whole floor folder (7 files) fits
             Check(Math.Abs(L.Inner.FolderTabX - (L.Station.W - L.Inner.FolderTabW) / 2f) < 0.01f &&

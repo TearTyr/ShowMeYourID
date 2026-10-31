@@ -23,13 +23,13 @@ namespace Hollowbrook.Checkpoint
             var qPanel = UIFactory.BorderedPanel(_desk, "qpanel", UIFactory.Paper, UIFactory.Border, 2);
             Reg("questions", qPanel, L.Questions);
             qPanel.gameObject.AddComponent<RectMask2D>();
-            var qHead = UIFactory.Label(qPanel, "head", "QUESTIONS", 24, UIFactory.NsChalk, TextAnchor.UpperLeft);
-            qHead.font = UIFactory.UiFontBold;
+            var qHead = UIFactory.Label(qPanel, "head", "QUESTIONS", 22, UIFactory.NsChalk, TextAnchor.MiddleLeft);
+            qHead.font = UIFactory.UiFontCondensed;   // the board's chunky condensed face
+            qHead.horizontalOverflow = HorizontalWrapMode.Overflow;
             L.Place(qHead.rectTransform, L.Inner.QHead);
-            qHead.rectTransform.localScale = new Vector3(0.72f, 1f, 1f);   // condensed, like the board
             // "2/2": how many questions are left for this student (the concept's counter)
-            _qKeyHint = UIFactory.Label(qPanel, "keyhint", "2/2", 24, UIFactory.NsChalk, TextAnchor.MiddleRight);
-            _qKeyHint.font = UIFactory.UiFontBold;
+            _qKeyHint = UIFactory.Label(qPanel, "keyhint", "2/2", 22, UIFactory.NsChalk, TextAnchor.MiddleRight);
+            _qKeyHint.font = UIFactory.UiFontCondensed;
             _qKeyHint.horizontalOverflow = HorizontalWrapMode.Overflow;
             L.Place(_qKeyHint.rectTransform, L.Inner.QKeyHint);
             _qKeyHint.gameObject.SetActive(false);
@@ -46,15 +46,19 @@ namespace Hollowbrook.Checkpoint
                 var b = UIFactory.StandardButton(qPanel, "q" + i, InterviewRules.Button(q), () => Ask(q),
                     (int)L.Inner.QBtnW, (int)L.Inner.QBtnH);
                 L.Place(b.GetComponent<RectTransform>(), new L.Region(L.Inner.QBtnX,
-                    L.Inner.QContentY0 + 2f + i * L.Inner.QBtnStep, L.Inner.QBtnW, L.Inner.QBtnH));
-                SizeLabel(b, 13);
+                    L.Inner.QContentY0 + i * L.Inner.QBtnStep, L.Inner.QBtnW, L.Inner.QBtnH));
+                SizeLabel(b, 15);
                 var bt = b.GetComponentInChildren<UnityEngine.UI.Text>();
                 if (bt != null)
                 {
-                    bt.font = UIFactory.UiFont;
+                    bt.font = UIFactory.UiFontCondensed;
                     bt.color = UIFactory.NsChalk;
-                    bt.horizontalOverflow = HorizontalWrapMode.Wrap;   // an answer can take two lines
+                    // one line always: a long answer shrinks to fit the strip instead of spilling out
+                    bt.horizontalOverflow = HorizontalWrapMode.Wrap;
                     bt.verticalOverflow = VerticalWrapMode.Truncate;
+                    bt.resizeTextForBestFit = true;
+                    bt.resizeTextMinSize = 9;
+                    bt.resizeTextMaxSize = 15;
                 }
                 b.gameObject.SetActive(false);
                 _questionBtns[i] = b;
@@ -159,6 +163,9 @@ namespace Hollowbrook.Checkpoint
 
         // The questions panel at a glance: which questions are open, which are used up, and the
         // answer on every button that has been asked.
+        private static readonly Color LockedQuestionInk = new Color(0.36f, 0.36f, 0.36f, 1f);
+        private static readonly Color LockedQuestionStrip = new Color(0.74f, 0.74f, 0.74f, 1f);
+
         private void RefreshQuestionsPanel(bool atWindow)
         {
             Color ink = _kitOn ? UIFactory.NsInk : UIFactory.NsChalk;
@@ -179,8 +186,14 @@ namespace Hollowbrook.Checkpoint
                 else if (!InterviewRules.Unlocked(q, _idFlipped, _fileOpened))
                     t.text = InterviewRules.Button(q) + " [" + InterviewRules.LockedTag(q) + "]";
                 else t.text = InterviewRules.Button(q);
-                float k = open || asked ? 1f : 0.45f;   // locked and used-up questions are dimmed, not hidden
-                t.color = new Color(ink.r * k, ink.g * k, ink.b * k, 1f);
+                // locked and used-up questions are greyed out, not hidden: grey text on a grey strip
+                bool live = open || asked;
+                t.color = live ? ink : LockedQuestionInk;
+                var strip = b.transform.Find("bg");
+                if (_kitOn && strip != null && strip.GetComponent<Image>() != null)
+                    strip.GetComponent<Image>().color = live ? Color.white : LockedQuestionStrip;
+                var bullet = b.transform.Find("askarrow");
+                if (bullet != null && bullet.GetComponent<Image>() != null) bullet.GetComponent<Image>().color = live ? ink : LockedQuestionInk;
             }
         }
 

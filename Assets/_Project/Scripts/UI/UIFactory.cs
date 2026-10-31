@@ -32,7 +32,7 @@ namespace Hollowbrook.UI
         public const int SpaceUnit = 8;
 
         // ---- mockup type roles (bundled open-licence fonts, safe fallback to GameFont) ----
-        private static Font _uiFont, _uiFontBold, _typeFont, _handFont;
+        private static Font _uiFont, _uiFontBold, _uiFontCondensed, _typeFont, _handFont;
         // The owner's SecurityRoom kit ships its own type families (Bahnschrift for the UI,
         // Chiller for the horror display face). They are tried FIRST, with the bundled open
         // licence families as fallbacks, so a missing kit file can never leave text unrendered.
@@ -40,6 +40,9 @@ namespace Hollowbrook.UI
             "Fonts/kit_bahnschrift_regular", "Fonts/BarlowCondensed-Regular");
         public static Font UiFontBold => LoadFont(ref _uiFontBold,
             "Fonts/kit_bahnschrift_bold", "Fonts/BarlowCondensed-SemiBold");
+        // Bahnschrift Bold Condensed: the chunky label face of the concept art's question board
+        public static Font UiFontCondensed => LoadFont(ref _uiFontCondensed,
+            "Fonts/kit_bahnschrift_bold_condensed", "Fonts/BarlowCondensed-SemiBold");
         public static Font TypeFont => LoadFont(ref _typeFont,
             "Fonts/kit_chiller", "Fonts/SpecialElite-Regular");
         public static Font HandFont => LoadFont(ref _handFont,

@@ -235,10 +235,10 @@ namespace Hollowbrook.Checkpoint
             // questions panel (panel-local): the header strip, then the one question button and
             // the note of what the student answered. The content stops above the kit panel's
             // painted bottom border (measured at local y=198 on the 305x215 rect).
-            public static readonly Region QHead = new Region(16, 14, 150, 24);
-            public static readonly Region QKeyHint = new Region(214, 14, 68, 24);
-            public const float QBtnX = 16f, QBtnW = 266f;
-            public const float QContentY0 = 44f, QBtnH = 34f, QBtnStep = 38f;   // four buttons fit above the painted border
+            public static readonly Region QHead = new Region(32, 26, 130, 26);
+            public static readonly Region QKeyHint = new Region(196, 26, 78, 26);
+            public const float QBtnX = 32f, QBtnW = 242f;   // inside the painted border, like the concept
+            public const float QContentY0 = 58f, QBtnH = 24f, QBtnStep = 33.5f;   // four strips, as tall as the concept's
             public static readonly Region QAnswerHead = new Region(16, 100, 266, 14);
             public static readonly Region QAnswer = new Region(16, 116, 266, 76);
 
