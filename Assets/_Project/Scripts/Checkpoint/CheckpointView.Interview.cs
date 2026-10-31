@@ -11,46 +11,26 @@ using L = Hollowbrook.Checkpoint.CheckpointLayout;
 
 namespace Hollowbrook.Checkpoint
 {
-    // The interview: QUESTION toggle, the four questions, testimony lines.
+    // The interview: the one classroom question and the tone label.
     // One area of the inspection desk; see CheckpointView.cs for the state machine,
     // the shared fields and the whole-class comment. Same class, split by desk area.
     public partial class CheckpointView
     {
-        // Interview gate: questions exist only after you deliberately open them.
-
-
-        // Headless harnesses/FlowCheck drive the same path the buttons use.
-
-        internal void AskByHotkey(int i)
-        {
-            if (_gameRoot == null || _gameRoot.State != AppViewState.Checkpoint) return;
-            if (_gameRoot.Paused) return;
-            if (i < 0 || i >= QuestionSystem.All.Length) return;
-            AskQuestion(QuestionSystem.All[i]);
-        }
-
-        public void AskQuestion(QuestionId q)
+        // The one question: "Which classroom are you going to?" It is free and can be asked
+        // again. The student answers in the speech bubble, and the answer stays in the questions
+        // panel so it can be compared with the file after the bubble moves on.
+        public void AskClassroom()
         {
             if (_current == null || _verdictLocked) return;
-            if (!_budget.TryAsk(_current, q, out var answer))
-            {
-                // the desk has no scanner readout any more — refusals surface as HUD toasts
-                string refusal = _budget.HasAsked(q) ? "ALREADY ASKED THAT." : "NO MORE QUESTIONS — DISTRICT POLICY.";
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, refusal));
-                _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.35f);
-                return;
-            }
-            string tone = answer.Tone == ToneTag.Normal ? "" : "  [" + ToneLabel(answer.Tone) + "]";
-            // the player's own question needs no echo — the button already shows it asked;
-            // the bubble carries the student's answer beside their face
-            SayLine("AT THE WINDOW", "“" + answer.Text + "”" + tone);
-            if (Queue != null) Queue.ActiveBudgetMask = _budget.Mask;   // survives quit/continue
+            if (_gameRoot == null || _gameRoot.State != AppViewState.Checkpoint || _gameRoot.Paused) return;
+            _classroomAsked = true;
+            string tone = _current.ClassroomTone == ToneTag.Normal ? "" : "  [" + ToneLabel(_current.ClassroomTone) + "]";
+            SayLine("AT THE WINDOW", "“" + _current.ClassroomAnswer + "”" + tone);
+            if (Queue != null) Queue.ActiveQuestionAsked = true;   // survives quit/continue
             _gameRoot.Audio.PlaySfx("sfx_intercom", 0.5f);
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.QuestionAsked, q));
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.QuestionAsked, ClassroomQuestion.Spoken));
             RefreshHud();
         }
-
-
 
         private static string ToneLabel(ToneTag t)
         {

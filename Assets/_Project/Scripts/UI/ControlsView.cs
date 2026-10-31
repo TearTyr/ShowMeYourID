@@ -30,11 +30,13 @@ namespace Hollowbrook.UI
                 "   folder, then click a file to pull it onto the desk — mismatches are clues.\n" +
                 "   The face at the window vs the ID photo is YOUR eye-check: this desk has no\n" +
                 "   face-match widget, nothing to click and nothing that scores it for you.\n" +
-                "   Answers arrive in the speech bubble beside the head and stay up until the\n" +
-                "   next line (or until the student leaves).\n" +
+                "   Ask WHICH CLASSROOM ARE YOU GOING TO? (button, or key 1) - it is free. The answer\n" +
+                "   shows in the speech bubble and stays in the questions panel. Find the student's\n" +
+                "   file in the matching room folder: a wrong room, a room that does not exist, or the\n" +
+                "   wrong class means something is off.\n" +
                 "   Stamp the slip (drag a stamp onto it) — the mark lands WHERE you drop the stamp, always\n" +
                 "   fully on the paper — then drag the ID back to the window. TAB pulls the file drawer.\n" +
-                "   At most 2 questions per visitor. Decisions are permanent.\n" +
+                "   Decisions are permanent.\n" +
                 "   NIGHT 5: when the district administrator arrives, T (or the bar beside the\n" +
                 "   stamps) opens THE CONVERSATION — challenge, comply, raise what you have\n" +
                 "   found, or say nothing. Words are evidence only: the stamp still decides.\n\n" +

@@ -97,14 +97,14 @@ namespace Hollowbrook.Checkpoint
                 MemoName = v != null ? v.RecordName : "",
                 BadgeNumber = v != null ? v.IdNumber : "",
                 MemoNumber = v != null ? v.RecordIdNumber : "",
-                AnswerCourse = v != null ? QuestionSystem.Resolve(v, QuestionId.Course).Text : "",
-                AnswerStatus = v != null ? QuestionSystem.Resolve(v, QuestionId.Status).Text : "",
-                AnswerFirstClassroom = v != null ? QuestionSystem.Resolve(v, QuestionId.FirstClassroom).Text : "",
+                AnswerCourse = "",
+                AnswerStatus = "",
+                AnswerFirstClassroom = v != null ? v.ClassroomAnswer : "",
                 CluePhoto = ClueFound("photo"),
                 ClueCabinet = ClueFound("cabinet"),
-                AskedCourse = _budget.HasAsked(QuestionId.Course),
-                AskedStatus = _budget.HasAsked(QuestionId.Status),
-                AskedFirstClassroom = _budget.HasAsked(QuestionId.FirstClassroom),
+                AskedCourse = false,
+                AskedStatus = false,
+                AskedFirstClassroom = _classroomAsked,
             };
             if (st != null)
             {

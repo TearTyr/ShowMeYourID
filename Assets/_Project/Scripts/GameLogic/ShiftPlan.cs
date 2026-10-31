@@ -15,10 +15,10 @@ namespace Hollowbrook.Logic
                     Number = 1, DateLabel = Content.ShiftDates[0],
                     VisitorCount = 4, AnomalyCount = 0, HasAdministrator = false,
                     Title = "Introduction",
-                    Objective = "Learn the checkpoint: inspect IDs and records, ask up to 2 questions, and stamp Allow or Reject. Take a walk — learn how to leave the security room and come back.",
-                    RuleNoteAddendum = "NIGHT 1 — Welcome, custodian. Verify: ID number format (HB-YYYY-NNNN), photo vs. the person at the window, expiration date, year level, course, and Regular/Transferee status against the student record. You may ask up to 2 questions.",
+                    Objective = "Learn the checkpoint: inspect IDs, pull the student file, ask which classroom they are going to, and stamp Allow or Reject. Take a walk — learn how to leave the security room and come back.",
+                    RuleNoteAddendum = "NIGHT 1 — Welcome, custodian. Verify: ID number format (HB-YYYY-NNNN), photo vs. the person at the window, expiration date, year level, course, and Regular/Transferee status against the student file in the drawer. You may ask which classroom they are going to, as often as you like.",
                     MaxDefectsPerAnomaly = 1, SubtleDefectsAllowed = false, DuplicateIdsAllowed = false,
-                    BehaviorOddityAllowed = false, ExplorationFocus = false,
+                    ClassroomLieAllowed = false, ExplorationFocus = false,
                 },
                 new ShiftDef
                 {
@@ -26,9 +26,9 @@ namespace Hollowbrook.Logic
                     VisitorCount = 6, AnomalyCount = 2, HasAdministrator = false,
                     Title = "Initial Inconsistencies",
                     Objective = "Small contradictions are appearing in documents, faces, and answers. Not everyone at the window is a student. The hallway is open between visitors — look around.",
-                    RuleNoteAddendum = "NIGHT 2 — District reminder: an expired ID must never be accepted, whatever the excuse. If documents disagree, the person does not enter.",
+                    RuleNoteAddendum = "NIGHT 2 — District reminder: an expired ID must never be accepted, whatever the excuse. If documents disagree, the person does not enter. A student must name the room and class their file says.",
                     MaxDefectsPerAnomaly = 1, SubtleDefectsAllowed = false, DuplicateIdsAllowed = false,
-                    BehaviorOddityAllowed = false, ExplorationFocus = false,
+                    ClassroomLieAllowed = true, ExplorationFocus = false,
                 },
                 new ShiftDef
                 {
@@ -38,7 +38,7 @@ namespace Hollowbrook.Logic
                     Objective = "Cases are harder tonight — subtle photo differences and recycled identities. Pull the floor files and cross-check everything twice.",
                     RuleNoteAddendum = "NIGHT 3 — WARNING: duplicate ID numbers have been reported at other district sites. A valid ID already presented tonight with a different card is grounds for immediate rejection.",
                     MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = true, DuplicateIdsAllowed = true,
-                    BehaviorOddityAllowed = true, ExplorationFocus = false,
+                    ClassroomLieAllowed = true, ExplorationFocus = false,
                 },
                 new ShiftDef
                 {
@@ -48,7 +48,7 @@ namespace Hollowbrook.Logic
                     Objective = "Something happened in this school. Between visitors, investigate the hallway and both classrooms. Whatever the previous custodians found — find it too.",
                     RuleNoteAddendum = "NIGHT 4 — The district has scheduled this facility for final closure. Custodial staff are instructed to document anything unusual found inside the building. Investigation is now part of your duties.",
                     MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = true, DuplicateIdsAllowed = true,
-                    BehaviorOddityAllowed = true, ExplorationFocus = true,
+                    ClassroomLieAllowed = true, ExplorationFocus = true,
                 },
                 new ShiftDef
                 {
@@ -58,7 +58,7 @@ namespace Hollowbrook.Logic
                     Objective = "Last night. A district administrator will arrive to take control of the school. Check the credentials like you would check anyone else's. Trust the evidence.",
                     RuleNoteAddendum = "NIGHT 5 — District personnel present a STAFF BADGE, not a student ID. The badge name and number must match the attached District Roster Memo. If they do not match, deny entry. No exceptions. No overrides by phone.",
                     MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = true, DuplicateIdsAllowed = true,
-                    BehaviorOddityAllowed = true, ExplorationFocus = false,
+                    ClassroomLieAllowed = true, ExplorationFocus = false,
                 },
             };
         }
@@ -74,10 +74,10 @@ namespace Hollowbrook.Logic
                 Objective = "One short night: check the papers, ask when in doubt, stamp once. " +
                             "One of the four is not a student - the papers or the voice will give it away.",
                 RuleNoteAddendum = "EXHIBITION - Verify: ID format (HB-YYYY-NNNN), photo vs the face at the " +
-                            "window, expiration, year, course, Regular/Transferee. Up to 2 questions. " +
-                            "A answer marked 'papers disagree' or an odd voice is grounds to call the principal.",
+                            "window, expiration, year, course, Regular/Transferee. Ask which classroom " +
+                            "they are going to and check the answer against their file.",
                 MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = false,
-                DuplicateIdsAllowed = false, BehaviorOddityAllowed = true, ExplorationFocus = false,
+                DuplicateIdsAllowed = false, ClassroomLieAllowed = true, ExplorationFocus = false,
             };
         }
 

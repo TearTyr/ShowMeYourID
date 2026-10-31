@@ -322,7 +322,7 @@ namespace Hollowbrook.Checkpoint
             }
             bool admin = _current.IsAdministrator;
             FillIdCard(_current, admin);
-            FillRecordSheet(_current, admin);
+            if (admin) FillAdminMemo(_current);
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.6f);
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.DocumentsShown, _current));
             RefreshHandoverPrompt();
@@ -442,8 +442,8 @@ namespace Hollowbrook.Checkpoint
             else
             {
                 Say(v.Greeting);
-                if (v.IsAnomaly && v.BehaviorGlitchVisible && _gameRoot.Session.Sanity < 70f)
-                    StartCoroutine(GlitchHint());
+                if (v.Defects.Contains(DefectType.PhotoSubtleMismatch) && _gameRoot.Session.Sanity < 70f)
+                    StartCoroutine(GlitchHint());   // a flicker over the one feature that is off
             }
         }
     }

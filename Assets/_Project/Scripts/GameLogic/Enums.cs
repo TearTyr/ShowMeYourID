@@ -14,8 +14,6 @@ namespace Hollowbrook.Logic
 
     public enum RoomId { Security, Hallway, Classroom1, Classroom2 }
 
-    public enum QuestionId { Course, Year, Status, FirstClassroom }
-
     public enum DefectType
     {
         None = 0,
@@ -29,7 +27,7 @@ namespace Hollowbrook.Logic
         RecordNameMismatch,   // name on record != name on ID
         NotInDatabase,        // ID number not in the student registry (ghost student)
         DuplicateId,          // ID number already used by an earlier visitor (shift 3+)
-        BehaviorOddity,       // documents clean; questioning/behavior gives it away
+        ClassroomMismatch,    // papers are clean; the answer to "which classroom?" disagrees with the file
         SlipMismatch,           // the paper slip disagrees with the ID card (eye-check)
     }
 

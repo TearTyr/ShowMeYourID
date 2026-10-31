@@ -86,21 +86,19 @@ namespace Hollowbrook.Checkpoint
             var pauseLbl = ChildText(FindButton(_desk, "pause"));
             if (pauseLbl != null) pauseLbl.color = UIFactory.NsInk;
 
-            // ---- questions: kit panel + pill buttons + the arrow as the asked-mark ----
+            // ---- questions: kit panel + the pill button with the arrow as its bullet ----
             var qOuter = FindImage(_desk, "qpanel_border");
             if (qOuter != null) Stretch(qOuter, "sec_qpanel");
             var qInner = FindImage(_desk, "qpanel");
             if (qInner != null) Fade(qInner);
-            for (int i = 0; i < 4; i++)
+            var b = FindButton(_desk, "q0");
+            if (b != null)
             {
-                var b = FindButton(_desk, "q" + i);
-                if (b == null) continue;
                 SkinButton(b, "sec_btn_pill");
                 var t = ButtonLabel(b);
                 if (t != null)
                 {
                     t.color = UIFactory.NsInk;
-                    // concept rows read left-to-right: bullet arrow, then the question
                     t.alignment = TextAnchor.MiddleLeft;
                     var lrt = t.rectTransform;
                     // stretch first: the label is born on a point anchor, where offsetMin/Max
@@ -115,7 +113,6 @@ namespace Hollowbrook.Checkpoint
                 arrow.raycastTarget = false;
                 UIFactory.Anchor(arrow.rectTransform, new Vector2(0f, 0.5f), new Vector2(12f, 12f),
                     new Vector2(10f, 0f));
-                arrow.gameObject.SetActive(true);   // the concept paints the arrow as the row bullet
             }
 
             // ---- patrol / end shift: kit pill + the footprint and moon icons ----
@@ -240,16 +237,6 @@ namespace Hollowbrook.Checkpoint
         private void SetLightAlpha(float a)
         {
             var c = _lightLayer.color; c.a = a; _lightLayer.color = c;
-        }
-
-        // The arrow is the row's BULLET in the concept art (every row carries one); the
-        // asked state lives in the row label. Kept as a hook so the no-kit desk can differ.
-        internal void RefreshQuestionArrow(int index, bool asked)
-        {
-            var b = FindButton(_desk, "q" + index);
-            if (b == null) return;
-            var arrow = b.transform.Find("askarrow");
-            if (arrow != null) arrow.gameObject.SetActive(true);
         }
 
         // ---------------------------------------------------------------- skin helpers

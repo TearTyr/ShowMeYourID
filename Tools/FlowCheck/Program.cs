@@ -294,7 +294,7 @@ namespace FlowCheck
                 "windowframe", "glass", "facade", "visitor", "glitch", "sill",
                 "speechbubble", "bubble_border", "bubble", "bubbletext", "bubbletail",
                 "offeredid", "patrol", "endshift",
-                "qpanel_border", "q0", "q1", "q2", "q3",
+                "qpanel_border", "q0",
                 "records", "map", "notes", "stamp_allow", "stamp_deny",
                 "OverlayRules", "OverlayLog",
                 "admintalk", "admintalkbar",
@@ -406,14 +406,14 @@ namespace FlowCheck
             ExpectRegion("MAP", L.UtilityMap, 955, 330, 290, 170);
             ExpectRegion("RN", L.UtilityNotes, 240, 570, 160, 150);
             ExpectRegion("sticky note", L.StickyNote, 390, 200, 500, 320);
-            // question buttons: one content box inside the kit panel's painted frame
-            // (local y 9..198 on the 305x215 rect); four evenly divided rows, each fully
-            // inside the box — the column layout (LayoutQuestions) places them from these
+            // the question button and the answer note sit inside the kit panel's painted frame
+            // (local y 9..198 on the 305x215 rect), one under the other, never overlapping
             Check(Math.Abs(L.Inner.QBtnX - 16) < 0.01f && Math.Abs(L.Inner.QBtnW - 266) < 0.01f &&
-                  L.Inner.QContentY0 >= 40f && L.Inner.QContentY1 <= 195f &&
-                  L.Inner.QContentY0 < L.Inner.QContentY1 &&
-                  (L.Inner.QContentY1 - L.Inner.QContentY0) / 4f >= 22f,
-                "question rows divide the panel content box, clear of the painted frame");
+                  L.Inner.QContentY0 >= 40f &&
+                  L.Inner.QContentY0 + L.Inner.QBtnH < L.Inner.QAnswerHead.Y &&
+                  L.Inner.QAnswerHead.Bottom <= L.Inner.QAnswer.Y &&
+                  L.Inner.QAnswer.Bottom <= 195f,
+                "question button and answer note stack inside the panel, clear of the painted frame");
             // folder tabs: station-local grid; file rows: drawer-body grid, starting under the
             // 52px front lip and the 18px header — a whole floor folder (7 files) fits
             Check(Math.Abs(L.Inner.FolderTabX - (L.Station.W - L.Inner.FolderTabW) / 2f) < 0.01f &&
@@ -700,27 +700,20 @@ namespace FlowCheck
             idDrag.PlaceCenter(home);
             idDrag.EndDrag();
 
-            // question panel: pips, asked-tags, hotkeys, budget-spent reason, scroll testimony
-            var budget = FindDeep(cp.transform, "budget").GetComponent<UnityEngine.UI.Text>();
-            Check(budget.text == "1/2",
-                  "the reference counter reads remaining/budget after the first ask (got '" + budget.text + "')");
+            // question panel: ONE classroom question, free and repeatable; the answer stays in the panel
+            Check(FindDeep(cp.transform, "budget") == null && FindDeep(cp.transform, "q1") == null,
+                  "the old four-question budget panel is gone");
             var q0 = FindDeep(cp.transform, "q0");
-            Check(q0.GetComponent<UnityEngine.UI.Button>().interactable == false &&
-                  q0.GetComponentInChildren<UnityEngine.UI.Text>().text.Contains("ASKED"),
-                  "the asked question is tagged and disabled");
-            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Alpha2);
+            Check(q0.GetComponent<UnityEngine.UI.Button>().interactable,
+                  "the classroom question stays available after it was asked (it is free)");
+            var answerNote = FindDeep(cp.transform, "answer").GetComponent<UnityEngine.UI.Text>();
+            Check(answerNote.gameObject.activeSelf && answerNote.text == cp.CurrentVisitor.ClassroomAnswer,
+                  "the answer note shows exactly what the student said ('" + answerNote.text + "')");
+            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Alpha1);
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
-            var q1 = FindDeep(cp.transform, "q1");
-            Check(q1.GetComponentInChildren<UnityEngine.UI.Text>().text.Contains("ASKED"),
-                  "hotkey 2 asks the second question while the interview is open");
-            Check(budget.text == "0/2",
-                  "the reference counter empties to 0/2 (got '" + budget.text + "')");
-            UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Alpha3);
-            cp.TickHotkeys();
-            UnityEngine.Input.KeysDown.Clear();
-            Check(!FindDeep(cp.transform, "q2").GetComponentInChildren<UnityEngine.UI.Text>().text.Contains("ASKED"),
-                  "hotkeys respect the spent budget (no third question)");
+            Check(answerNote.text == cp.CurrentVisitor.ClassroomAnswer && q0.GetComponent<UnityEngine.UI.Button>().interactable,
+                  "hotkey 1 asks again without any penalty");
 
             // floor-files cabinet: the file opens only when the player pulls it
             Check(!FindDeep(cp.transform, "record").gameObject.activeSelf,
@@ -1117,7 +1110,7 @@ namespace FlowCheck
 
             // the live interview path: the answer pops the bubble beside the head
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-            cp.AskQuestion(QuestionId.Course);
+            cp.AskClassroom();
             Check(bubbleRoot.gameObject.activeSelf && !text.text.Contains("AT THE WINDOW") &&
                   text.text.Length > 0 && !text.text.Contains("Good evening"),
                 "SB: the asked question's answer arrives in the bubble (line alone, tag retired)");
@@ -2062,8 +2055,8 @@ namespace FlowCheck
             cp.AdvanceQueue(6f);                                   // #4 arrives behind #3
             Check(root.Queue.WaitingCount == 1, "Q8: one waiting before the quit");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-            cp.AskQuestion(QuestionId.Year);
-            Check(root.Queue.ActiveBudgetMask == 1 << (int)QuestionId.Year, "Q8: the question budget synced into the queue");
+            cp.AskClassroom();
+            Check(root.Queue.ActiveQuestionAsked, "Q8: the asked question synced into the queue");
             root.TogglePause(true);
             root.QuitToMenu(true);                                 // saves at the quit boundary
             root.ContinueGame();
@@ -2073,8 +2066,9 @@ namespace FlowCheck
             Check(!FindDeep(cp.transform, "StickyNoteOverlay").gameObject.activeSelf, "Q8: a restored shift shows no note");
             Check(cp.CurrentVisitor != null && cp.CurrentVisitor.VisitorIndex == pRoster[2].VisitorIndex,
                   "Q8: the same visitor is back at the window");
-            string budgetText = FindDeep(cp.transform, "budget").GetComponent<UnityEngine.UI.Text>().text;
-            Check(budgetText == "1/2", "Q8: the question budget was NOT refunded ('" + budgetText + "')");
+            var restoredNote = FindDeep(cp.transform, "answer").GetComponent<UnityEngine.UI.Text>();
+            Check(restoredNote.gameObject.activeSelf && restoredNote.text == cp.CurrentVisitor.ClassroomAnswer,
+                  "Q8: the answer note came back with the restored visitor");
             Check(root.Queue.WaitingCount == 1, "Q8: the waiting line was restored, not duplicated");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
@@ -3620,13 +3614,11 @@ namespace FlowCheck
                 "AT: the evidence branches stay shut while their clues are undiscovered");
 
             // a challenge moves encounter state and NOTHING else
-            int budgetBefore = BudgetLeft(cp);
             FindDeep(cp.transform, "opt_chal_name").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             guard = 0;
             while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
             Check(root.Session.AdminTalk.Node == "chal_name" && root.Session.AdminTalk.Challenge == 1,
                 "AT: the challenge landed in the encounter state (node + tactic counter)");
-            Check(BudgetLeft(cp) == budgetBefore, "AT: a conversational response consumes no verification question");
             Check(!cp.SlipStamped && cp.PendingVerdict == Verdict.None,
                 "AT: no verdict, breach or ending moved because of a dialogue choice");
 
@@ -3640,8 +3632,8 @@ namespace FlowCheck
             while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
 
             // verification questions still work mid-conversation, and the talk adapts to them
-            cp.AskQuestion(QuestionId.FirstClassroom);
-            Check(BudgetLeft(cp) == budgetBefore - 1, "AT: the real question system still owns its budget");
+            cp.AskClassroom();
+            Check(root.Queue.ActiveQuestionAsked, "AT: the classroom question still works mid-conversation");
             FindDeep(cp.transform, "opt_press_name_back").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             guard = 0;
             while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
@@ -3712,17 +3704,6 @@ namespace FlowCheck
                   root.Session.FalseRejections == root.Session.FalseRejections,
                 "AT: a duplicated verdict callback changes nothing (exactly-once guard)");
             Check(QueueAbandoned(root), "AT: the rejected administrator closes the night's line safely");
-        }
-
-        private static int BudgetLeft(CheckpointView cp)
-        {
-            var t = FindDeep(cp.transform, "budget");
-            if (t == null) return -1;
-            string s = t.GetComponent<UnityEngine.UI.Text>().text;
-            int i = s.IndexOf('/');          // the reference counter reads "remaining/max"
-            if (i < 0) return -1;
-            int n;
-            return int.TryParse(s.Substring(0, i).Trim(), out n) ? n : -1;
         }
 
         private static bool QueueAbandoned(GameRoot root) =>
@@ -4122,12 +4103,10 @@ namespace FlowCheck
                     DeskFrames(cp, 3);
                 }
             }
-            // asked/disabled question rows: two of the budget's questions spent
+            // the classroom question asked: the answer note shows in the questions panel
             if (state == "asked")
             {
-                cp.AskByHotkey(0);
-                DeskFrames(cp, 3);
-                cp.AskByHotkey(2);
+                cp.AskClassroom();
                 DeskFrames(cp, 8);
             }
             // the talk dock mid-conversation: a typed exchange in the transcript sheet,

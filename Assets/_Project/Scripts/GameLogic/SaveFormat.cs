@@ -15,7 +15,7 @@ namespace Hollowbrook.Logic
     public static class SaveFormat
     {
         public const string Header = "SMYIDSAVE";
-        public const int Version = 1;
+        public const int Version = 2;   // 2: single classroom question (rosters changed; version-1 saves are dropped)
 
         public static string Serialize(SaveGame save)
         {
@@ -46,7 +46,7 @@ namespace Hollowbrook.Logic
                 sb.Append("queueActive=").Append(q.ActiveIdx).Append('\n');
                 KV(sb, "queueVanished", JoinIdx(q.VanishedIdx));
                 sb.Append("queueMissing=").Append(q.MissingIncidents).Append('\n');
-                sb.Append("queueBudget=").Append(q.BudgetMask).Append('\n');
+                sb.Append("queueAsked=").Append(q.QuestionAsked ? 1 : 0).Append('\n');
                 sb.Append("queueCollapsed=").Append(q.Overwhelmed ? 1 : 0).Append('\n');
                 sb.Append("queuePending=").Append(q.ResolutionPending ? 1 : 0).Append('\n');
                 sb.Append("queueWarned=").Append(q.Warned).Append('\n');
@@ -146,7 +146,7 @@ namespace Hollowbrook.Logic
                         ActiveIdx = Int(map, "queueActive", -1),
                         VanishedIdx = IntList(Str(map, "queueVanished", "")),
                         MissingIncidents = Int(map, "queueMissing", 0),
-                        BudgetMask = Int(map, "queueBudget", 0),
+                        QuestionAsked = Int(map, "queueAsked", 0) == 1,
                         Overwhelmed = Int(map, "queueCollapsed", 0) == 1,
                         ResolutionPending = Int(map, "queuePending", 0) == 1,
                         Warned = map.ContainsKey("queueWarned") ? Int(map, "queueWarned", -1) : -1,

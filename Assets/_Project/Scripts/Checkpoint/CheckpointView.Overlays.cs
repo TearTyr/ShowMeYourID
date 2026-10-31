@@ -101,7 +101,7 @@ namespace Hollowbrook.Checkpoint
             var sb = new StringBuilder();
             sb.Append("BASE RULES — Every person presents a Student ID and record form.\n");
             sb.Append("Verify: ID format (HB-YYYY-NNNN) · photo vs. the person · expiration · year level · course/program · Regular/Transferee status · record name.\n");
-            sb.Append("You may ask up to ").Append(Content.MaxQuestionsPerInspection).Append(" questions. Decisions are permanent.\n");
+            sb.Append("Ask which classroom they are going to, then check the answer against their file in the drawer. Decisions are permanent.\n");
             sb.Append("Compare the face at the window with the ID photo yourself — the desk keeps no appearance form.\n\n");
             if (_shift != null) { sb.Append(_shift.RuleNoteAddendum).Append('\n'); }
             if (_gameRoot.Session.Mode == GameMode.Challenge)

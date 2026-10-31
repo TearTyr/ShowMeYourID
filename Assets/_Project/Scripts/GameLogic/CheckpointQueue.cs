@@ -42,7 +42,7 @@ namespace Hollowbrook.Logic
         public int ActiveIdx = -1;
         public List<int> VanishedIdx = new List<int>();
         public int MissingIncidents;
-        public int BudgetMask;
+        public bool QuestionAsked;
         public bool Overwhelmed;
         public bool ResolutionPending;   // quit happened between the stamp and the banner end
         // -1 = the save file predates the key: RestoreFromSnapshot then reconstructs the
@@ -99,9 +99,9 @@ namespace Hollowbrook.Logic
         public int RosterCursor { get; private set; }
         /// <summary>Seconds until the next arrival; negative = clock not armed.</summary>
         public float TimerSeconds { get; private set; } = -1f;
-        /// <summary>Questions already asked at the window, synced by the desk view so a
-        /// mid-inspection quit/continue cannot refund the budget.</summary>
-        public int ActiveBudgetMask { get; set; }
+        /// <summary>True once the classroom question was asked of the visitor at the window.
+        /// Synced by the desk view so a quit/continue keeps the answer note on screen.</summary>
+        public bool ActiveQuestionAsked { get; set; }
 
         public bool IsAttached => _roster != null || _runSource != null;
         public bool InfiniteSource => _runSource != null;
@@ -183,7 +183,7 @@ namespace Hollowbrook.Logic
             ResolutionPending = false;
             RosterCursor = 0;
             TimerSeconds = -1f;
-            ActiveBudgetMask = 0;
+            ActiveQuestionAsked = false;
         }
 
         // ---------------------------------------------------------------- clock
@@ -276,7 +276,7 @@ namespace Hollowbrook.Logic
             if (Active == null || ResolutionPending) return;
             ResolutionPending = true;
             ProcessedCount++;
-            ActiveBudgetMask = 0;
+            ActiveQuestionAsked = false;
         }
 
         /// <summary>The window visitor leaves (after the banner): promotes the oldest
@@ -288,7 +288,7 @@ namespace Hollowbrook.Logic
             if (Active == null) return null;
             if (!ResolutionPending) ProcessedCount++;
             ResolutionPending = false;
-            ActiveBudgetMask = 0;
+            ActiveQuestionAsked = false;
             Active = null;
             if (_waiting.Count > 0) Active = _waiting.Dequeue();
             return Active;
@@ -303,7 +303,7 @@ namespace Hollowbrook.Logic
             _waiting.Clear();
             Active = null;
             ResolutionPending = false;
-            ActiveBudgetMask = 0;
+            ActiveQuestionAsked = false;
             return n;
         }
 
@@ -415,7 +415,7 @@ namespace Hollowbrook.Logic
                 TimerSeconds = TimerSeconds,
                 ActiveIdx = Active != null ? Active.VisitorIndex : -1,
                 MissingIncidents = MissingIncidents,
-                BudgetMask = ActiveBudgetMask,
+                QuestionAsked = ActiveQuestionAsked,
                 Overwhelmed = Collapsed,
                 ResolutionPending = ResolutionPending,
                 Warned = _warned ? 1 : 0,
@@ -442,7 +442,7 @@ namespace Hollowbrook.Logic
             ProcessedCount = Math.Max(0, s.Processed);
             TimerSeconds = s.TimerSeconds;
             MissingIncidents = Math.Max(0, s.MissingIncidents);
-            ActiveBudgetMask = s.BudgetMask;
+            ActiveQuestionAsked = s.QuestionAsked;
             Collapsed = s.Overwhelmed;
             ResolutionPending = s.ResolutionPending;
             _waiting.Clear();

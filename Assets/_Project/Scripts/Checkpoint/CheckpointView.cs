@@ -39,7 +39,7 @@ namespace Hollowbrook.Checkpoint
 
         private ShiftDef _shift;
         private VisitorData _current;
-        private QuestionSystem.Budget _budget = new QuestionSystem.Budget();
+        private bool _classroomAsked;   // the classroom question was asked of the current visitor
         private bool _verdictLocked = true;
         private bool _flowActive;
 
@@ -59,9 +59,8 @@ namespace Hollowbrook.Checkpoint
         private Text _recName, _recNumber, _recYear, _recCourse, _recStatus, _recClassroom, _recHeader, _recEnrolled;
         private StringBuilder _tonightsLog = new StringBuilder();
 
-        private Button[] _questionButtons = new Button[4];
-        private readonly string[] _qLabels = new string[4];
-        private Text _budgetLabel;
+        private Button _questionBtn;
+        private Text _qKeyHint, _qAnswerHead, _qAnswer;
         private Text _qEmpty;   // deliberate empty state for the questions panel
         private GameObject _slipGo;
         private GameObject _papersLayer;
@@ -269,12 +268,12 @@ namespace Hollowbrook.Checkpoint
 
         // The view-side reaction to whatever the pure queue reported: present, sounds,
         // radio lines, warnings. All audio stays direct-call through _gameRoot.Audio.
-        private void ApplyTickResult(QueueTickResult r, bool restoreBudget)
+        private void ApplyTickResult(QueueTickResult r, bool restoreAsked)
         {
             if (r.ToWindow != null)
             {
                 ExhibitionHintOnce();
-                PresentFromQueue(r.ToWindow, restoreBudget);
+                PresentFromQueue(r.ToWindow, restoreAsked);
             }
             else if (r.ToLine != null)
             {
@@ -308,14 +307,13 @@ namespace Hollowbrook.Checkpoint
         }
 
         // A visitor reached the window (from the line or the clock): fresh inspection
-        // state, then the existing presentation. restoreBudget re-applies the question
-        // budget after a mid-inspection quit/continue so it can never be refunded.
-        private void PresentFromQueue(VisitorData v, bool restoreBudget)
+        // state, then the existing presentation. restoreAsked brings back the "they answered" note
+        // after a mid-inspection quit/continue.
+        private void PresentFromQueue(VisitorData v, bool restoreAsked)
         {
             Debug.Log("[Flow] PresentVisitor " + v.ClaimedName);
             _current = v;
-            _budget = new QuestionSystem.Budget();
-            if (restoreBudget && Queue != null) _budget.RestoreFromMask(Queue.ActiveBudgetMask);
+            _classroomAsked = restoreAsked && Queue != null && Queue.ActiveQuestionAsked;
             _verdictLocked = false;
             // fresh hand-over state: nothing on the desk until the ID is offered and taken
             _documentsTaken = false;
@@ -450,9 +448,8 @@ namespace Hollowbrook.Checkpoint
             // T speaks with the administrator (or steps back out of the conversation); it is
             // inert unless the administrator is actually at the window
             if (Input.GetKeyDown(KeyCode.T)) ToggleAdminTalkByKey();
-            // 1-4 ask the four questions while the interview is open (labels say so)
-            for (int k = 0; k < 4; k++)
-                if (Input.GetKeyDown((KeyCode)(KeyCode.Alpha1 + k))) AskByHotkey(k);
+            // 1 asks the classroom question (the panel shows the key)
+            if (Input.GetKeyDown(KeyCode.Alpha1)) AskClassroom();
             // F flips the ID (its spine does too). Verdicts and the hand-back have NO key: a
             // stamp is dragged onto the slip and the ID is dragged back to the window by hand.
             if (Input.GetKeyDown(KeyCode.F)) FlipLastPaper();

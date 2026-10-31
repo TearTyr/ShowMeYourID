@@ -43,7 +43,7 @@ namespace Hollowbrook.LogicTests
             ClueRegistryTests();
             RosterFairnessTests();
             AdministratorTests();
-            QuestionBudgetTests();
+            ClassroomQuestionTests();
             InspectionRulesTests();
             EndingRulesTests();
             SessionTests();
@@ -117,7 +117,6 @@ namespace Hollowbrook.LogicTests
         private static void ContentTests()
         {
             Group("Content — approved constants & roster");
-            Eq(Content.MaxQuestionsPerInspection, 2, "max questions per inspection (conflict C1 resolution)");
             Eq(Content.TotalStudents, 14, "student pool size");
             var roster = Content.BuildStudentRoster();
             Eq(roster.Count, Content.TotalStudents, "roster matches TotalStudents");
@@ -170,8 +169,9 @@ namespace Hollowbrook.LogicTests
             Check(ShiftPlan.Get(6) == null, "ShiftPlan.Get(6) is null");
             Check(shifts[0].MaxDefectsPerAnomaly <= shifts[4].MaxDefectsPerAnomaly, "defect cap escalates");
             Check(!shifts[0].SubtleDefectsAllowed && !shifts[1].SubtleDefectsAllowed, "subtle photo defects gated off for shifts 1-2");
-            Check(shifts[2].SubtleDefectsAllowed && shifts[2].DuplicateIdsAllowed && shifts[2].BehaviorOddityAllowed,
-                  "shift 3 unlocks subtle/duplicate/behavior defects");
+            Check(shifts[2].SubtleDefectsAllowed && shifts[2].DuplicateIdsAllowed && shifts[2].ClassroomLieAllowed,
+                  "shift 3 unlocks subtle/duplicate/classroom-lie defects");
+            Check(!shifts[0].ClassroomLieAllowed && shifts[1].ClassroomLieAllowed, "classroom lies start on night 2 (night 1 has no anomalies)");
             Check(shifts[3].ExplorationFocus && !shifts[4].ExplorationFocus, "only shift 4 is investigation-focused");
             Check(ShiftPlan.ChallengeMutations.Length >= 2, "challenge mutation pool exists");
             Check(ShiftPlan.ChallengeMutations.All(m => !string.IsNullOrEmpty(m.Key)), "every mutation has a key");
@@ -267,10 +267,10 @@ namespace Hollowbrook.LogicTests
                                   && v.IdYearLevel == v.RecordYearLevel && v.IdCourseIndex == v.RecordCourseIndex
                                   && v.IdIsTransferee == v.RecordIsTransferee && v.PhotoMatches,
                                   $"seed {seed}: legit ID and record agree on every field");
-                            Check(v.Answers.Values.All(ans => !ans.ContradictsDocuments),
-                                  $"seed {seed}: legit answers never contradict the documents");
-                            Check(v.Answers.Values.All(ans => ans.Tone == ToneTag.Normal),
-                                  $"seed {seed}: legit answers are always delivered Normal (fair tell)");
+                            Check(AnswerMatchesFile(v),
+                                  $"seed {seed}: legit '{v.ClaimedName}' names the room and class on their file ('{v.ClassroomAnswer}' vs '{v.RecordFirstClassroom}')");
+                            Eq(v.ClassroomTone, ToneTag.Normal,
+                               $"seed {seed}: legit answers are always delivered Normal (fair tell)");
                         }
                         else
                         {
@@ -279,9 +279,11 @@ namespace Hollowbrook.LogicTests
                                   $"seed {seed} shift {shift.Number}: anomaly '{v.ClaimedName}' has no defects (uncatchable)");
                             Check(v.Defects.Count <= shift.MaxDefectsPerAnomaly || v.IsAdministrator,
                                   $"seed {seed} shift {shift.Number}: anomaly carries {v.Defects.Count} defects > cap {shift.MaxDefectsPerAnomaly}");
+                            // the tell is on the papers, or in an answer that disagrees with the file
                             bool detectable = docDefects.Count > 0
-                                              || v.Defects.Contains(DefectType.BehaviorOddity)
-                                              || v.Answers.Values.Any(ans => ans.ContradictsDocuments || ans.Tone != ToneTag.Normal);
+                                              || (v.Defects.Contains(DefectType.ClassroomMismatch) && !AnswerMatchesFile(v));
+                            Eq(AnswerMatchesFile(v), !v.Defects.Contains(DefectType.ClassroomMismatch),
+                               $"seed {seed} shift {shift.Number}: an anomaly lies about the classroom exactly when it carries ClassroomMismatch");
                             Check(detectable,
                                   $"seed {seed} shift {shift.Number}: anomaly '{v.ClaimedName}' is undetectable [{string.Join(",", v.Defects)}]");
                             Eq(InspectionRules.ExpectedVerdict(v, null), Verdict.Reject,
@@ -292,9 +294,9 @@ namespace Hollowbrook.LogicTests
                             if (!shift.DuplicateIdsAllowed)
                                 Check(!v.Defects.Contains(DefectType.DuplicateId),
                                       $"seed {seed} shift {shift.Number}: duplicate ID used before it is unlocked");
-                            if (!shift.BehaviorOddityAllowed)
-                                Check(!v.Defects.Contains(DefectType.BehaviorOddity),
-                                      $"seed {seed} shift {shift.Number}: behavior oddity used before it is unlocked");
+                            if (!shift.ClassroomLieAllowed)
+                                Check(!v.Defects.Contains(DefectType.ClassroomMismatch),
+                                      $"seed {seed} shift {shift.Number}: classroom lie used before it is unlocked");
                             // a duplicate is only evidence once the earlier card has been seen
                             if (v.Defects.Contains(DefectType.DuplicateId))
                                 Check(docDefects.Contains(DefectType.DuplicateId),
@@ -632,26 +634,48 @@ namespace Hollowbrook.LogicTests
             Check(rejected.Correct && !rejected.AnomalyBreach, "rejecting the administrator is correct");
         }
 
-        // -------------------------------------------------------- question cap
-        private static void QuestionBudgetTests()
+        // ---------------------------------------------------- classroom question
+        // "Rooms the file would say": the answer is "Room 202, Genetics." and the file prints
+        // "Room 202 · Genetics" — the same room and class, spelled for a different reader.
+        private static bool AnswerMatchesFile(VisitorData v) =>
+            v.ClassroomAnswer.TrimEnd('.').Replace(", ", " · ") == v.RecordFirstClassroom;
+
+        private static void ClassroomQuestionTests()
         {
-            Group("QuestionSystem — max 2 questions, no repeats");
-            var v = new RosterFactory(3).GenerateShift(ShiftPlan.Get(2)).First();
-            var budget = new QuestionSystem.Budget();
-            Eq(budget.Max, Content.MaxQuestionsPerInspection, "budget defaults to the approved cap");
-            Eq(budget.Remaining, 2, "two questions available");
-            Check(budget.TryAsk(v, QuestionId.Course, out var a1), "question 1 allowed");
-            Check(!string.IsNullOrEmpty(a1.Text), "question 1 returns an answer");
-            Check(!budget.TryAsk(v, QuestionId.Course, out _), "repeating the same question is refused");
-            Eq(budget.Remaining, 1, "repeat did not consume budget");
-            Check(budget.TryAsk(v, QuestionId.Year, out _), "question 2 allowed");
-            Eq(budget.Remaining, 0, "budget spent");
-            Check(!budget.TryAsk(v, QuestionId.Status, out _), "third question is refused");
-            budget.Reset();
-            Eq(budget.Remaining, 2, "reset restores the budget");
-            Eq(QuestionSystem.All.Length, 4, "four question topics exist");
-            Check(QuestionSystem.All.Distinct().Count() == 4, "question topics are distinct");
-            Check(QuestionSystem.All.All(q => !string.IsNullOrEmpty(QuestionSystem.QuestionText(q))), "every question has text");
+            Group("Classroom question — one free question, a lie provable against the file");
+            Check(!string.IsNullOrEmpty(ClassroomQuestion.ButtonLabel) && !string.IsNullOrEmpty(ClassroomQuestion.Spoken),
+                  "the question has its button text and its spoken line");
+            var canon = Content.BuildStudentRoster();
+            int wrongRoom = 0, missingRoom = 0, wrongClass = 0, liars = 0;
+            for (int seed = 1; seed <= 200; seed++)
+            {
+                var rf = new RosterFactory(seed);
+                foreach (var shift in ShiftPlan.Build())
+                    foreach (var v in rf.GenerateShift(shift))
+                    {
+                        if (v.IsAdministrator) continue;
+                        // the FILE is always the truth: whatever the card says, the file matches the canon student
+                        var student = canon.First(c => c.FullName == v.RecordName);
+                        Check(v.RecordYearLevel == student.YearLevel && v.RecordCourseIndex == student.CourseIndex &&
+                              v.RecordIsTransferee == student.IsTransferee && v.RecordFirstClassroom == student.ClassroomString,
+                              $"seed {seed}: the file of '{v.RecordName}' is never altered by a defect");
+                        // face art: only a photo defect changes who stands at the window
+                        bool photoMismatch = v.Defects.Contains(DefectType.PhotoMismatch);
+                        Eq(FaceAssets.StudentKey(v.WindowFaceIndex) != FaceAssets.StudentKey(v.FaceAssetIndex), photoMismatch,
+                           $"seed {seed}: the window shows another student's face exactly on a PhotoMismatch");
+                        if (!v.Defects.Contains(DefectType.ClassroomMismatch)) continue;
+                        liars++;
+                        string ans = v.ClassroomAnswer;
+                        if (ans.StartsWith("Room 303") || ans.StartsWith("Room 305") || ans.StartsWith("Room 410")) missingRoom++;
+                        else if (!ans.StartsWith(Content.RoomName(student.FirstClassroom))) wrongRoom++;
+                        else wrongClass++;
+                    }
+            }
+            Check(wrongRoom > 20 && missingRoom > 20 && wrongClass > 20,
+                  $"all three lies occur (other room {wrongRoom}, no such room {missingRoom}, wrong class {wrongClass})");
+            Check(liars > 200, "enough liars to be worth asking (" + liars + ")");
+            var admin = new RosterFactory(1).BuildAdministrator(ShiftPlan.Build()[4]);
+            Check(admin.ClassroomAnswer.Contains("server room"), "the administrator names the server room");
         }
 
         // ----------------------------------------------------- verdict matrix
@@ -1030,7 +1054,7 @@ namespace Hollowbrook.LogicTests
         {
             Group("SaveFormat — round-trip, checksum tamper detection, bad input");
             Eq(SaveFormat.Header, "SMYIDSAVE", "header constant");
-            Eq(SaveFormat.Version, 1, "version constant");
+            Eq(SaveFormat.Version, 2, "version constant");
 
             var save = new SaveGame { SavedAtLabel = "NIGHT 3 - 02:14" };
             save.Session.Mode = GameMode.Challenge;
@@ -2207,22 +2231,18 @@ namespace Hollowbrook.LogicTests
             Check(FaceAssets.AnomalyKey(0) == "student_face_01_anomaly" &&
                   FaceAssets.AnomalyKey(5) == "student_face_06_anomaly",
                 "anomaly keys are PAIRED with their student: student_face_NN_anomaly");
-            Check(FaceAssets.WindowKey(-1, false) == null && FaceAssets.IdKey(-1, true, false) == null,
+            Check(FaceAssets.WindowKey(-1, false) == null && FaceAssets.IdKey(-1) == null,
                 "no asset index (old saves, administrator) -> the procedural painter, never a broken image");
-            bool sameOnMatch = true, neverBorrowed = true, distortedIsAnomaly = true;
+            bool cardIsReal = true, anomalyIsPaired = true;
             for (int i = 0; i < 24; i++)
             {
-                if (FaceAssets.WindowKey(i, false) != FaceAssets.IdKey(i, true, false)) sameOnMatch = false;
-                if (FaceAssets.IdKey(i, false, false) != null) neverBorrowed = false;
-                if (FaceAssets.IdKey(i, true, true) != null) neverBorrowed = false;
+                if (FaceAssets.IdKey(i) != FaceAssets.StudentKey(i)) cardIsReal = false;
                 var wk = FaceAssets.WindowKey(i, true);
-                if (!(wk.EndsWith("_anomaly") && wk.StartsWith(FaceAssets.StudentKey(i)))) distortedIsAnomaly = false;
-                if (wk == FaceAssets.WindowKey(i, false)) distortedIsAnomaly = false;
+                if (!(wk.EndsWith("_anomaly") && wk.StartsWith(FaceAssets.StudentKey(i)))) anomalyIsPaired = false;
+                if (wk == FaceAssets.WindowKey(i, false)) anomalyIsPaired = false;
             }
-            Check(sameOnMatch, "a matching pair shows the SAME face on the card and at the window");
-            Check(neverBorrowed,
-                "a mismatched (or distorted) card photo never borrows the window's face asset");
-            Check(distortedIsAnomaly,
+            Check(cardIsReal, "the ID card ALWAYS shows the real student's face art");
+            Check(anomalyIsPaired,
                 "an altered window face is THAT STUDENT's anomaly variant — paired, explicit, never random");
             var seen = new Dictionary<string, int>();
             for (int i = 0; i < FaceAssets.StudentFaceCount; i++) seen[FaceAssets.StudentKey(i)] = i;
@@ -2456,12 +2476,12 @@ namespace Hollowbrook.LogicTests
             sq.ForceNextArrival();                   // #0 window
             sq.Tick(1f);                             // #1 line (vanishes via the anomaly below)
             sq.Tick(1f);                             // #2 anomaly -> incident
-            sq.ActiveBudgetMask = 1 << (int)QuestionId.Year;
+            sq.ActiveQuestionAsked = true;
             var snap = sq.BuildSnapshot();
             Check(snap.Started && snap.Arrived == 2 && snap.WaitingIdx.Count == 1 &&
                   snap.ActiveIdx == snapRoster[0].VisitorIndex && snap.MissingIncidents == 1 &&
-                  snap.BudgetMask == 1 << (int)QuestionId.Year,
-                  "snapshot captures started/arrived/line/active/incident/budget");
+                  snap.QuestionAsked,
+                  "snapshot captures started/arrived/line/active/incident/asked");
 
             var session = new GameSession { Mode = GameMode.Normal, Seed = seedWait, QueueState = snap };
             var roundTrip = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = session }));
@@ -2470,7 +2490,7 @@ namespace Hollowbrook.LogicTests
             {
                 var back = roundTrip.Session.QueueState;
                 Check(back.Started && back.Arrived == 2 && back.ActiveIdx == snap.ActiveIdx &&
-                      back.MissingIncidents == 1 && back.BudgetMask == snap.BudgetMask &&
+                      back.MissingIncidents == 1 && back.QuestionAsked == snap.QuestionAsked &&
                       Math.Abs(back.TimerSeconds - snap.TimerSeconds) < 0.001f &&
                       back.WaitingIdx.SequenceEqual(snap.WaitingIdx) &&
                       back.VanishedIdx.SequenceEqual(snap.VanishedIdx),
@@ -2482,7 +2502,7 @@ namespace Hollowbrook.LogicTests
                 rq.RestoreFromSnapshot(back, 555);
                 Check(rq.Started && rq.ArrivalCount == 2 && rq.MissingIncidents == 1, "restore brings the counters back");
                 Check(rq.Active != null && rq.Active.VisitorIndex == snap.ActiveIdx, "restore brings the window visitor back");
-                Eq(rq.ActiveBudgetMask, 1 << (int)QuestionId.Year, "restore brings the question budget back");
+                Check(rq.ActiveQuestionAsked, "restore brings the asked question back");
                 Eq(rq.WaitingCount, 1, "restore brings the waiting line back");
                 Check(rq.WaitingLine.First().VisitorIndex == snap.WaitingIdx[0], "…in the right order");
                 Eq(rq.EffectiveTotal, snapRoster.Count - 1, "restore keeps the vanished student vanished");
@@ -2525,11 +2545,11 @@ namespace Hollowbrook.LogicTests
             tq.MarkStarted();
             tq.ForceNextArrival();                   // roster[0] at the window
             tq.Tick(1f);                             // roster[1] waiting
-            tq.ActiveBudgetMask = 3;
+            tq.ActiveQuestionAsked = true;
             tq.CommitActiveResolution();             // the stamp moment
             Eq(tq.ProcessedCount, 1, "the stamp books the resolution immediately");
             Check(tq.ResolutionPending, "resolution pending while the banner is up");
-            Eq(tq.ActiveBudgetMask, 0, "committing consumes the budget mask");
+            Check(!tq.ActiveQuestionAsked, "committing clears the asked flag");
             tq.CommitActiveResolution();
             Eq(tq.ProcessedCount, 1, "committing twice books once");
             var tqSnap = tq.BuildSnapshot();
@@ -2560,19 +2580,6 @@ namespace Hollowbrook.LogicTests
             Check(abandoned >= 2, "AbandonLine sends the remaining line home (" + abandoned + ")");
             Check(tq2.Active == null && tq2.WaitingCount == 0, "the window closes with the night");
             Check(tq2.ShiftComplete, "the shift completes once the story beat closed the line");
-
-            Group("QuestionSystem.Budget — mask round-trip for quit/continue");            var budget = new QuestionSystem.Budget();
-            var visitor = RosterFor(11, 2)[0];
-            Answer a;
-            budget.TryAsk(visitor, QuestionId.Course, out a);
-            budget.TryAsk(visitor, QuestionId.Status, out a);
-            var restored = new QuestionSystem.Budget();
-            restored.RestoreFromMask(budget.Mask);
-            Eq(restored.Remaining, budget.Remaining, "restored budget has the same questions left");
-            Check(restored.HasAsked(QuestionId.Course) && restored.HasAsked(QuestionId.Status)
-                  && !restored.HasAsked(QuestionId.Year), "restored budget remembers exactly what was asked");
-            var fresh = new QuestionSystem.Budget();
-            Eq(fresh.Mask, 0, "a fresh budget has an empty mask");
         }
 
         // --------------------------------------------- display policy + options layout

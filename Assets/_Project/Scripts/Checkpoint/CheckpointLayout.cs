@@ -230,14 +230,15 @@ namespace Hollowbrook.Checkpoint
             // fully inside the paper by StampPlacement — no printed target box.
             public static readonly Region SlipReason = new Region(8, 52, 184, 56);
 
-            // questions panel (panel-local): the header strip, then ONE content box the
-            // choice column is divided from (LayoutQuestions). The box stops above the
-            // kit panel's painted bottom border (measured at local y=198 on the 305x215
-            // rect), so no choice can ever land on — or through — the panel frame.
+            // questions panel (panel-local): the header strip, then the one question button and
+            // the note of what the student answered. The content stops above the kit panel's
+            // painted bottom border (measured at local y=198 on the 305x215 rect).
             public static readonly Region QHead = new Region(16, 14, 150, 24);
-            public static readonly Region QBudget = new Region(234, 14, 48, 24);
+            public static readonly Region QKeyHint = new Region(214, 14, 68, 24);
             public const float QBtnX = 16f, QBtnW = 266f;
-            public const float QContentY0 = 44f, QContentY1 = 193f, QBtnGap = 7f;
+            public const float QContentY0 = 44f, QBtnH = 44f;
+            public static readonly Region QAnswerHead = new Region(16, 100, 266, 14);
+            public static readonly Region QAnswer = new Region(16, 116, 266, 76);
 
             // verdict banner
 
