@@ -107,7 +107,7 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region UtilityMap = new Region(955, 330, 290, 170);       // inline map sheet
         public static readonly Region UtilityNotes = new Region(240, 570, 160, 150);   // rules paper prop
         // the verdict tray: two physical stamps, dragged onto the slip to commit. The
-        // tray sits right under the questions panel (the retired appearance check's
+        // tray sits right under the questions panel (the slot an appearance check once held;
         // slot) so the right column stays balanced: questions above, stamps below,
         // open desk underneath for spreading papers. Sized at ~78% of the original 152x150
         // boxes (a 22% linear cut) and centred in the same 296..446 band: 8px apart, the D
@@ -146,7 +146,7 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region PaperOverlay = new Region(362, 24, 556, 620);
         public static readonly Region FullDesk = new Region(0, 0, 1280, 720);
 
-        // ---- checkpoint queue (Phase 9 additions to the approved grid) -------
+        // ---- waiting-line strips beside the booth -------
         // Waiting-line silhouette strips stand in the free gaps either side of the booth:
         // left column ends at x=336, the window sill ends at x=875, END SHIFT at x=880.
         // The right strip carries the waiting-count badge above its figures. The full

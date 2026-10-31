@@ -13,7 +13,7 @@ namespace Hollowbrook.World
     // an interactable is "under the light" when its anchor point sits within CursorHitRadius
     // of the cursor's world position.
     //
-    // The lamp is MANUAL (audit task 1): entering a classroom always starts DARK — the lamp
+    // The lamp is MANUAL: entering a classroom always starts DARK — the lamp
     // is OFF until the player presses F, and F presses it out again. Two states, one source
     // of truth: Active = a peek session is on screen (tracking + prompts + E keep running so
     // the player is never locked in the dark); Lit = the light itself (mask + glow + the

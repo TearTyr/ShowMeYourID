@@ -29,7 +29,7 @@ namespace Hollowbrook.Bootstrap
             views.Init(root, root.MainCamera, worldGo);
             root.Views = views;
 
-            // classroom placeholder + student spawner: explicit wiring, no Find (F-01)
+            // classroom placeholder + student spawner: explicit wiring, no Find
             var classroom = views.Room(Hollowbrook.Logic.RoomId.Classroom1);
             var placeholder = World.ClassroomPlaceholder.Build(classroom.Root.transform,
                 World.RoomInstance.FloorY, Hollowbrook.Logic.RoomGraph.DoorX(Hollowbrook.Logic.RoomId.Classroom1, Hollowbrook.Logic.RoomId.Hallway));

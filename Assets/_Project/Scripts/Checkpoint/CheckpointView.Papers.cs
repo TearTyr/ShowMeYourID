@@ -96,7 +96,7 @@ namespace Hollowbrook.Checkpoint
             L.Place(uv.rectTransform, new L.Region(20, 190, 280, 14));
             back.gameObject.SetActive(false);
             // the card's black spine: left edge on the front, mirrored to the right on the
-            // back — and the ONLY click target that flips the card (owner feedback: the
+            // back — and the ONLY click target that flips the card (the
             // whole-card flip fired from anywhere on the papers). Both spines carry the
             // hand-cursor hover so the handle reads as clickable.
             var stripe = UIFactory.Panel(cardRt, "idstripe", new Color(0.06f, 0.06f, 0.07f));
@@ -137,7 +137,7 @@ namespace Hollowbrook.Checkpoint
 
             // papers are physical: draggable over the desk, lifted while held, settling
             // back with their tilt on drop. Dropping the ID at the window hands it back —
-            // the scanner is retired, verification is manual (documents, floor files,
+            // there is no scanner, verification is manual (documents, floor files,
             // questions).
             var recordDrag = _recordGo.AddComponent<DragPaper>();
             recordDrag.Init(_desk, -0.6f);

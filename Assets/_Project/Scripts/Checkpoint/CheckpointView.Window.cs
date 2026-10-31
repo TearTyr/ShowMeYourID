@@ -335,7 +335,7 @@ namespace Hollowbrook.Checkpoint
             if (_current.IsAdministrator && _recordGo != null)
             {
                 // the District Roster Memo rides on the record sheet: hand it over WITH the
-                // badge (issue #4) — it is the administrator's paper clue
+                // badge - it is the administrator's paper clue
                 _recordGo.SetActive(true);
                 _recordGo.transform.SetAsLastSibling();
             }

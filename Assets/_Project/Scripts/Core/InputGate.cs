@@ -5,7 +5,7 @@ namespace Hollowbrook.Core
     /// <summary>One owner per key per frame. Esc and M are listened to by several views
     /// (sheets, map, pause, desk, patrol) and Unity does not guarantee their Update order,
     /// so the first handler to run consumes the key for that frame and the rest stand down.
-    /// Fixes the "one Esc closes Settings AND unpauses the game" class of bug (issue #6).</summary>
+    /// Prevents the "one Esc closes Settings AND unpauses the game" kind of bug.</summary>
     public static class InputGate
     {
         private static int _escFrame = -1;

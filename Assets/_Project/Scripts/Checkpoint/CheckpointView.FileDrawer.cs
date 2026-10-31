@@ -598,7 +598,7 @@ namespace Hollowbrook.Checkpoint
         }
 
         // Pulls one canon file into the record window — the folder-browsing replacement for
-        // the old typed search. The drawer STAYS OUT: browsing several files in a row is the
+        // a typed search. The drawer STAYS OUT: browsing several files in a row is the
         // normal use, and a physical drawer does not slam shut because you took a sheet.
         // Same rule as before: during the administrator's visit the registry holds no badge,
         // so no file replaces the memo already on the desk.

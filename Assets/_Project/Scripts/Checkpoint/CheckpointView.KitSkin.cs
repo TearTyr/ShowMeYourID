@@ -388,7 +388,7 @@ namespace Hollowbrook.Checkpoint
             var sp = ProceduralArt.Get(iconKey);
             if (sp == null) return;
             // badge on the HEAD knob (26px), not a 46px disc over the whole silhouette:
-            // the check/cross stays crisp and the stamp art stays readable (owner #6)
+            // the check/cross stays crisp and the stamp art stays readable
             var icon = UIFactory.Img(t, "kiticon", sp);
             icon.raycastTarget = false;
             UIFactory.Anchor(icon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(26f, 26f),

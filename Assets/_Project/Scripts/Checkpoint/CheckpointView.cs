@@ -16,7 +16,7 @@ namespace Hollowbrook.Checkpoint
     // CheckpointLayout grid — see desk_layout_wireframe.svg for the approved design.
     public partial class CheckpointView : MonoBehaviour, IScreenView
     {
-        /// <summary>The ID card's resting display scale (~18% under the old default). The inspect
+        /// <summary>The ID card's resting display scale. The inspect
         /// view (DragPaper.Inspect) enlarges it from there.</summary>
         internal const float IdCardScale = L.IdScale;   // 320x220 design art -> 220x151 desk rect
         /// <summary>True once the SecurityRoom kit skin applied: paper-ink labels flip dark.</summary>

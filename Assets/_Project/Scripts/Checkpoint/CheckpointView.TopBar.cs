@@ -32,7 +32,7 @@ namespace Hollowbrook.Checkpoint
             // on one 375px line. The shipped face is wide, so the line is squeezed ~72%
             // horizontally — tall glyphs, narrow advance, exactly the reference read.
             _topLeft.rectTransform.localScale = new Vector3(0.72f, 1f, 1f);
-            // second banner line: the live queue readout (Phase 9.7 top-bar format)
+            // (the waiting / to-go counter is built below, under the banner)
 
 
             _topClock = UIFactory.Label(_desk, "clock", "22:00", 30, UIFactory.NsChalk, TextAnchor.MiddleCenter);

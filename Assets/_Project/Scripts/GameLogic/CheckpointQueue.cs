@@ -67,7 +67,7 @@ namespace Hollowbrook.Logic
                            PressureWarning || Overwhelmed || LineChanged;
     }
 
-    /// <summary>The checkpoint arrival queue (Phase 9). Separates the concepts the old
+    /// <summary>The checkpoint arrival queue. Keeps apart the concepts the first
     /// single roster index conflated:
     ///   roster source   — visitors who have not arrived yet (finite list or run generator),
     ///   waiting line    — arrived, not yet at the window (strict FIFO),

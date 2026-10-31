@@ -69,7 +69,7 @@ namespace Hollowbrook.Checkpoint
         private void BuildToolsRow()
         {
             // the tools row: tonight's log, map, rules note. (The SCAN button and the
-            // camera monitor are retired — the ID scanner feature is gone; verification
+            // camera monitor do not exist; verification
             // is manual: documents, floor files and questions.)
             // the two desk papers are PROPS: the kit's printed sheets lying on the desk at
             // the concept art's angles, clickable to open their overlay sheet
@@ -243,7 +243,7 @@ namespace Hollowbrook.Checkpoint
         // and scales with the paper and can never overhang the edge. Rotation is seeded per
         // inspection; the clamp budget (StampMaxTilt) covers the tilt's corners.
         //
-        // 60px on the 200x120 slip: +33.3% over the 45px mark (this pass's readability request)
+        // 60px on the 200x120 slip, big enough to read at a glance
         // and 30% of the slip's width — the same footprint class as the original 56px art, with
         // the temp ink asset's tighter margins keeping the NAME / ID lines readable around it.
         // Square sizeDelta + preserveAspect keep the ink undistorted; the printable clamp

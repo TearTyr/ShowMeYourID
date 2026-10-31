@@ -105,7 +105,7 @@ namespace Hollowbrook.Logic
         public bool PhotoMatches => WindowPortrait == IdPhoto;
 
         /// <summary>Do the two faces AS DISPLAYED agree — portrait features AND the anomaly
-        /// distortion overlay (the administrator's glitched window face is her photo tell, and
+        /// distortion overlay (the administrator's glitched window face is his photo tell, and
         /// Portrait equality ignores Distorted on purpose for the scoring rules). This is the
         /// truth the desk's face-comparison cue shows; it never contradicts the rendered sprites.
         /// Informational only: verdicts stay with InspectionRules.</summary>

@@ -18,13 +18,13 @@ namespace Hollowbrook.Checkpoint
     {
         private void BuildOverlays()
         {
-            // the verdict banner retired: post-decision feedback is the stamp mark, the
+            // there is no verdict banner: post-decision feedback is the stamp mark, the
             // sound and the subject walking off — never text
 
             _notesRoot = BuildPaperOverlay("OverlayRules", "sec_rules_paper", out _notesText);
             _recordsRoot = BuildPaperOverlay("OverlayLog", "sec_log_paper", out _recordsText);
 
-            // the yes/no confirm popup retired with the button verdicts: stamping IS confirming
+            // there is no yes/no confirm popup: stamping IS confirming
         }
 
         // The reading sheet IS the owner's photographed document: sec_rules_paper /
