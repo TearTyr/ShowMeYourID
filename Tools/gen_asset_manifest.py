@@ -97,17 +97,17 @@ ART = [
 
 # --------------------------------------------------------------------------- faces
 FACES = []
-for i in range(1, 15):
+for i in range(1, 8):
     nn = f"{i:02d}"
-    shipped = i <= 6
-    prio = "P0" if i <= 8 else "P1"
+    shipped = True
+    prio = "P0"
     FACES.append((f"char_student_{nn}", "face", prio,
-                  "temp-shipped" if shipped else "missing",
+                  "shipped" if shipped else "missing",
                   "PNG RGBA 512x640 (4:5) bust, flat front light, neutral - same crop for every student; code letterboxes it into the card slot, the window and the counter card",
-                  f"canon student {i} of 14 (Content.TotalStudents)",
-                  "temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations"))
+                  f"canon student {i} of 7 (Content.TotalStudents)",
+                  "illustrated bust from Tools/prep_characters.py"))
     FACES.append((f"char_student_{nn}_anomaly", "face", prio,
-                  "temp-shipped" if shipped else "missing",
+                  "shipped" if shipped else "missing",
                   "PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",
                   f"anomaly variant of student {i}",
                   "FaceAssets.AnomalyKey - window shows this when the run says anomaly/distorted"))

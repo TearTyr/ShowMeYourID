@@ -778,7 +778,7 @@ namespace FlowCheck
             Check(rowGroup != null && Mathf.Abs(rowGroup.alpha - 1f) < 1e-3f && rowGroup.blocksRaycasts,
                 "DRAWER: a settled file is fully visible AND clickable");
             var headText = FindDeep(cp.transform, "drawerhead").GetComponent<UnityEngine.UI.Text>().text;
-            Check(headText.Contains("ROOM 101") && headText.Contains("7 FILES"),
+            Check(headText.Contains("ROOM 101") && headText.Contains("4 FILES"),
                   "the drawer head names the room and counts its files (got '" + headText + "')");
             Check(CheckpointView.DrawerRowCapacity() >= 7,
                 $"DRAWER: the pulled drawer holds a whole floor folder ({CheckpointView.DrawerRowCapacity()} rows)");
@@ -3491,7 +3491,7 @@ namespace FlowCheck
                 if (f[1] == "art") artRows.Add(f[0]);
                 else if (f[1] == "audio") audioRows.Add(f[0]);
                 else if (f[1] == "font") fontRows.Add(f[0]);
-                if (f[4] == "temp-shipped") shipped.Add(f[0] + "|" + f[1] + "|flat");
+                if (f[4] == "temp-shipped" || f[4] == "shipped") shipped.Add(f[0] + "|" + f[1] + "|flat");
                 if (f[4] == "shipped-kit") shipped.Add(f[0] + "|" + f[1] + "|kit");
             }
             Check(artRows.Count > 110 && audioRows.Count >= 30 && fontRows.Count == 8,
@@ -3499,7 +3499,7 @@ namespace FlowCheck
 
             // art rows == the painter's keys + the face pairs, exactly
             var codeArt = new List<string>(Hollowbrook.Bootstrap.ProceduralArt.AllKeys);
-            for (int i = 1; i <= 14; i++)
+            for (int i = 1; i <= Content.TotalStudents; i++)
             {
                 codeArt.Add("char_student_" + i.ToString("D2"));
                 codeArt.Add("char_student_" + i.ToString("D2") + "_anomaly");

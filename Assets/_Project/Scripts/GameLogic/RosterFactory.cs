@@ -26,7 +26,13 @@ namespace Hollowbrook.Logic
             _genLog.Clear(); // duplicates are a "tonight" rule in story mode
             var visitors = new List<VisitorData>();
             var identities = PickDistinctIdentities(shift.VisitorCount);
-            var anomalySlots = PickAnomalySlots(shift.VisitorCount, shift.AnomalyCount);
+            // The school only has so many students. When a night is longer than the registry,
+            // the extra visitors are impostors wearing a student's name (never a second honest
+            // visit by the same student).
+            int honestSlots = Math.Min(shift.VisitorCount, _canon.Count);
+            while (identities.Count < shift.VisitorCount)
+                identities.Add(_canon[_rng.NextInt(0, _canon.Count)]);
+            var anomalySlots = PickAnomalySlots(shift.VisitorCount, shift.AnomalyCount, honestSlots);
 
             for (int i = 0; i < shift.VisitorCount; i++)
             {
@@ -52,14 +58,16 @@ namespace Hollowbrook.Logic
             return pool.GetRange(0, Math.Min(count, pool.Count));
         }
 
-        private HashSet<int> PickAnomalySlots(int visitorCount, int anomalyCount)
+        private HashSet<int> PickAnomalySlots(int visitorCount, int anomalyCount, int forcedFrom)
         {
             var slots = new HashSet<int>();
+            for (int i = forcedFrom; i < visitorCount; i++) slots.Add(i);   // impostors beyond the registry
             if (anomalyCount <= 0) return slots;
             var candidates = new List<int>();
-            for (int i = 0; i < visitorCount; i++) candidates.Add(i);
+            for (int i = 0; i < forcedFrom; i++) candidates.Add(i);
             _rng.Shuffle(candidates);
-            for (int i = 0; i < anomalyCount && i < candidates.Count; i++) slots.Add(candidates[i]);
+            int stillNeeded = Math.Max(0, anomalyCount - slots.Count);
+            for (int i = 0; i < stillNeeded && i < candidates.Count; i++) slots.Add(candidates[i]);
             return slots;
         }
 

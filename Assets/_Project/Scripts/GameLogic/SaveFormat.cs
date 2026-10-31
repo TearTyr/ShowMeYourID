@@ -16,7 +16,7 @@ namespace Hollowbrook.Logic
     public static class SaveFormat
     {
         public const string Header = "SMYIDSAVE";
-        public const int Version = 2;   // 2: single classroom question (rosters changed; version-1 saves are dropped)
+        public const int Version = 3;   // 3: the seven illustrated students (older saves are dropped)
 
         public static string Serialize(SaveGame save)
         {

@@ -119,7 +119,7 @@ namespace Hollowbrook.LogicTests
         private static void ContentTests()
         {
             Group("Content - approved constants & roster");
-            Eq(Content.TotalStudents, 14, "student pool size");
+            Eq(Content.TotalStudents, 7, "student pool size");
             var roster = Content.BuildStudentRoster();
             Eq(roster.Count, Content.TotalStudents, "roster matches TotalStudents");
             Eq(roster.Select(s => s.FullName).Distinct().Count(), roster.Count, "roster names unique");
@@ -1165,7 +1165,7 @@ namespace Hollowbrook.LogicTests
         {
             Group("SaveFormat - round-trip, checksum tamper detection, bad input");
             Eq(SaveFormat.Header, "SMYIDSAVE", "header constant");
-            Eq(SaveFormat.Version, 2, "version constant");
+            Eq(SaveFormat.Version, 3, "version constant");
 
             var save = new SaveGame { SavedAtLabel = "NIGHT 3 - 02:14" };
             save.Session.Mode = GameMode.Challenge;
@@ -2359,6 +2359,15 @@ namespace Hollowbrook.LogicTests
             for (int i = 0; i < FaceAssets.StudentFaceCount; i++) seen[FaceAssets.StudentKey(i)] = i;
             Check(seen.Count == FaceAssets.StudentFaceCount,
                 "every shipped student face maps to exactly one identity slot (no shared faces)");
+            var names = Content.BuildStudentRoster();
+            string[] want = { "Carlo Mendoza", "Nathaniel Aquino", "Maria Clara Santos", "Liza May Ramos",
+                              "Raffy Isidro", "Renielle Waterbonia", "Rhevster Estrellita" };
+            bool namesOk = names.Count == want.Length && Content.TotalStudents == FaceAssets.StudentFaceCount;
+            for (int i = 0; namesOk && i < want.Length; i++) namesOk = names[i].FullName == want[i];
+            Check(namesOk, "the registry has the seven students in face-art order (row N wears char_student_NN)");
+            var numbers = new HashSet<string>();
+            foreach (var st in names) numbers.Add(st.IdNumber);
+            Check(numbers.Count == names.Count, "every student has their own ID number");
         }
 
         private static void CheckpointQueueTests()
