@@ -1,7 +1,9 @@
 # Show Me Your ID! - how the game plays right now
 
-**Loop:** Main Menu -> NEW GAME -> night intro (click to advance) -> **sticky note ("CLICK TO
-BEGIN")** -> **checkpoint desk** <-> **patrol** (hallway + 2 classrooms) -> shift results -> next
+**Loop:** Main Menu -> NEW GAME -> black screen: the night title fades in and out -> the dialogue
+box opens on black, then fades -> the black lifts off the shut booth -> **sticky note ("CLICK TO
+BEGIN", on night 1 the how to play card)** -> the shutter opens for the first student ->
+**checkpoint desk** <-> **patrol** (hallway + 2 classrooms) -> shift results -> next
 night -> ending. Exhibition build (`exhibitionMode` in GameConfig) = one curated night.
 
 **The line:** an **arrival clock** (25-30 s on night 1, x0.8 each night, double speed while the
@@ -40,34 +42,35 @@ desk), the **rules note** and **tonight's log** (with ID numbers), and the **que
   either ends the run on the last night.
 - The prompt line at the top always names the next step.
 
-**Patrol (A/D or arrows, Shift run, E interact):** the corridor, both classrooms and the comfort room
-are painted (the hallway art changes with the lights), and inspecting a clue shows its close up
-beside the text. every room is entered **dark**. Each has a wall
-switch (E). The handheld **flashlight** is separate: `F` sweep on/off, `Q` focus, `L` off. Rooms
-1 and 2 are inspected by **peeking** from the doorway with a cursor lamp (`F` on/off, `Q` wide/tight);
-the exit is the bottom edge or `E` on the doorway. The hallway's east end has a door to the
-**comfort room** (press `E`, next to the sealed server door): a room you walk into, dimmed far
-more than the others, so only the flashlight shows anything. The same door takes you back out. The beam runs on a battery. Holding Focus on a
-roaming anomaly fills TRACK: roaming -> stalking -> detected -> exposed -> repelled (it retreats and
-drops a token, and may return). Ten clues across three rooms, found in order, open the secret ending.
+**Patrol (A/D or arrows, Shift run, E interact):** the corridor is one painted image, always dark.
+Every room is entered **dark** and the handheld **flashlight** is the only light: `F` sweep on/off,
+`Q` focus, `L` off. Classroom 1, Classroom 2 and the comfort room (the east door, beside the sealed
+server door) are all inspected by **peeking** from the doorway with a cursor lamp (`F` on/off, `Q`
+wide/tight); the exit is the bottom edge or `E` on the doorway. Besides the clues there are things
+to inspect: the patrol clipboard, a dead switch, the lockers, and the bathroom's mirror, sinks and
+stalls. The beam runs on a battery. Holding Focus on a roaming anomaly fills TRACK: roaming ->
+stalking -> detected -> exposed -> repelled (it retreats and drops a token, and may return). Tokens
+are banked between runs; 3 open Endless and Challenge on the main menu. Ten clues across three
+rooms, found in order, open the secret ending.
 
-**Night 5 - the administrator:** he arrives last with a staff badge and a roster memo that do not
-match. `T` opens the conversation (a short list of questions about the badge, the number, his face,
-his answer, and any evidence you found). Talking never stamps. **REFUSE ENTRY** = the DENY stamp.
-Allowing him in loses at once.
+**Night 5 - the administrator:** no students and no roaming anomalies, only him, with a staff badge
+and a roster memo that do not match. The four student questions are gone. `T` opens the
+interrogation: his badge name, the number, his face, his first stop, and any evidence you found.
+Each answer has a follow-up that catches him out, and every **lie exposed** takes 15 seconds off the
+night (it can never be shorter than 120 seconds). Talking never stamps. **REFUSE ENTRY** = the DENY
+stamp. Allowing him in loses at once.
 
-**The hunt (after the DENY):** he forces the gate and hides in Classroom 1 or 2 (a knock and a
-caption say which). Peek in with the lamp on: his picture shakes and circles; keep the cursor on his
-head until the hold fills (**stun**). The lamp flickers out and he vanishes, then he hides in the
-other room or **charges down the hallway**: flash his face with the beam. **4 stuns** = driven off
-(normal Win/Secret ending). **SERVER DOOR** meter (180 s, paused only while he is held under the
-lamp) reaching zero = he reaches the server room (lose). Nothing else roams during the hunt, the
-security door is locked, and every phase has a time limit, so it cannot get stuck. Quit + CONTINUE
-resumes the hunt.
+**The hunt (after the DENY):** like Nightmare Fredbear's night in FNaF 4. He forces the gate and
+walks the halls; footsteps tell you he is moving. When they stop he is at one of three places: **a
+classroom door** (stand there and hold `E` for 2 s within 10 s), **the comfort room** (peek in and
+hold the lamp on his head within 12 s), or **right behind you** (flash his face within 2.6 s). Too
+slow and he catches you: sanity drops and you are thrown back. **3 catches** = he reaches the server
+door (lose). Survive **210 s** to dawn (normal Win/Secret ending). The security door is locked and
+every phase has a time limit, so it cannot get stuck. Quit + CONTINUE restarts the hunt.
 
-**Endings:** Surviving Hollowbrook (5 nights + the administrator driven off) / Another Custodian
-(3 breaches, 3 false rejections, the line overruns, the administrator let in, or the server door) /
-The Truth Behind Hollowbrook (10 clues in order, administrator driven off).
+**Endings:** Surviving Hollowbrook (5 nights + dawn on the last) / Another Custodian
+(3 breaches, 3 false rejections, the line overruns, the administrator let in, or three catches on night 5) /
+The Truth Behind Hollowbrook (10 clues in order, dawn reached).
 
 **Options:** SETTINGS is an audio-only modal (MASTER / MUSIC / SFX), usable from the menu and the
 pause menu. Display, accessibility and the data reset (`F2` x3) live in `SettingsSystem`.
