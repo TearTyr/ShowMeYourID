@@ -2,7 +2,7 @@
 """Prepare the hallway, room and prop art for the game.
 
 Source: Art/UI and Design Assets   Destination: Assets/_Project/Resources/Art/Environment
-  Hallway/  bg_hallway_lit, bg_hallway_unlit   the three screen wide corridor (downscaled to 3840 x 1280)
+  Hallway/  bg_hallway_lit, bg_hallway_unlit   the painted corridor, 30 units wide, exported 3240 x 1080 (1:1 on a 1080p screen, 108 px per unit)
   Rooms/    bg_classroom_1, bg_classroom_2, bg_comfort_room   1920 x 1080 backdrops
   Props/    doors, the clock and the token, cut to the visible art (names are the game's keys)
   Inspect/  inspect_*   close ups shown beside the text when a clue is inspected
@@ -53,7 +53,7 @@ def cut(rel):
 def main():
     for rel, key in (("Hallway/HALLWAY W_ LIGHTS.png", "bg_hallway_lit"),
                      ("Hallway/HALLWAY W_O LIGHTS.png", "bg_hallway_unlit")):
-        im = Image.open(os.path.join(SRC, rel)).convert("RGB").resize((3840, 1280), Image.LANCZOS)
+        im = Image.open(os.path.join(SRC, rel)).convert("RGB").resize((3240, 1080), Image.LANCZOS)
         im.save(out("Hallway", key), optimize=True)
     for rel, key in (("Rooms/Classroom_BG1.jpg", "bg_classroom_1"), ("Rooms/Classroom_BG2.jpg", "bg_classroom_2"),
                      ("Comfort Room/Bathroom_dimmed.jpg", "bg_comfort_room")):
