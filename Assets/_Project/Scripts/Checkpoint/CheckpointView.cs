@@ -228,6 +228,7 @@ namespace Hollowbrook.Checkpoint
                 // a fresh shift begins behind the sticky-note gate: nobody arrives,
                 // nothing can be inspected, and the clock stays idle until it is clicked
                 SetVisitorVisible(false);
+                RefreshStickyNote();
                 _stickyRoot.SetActive(true);
             }
             RefreshHud();

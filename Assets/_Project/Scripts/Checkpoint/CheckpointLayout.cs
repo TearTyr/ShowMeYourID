@@ -136,7 +136,8 @@ namespace Hollowbrook.Checkpoint
 
         // ---- transient overlays (bounds-checked only; they cover the desk) ---
         public static readonly Region Toast = new Region(280, 94, 720, 30);
-        public static readonly Region Prompt = new Region(450, 62, 440, 20);         // hand-over guidance strip
+        public static readonly Region Prompt = new Region(420, 696, 440, 22);        // the next step, under the desk buttons
+        public static readonly Region PromptPeek = new Region(420, 650, 440, 22);    // ...and above the step back band
         // the reading sheet for the rules note / tonight's log: centred over the desk with
         // room for crest, hand title, the hand-written block AND the printed live text
         // the reading sheet: the kit's photographed paper at its OWN aspect (789x879),
@@ -257,9 +258,9 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region BannerQueue = new Region(0, 18, 380, 16);
 
             // sticky note (shift-start gate)
-            public static readonly Region StickyTitle = new Region(30, 48, 440, 40);
-            public static readonly Region StickyBody = new Region(40, 116, 420, 100);
-            public static readonly Region StickyCta = new Region(40, 240, 420, 34);
+            public static readonly Region StickyTitle = new Region(30, 26, 440, 36);
+            public static readonly Region StickyBody = new Region(36, 68, 428, 196);
+            public static readonly Region StickyCta = new Region(40, 270, 420, 34);
         }
 
         // One fixed 1280x720 frame, centred in the canvas. Children use grid coordinates only.

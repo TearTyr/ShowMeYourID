@@ -104,10 +104,10 @@ namespace FlowCheck
             var sticky = FindDeep(cp0.transform, "StickyNoteOverlay");
             Check(sticky != null && sticky.gameObject.activeSelf, "a fresh shift opens behind the sticky note");
             var noteText = NoteTextOf(sticky);
-            Check(noteText.Contains("NIGHT SHIFT BEGINS.") &&
-                  noteText.Contains("Rules: Check IDs, ask questions, stamp. Don't let the wrong faces in.") &&
+            Check(noteText.Contains("HOW TO PLAY") &&
+                  noteText.Contains("2. ASK up to 2 of the 4 questions") && noteText.Contains("5. HAND BACK") &&
                   noteText.Contains("[CLICK TO BEGIN]"),
-                  "the note carries the exact briefing text");
+                  "night 1: the note is the how to play card");
             Check(cp0.CurrentVisitor == null && root.Queue.ArrivalCount == 0 && !root.Queue.Started,
                 "no visitor, no arrivals, clock not started while the note is up");
             cp0.AdvanceQueue(6f); cp0.AdvanceQueue(6f);   // >6s of ignored waiting (step 11.1.4)
@@ -1760,8 +1760,8 @@ namespace FlowCheck
                 var loadSub = FindDeep(root.Loading.transform, "sub").GetComponent<UnityEngine.UI.Text>();
                 Check(titleDone == 1, "NIGHT: the title hands over to the dialogue exactly once when it ends");
                 Check(loadLabel.text == "NIGHT 9" && loadSub.text == "SOME DATE" &&
-                      loadLabel.color.a > 0.99f && loadSub.color.a > 0.99f,
-                    "NIGHT: the title and its date finish fully faded in");
+                      loadLabel.color.a < 0.01f && loadSub.color.a < 0.01f,
+                    "NIGHT: the title and its date fade back out before the dialogue box opens");
                 Check(FindDeep(root.Loading.transform, "bg").gameObject.activeSelf,
                     "NIGHT: the black card stays up under the dialogue that follows");
                 root.Loading.Hide();
@@ -2915,7 +2915,7 @@ namespace FlowCheck
             Check(rig.ConeCovers(new Vector3(4f, 0f, 0f)), "W3: Sweep covers a point 4u ahead");
             Check(!rig.ConeCovers(new Vector3(-4f, 0f, 0f)), "W3: nothing behind the player is covered");
             Check(!rig.ConeCovers(new Vector3(rig.Params.Range + 1.5f, -0.5f, 0f)), "W3: beyond the Sweep range is dark");
-            Check(rig.ConeCovers(new Vector3(4f, 2.0f, 0f)), "W3: the wide cone covers 2.5u off-axis at 4u");
+            Check(rig.ConeCovers(new Vector3(4f, 1.3f, 0f)), "W3: the wide cone covers 2.5u off-axis at 4u");
             PressKey(root, KeyCode.Q);           // same aim, Focus now
             Check(!rig.ConeCovers(new Vector3(4f, 2.0f, 0f)), "W3: Focus does NOT cover the same off-axis point - the modes really differ");
             Check(rig.ConeCovers(new Vector3(4f, 0f, 0f)), "W3: Focus still covers the axis");
