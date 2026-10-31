@@ -86,7 +86,8 @@ namespace Hollowbrook.World
             var sr = go.AddComponent<SpriteRenderer>();
             // the guard is drawn but stands still (PlayerController gates walking); peek
             // hides him because the hallway room is not on screen while looking in
-            sr.sprite = ProceduralArt.Get("custodian_0");
+            Sprite idle;
+            sr.sprite = ProceduralArt.TryGet("char_guard_idle", out idle) ? idle : ProceduralArt.Get("custodian_0");
             sr.sortingOrder = 73; // above the darkness overlay (70), lit by design (the
                                   // custodian you play); anomalies stay under it (40) as
                                   // silhouettes, switches/markers (75+) stay on top

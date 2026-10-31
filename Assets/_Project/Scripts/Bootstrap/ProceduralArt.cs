@@ -36,7 +36,13 @@ namespace Hollowbrook.Bootstrap
         // lands as a real 48-unit border. At the default UI PPU the same slice would draw as
         // a 5-unit sliver and the bubble would lose its tail.
         private static readonly Dictionary<string, float> FilePpus =
-            new Dictionary<string, float> { { "sec_bubble", 10f } };
+            new Dictionary<string, float>
+            {
+                { "sec_bubble", 10f },
+                // the guard's frames are 452 px tall and the old drawn guard stood 3.5 world units
+                // high, so 129 px per unit keeps him the same size
+                { "char_guard_idle", 129f }, { "char_guard_walk_a", 129f }, { "char_guard_walk_b", 129f },
+            };
 
         /// <summary>True when a real file (or a cached sprite) exists for the key - callers that
         /// have their own painter use this to fall back instead of showing a broken image.</summary>

@@ -1461,6 +1461,9 @@ namespace FlowCheck
             Check(allFaces, "FM: every student and anomaly face asset ships under Resources/Art");
             Check(FindArt(rootDir, "stamp_allow") != null,
                 "FM: the approval stamp asset ships under Resources/Art");
+            Check(FindArt(rootDir, "char_guard_idle") != null && FindArt(rootDir, "char_guard_walk_a") != null &&
+                  FindArt(rootDir, "char_guard_walk_b") != null,
+                "FM: the guard's idle pose and both walking poses ship under Resources/Art");
             Check(cp.CurrentVisitor.FaceAssetIndex >= 0 || cp.CurrentVisitor.IsAdministrator,
                 "FM: visitors still carry a stable face-asset index (admin excepted)");
             int fidx = cp.CurrentVisitor.FaceAssetIndex;

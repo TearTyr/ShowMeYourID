@@ -14,7 +14,12 @@ namespace Hollowbrook.World
         private RoomInstance _room;
         private float _faceDir = 1f;
         private float _stepTimer, _animTimer;
-        private int _animFrame;
+        private int _animStep;   // where we are in the walk cycle
+        // The walk cycle: step, stand, other step, stand. The standing pose is also the idle pose.
+        private static readonly string[] WalkCycle =
+            { "char_guard_walk_a", "char_guard_idle", "char_guard_walk_b", "char_guard_idle" };
+        private const string IdlePose = "char_guard_idle";
+        private string _pose;
         private string _lastPrompt = "\0";
 
         public void Init(GameRoot root, SpriteRenderer sr)
@@ -71,7 +76,8 @@ namespace Hollowbrook.World
             }
             else
             {
-                SetFrame(0);
+                SetPose(IdlePose);
+                _animStep = 0;
                 _stepTimer = 0f;
             }
             transform.localPosition = p;
@@ -90,16 +96,21 @@ namespace Hollowbrook.World
             _animTimer -= dt;
             if (_animTimer <= 0f)
             {
-                _animTimer = running ? 0.14f : 0.22f;
-                SetFrame(_animFrame == 0 ? 1 : 0);
+                _animTimer = running ? 0.10f : 0.16f;
+                SetPose(WalkCycle[_animStep]);
+                _animStep = (_animStep + 1) % WalkCycle.Length;
             }
         }
 
-        private void SetFrame(int f)
+        // Show one of the guard's drawn poses. Without the art files the old code-drawn guard is used.
+        private void SetPose(string key)
         {
-            if (_animFrame == f && _sr != null && _sr.sprite != null) return;
-            _animFrame = f;
-            if (_sr != null) _sr.sprite = ProceduralArt.Get("custodian_" + f);
+            if (_pose == key && _sr != null && _sr.sprite != null) return;
+            _pose = key;
+            if (_sr == null) return;
+            Sprite pose;
+            if (ProceduralArt.TryGet(key, out pose)) _sr.sprite = pose;
+            else _sr.sprite = ProceduralArt.Get(key == IdlePose ? "custodian_0" : "custodian_1");
         }
 
 
