@@ -1556,9 +1556,10 @@ namespace FlowCheck
             var c2Node = map.RoomNode("room_classroom2");
             var secNode = map.RoomNode("room_security");
             var serverNode = map.RoomNode("room_server");
-            var crNorth = map.RoomNode("room_comfort");
+            var crNorth = map.RoomNode("room_cr1");
+            var crSouth = map.RoomNode("room_cr2");
             Check(hallNode != null && c1Node != null && c2Node != null && secNode != null &&
-                  serverNode != null && crNorth != null,
+                  serverNode != null && crNorth != null && crSouth != null,
                 "MAP: every room has its own node (label and hit area can never drift apart)");
             Check(secNode.GetComponent<RectTransform>().anchoredPosition.x <
                   hallNode.GetComponent<RectTransform>().anchoredPosition.x,
@@ -1584,7 +1585,7 @@ namespace FlowCheck
             float crNY = crNorth.GetComponent<RectTransform>().anchoredPosition.y;
             float crNX = crNorth.GetComponent<RectTransform>().anchoredPosition.x;
             Check(crNY > hallY + 20f && crNX > hallX,
-                "MAP: the comfort room hangs off the east end, north of the sealed room");
+                "MAP: CR-1 hangs off the east end, north of the sealed room");
             Check(serverNode.GetComponent<RectTransform>().anchoredPosition.x >
                   hallNode.GetComponent<RectTransform>().anchoredPosition.x,
                 "MAP: the server / identification room is on the RIGHT");
@@ -1596,14 +1597,19 @@ namespace FlowCheck
                   c2Node.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("CLASSROOM 2") &&
                   c2Node.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("Room 202"),
                 "MAP: the classrooms keep their room numbers (101 west, 202 east, both north)");
-            Check(crNorth.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("COMFORT ROOM"),
-                "MAP: the comfort room is labelled on the plan");
-            Check(FloorPlan.ComfortRooms().Count == 1, "MAP: the comfort room lives in the plan's data, not just its ink");
-            var crN = FloorPlan.ForKey("room_comfort").Value;
-            Check(!crN.Overlaps(hall.Value) && !crN.Overlaps(c1.Value) && !crN.Overlaps(c2.Value),
-                "MAP: the comfort room obstructs neither the hallway nor the classrooms");
-            Check(crN.Room == RoomId.ComfortRoom && !crN.Sealed,
-                "MAP: the comfort room is a real room (it has a door you can walk through), not sealed");
+            Check(crNorth.Find("label").GetComponent<UnityEngine.UI.Text>().text == "CR-1" &&
+                  crSouth.Find("label").GetComponent<UnityEngine.UI.Text>().text == "CR-2",
+                "MAP: both comfort rooms are labelled like the desk map");
+            Check(FloorPlan.ComfortRooms().Count == 2, "MAP: CR-1 and CR-2 live in the plan's data");
+            float lastX = float.MinValue; bool ordered = true; int stops = 0;
+            foreach (var key in new[] { "room_security", "room_classroom1", "room_classroom2", "room_cr1", "room_server", "room_cr2" })
+            {
+                var stop = FloorPlan.ForKey(key).Value;
+                ordered = ordered && stop.HallX.HasValue && stop.HallX.Value > lastX;
+                lastX = stop.HallX.Value;
+                stops++;
+            }
+            Check(ordered && stops == 6, "MAP: the hallway passes the rooms in the desk map's order");
 
             // every drawn room sits inside the drawn plan, at its design-space size, and at the
             // position the table asks for - the check that catches a mirrored or hand-nudged plan
@@ -2585,7 +2591,7 @@ namespace FlowCheck
                 var d = it as Doorway;
                 if (d != null && d.Art != null) { doors++; if (QuadH(d.Art) < 3f) doorsFullHeight = false; }
             }
-            Check(doors == 4 && doorsFullHeight,
+            Check(doors == 5 && doorsFullHeight,
                   "P: all " + doors + " hallway doors draw as full-height slabs at their anchors");
             Check(FindDeep(hall.Root.transform, "lightswitch") == null,
                   "P: the hallway has no wall switch plate any more");
@@ -2729,7 +2735,7 @@ namespace FlowCheck
                 foreach (var it in hall.Interactables) { var d = it as Doorway; if (d != null && d.Target == RoomId.ComfortRoom) crDoor = d; }
                 Check(crDoor != null && crDoor.AnchorX > 7f && crDoor.AnchorX <= hall.HalfWidth - 0.6f,
                       "CR: the hallway has a comfort room door the player can actually walk to");
-                Check(crDoor != null && crDoor.Prompt == "Peek into Comfort Room [E]", "CR: the door says what it is");
+                Check(crDoor != null && crDoor.Prompt == "Peek into CR-1 [E]", "CR: the door says what it is");
                 crDoor.Interact();
                 Check(views.PeekActive && views.Current.Id == RoomId.ComfortRoom && root.State == AppViewState.RoomPeek,
                       "CR: E at the door peeks into the comfort room, nobody walks in");
@@ -2740,7 +2746,7 @@ namespace FlowCheck
                     var d = it as Doorway;
                     if (d != null && d.Target == RoomId.Hallway) crExits++;
                 }
-                Check(crSpots == 3 && crExits == 1, "CR: the peek has things to inspect and a way back");
+                Check(crSpots == 3 && crExits == 0, "CR: the peek has things to inspect and no hidden doors");
                 root.ExitRoomPeek();
                 Check(!views.PeekActive && views.Current.Id == RoomId.Hallway && root.State == AppViewState.Exploration,
                       "CR: stepping back returns to the hallway");
@@ -3393,14 +3399,18 @@ namespace FlowCheck
             root.EnterRoomPeek(RoomId.Classroom1);
             Check(root.State == AppViewState.RoomPeek && views.PeekActive, "W10: peeking frames the classroom");
             {
-                // the lamp can only open the black cover if its mask range contains the cover's layer
+                // the peek's dark is one black cover with a hole in it, over the whole room
                 var coverProof = views.Current.Darkness;
-                var lampMaskProof = views.PeekLight.Mask;
-                int lo = Math.Min(lampMaskProof.frontSortingOrder, lampMaskProof.backSortingOrder);
-                int hi = Math.Max(lampMaskProof.frontSortingOrder, lampMaskProof.backSortingOrder);
-                Check(lampMaskProof.isCustomRangeActive && coverProof.sortingOrder >= lo && coverProof.sortingOrder <= hi &&
-                      lampMaskProof.frontSortingOrder == lampMaskProof.backSortingOrder,
-                      "W10: the peek lamp's mask range contains the black cover (coverProof " + coverProof.sortingOrder + ", range " + lo + ".." + hi + ")");
+                Check(!coverProof.enabled, "W10: in a peek the room's own darkness steps aside for the lamp's cover");
+                var holeProof = FindDeep(views.PeekLight.transform, "PeekHole").GetComponent<SpriteRenderer>();
+                Check(holeProof.sortingOrder == WorldLayers.PeekCover && holeProof.sortingOrder > 60,
+                      "W10: the cover draws over the room, with a real hole (no tinted glow)");
+                Check(FindDeep(views.PeekLight.transform, "Glow") == null && FindDeep(views.PeekLight.transform, "PeekMask") == null,
+                      "W10: the old glow circle and sprite mask are gone");
+                bool markersUnder = true;
+                foreach (var r in views.Current.Root.GetComponentsInChildren<SpriteRenderer>(true))
+                    if (r.gameObject.name == "found_marker" && r.sortingOrder >= holeProof.sortingOrder) markersUnder = false;
+                Check(markersUnder, "W10: nothing in the room floats above the dark");
                 var beamMask = root.Views.Flashlight.Mask;
                 Check(beamMask.isCustomRangeActive && beamMask.frontSortingOrder == coverProof.sortingOrder &&
                       beamMask.backSortingOrder == coverProof.sortingOrder,
@@ -3408,16 +3418,15 @@ namespace FlowCheck
                 bool artUnder = true;
                 foreach (var r in views.Current.Root.GetComponentsInChildren<SpriteRenderer>(true))
                     if (r.gameObject.name.StartsWith("bg_") && r.sortingOrder >= coverProof.sortingOrder) artUnder = false;
-                Check(artUnder, "W10: the room's painted backdrop draws under the black cover, so the lamp reveals it");
+                Check(artUnder, "W10: the room's painted backdrop draws under the cover, so the hole reveals it");
             }
             CheckLightSync(root, "W10 peek entry");
             var lamp = views.PeekLight;
             Check(lamp != null && lamp.Active, "W10: the peek session is live");
             Check(!lamp.Lit, "W10: entering a classroom starts with the lamp OFF - no F was pressed");
             Check(rig.Beam == LightMode.Off, "W10: the handheld beam stays OFF through the peek entry");
-            var lampMask = FindDeep(lamp.transform, "PeekMask").gameObject;
-            var lampGlow = FindDeep(lamp.transform, "Glow").gameObject;
-            Check(!lampMask.activeSelf && !lampGlow.activeSelf,
+            var lampBlind = FindDeep(lamp.transform, "PeekBlind").gameObject;
+            Check(lampBlind.activeSelf,
                 "W10: OFF really hides the cursor spotlight (mask + glow), not just a status");
             Check(lamp.gameObject.activeSelf,
                 "W10: the peek session itself stays live while dark - only the LIGHT is off");
@@ -3425,30 +3434,25 @@ namespace FlowCheck
                 "W10: the step-back band is up during the peek");
             AimAt(0f, 0f);
             WorldFrames(root, 30);
-            Check(!lamp.Lit && !lampMask.activeSelf && !lampGlow.activeSelf,
+            Check(!lamp.Lit && lampBlind.activeSelf,
                 "W10: mouse movement never lights the lamp (cursor is not lamp input)");
             Check(!views.IsPeekLit(new Vector3(0f, 0f, 0f)),
                 "W10: an OFF lamp illuminates nothing - the coverage query agrees with the visuals");
-            // the peek SESSION keeps running dark: the exit prompt is reachable without
-            // the lamp, so an OFF light can never lock the player in a classroom
-            Doorway exitDoor = null;
-            foreach (var it in views.Current.Interactables)
-            {
-                var d = it as Doorway;
-                if (d != null && d.Target == RoomId.Hallway) exitDoor = d;
-            }
-            Check(exitDoor != null, "W10: the peeked classroom has its exit doorway");
-            AimAt(exitDoor.AnchorX, exitDoor.AnchorY);
+            // nothing can be selected in the dark, and no hidden doors answer the cursor
+            bool noDoors = true;
+            foreach (var it in views.Current.Interactables) if (it is Doorway) noDoors = false;
+            Check(noDoors, "W10: a peek has no hidden doors to hover over");
+            AimAt(views.Current.Interactables[0].AnchorX, views.Current.Interactables[0].AnchorY);
             WorldFrames(root, 2);
             string darkPrompt = FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>().text;
-            Check(!lamp.Lit && darkPrompt.Length > 0,
-                "W10: dark is not a trap - the exit prompt answers under the cursor without the lamp (got '" + darkPrompt + "')");
+            Check(!lamp.Lit && darkPrompt.Length == 0,
+                "W10: with the lamp off nothing is selectable, E has nothing to press (got '" + darkPrompt + "')");
             string peekInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
             Check(peekInfo.Contains("FLASHLIGHT: OFF"),
                 "W10: the HUD reads FLASHLIGHT: OFF in the dark classroom (got '" + peekInfo + "')");
             PressKey(root, KeyCode.F);
             Check(lamp.Lit, "W10: ONE F press turns the lamp on (nothing was secretly pre-lit)");
-            Check(lampMask.activeSelf && lampGlow.activeSelf,
+            Check(!lampBlind.activeSelf,
                 "W10: ON brings the cursor spotlight back (mask + glow together)");
             AimAt(0f, 0f);
             WorldFrames(root, 5);
@@ -3479,7 +3483,7 @@ namespace FlowCheck
             Check(peekInfo.Contains("FLASHLIGHT: ON · FOCUS"),
                 "W10: the HUD names the focused flashlight (got '" + peekInfo + "')");
             PressKey(root, KeyCode.F);
-            Check(!lamp.Lit && lamp.Focused && !lampMask.activeSelf && !lampGlow.activeSelf &&
+            Check(!lamp.Lit && lamp.Focused && lampBlind.activeSelf &&
                   !views.IsPeekLit(new Vector3(0f, 0f, 0f)),
                 "W10: F puts a FOCUSED lamp fully out - OFF wins over whichever mode was last set");
             PressKey(root, KeyCode.F);
@@ -3493,7 +3497,7 @@ namespace FlowCheck
             Check(views.IsPeekLit(new Vector3(3f, 1f, 0f)) && !views.IsPeekLit(new Vector3(-6f, 0f, 0f)),
                 "W10: while ON, the light follows the cursor (covers the new point, not the whole room)");
             PressKey(root, KeyCode.F);
-            Check(!lamp.Lit && !lampMask.activeSelf && !lampGlow.activeSelf,
+            Check(!lamp.Lit && lampBlind.activeSelf,
                 "W10: F again turns it OFF completely - spotlight and illumination together");
             Check(!views.IsPeekLit(new Vector3(3f, 1f, 0f)), "W10: OFF takes the illumination with it");
             root.ExitRoomPeek();
@@ -3505,24 +3509,17 @@ namespace FlowCheck
             Check(rig.Beam == LightMode.Sweep, "W10: back on patrol, F is the beam toggle again");
             root.EnterRoomPeek(RoomId.Classroom2);
             Check(!views.PeekLight.Lit &&
-                  !FindDeep(views.PeekLight.transform, "Glow").gameObject.activeSelf,
+                  FindDeep(views.PeekLight.transform, "PeekBlind").gameObject.activeSelf,
                 "W10: the NEXT classroom entry also starts with the lamp OFF (every entry is dark)");
             Check(rig.Beam == LightMode.Off, "W10: ...and the beam never rides into a peek lit");
             PressKey(root, KeyCode.F);
             Check(views.PeekLight.Lit, "W10: one F press lights the second classroom too");
             PressKey(root, KeyCode.F);
             Check(!views.PeekLight.Lit, "W10: ...and one F press puts it out again (a clean toggle)");
-            // the dark exit: E on the doorway works with the lamp OFF
-            Doorway exitDoor2 = null;
-            foreach (var it in views.Current.Interactables)
-            {
-                var d = it as Doorway;
-                if (d != null && d.Target == RoomId.Hallway) exitDoor2 = d;
-            }
-            AimAt(exitDoor2.AnchorX, exitDoor2.AnchorY);
-            PressKey(root, KeyCode.E);
+            // the dark exit: S steps back with the lamp OFF
+            PressKey(root, KeyCode.S);
             Check(!views.PeekActive && root.State == AppViewState.Exploration,
-                "W10: E on the exit doorway steps back to the hallway - even with the lamp OFF");
+                "W10: S steps back to the hallway, even with the lamp OFF");
             Check(!FindDeep(root.HUD.transform, "peekexitband").gameObject.activeSelf,
                 "W10: the step-back band is gone after leaving the doorway");
             Check(!views.PeekLight.Lit && rig.Beam == LightMode.Off,
@@ -3875,7 +3872,7 @@ namespace FlowCheck
                 {
                     if (walking)
                     {
-                        root.EnterRoomPeek(RoomId.ComfortRoom);
+                        root.EnterRoomPeek(hunt.Room);
                         litOnEntry = litOnEntry || (views.PeekLight != null && views.PeekLight.Lit);
                     }
                     if (figUp) { sawCloset = true; AimAt(fig.transform.position.x, fig.transform.position.y); }

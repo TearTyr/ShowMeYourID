@@ -173,7 +173,7 @@ namespace Hollowbrook.World
             float y = 0.2f + (rng.NextFloat() * 2f - 1f) * 0.7f;
             _anchor = new Vector3(x, y, 0f);
             _trackClock = 0f;
-            ShowFigureIn(RoomId.ComfortRoom, _anchor);
+            ShowFigureIn(_hunt.Room, _anchor);
         }
 
         private void UpdateFigure(float dt)
@@ -234,8 +234,8 @@ namespace Hollowbrook.World
 
         private void OnEnteredCloset()
         {
-            Say("*a door creaks in the comfort room - PEEK IN AND FIND HIM*", 3f);
-            if (_views.PeekActive && _views.Current != null && _views.Current.Id == RoomId.ComfortRoom) OnSpotted();
+            Say("*a door creaks in " + RoomName(_hunt.Room) + " - PEEK IN AND FIND HIM*", 3f);
+            if (_views.PeekActive && _views.Current != null && _views.Current.Id == _hunt.Room) OnSpotted();
         }
 
         private void OnSpotted()
@@ -296,7 +296,7 @@ namespace Hollowbrook.World
         }
 
         private static string RoomName(RoomId room) =>
-            room == RoomId.Classroom1 ? "Classroom 1" : room == RoomId.Classroom2 ? "Classroom 2" : "the comfort room";
+            room == RoomId.Classroom1 ? "Room 101" : room == RoomId.Classroom2 ? "Room 202" : room == RoomId.ComfortRoom ? "CR-1" : "CR-2";
 
         // ------------------------------------------------------------ the HUD line
         private void TickStatus(float dt)
@@ -319,7 +319,7 @@ namespace Hollowbrook.World
             switch (_hunt.Phase)
             {
                 case HuntPhase.AtDoor: return "HOLD THE DOOR OF " + RoomName(_hunt.Room).ToUpperInvariant() + " (E)   " + meter;
-                case HuntPhase.Closet: return "PEEK INTO THE COMFORT ROOM AND LIGHT HIS HEAD   " + meter;
+                case HuntPhase.Closet: return "PEEK INTO " + RoomName(_hunt.Room) + " AND LIGHT HIS HEAD   " + meter;
                 case HuntPhase.Behind: return "FLASH HIS FACE - F or Q!   " + meter;
                 default: return "Listen for where the footsteps stop. Survive until dawn.   " + meter;
             }

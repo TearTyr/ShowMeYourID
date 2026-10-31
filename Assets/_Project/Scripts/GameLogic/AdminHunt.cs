@@ -9,7 +9,7 @@ namespace Hollowbrook.Logic
     // dawn. Each time he stops, he is in one of three kinds of place:
     //   - AT A CLASSROOM DOOR (the game's left and right halls): stand at that door and hold E
     //     until he gives up.
-    //   - IN THE COMFORT ROOM (the closet): peek in and keep the lamp on his head.
+    //   - IN A COMFORT ROOM (the closet): peek in and keep the lamp on his head.
     //   - BEHIND YOU in the hallway (the bed): flash his face with the beam.
     // Too slow and he catches you. CatchesToLose catches and he walks to the server door.
     //
@@ -21,7 +21,7 @@ namespace Hollowbrook.Logic
     {
         Stalking,   // walking the halls: footsteps, no danger yet
         AtDoor,     // behind a classroom door: hold it shut
-        Closet,     // in the comfort room: find him with the lamp
+        Closet,     // in CR-1 or CR-2: find him with the lamp
         Behind,     // right behind the player in the hallway: flash him
         Retreat,    // driven back or done catching you: harmless for a moment
         Won,        // dawn came
@@ -162,7 +162,7 @@ namespace Hollowbrook.Logic
 
         private HuntEvent TickCloset(float dt, HuntInput input)
         {
-            bool looking = input.Peeking && input.PlayerRoom == RoomId.ComfortRoom;
+            bool looking = input.Peeking && input.PlayerRoom == Room;
             var seen = HuntEvent.None;
             if (looking && !_spotted) { _spotted = true; seen = HuntEvent.Spotted; }
             UpdateHold(dt, looking && input.OnTarget, Tuning.ClosetHoldSeconds);
@@ -207,7 +207,7 @@ namespace Hollowbrook.Logic
                     return HuntEvent.ReachedDoor;
                 case Spot.Closet:
                     Enter(HuntPhase.Closet);
-                    Room = RoomId.ComfortRoom;
+                    Room = _rng.Chance(0.5f) ? RoomId.ComfortRoom : RoomId.ComfortRoom2;
                     _spotted = false;
                     return HuntEvent.EnteredCloset;
                 default:

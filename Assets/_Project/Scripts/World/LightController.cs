@@ -32,8 +32,8 @@ namespace Hollowbrook.World
         private Coroutine _flickerRoutine;
         private bool _peekOverride;   // peeking: darkness is a solid-black presentation layer
 
-        /// <summary>Peek presentation override: while on, the darkness is fully black and no
-        /// flicker or scripted light change may touch it (the real Lit state stays unchanged).
+        /// <summary>Peek presentation override: while on, the room's own darkness steps aside for
+        /// the lamp's cover (PeekLight), and no flicker or scripted light change may touch it.
         /// Turning it off restores the visual for the real Lit state.</summary>
         public void EnterPeek(bool on)
         {
@@ -41,10 +41,10 @@ namespace Hollowbrook.World
             if (on)
             {
                 if (_flickerRoutine != null) { StopCoroutine(_flickerRoutine); _flickerRoutine = null; }
-                if (_darkness != null) { var c = _darkness.color; c.a = 1f; _darkness.color = c; }
-                ApplyDepth();      // a peek is solid black: no pool, no falloff
+                ApplyDepth();      // no pool, no falloff: the lamp's cover is the only dark in a peek
             }
             else ApplyVisual();
+            if (_darkness != null) _darkness.enabled = !on;
         }
 
         public void Init(GameRoot root, RoomInstance room, SpriteRenderer darkness, bool startLit,

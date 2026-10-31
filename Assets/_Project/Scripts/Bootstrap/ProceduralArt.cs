@@ -317,6 +317,7 @@ namespace Hollowbrook.Bootstrap
                 case "camera_frame": return MakeCameraFrame(252, 150);
                 case "window_frame": return MakeWindowFrame(470, 316);
                 case "lamp_glow": return MakeLampGlow(128);
+                case "peek_hole": return MakePeekHole(256);
                 case "prop_photoframe": return MakePhotoFrame(144, 108);
                 case "prop_lightfixture": return MakeLightFixture(208, 40);
                 case "prop_lostid": return MakeLostId(56, 36);

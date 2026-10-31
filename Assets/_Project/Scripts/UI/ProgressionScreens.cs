@@ -217,14 +217,10 @@ namespace Hollowbrook.UI
         // The chalk runs that connect a room to the corridor (FloorPlan.Corridors), plus
         // the reference's stair hatch under the east-centre long wall and the custodian's
         // "2ND FLOOR??" scratch beside it - decoration, exactly like the reference's.
-        private Text _stairsNote;
         private void BuildCorridors()
         {
             int i = 0;
             foreach (var run in FloorPlan.Corridors) AddRun(run, ref i);
-            foreach (var run in FloorPlan.StairsRuns) AddRun(run, ref i);
-            _stairsNote = HandLabel(_plan, "stairsnote", FloorPlan.StairsNote, 13,
-                new Color(0.78f, 0.74f, 0.66f, 0.75f));
         }
 
         private void AddRun(float[] run, ref int i)
@@ -321,13 +317,6 @@ namespace Hollowbrook.UI
                 UIFactory.Anchor(d.Rt, new Vector2(0.5f, 0.5f), size, Design(d.X, d.Y));
             }
             foreach (var r in _runs) PlaceRun(r);
-            if (_stairsNote != null)
-            {
-                UIFactory.Anchor(_stairsNote.rectTransform, new Vector2(0.5f, 0.5f),
-                    new Vector2(150f, 26f) * _planScale,
-                    Design(FloorPlan.StairsNoteX, FloorPlan.StairsNoteY));
-                _stairsNote.fontSize = ScaledSize(13, _planTextScale);
-            }
 
             UIFactory.Anchor(_hereLabel.rectTransform, new Vector2(0.5f, 0f),
                 new Vector2(70f, 18f) * _planScale, new Vector2(0f, -MarkerSize.y * _planScale * 0.5f - 3f));

@@ -59,6 +59,21 @@ namespace Hollowbrook.Bootstrap
             return c.ToSprite("lamp_glow", UiPpu);
         }
 
+        // The peek's cover: black, with a soft round hole in the middle that shows what is behind it.
+        private static Sprite MakePeekHole(int d)
+        {
+            var c = new Canvas2D(d, d);
+            float half = d / 2f;
+            for (int y = 0; y < d; y++)
+                for (int x = 0; x < d; x++)
+                {
+                    float dist = Mathf.Sqrt((x - half) * (x - half) + (y - half) * (y - half)) / half;
+                    float a = Mathf.Clamp01((dist - 0.65f) / 0.35f);   // clear centre, soft rim, black corners
+                    c.Px[y * d + x] = new Color(0f, 0f, 0f, a * a * (3f - 2f * a));
+                }
+            return c.ToSprite("peek_hole", d);   // one unit wide, so the lamp's scale is its diameter
+        }
+
         private static readonly Color WirePaper = new Color(0.820f, 0.812f, 0.780f);   // #d1cfc7
         private static readonly Color WireInk = new Color(0.227f, 0.227f, 0.251f);      // #3a3a40
         private static readonly Color WireBand = new Color(0.231f, 0.231f, 0.243f);     // #3b3b3e
