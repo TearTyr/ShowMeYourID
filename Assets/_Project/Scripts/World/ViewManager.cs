@@ -77,6 +77,7 @@ namespace Hollowbrook.World
             _rooms[RoomId.Classroom1] = _builder.BuildRoom(RoomId.Classroom1);
             _rooms[RoomId.Classroom2] = _builder.BuildRoom(RoomId.Classroom2);
             _rooms[RoomId.ComfortRoom] = _builder.BuildRoom(RoomId.ComfortRoom);
+            _rooms[RoomId.ComfortRoom2] = _builder.BuildRoom(RoomId.ComfortRoom2);
         }
 
         private void BuildPlayer()
@@ -293,6 +294,7 @@ namespace Hollowbrook.World
             if (from != null && from.Light != null) from.Light.EnterPeek(false);
             EnterRoomImmediate(RoomId.Hallway, from);
             SetPlayerVisible(true);
+            if (Player != null) Player.ResetPrompt();
             _peeking = false;
             _peekExiting = false;
             _gameRoot.PeekRoom = null;

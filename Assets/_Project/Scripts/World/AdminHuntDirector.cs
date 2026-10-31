@@ -10,11 +10,12 @@ namespace Hollowbrook.World
     // The RULES live in GameLogic/AdminHunt (pure, fuzz-tested). This class only connects them
     // to the world: it reads what the player is doing (holding a door? lamp on his head? beam on
     // his face?), feeds that to the rules every frame, and turns the events that come back into
-    // sound, captions and the picture of him.
+    // captions and the picture of him.
     //
     // Where things happen:
-    //  - Stalking: no picture. Footsteps only.
-    //  - AtDoor:   a knock and a caption name the door. That door's prompt becomes "hold it shut",
+    // There is no audio yet, so every cue is a caption and the HUD line.
+    //  - Stalking: no picture, a caption says he is walking.
+    //  - AtDoor:   a caption names the door. That door's prompt becomes "hold it shut",
     //              and it cannot be peeked through while he is behind it.
     //  - Closet:   his picture shakes and circles inside the comfort room. Only the lamp shows it.
     //  - Behind:   his picture closes in along the hallway. Flash the beam on his face.
@@ -23,7 +24,6 @@ namespace Hollowbrook.World
         private const float FigureHeight = 2.6f;          // world units, the picture's height
         private const int FigureSortingOrder = 40;        // under the darkness overlay (70): only light reveals him
         private const float StatusEverySeconds = 0.4f;    // how often the HUD line is rewritten
-        private const float FootstepEverySeconds = 0.8f;
         private const float BehindStartDistance = 6f;     // how far away he starts when he comes at your back
         private const string HoldPrompt = "HOLD E - KEEP THE DOOR SHUT";
 
@@ -37,7 +37,6 @@ namespace Hollowbrook.World
         private float _trackClock;
         private int _motionSeed;
         private float _statusClock;
-        private float _stepClock;
         private float _behindFromX;
         private Doorway _heldDoor;
         private string _heldDoorPrompt;
@@ -89,7 +88,6 @@ namespace Hollowbrook.World
             var input = ReadInput();
             var ev = _hunt.Tick(dt, input);
             UpdateFigure(dt);
-            TickFootsteps(dt);
             React(ev);
             TickStatus(dt);
         }
@@ -113,7 +111,7 @@ namespace Hollowbrook.World
                 input.OnTarget = light.Lit && !light.Flickering && d <= _tuning.HeadRadius;
             }
             if (input.InHallway && _hunt.Phase == HuntPhase.Behind && figureUp)
-                input.BeamOnFace = _views.BeamCovers(_figure.transform.position);
+                input.BeamOnFace = _views.BeamCovers(_figure.transform.localPosition);   // the rooms sit at the origin
             if (input.InHallway && _hunt.Phase == HuntPhase.AtDoor)
                 input.HoldingDoor = AtHeldDoor() && (ForceHoldKey || Input.GetKey(KeyCode.E));
             return input;
@@ -175,7 +173,7 @@ namespace Hollowbrook.World
             float y = 0.2f + (rng.NextFloat() * 2f - 1f) * 0.7f;
             _anchor = new Vector3(x, y, 0f);
             _trackClock = 0f;
-            ShowFigureIn(RoomId.ComfortRoom, _anchor);
+            ShowFigureIn(_hunt.Room, _anchor);
         }
 
         private void UpdateFigure(float dt)
@@ -208,7 +206,7 @@ namespace Hollowbrook.World
         private void React(HuntEvent ev)
         {
             if (ev == HuntEvent.None) return;
-            if ((ev & HuntEvent.StalkStart) != 0) { HideFigure(); ReleaseDoor(); _stepClock = 0f; }
+            if ((ev & HuntEvent.StalkStart) != 0) { Clear(); Say("*footsteps, somewhere down the hall*", 2.4f); }
             if ((ev & HuntEvent.ReachedDoor) != 0) OnReachedDoor();
             if ((ev & HuntEvent.EnteredCloset) != 0) OnEnteredCloset();
             if ((ev & HuntEvent.Spotted) != 0) OnSpotted();
@@ -231,22 +229,19 @@ namespace Hollowbrook.World
             if (_views.PeekActive && _views.Current != null && _views.Current.Id == _hunt.Room)
                 _root.ExitRoomPeek();
             ClaimDoor();
-            _root.Audio.PlaySfx("sfx_knock", 0.8f);
             Say("*the footsteps stop outside " + RoomName(_hunt.Room) + " - HOLD THAT DOOR*", 3f);
         }
 
         private void OnEnteredCloset()
         {
-            _root.Audio.PlaySfx("sfx_door", 0.7f);
-            Say("*a door creaks in the comfort room - PEEK IN AND FIND HIM*", 3f);
-            if (_views.PeekActive && _views.Current != null && _views.Current.Id == RoomId.ComfortRoom) OnSpotted();
+            Say("*a door creaks in " + RoomName(_hunt.Room) + " - PEEK IN AND FIND HIM*", 3f);
+            if (_views.PeekActive && _views.Current != null && _views.Current.Id == _hunt.Room) OnSpotted();
         }
 
         private void OnSpotted()
         {
             if (_figure != null && _figure.activeSelf) return;
             PlaceInComfortRoom();
-            _root.Audio.PlaySfx("sfx_glitch", 0.5f);
             Say("*he is in here - keep the light on his head*", 2.4f);
         }
 
@@ -254,14 +249,12 @@ namespace Hollowbrook.World
         {
             PlaceBehindPlayer();
             if (_views.Flashlight != null) _views.Flashlight.Recharge();
-            _root.Audio.PlaySfx("sfx_stinger", 0.7f);
-            Say("*breathing, right behind you - FLASH HIS FACE!  (F / Q)*", 2.4f);
+            Say("*he is right behind you - AIM AT HIS FACE AND FLASH!  (F or Q)*", 2.4f);
         }
 
         private void OnRepelled()
         {
             Clear();
-            _root.Audio.PlaySfx("sfx_glitch", 0.35f);
             Say("*a low laugh drifts away down the hall*", 2f);
         }
 
@@ -303,18 +296,9 @@ namespace Hollowbrook.World
         }
 
         private static string RoomName(RoomId room) =>
-            room == RoomId.Classroom1 ? "Classroom 1" : room == RoomId.Classroom2 ? "Classroom 2" : "the comfort room";
+            room == RoomId.Classroom1 ? "Room 101" : room == RoomId.Classroom2 ? "Room 202" : room == RoomId.ComfortRoom ? "CR-1" : "CR-2";
 
-        // ------------------------------------------------------------ footsteps and the HUD line
-        private void TickFootsteps(float dt)
-        {
-            if (_hunt.Phase != HuntPhase.Stalking) return;
-            _stepClock += dt;
-            if (_stepClock < FootstepEverySeconds) return;
-            _stepClock = 0f;
-            _root.Audio.PlaySfx("sfx_footstep", 0.5f);
-        }
-
+        // ------------------------------------------------------------ the HUD line
         private void TickStatus(float dt)
         {
             _statusClock += dt;
@@ -335,8 +319,8 @@ namespace Hollowbrook.World
             switch (_hunt.Phase)
             {
                 case HuntPhase.AtDoor: return "HOLD THE DOOR OF " + RoomName(_hunt.Room).ToUpperInvariant() + " (E)   " + meter;
-                case HuntPhase.Closet: return "PEEK INTO THE COMFORT ROOM AND LIGHT HIS HEAD   " + meter;
-                case HuntPhase.Behind: return "FLASH HIS FACE - F or Q!   " + meter;
+                case HuntPhase.Closet: return "PEEK INTO " + RoomName(_hunt.Room) + " AND LIGHT HIS HEAD   " + meter;
+                case HuntPhase.Behind: return "AIM AT HIS FACE AND FLASH - F or Q!   " + meter;
                 default: return "Listen for where the footsteps stop. Survive until dawn.   " + meter;
             }
         }

@@ -85,6 +85,10 @@ namespace Hollowbrook.Core
         [Tooltip("Target body radius added to the cone test - grazing a silhouette still counts.")][Range(0f, 2f)]
         public float beamTargetRadius = BeamGeometry.DefaultTargetRadius;
 
+        [Header("Patrol")]
+        [Tooltip("Roaming anomalies on patrol. Off: the only anomalies are the ones at the security window.")]
+        public bool patrolAnomalies = false;
+
         [Header("Administrator hunt (night 5, after the DENY stamp)")]
         [Tooltip("Times he can catch you before he reaches the server door and you lose.")][Range(1, 10)]
         public int huntCatchesToLose = 3;

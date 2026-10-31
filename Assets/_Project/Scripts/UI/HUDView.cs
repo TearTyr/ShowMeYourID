@@ -9,7 +9,7 @@ using L = Hollowbrook.Checkpoint.CheckpointLayout;
 
 namespace Hollowbrook.UI
 {
-    // Sanity, light battery, tracking meter, findings, prompts. Created by each scene bootstrap.
+    // Sanity, light battery, findings, prompts. Created by each scene bootstrap.
     // Lives in its own fixed 1280x720 frame so the top-bar meters sit in the same grid slots
     // as the desk underneath - at every aspect ratio.
     public class HUDView : MonoBehaviour, IScreenView
@@ -26,8 +26,6 @@ namespace Hollowbrook.UI
         private Text _findings;
         private Text _roomInfo;
         private Text _beamLabel;
-        private GameObject _trackBar;
-        private Image _trackFill;
         // Under the SecurityRoom kit the sanity furniture is a WHITE pill on the board: the
         // HUD's own box retires, the track goes invisible and the fill/caption/value flip to
         // dark ink so the live meter reads exactly like the concept art's bar.
@@ -91,16 +89,6 @@ namespace Hollowbrook.UI
             _stageLabel = UIFactory.Label(barBg, "stage", "STABLE", 10, UIFactory.InkFaint, TextAnchor.MiddleCenter);
             L.Place(_stageLabel.rectTransform, L.Inner.SanityStage);
 
-            var tbg = UIFactory.BorderedPanel(_frame, "trackbg", UIFactory.PanelBase, UIFactory.Border, 2);
-            Reg(audit, "track", tbg, L.TrackMeter);
-            var tcap = UIFactory.Label(tbg, "cap", "TRACK", 10, UIFactory.InkDim, TextAnchor.MiddleLeft);
-            L.Place(tcap.rectTransform, L.Inner.TrackCap);
-            var ttrack = UIFactory.Panel(tbg, "track", UIFactory.PanelAlt).rectTransform;
-            L.Place(ttrack, L.Inner.TrackTrack);
-            _trackFill = UIFactory.Img(ttrack, "fill", ProceduralArt.Get("solid_white"), UIFactory.AccentBright);
-            StretchFill(_trackFill.rectTransform);
-            _trackBar = tbg.gameObject;
-            _trackBar.SetActive(false);
 
             var bbg = UIFactory.BorderedPanel(_frame, "batterybg", UIFactory.PanelBase, UIFactory.Border, 2);
             Reg(audit, "light", bbg, L.LightMeter);
@@ -145,7 +133,7 @@ namespace Hollowbrook.UI
             var bandBtn = bandRt.gameObject.AddComponent<Button>();
             bandBtn.targetGraphic = bandImg;
             bandBtn.onClick.AddListener(() => _gameRoot.ExitRoomPeek());
-            var bandCap = UIFactory.Label(bandRt, "cap", "STEP BACK TO THE HALLWAY", 13,
+            var bandCap = UIFactory.Label(bandRt, "cap", "STEP BACK TO THE HALLWAY  [S]", 13,
                 UIFactory.InkDim, TextAnchor.MiddleCenter);
             UIFactory.AnchorsFull(bandCap.rectTransform);
             _peekExitBand = bandRt.gameObject;
@@ -168,8 +156,6 @@ namespace Hollowbrook.UI
             }));
             _subs.Add(root.Bus.Subscribe(EventIds.Notification, e => Notify(e.Text)));
             _subs.Add(root.Bus.Subscribe(EventIds.ClueDiscovered, e => RefreshFindings()));
-            _subs.Add(root.Bus.Subscribe(EventIds.TrackingChanged, e => SetTracking(e.Value)));
-            _subs.Add(root.Bus.Subscribe(EventIds.AnomalyRevealed, e => SetTracking(0f)));
             _subs.Add(root.Bus.Subscribe(EventIds.TokenCollected, e => RefreshFindings()));
             _subs.Add(root.Bus.Subscribe(EventIds.BatteryChanged, e => { SetBattery(e.Value); RefreshRoom(); }));
             _subs.Add(root.Bus.Subscribe(EventIds.RoomEntered, e => RefreshRoom()));
@@ -213,7 +199,6 @@ namespace Hollowbrook.UI
             _roomInfo.gameObject.SetActive(exploring || peeking);
             // the desk keeps only night/clock/pause/sanity: battery and track are patrol tools
             if (_batteryBar != null) _batteryBar.SetActive(exploring || peeking);
-            if (_trackBar != null) _trackBar.SetActive(exploring || peeking);
             _objective.gameObject.SetActive(exploring || peeking);   // the desk header keeps
             // night/clock/pause/sanity only: the reference board has no objective strip, and
             // at the desk the red prompt strip already owns the moment-to-moment instruction
@@ -222,7 +207,7 @@ namespace Hollowbrook.UI
             if (s == AppViewState.Checkpoint) _objective.text = _gameRoot.ObjectiveText ?? "";
             if (peeking) _objective.text = _gameRoot.HuntActive
                 ? _gameRoot.ObjectiveText
-                : "Press F to switch the flashlight on - sweep it across the room; click the bottom edge to step back.";
+                : "Press F to switch the flashlight on and sweep it across the room. S or the bottom edge steps back.";
             if (exploring) _objective.text = _gameRoot.ObjectiveText;   // restore after a peek overwrote the hint
             if (_peekExitBand != null) _peekExitBand.SetActive(peeking);
             RefreshFindings();
@@ -268,15 +253,6 @@ namespace Hollowbrook.UI
                 _batteryFill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(v), 1f);
                 _batteryFill.color = v <= 0.2f ? UIFactory.AccentBright : UIFactory.InkDim;
             }
-        }
-
-        private void SetTracking(float v)
-        {
-            if (_trackBar == null) return;
-            bool on = v > 0.001f && v < 0.999f;
-            _trackBar.SetActive(on);
-            if (on && _trackFill != null)
-                _trackFill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(v), 1f);
         }
 
         public void RefreshFindings()

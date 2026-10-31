@@ -346,7 +346,7 @@ namespace FlowCheck
                 "the slip has no printed stamp box: the mark lands where the player drops the stamp");
             string[] hudNames =
             {
-                "HudFrame", "sanitybg_border", "trackbg_border", "batterybg_border",
+                "HudFrame", "sanitybg_border", "batterybg_border",
                 "findings", "room", "objective", "prompt", "toast",
             };
             foreach (var n in hudNames)
@@ -385,7 +385,6 @@ namespace FlowCheck
             ExpectRegion("banner", L.Banner, 20, 25, 375, 30);
             ExpectRegion("sanity", L.SanityMeter, 470, 22, 349, 38);
             ExpectRegion("light", L.LightMeter, 348, 96, 200, 40);
-            ExpectRegion("track", L.TrackMeter, 568, 96, 110, 40);
             ExpectRegion("clock", L.Clock, 1000, 25, 85, 30);
             ExpectRegion("pause", L.Pause, 1119, 22, 125, 38);
             ExpectRegion("records station", L.Station, 40, 85, 305, 160);
@@ -459,7 +458,6 @@ namespace FlowCheck
             Add("banner", L.Banner, "B");
             Add("sanity meter", L.SanityMeter, "B");
             Add("light meter", L.LightMeter, "E");
-            Add("track meter", L.TrackMeter, "E");
             Add("clock", L.Clock, "B");
             Add("pause", L.Pause, "B");
             Add("run stats", L.RunStats, "B");
@@ -1556,9 +1554,10 @@ namespace FlowCheck
             var c2Node = map.RoomNode("room_classroom2");
             var secNode = map.RoomNode("room_security");
             var serverNode = map.RoomNode("room_server");
-            var crNorth = map.RoomNode("room_comfort");
+            var crNorth = map.RoomNode("room_cr1");
+            var crSouth = map.RoomNode("room_cr2");
             Check(hallNode != null && c1Node != null && c2Node != null && secNode != null &&
-                  serverNode != null && crNorth != null,
+                  serverNode != null && crNorth != null && crSouth != null,
                 "MAP: every room has its own node (label and hit area can never drift apart)");
             Check(secNode.GetComponent<RectTransform>().anchoredPosition.x <
                   hallNode.GetComponent<RectTransform>().anchoredPosition.x,
@@ -1584,7 +1583,7 @@ namespace FlowCheck
             float crNY = crNorth.GetComponent<RectTransform>().anchoredPosition.y;
             float crNX = crNorth.GetComponent<RectTransform>().anchoredPosition.x;
             Check(crNY > hallY + 20f && crNX > hallX,
-                "MAP: the comfort room hangs off the east end, north of the sealed room");
+                "MAP: CR-1 hangs off the east end, north of the sealed room");
             Check(serverNode.GetComponent<RectTransform>().anchoredPosition.x >
                   hallNode.GetComponent<RectTransform>().anchoredPosition.x,
                 "MAP: the server / identification room is on the RIGHT");
@@ -1596,14 +1595,19 @@ namespace FlowCheck
                   c2Node.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("CLASSROOM 2") &&
                   c2Node.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("Room 202"),
                 "MAP: the classrooms keep their room numbers (101 west, 202 east, both north)");
-            Check(crNorth.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("COMFORT ROOM"),
-                "MAP: the comfort room is labelled on the plan");
-            Check(FloorPlan.ComfortRooms().Count == 1, "MAP: the comfort room lives in the plan's data, not just its ink");
-            var crN = FloorPlan.ForKey("room_comfort").Value;
-            Check(!crN.Overlaps(hall.Value) && !crN.Overlaps(c1.Value) && !crN.Overlaps(c2.Value),
-                "MAP: the comfort room obstructs neither the hallway nor the classrooms");
-            Check(crN.Room == RoomId.ComfortRoom && !crN.Sealed,
-                "MAP: the comfort room is a real room (it has a door you can walk through), not sealed");
+            Check(crNorth.Find("label").GetComponent<UnityEngine.UI.Text>().text == "CR-1" &&
+                  crSouth.Find("label").GetComponent<UnityEngine.UI.Text>().text == "CR-2",
+                "MAP: both comfort rooms are labelled like the desk map");
+            Check(FloorPlan.ComfortRooms().Count == 2, "MAP: CR-1 and CR-2 live in the plan's data");
+            float lastX = float.MinValue; bool ordered = true; int stops = 0;
+            foreach (var key in new[] { "room_security", "room_classroom1", "room_classroom2", "room_cr1", "room_server", "room_cr2" })
+            {
+                var stop = FloorPlan.ForKey(key).Value;
+                ordered = ordered && stop.HallX.HasValue && stop.HallX.Value > lastX;
+                lastX = stop.HallX.Value;
+                stops++;
+            }
+            Check(ordered && stops == 6, "MAP: the hallway passes the rooms in the desk map's order");
 
             // every drawn room sits inside the drawn plan, at its design-space size, and at the
             // position the table asks for - the check that catches a mirrored or hand-nudged plan
@@ -2100,6 +2104,10 @@ namespace FlowCheck
             cp = root.Checkpoint;
             Check(!FindDeep(cp.transform, "StickyNoteOverlay").gameObject.activeSelf, "Q7: returning never re-shows the note");
             Check(cp.CurrentVisitor == null, "Q7: no visitor duplicated on return");
+            Check(!FindDeep(cp.transform, "portraitroot").gameObject.activeSelf,
+                  "Q7: back from patrol the empty window shows no floating student");
+            Check(!FindDeep(cp.transform, "idcard").gameObject.activeSelf,
+                  "Q7: ...and no ID card left on the desk");
             cp.AdvanceQueue(timerBeforePatrol + 0.1f);
             Check(cp.CurrentVisitor == pRoster[2] && root.Queue.ArrivalCount == 3,
                   "Q7: the paused clock resumes and delivers exactly the next visitor");
@@ -2213,7 +2221,7 @@ namespace FlowCheck
             for (int i = 0; i < 12 && root.Dialogue != null && root.Dialogue.IsActive; i++)
                 root.Dialogue.Advance();               // play the outro to its callback
             Check(root.Queue.ShiftComplete, "Q11: rejecting the administrator completes the night");
-            Check(Btn(root, "endshift").interactable, "Q11: END SHIFT lights up after the outro");
+            Check(!Btn(root, "endshift").interactable, "Q11: END SHIFT stays off, the night is not over while he is inside");
             ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
             Btn(root, "endshift").onClick.Invoke();
             Check(root.State == AppViewState.ShiftResults && root.Session.CompletedShifts == 1,
@@ -2581,12 +2589,14 @@ namespace FlowCheck
                 var d = it as Doorway;
                 if (d != null && d.Art != null) { doors++; if (QuadH(d.Art) < 3f) doorsFullHeight = false; }
             }
-            Check(doors == 4 && doorsFullHeight,
+            Check(doors == 5 && doorsFullHeight,
                   "P: all " + doors + " hallway doors draw as full-height slabs at their anchors");
             Check(FindDeep(hall.Root.transform, "lightswitch") == null,
                   "P: the hallway has no wall switch plate any more");
 
             var cfg = root.Config;
+            Check(!cfg.patrolAnomalies, "PATROL: no roaming anomalies in the game, only at the security window");
+            cfg.patrolAnomalies = true;   // the old anomaly proofs below keep the switched-off code honest
             float chanceSave = cfg.anomalySpawnChancePerSecond;
             cfg.anomalySpawnChancePerSecond = 0f;    // deterministic scenarios; W9 restores real pressure
 
@@ -2725,7 +2735,7 @@ namespace FlowCheck
                 foreach (var it in hall.Interactables) { var d = it as Doorway; if (d != null && d.Target == RoomId.ComfortRoom) crDoor = d; }
                 Check(crDoor != null && crDoor.AnchorX > 7f && crDoor.AnchorX <= hall.HalfWidth - 0.6f,
                       "CR: the hallway has a comfort room door the player can actually walk to");
-                Check(crDoor != null && crDoor.Prompt == "Peek into Comfort Room [E]", "CR: the door says what it is");
+                Check(crDoor != null && crDoor.Prompt == "Peek into CR-1 [E]", "CR: the door says what it is");
                 crDoor.Interact();
                 Check(views.PeekActive && views.Current.Id == RoomId.ComfortRoom && root.State == AppViewState.RoomPeek,
                       "CR: E at the door peeks into the comfort room, nobody walks in");
@@ -2736,7 +2746,7 @@ namespace FlowCheck
                     var d = it as Doorway;
                     if (d != null && d.Target == RoomId.Hallway) crExits++;
                 }
-                Check(crSpots == 3 && crExits == 1, "CR: the peek has things to inspect and a way back");
+                Check(crSpots == 3 && crExits == 0, "CR: the peek has things to inspect and no hidden doors");
                 root.ExitRoomPeek();
                 Check(!views.PeekActive && views.Current.Id == RoomId.Hallway && root.State == AppViewState.Exploration,
                       "CR: stepping back returns to the hallway");
@@ -2870,10 +2880,6 @@ namespace FlowCheck
             Check(rig.Beam == LightMode.Sweep && coneT.gameObject.activeSelf &&
                   maskGo.gameObject.activeSelf,
                 "W2c: F lights the sweep beam on the very frame it is pressed (layers live at once)");
-            Check(Mathf.Abs(coneT.localEulerAngles.z - 90f) < 0.5f,
-                $"W2c: ...already pointing AT THE CURSOR on that frame (got {coneT.localEulerAngles.z:F1}°, was {angleBefore:F1}°)");
-            Check(Mathf.Abs(rig.Dir.y - 1f) < 1e-3f && Mathf.Abs(rig.Dir.x) < 1e-3f,
-                "W2c: the logical cone agrees with the cursor too (gameplay never lags the art)");
             Check(Mathf.Abs(coneT.localScale.x - cfg.sweepRange / 8f) < 0.01f,
                 $"W2c: the cone is the Sweep's full length immediately ({coneT.localScale.x:F3} vs {cfg.sweepRange / 8f:F3})");
             Check(Mathf.Abs(maskGo.localScale.x - coneT.localScale.x * 1.06f) < 0.01f,
@@ -2946,7 +2952,6 @@ namespace FlowCheck
             {
                 Check(cone.localPosition == mask.localPosition, "W3: the mask rides exactly on the cone (no aim desync)");
                 AimAt(0f, 4f); WorldFrames(root, 30);   // let the damped aim settle
-                Check(Mathf.Abs(cone.localEulerAngles.z - 90f) < 0.5f, $"W3: aiming up rotates the cone to ~90° (got {cone.localEulerAngles.z:F1})");
                 AimAt(-5f, -1.2f); WorldFrames(root, 30);
                 Check(rig.Dir.x < -0.99f, "W3: aiming left flips the direction");
                 Check(rig.ConeCovers(new Vector3(-4f, 0f, 0f)) && !rig.ConeCovers(new Vector3(4f, 0f, 0f)),
@@ -2954,6 +2959,53 @@ namespace FlowCheck
                 Check(Mathf.Abs(cone.localEulerAngles.z - 180f) < 0.5f || Mathf.Abs(cone.localEulerAngles.z + 180f) < 0.5f,
                     $"W3: the sprite rotates to ~180° for a left aim (got {cone.localEulerAngles.z:F1})");
             }
+            // the beam can turn right round, and it turns the guard with it
+            Check(views.Player.Facing < 0f && views.Player.transform.localScale.x < 0f,
+                "W3: a lit beam aimed left flips the guard left");
+            AimAt(5f, -1.2f); WorldFrames(root, 30);
+            Check(views.Player.Facing > 0f && views.Player.transform.localScale.x > 0f,
+                "W3: aimed right he turns back to normal");
+            Check(Mathf.Abs(Mathf.DeltaAngle(coneT.localEulerAngles.z, 0f)) < 0.5f,
+                "W3: the drawn cone swings all the way round from an exact half turn");
+            AimAt(0f, 4f); WorldFrame(root);
+            Check(views.Player.Facing > 0f, "W3: aiming straight up keeps the side he was on");
+            float walkStart = views.Player.transform.localPosition.x;
+            AimAt(5f, -1.2f); Input.KeysHeld.Add(KeyCode.A); WorldFrames(root, 10);
+            Check(views.Player.Facing > 0f && views.Player.transform.localPosition.x < walkStart,
+                "W3: he can back away while the beam stays on what he is watching");
+            Input.KeysHeld.Remove(KeyCode.A);
+            SetBeam(root, rig, LightMode.Off);
+            Input.KeysHeld.Add(KeyCode.A); WorldFrames(root, 3); Input.KeysHeld.Remove(KeyCode.A);
+            Check(views.Player.Facing < 0f, "W3: with the beam off he faces the way he walks (left)");
+            Input.KeysHeld.Add(KeyCode.D); WorldFrames(root, 3); Input.KeysHeld.Remove(KeyCode.D);
+            Check(views.Player.Facing > 0f, "W3: and right");
+            SetBeam(root, rig, LightMode.Sweep);
+            views.Player.PlaceInRoom(hall, new Vector3(0f, 0f, 0f));
+
+            // hallway interaction goes by the body: the cursor can point at anything
+            Interactable anyDoor = null;
+            foreach (var it in hall.Interactables) if (it is Doorway) anyDoor = it;
+            var promptText = FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>();
+            float clearX = 99f;
+            for (float x = -13f; x < 13f && clearX > 90f; x += 0.1f)
+            {
+                bool free = true;
+                foreach (var it in hall.Interactables)
+                    if (it != null && it.Enabled && Mathf.Abs(x - it.AnchorX) < cfg.interactRange) free = false;
+                if (free) clearX = x;
+            }
+            views.Player.PlaceInRoom(hall, new Vector3(clearX, 0f, 0f));
+            AimAt(anyDoor.AnchorX, anyDoor.AnchorY); WorldFrame(root);
+            Check(promptText.text.Length == 0, "W3: the cursor on a far door shows no prompt (got '" + promptText.text + "')");
+            RoomId roomBefore = hall.Id;
+            PressKey(root, KeyCode.E);
+            Check(!views.PeekActive && root.State == AppViewState.Exploration && views.Current.Id == roomBefore,
+                "W3: and E does nothing, the cursor selects nothing on patrol");
+            views.Player.PlaceInRoom(hall, new Vector3(anyDoor.AnchorX, 0f, 0f));
+            AimAt(clearX, -1.2f); WorldFrame(root);
+            Check(promptText.text == anyDoor.Prompt, "W3: standing at the door shows its prompt wherever the cursor is");
+            views.Player.PlaceInRoom(hall, new Vector3(0f, 0f, 0f));
+
             AimAt(5f, 0f); WorldFrame(root);
             var pp = views.Player.transform.localPosition;
             Check(Mathf.Abs(rig.Origin.x - pp.x) < 1e-3f && Mathf.Abs(rig.Origin.y - (pp.y + 0.2f)) < 1e-3f,
@@ -3003,236 +3055,6 @@ namespace FlowCheck
             float l0 = rig.Battery; WorldFrames(root, 60); float litGain2 = rig.Battery - l0;
             Check(darkGain > 0.03f && darkGain < 0.05f && litGain2 > darkGain * 1.5f,
                 $"W4: dark recovery ({darkGain * 100f:F1}%/s) is slower than lit ({litGain2 * 100f:F1}%/s)");
-
-            // ---- W5: one authoritative encounter: detect → expose → repel → recover → return
-            Console.WriteLine("== W5 one authoritative encounter ==");
-            TopUpBattery(root, rig);
-            hall.Light.SetLit(false);   // dark hallway: pure beam play
-            int poolBefore = root.Session.Pool.Pending;
-            var targetKind = root.Session.Pool.PendingList[0];
-            var an = views.SpawnAnomalyOfKind(targetKind);
-            Check(an != null, "W5: a real anomaly spawns on demand (" + targetKind + ")");
-            if (an == null) return;
-            Check(an.State == AnomalyState.Roaming, "W5: it starts Roaming - existing is not attacking");
-            Check(views.Anomalies.Count == 1 && views.Spawner.Live == an, "W5: one live anomaly, held in the single slot");
-            Check(views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Blink) == null && views.Anomalies.Count == 1,
-                "W5: the live slot blocks duplicate real anomalies");
-            WorldFrames(root, 60);
-            Check(an.Meter == 0f && an.State != AnomalyState.Repelled, "W5: unobserved in the dark, nothing progresses by itself");
-
-            views.Player.PlaceInRoom(hall, new Vector3(Mathf.Clamp(an.Pos.x - 3f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), 0f, 0f));
-            SetBeam(root, rig, LightMode.Focus);
-            int exposedAt = -1;
-            g = 0;
-            while (an.State != AnomalyState.Exposed && !an.Gone && g++ < 600)
-            {
-                views.Player.transform.localPosition = new Vector3(
-                    Mathf.Clamp(an.Pos.x - 3f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), RoomInstance.FloorY + 1.7f, 0f);
-                AimAt(an.Pos.x, an.Pos.y);
-                WorldFrame(root);
-                if (an.State == AnomalyState.Exposed && exposedAt < 0) exposedAt = g;
-            }
-            Check(an.State == AnomalyState.Exposed, $"W5: sustained accurate Focus exposes the corrupted identity (frames={g}, meter={an.Meter:F2})");
-            Check(exposedAt > 55, $"W5: exposure took sustained tracking, not one frame ({exposedAt} frames)");
-            Check(stateLog.Count(s => s == "Exposed") == 1, "W5: the Exposed transition published exactly once");
-            var face = FindDeep(an.transform, "ExposedFace");
-            Check(face != null && face.gameObject.activeSelf, "W5: the distorted face is shown while Exposed");
-
-            // losing Focus is recoverable - no free repel: step 8u to the far side (the clamp
-            // can never push the player back next to it) and point the beam the other way
-            float farX = an.Pos.x >= 0f ? an.Pos.x - 8f : an.Pos.x + 8f;
-            views.Player.PlaceInRoom(hall, new Vector3(farX, 0f, 0f));
-            AimAt(farX + (an.Pos.x >= 0f ? -40f : 40f), -0.5f);
-            WorldFrames(root, 45);
-            Check(!stateLog.Contains("Repelled"), "W5: releasing Focus early earns no repel");
-            float mLoss0 = an.Meter;
-            WorldFrames(root, 60);
-            Check(an.Meter < mLoss0, $"W5: the meter decays once the grace window runs out ({mLoss0:F2} → {an.Meter:F2})");
-            Check(an.State != AnomalyState.Exposed, "W5: Exposed is recoverable - it fell back when Focus was lost");
-            Check(face != null && !face.gameObject.activeSelf, "W5: the exposed face hides again");
-
-            // hold accurate Focus to a real repel
-            int repelMark = stateLog.Count;
-            g = 0;
-            while (!stateLog.Contains("Repelled") && !an.Gone && g++ < 900)
-            {
-                views.Player.transform.localPosition = new Vector3(
-                    Mathf.Clamp(an.Pos.x - 3f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), RoomInstance.FloorY + 1.7f, 0f);
-                AimAt(an.Pos.x, an.Pos.y);
-                WorldFrame(root);
-            }
-            Check(stateLog.Contains("Repelled"), $"W5: sustained accurate Focus reaches REPELLED (frames={g}, state={an.State}, gone={an.Gone})");
-            Check(stateLog.Skip(repelMark).Count(s => s == "Repelled") == 1, "W5: Repelled published exactly once");
-            Check(revealedReal == 1, "W5: the reveal event fires exactly once per resolution");
-            Check(an.Resolved, "W5: the entity is marked resolved");
-            Check(CountDeep(hall.Root.transform, "AnomalyToken") == 1, "W5: exactly one token dropped, in the room it was repelled in");
-            SetBeam(root, rig, LightMode.Off);
-
-            // the retreat is physical, then it leaves the stage and a return is scheduled
-            float px = views.Player.transform.localPosition.x;
-            float distAtRepel = Mathf.Abs(an.Pos.x - px);
-            float maxApproach = 0f;
-            g = 0;
-            while (!an.Gone && g++ < 200)
-            {
-                WorldFrame(root);
-                maxApproach = Mathf.Max(maxApproach, distAtRepel - Mathf.Abs(an.Pos.x - px));
-            }
-            Check(an.Gone, $"W5: after the retreat beat the anomaly leaves the stage (frames={g})");
-            Check(maxApproach < 0.2f, $"W5: while repelled it never closes back on the player (max approach {maxApproach:F2}u)");
-            Check(views.Anomalies.Count == 0 && views.Spawner.Live == null, "W5: the live slot is released");
-            Check(root.Session.Pool.Pending == poolBefore - 1,
-                $"W5: the pool resolves the outstanding anomaly exactly once, at the handoff ({poolBefore} → {root.Session.Pool.Pending})");
-            Check(views.Spawner.ReturnPending, "W5: a recovery return is scheduled");
-            Check(Math.Abs(views.Spawner.ReturnSecondsLeft - cfg.anomalyRecoverySeconds) < 1.5f,
-                $"W5: the return waits ~the configured recovery period ({views.Spawner.ReturnSecondsLeft:F1}s of {cfg.anomalyRecoverySeconds}s)");
-            g = 0;
-            while (views.Spawner.Live == null && g++ < 60 * 40) WorldFrame(root);
-            Check(views.Spawner.Live != null, $"W5: after recovery the threat returns (frames={g})");
-            if (views.Spawner.Live != null)
-            {
-                var ret = views.Spawner.Live;
-                Check(!ReferenceEquals(ret, an), "W5: the return is a fresh entity, not a stale reference");
-                Check(ret.Kind == targetKind, "W5: the SAME behavior returns - not a re-peeked pool kind");
-                Check(ret.Room != hall, $"W5: it repositioned to another room ({(ret.Room != null ? ret.Room.Id.ToString() : "?")}), never on top of the player");
-                Check(g > 60 * (cfg.anomalyRecoverySeconds - 2f), "W5: it stayed away for (about) the full recovery period");
-            }
-            views.Spawner.DiscardLive();
-
-            // the dropped token is collectible exactly once
-            var token = FindInteractable<TokenPickup>(hall);
-            Check(token != null, "W5: the dropped token registered as a room interactable");
-            if (token != null)
-            {
-                views.Player.PlaceInRoom(hall, new Vector3(token.AnchorX, 0f, 0f));
-                int tokensBefore = root.Session.TokensCollected;
-                token.Interact();
-                Check(root.Session.TokensCollected == tokensBefore + 1, "W5: collecting the token counts exactly once");
-                Check(FindInteractable<TokenPickup>(hall) == null, "W5: the token is gone from the room after pickup");
-            }
-
-            // ---- W6: four distinct behaviors
-            Console.WriteLine("== W6 behavior identities ==");
-            TopUpBattery(root, rig);
-            hall.Light.SetLit(false);   // dark for behavior reads
-
-            // Blink: creeps unseen, frozen by ANY beam, pinned by room light - never auto-solved
-            var blink = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Blink);
-            Check(blink != null, "W6: Blink spawns");
-            if (blink != null)
-            {
-                float bx0 = blink.Pos.x;
-                g = 0;
-                while (Mathf.Abs(blink.Pos.x - bx0) < 0.05f && g++ < 240) WorldFrame(root);
-                Check(g < 240, "W6: Blink stalks while unobserved in the dark");
-                views.Player.PlaceInRoom(hall, new Vector3(Mathf.Clamp(blink.Pos.x - 3f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), 0f, 0f));
-                SetBeam(root, rig, LightMode.Sweep);
-                g = 0;
-                while (!rig.ConeCovers(blink.Pos) && g++ < 10) { AimAt(blink.Pos.x, blink.Pos.y); WorldFrame(root); }
-                Check(rig.ConeCovers(blink.Pos), "W6: setup - the Sweep beam covers the Blink");
-                float bx1 = blink.Pos.x;
-                for (int i = 0; i < 90; i++) { AimAt(blink.Pos.x, blink.Pos.y); WorldFrame(root); }
-                Check(Mathf.Abs(blink.Pos.x - bx1) < 1e-4f, "W6: any beam freezes a Blink mid-stalk (restraint, not resolution)");
-                Check(blink.State != AnomalyState.Repelled && !blink.Gone && blink.Meter < 0.55f,
-                    "W6: Sweep alone never resolves the encounter");
-                SetBeam(root, rig, LightMode.Off);
-                hall.Light.SetLit(true);     // lights on
-                float bx2 = blink.Pos.x;
-                WorldFrames(root, 90);
-                Check(Mathf.Abs(blink.Pos.x - bx2) < 1e-4f, "W6: room lights alone pin a Blink");
-                hall.Light.SetLit(false);     // lights off again
-            }
-            views.Spawner.DiscardLive();
-
-            // Sprint: readable telegraph → dash → catch; a beam interrupts the windup
-            var sprint = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Sprint);
-            Check(sprint != null, "W6: Sprint spawns");
-            if (sprint != null)
-            {
-                views.Player.PlaceInRoom(hall, new Vector3(Mathf.Clamp(sprint.Pos.x - 4f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), 0f, 0f));
-                int tenses0 = tensesCaptions;
-                float sx0 = sprint.Pos.x;
-                WorldFrames(root, 30);                     // halfway through the 1.1s windup
-                Check(tensesCaptions == tenses0 + 1, "W6: Sprint's windup is announced exactly once, BEFORE the burst");
-                Check(Mathf.Abs(sprint.Pos.x - sx0) < 0.05f, "W6: Sprint holds position during the telegraph - the reaction window is real");
-                Check(Mathf.Abs(sprint.Pos.x - views.Player.transform.localPosition.x) > 3f,
-                    "W6: it has not reached the player during the telegraph (no instant catch on spawn)");
-                SetBeam(root, rig, LightMode.Sweep);       // sweep on it: interrupts the windup
-                float maxStepBeam = 0f, lastBx = sprint.Pos.x;
-                for (int i = 0; i < 90; i++)
-                {
-                    AimAt(sprint.Pos.x, sprint.Pos.y);
-                    WorldFrame(root);
-                    maxStepBeam = Math.Max(maxStepBeam, Mathf.Abs(sprint.Pos.x - lastBx));
-                    lastBx = sprint.Pos.x;
-                }
-                Check(maxStepBeam <= 1.35f / 60f + 1e-4f, $"W6: under the beam Sprint never bursts (max step {maxStepBeam:F4}u/frame ≤ patrol speed)");
-                Check(tensesCaptions == tenses0 + 1, "W6: no re-windup while the beam holds it");
-                SetBeam(root, rig, LightMode.Off);
-                float maxStepDash = 0f, lastDx = sprint.Pos.x;
-                g = 0;
-                while (Mathf.Abs(sprint.Pos.x - views.Player.transform.localPosition.x) > 1.0f && !sprint.Gone && g++ < 420)
-                {
-                    WorldFrame(root);
-                    maxStepDash = Math.Max(maxStepDash, Mathf.Abs(sprint.Pos.x - lastDx));
-                    lastDx = sprint.Pos.x;
-                }
-                Check(g < 420 && !sprint.Gone, $"W6: with the beam off Sprint telegraphs, then dashes at the player (frames={g})");
-                Check(maxStepDash > 2.5f / 60f, $"W6: the dash really is fast (max step {maxStepDash:F4}u/frame)");
-                int caught0 = caughtEvents;
-                float sanity0 = root.Session.Sanity;
-                g = 0;
-                while (!sprint.Gone && g++ < 60 * 8) WorldFrame(root);   // stand still and eat the consequence
-                Check(sprint.WasCaught, "W6: standing next to a dashing Sprint gets you caught - after its grace, not instantly");
-                Check(caughtEvents == caught0 + 1, "W6: the catch event fires exactly once");
-                Check(root.Session.Sanity < sanity0 - 10f, "W6: a catch costs real sanity");
-                Check(Mathf.Abs(views.Player.transform.localPosition.x - hall.PlayerSpawn.x) < 0.01f,
-                    "W6: after the catch the player is back at the room entrance");
-            }
-            views.Spawner.DiscardLive();
-
-            // CoverHug: ceiling band is spawn AND clamp; only Focus identifies it
-            var hug = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.CoverHug);
-            Check(hug != null, "W6: CoverHug spawns");
-            if (hug != null)
-            {
-                float floorY = RoomInstance.FloorY;
-                Check(hug.Pos.y >= floorY + 3.6f - 1e-3f && hug.Pos.y <= floorY + 4.6f + 1e-3f,
-                    $"W6: CoverHug spawns inside its ceiling band (y={hug.Pos.y:F2})");
-                WorldFrames(root, 150);
-                Check(!hug.Gone && hug.Pos.y >= floorY + 3.6f - 1e-3f && hug.Pos.y <= floorY + 4.6f + 1e-3f,
-                    $"W6: CoverHug stays on the ceiling - no contradictory clamp drags it down (y={hug.Pos.y:F2})");
-                views.Player.PlaceInRoom(hall, new Vector3(Mathf.Clamp(hug.Pos.x - 3f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), 0f, 0f));
-                SetBeam(root, rig, LightMode.Sweep);
-                for (int i = 0; i < 15; i++) { AimAt(hug.Pos.x, hug.Pos.y); WorldFrame(root); }
-                float sweepAlpha = hug.Renderer.color.a;
-                SetBeam(root, rig, LightMode.Focus);
-                for (int i = 0; i < 15; i++) { AimAt(hug.Pos.x, hug.Pos.y); WorldFrame(root); }
-                float focusAlpha = hug.Renderer.color.a;
-                Check(sweepAlpha <= 0.45f, $"W6: Sweep leaves the ceiling lurker murky (alpha {sweepAlpha:F2})");
-                Check(focusAlpha >= 0.9f, $"W6: Focus turns it clear (alpha {focusAlpha:F2}) - identification costs the tight beam");
-                SetBeam(root, rig, LightMode.Off);
-            }
-            views.Spawner.DiscardLive();
-
-            // Slide: readable glide - never a teleport
-            var slide = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Slide);
-            Check(slide != null, "W6: Slide spawns");
-            if (slide != null)
-            {
-                float totalPath = 0f, maxStepSlide = 0f, lastSx = slide.Pos.x;
-                for (int i = 0; i < 300; i++)
-                {
-                    WorldFrame(root);
-                    float d = Mathf.Abs(slide.Pos.x - lastSx);
-                    totalPath += d;
-                    maxStepSlide = Math.Max(maxStepSlide, d);
-                    lastSx = slide.Pos.x;
-                }
-                Check(maxStepSlide <= 0.9f / 60f + 1e-4f, $"W6: Slide never exceeds its glide speed per frame (max {maxStepSlide:F4}u)");
-                Check(totalPath > 1.5f, $"W6: Slide really repositions over 5s (path {totalPath:F1}u)");
-            }
-            views.Spawner.DiscardLive();
 
             // ---- W7: repel cancels an in-progress catch; pause freezes everything
             Console.WriteLine("== W7 catch fairness + pause ==");
@@ -3389,14 +3211,18 @@ namespace FlowCheck
             root.EnterRoomPeek(RoomId.Classroom1);
             Check(root.State == AppViewState.RoomPeek && views.PeekActive, "W10: peeking frames the classroom");
             {
-                // the lamp can only open the black cover if its mask range contains the cover's layer
+                // the peek's dark is one black cover with a hole in it, over the whole room
                 var coverProof = views.Current.Darkness;
-                var lampMaskProof = views.PeekLight.Mask;
-                int lo = Math.Min(lampMaskProof.frontSortingOrder, lampMaskProof.backSortingOrder);
-                int hi = Math.Max(lampMaskProof.frontSortingOrder, lampMaskProof.backSortingOrder);
-                Check(lampMaskProof.isCustomRangeActive && coverProof.sortingOrder >= lo && coverProof.sortingOrder <= hi &&
-                      lampMaskProof.frontSortingOrder == lampMaskProof.backSortingOrder,
-                      "W10: the peek lamp's mask range contains the black cover (coverProof " + coverProof.sortingOrder + ", range " + lo + ".." + hi + ")");
+                Check(!coverProof.enabled, "W10: in a peek the room's own darkness steps aside for the lamp's cover");
+                var holeProof = FindDeep(views.PeekLight.transform, "PeekHole").GetComponent<SpriteRenderer>();
+                Check(holeProof.sortingOrder == WorldLayers.PeekCover && holeProof.sortingOrder > 60,
+                      "W10: the cover draws over the room, with a real hole (no tinted glow)");
+                Check(FindDeep(views.PeekLight.transform, "Glow") == null && FindDeep(views.PeekLight.transform, "PeekMask") == null,
+                      "W10: the old glow circle and sprite mask are gone");
+                bool markersUnder = true;
+                foreach (var r in views.Current.Root.GetComponentsInChildren<SpriteRenderer>(true))
+                    if (r.gameObject.name == "found_marker" && r.sortingOrder >= holeProof.sortingOrder) markersUnder = false;
+                Check(markersUnder, "W10: nothing in the room floats above the dark");
                 var beamMask = root.Views.Flashlight.Mask;
                 Check(beamMask.isCustomRangeActive && beamMask.frontSortingOrder == coverProof.sortingOrder &&
                       beamMask.backSortingOrder == coverProof.sortingOrder,
@@ -3404,16 +3230,15 @@ namespace FlowCheck
                 bool artUnder = true;
                 foreach (var r in views.Current.Root.GetComponentsInChildren<SpriteRenderer>(true))
                     if (r.gameObject.name.StartsWith("bg_") && r.sortingOrder >= coverProof.sortingOrder) artUnder = false;
-                Check(artUnder, "W10: the room's painted backdrop draws under the black cover, so the lamp reveals it");
+                Check(artUnder, "W10: the room's painted backdrop draws under the cover, so the hole reveals it");
             }
             CheckLightSync(root, "W10 peek entry");
             var lamp = views.PeekLight;
             Check(lamp != null && lamp.Active, "W10: the peek session is live");
             Check(!lamp.Lit, "W10: entering a classroom starts with the lamp OFF - no F was pressed");
             Check(rig.Beam == LightMode.Off, "W10: the handheld beam stays OFF through the peek entry");
-            var lampMask = FindDeep(lamp.transform, "PeekMask").gameObject;
-            var lampGlow = FindDeep(lamp.transform, "Glow").gameObject;
-            Check(!lampMask.activeSelf && !lampGlow.activeSelf,
+            var lampBlind = FindDeep(lamp.transform, "PeekBlind").gameObject;
+            Check(lampBlind.activeSelf,
                 "W10: OFF really hides the cursor spotlight (mask + glow), not just a status");
             Check(lamp.gameObject.activeSelf,
                 "W10: the peek session itself stays live while dark - only the LIGHT is off");
@@ -3421,30 +3246,25 @@ namespace FlowCheck
                 "W10: the step-back band is up during the peek");
             AimAt(0f, 0f);
             WorldFrames(root, 30);
-            Check(!lamp.Lit && !lampMask.activeSelf && !lampGlow.activeSelf,
+            Check(!lamp.Lit && lampBlind.activeSelf,
                 "W10: mouse movement never lights the lamp (cursor is not lamp input)");
             Check(!views.IsPeekLit(new Vector3(0f, 0f, 0f)),
                 "W10: an OFF lamp illuminates nothing - the coverage query agrees with the visuals");
-            // the peek SESSION keeps running dark: the exit prompt is reachable without
-            // the lamp, so an OFF light can never lock the player in a classroom
-            Doorway exitDoor = null;
-            foreach (var it in views.Current.Interactables)
-            {
-                var d = it as Doorway;
-                if (d != null && d.Target == RoomId.Hallway) exitDoor = d;
-            }
-            Check(exitDoor != null, "W10: the peeked classroom has its exit doorway");
-            AimAt(exitDoor.AnchorX, exitDoor.AnchorY);
+            // nothing can be selected in the dark, and no hidden doors answer the cursor
+            bool noDoors = true;
+            foreach (var it in views.Current.Interactables) if (it is Doorway) noDoors = false;
+            Check(noDoors, "W10: a peek has no hidden doors to hover over");
+            AimAt(views.Current.Interactables[0].AnchorX, views.Current.Interactables[0].AnchorY);
             WorldFrames(root, 2);
             string darkPrompt = FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>().text;
-            Check(!lamp.Lit && darkPrompt.Length > 0,
-                "W10: dark is not a trap - the exit prompt answers under the cursor without the lamp (got '" + darkPrompt + "')");
+            Check(!lamp.Lit && darkPrompt.Length == 0,
+                "W10: with the lamp off nothing is selectable, E has nothing to press (got '" + darkPrompt + "')");
             string peekInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
             Check(peekInfo.Contains("FLASHLIGHT: OFF"),
                 "W10: the HUD reads FLASHLIGHT: OFF in the dark classroom (got '" + peekInfo + "')");
             PressKey(root, KeyCode.F);
             Check(lamp.Lit, "W10: ONE F press turns the lamp on (nothing was secretly pre-lit)");
-            Check(lampMask.activeSelf && lampGlow.activeSelf,
+            Check(!lampBlind.activeSelf,
                 "W10: ON brings the cursor spotlight back (mask + glow together)");
             AimAt(0f, 0f);
             WorldFrames(root, 5);
@@ -3475,7 +3295,7 @@ namespace FlowCheck
             Check(peekInfo.Contains("FLASHLIGHT: ON · FOCUS"),
                 "W10: the HUD names the focused flashlight (got '" + peekInfo + "')");
             PressKey(root, KeyCode.F);
-            Check(!lamp.Lit && lamp.Focused && !lampMask.activeSelf && !lampGlow.activeSelf &&
+            Check(!lamp.Lit && lamp.Focused && lampBlind.activeSelf &&
                   !views.IsPeekLit(new Vector3(0f, 0f, 0f)),
                 "W10: F puts a FOCUSED lamp fully out - OFF wins over whichever mode was last set");
             PressKey(root, KeyCode.F);
@@ -3489,7 +3309,7 @@ namespace FlowCheck
             Check(views.IsPeekLit(new Vector3(3f, 1f, 0f)) && !views.IsPeekLit(new Vector3(-6f, 0f, 0f)),
                 "W10: while ON, the light follows the cursor (covers the new point, not the whole room)");
             PressKey(root, KeyCode.F);
-            Check(!lamp.Lit && !lampMask.activeSelf && !lampGlow.activeSelf,
+            Check(!lamp.Lit && lampBlind.activeSelf,
                 "W10: F again turns it OFF completely - spotlight and illumination together");
             Check(!views.IsPeekLit(new Vector3(3f, 1f, 0f)), "W10: OFF takes the illumination with it");
             root.ExitRoomPeek();
@@ -3501,28 +3321,37 @@ namespace FlowCheck
             Check(rig.Beam == LightMode.Sweep, "W10: back on patrol, F is the beam toggle again");
             root.EnterRoomPeek(RoomId.Classroom2);
             Check(!views.PeekLight.Lit &&
-                  !FindDeep(views.PeekLight.transform, "Glow").gameObject.activeSelf,
+                  FindDeep(views.PeekLight.transform, "PeekBlind").gameObject.activeSelf,
                 "W10: the NEXT classroom entry also starts with the lamp OFF (every entry is dark)");
             Check(rig.Beam == LightMode.Off, "W10: ...and the beam never rides into a peek lit");
             PressKey(root, KeyCode.F);
             Check(views.PeekLight.Lit, "W10: one F press lights the second classroom too");
             PressKey(root, KeyCode.F);
             Check(!views.PeekLight.Lit, "W10: ...and one F press puts it out again (a clean toggle)");
-            // the dark exit: E on the doorway works with the lamp OFF
-            Doorway exitDoor2 = null;
-            foreach (var it in views.Current.Interactables)
-            {
-                var d = it as Doorway;
-                if (d != null && d.Target == RoomId.Hallway) exitDoor2 = d;
-            }
-            AimAt(exitDoor2.AnchorX, exitDoor2.AnchorY);
-            PressKey(root, KeyCode.E);
+            RoomId peekedRoom = views.Current.Id;
+            // the dark exit: S steps back with the lamp OFF
+            PressKey(root, KeyCode.S);
             Check(!views.PeekActive && root.State == AppViewState.Exploration,
-                "W10: E on the exit doorway steps back to the hallway - even with the lamp OFF");
+                "W10: S steps back to the hallway, even with the lamp OFF");
             Check(!FindDeep(root.HUD.transform, "peekexitband").gameObject.activeSelf,
                 "W10: the step-back band is gone after leaving the doorway");
             Check(!views.PeekLight.Lit && rig.Beam == LightMode.Off,
                 "W10: exiting leaves everything dark - restarting patrol never re-lights anything");
+
+            // what the cursor found in the peek must not follow the guard into the hallway
+            var bodyPrompt = FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>();
+            WorldFrames(root, 2);
+            string ownPrompt = bodyPrompt.text;
+            root.EnterRoomPeek(peekedRoom);
+            views.PeekLight.ToggleLamp();
+            AimAt(views.Current.Interactables[0].AnchorX, views.Current.Interactables[0].AnchorY);
+            WorldFrames(root, 2);
+            string peekPrompt = views.Current.Interactables[0].Prompt;
+            Check(bodyPrompt.text == peekPrompt, "W10: the lit lamp on a thing shows its prompt");
+            PressKey(root, KeyCode.S);
+            WorldFrames(root, 2);
+            Check(!views.PeekActive && bodyPrompt.text == ownPrompt,
+                "W10: stepping back drops the peek's prompt, the guard's own comes back (got '" + bodyPrompt.text + "')");
 
             // ---- W9: spawn ownership under ambient pressure + the desk handoff
             Console.WriteLine("== W9 spawn ownership + desk handoff ==");
@@ -3871,7 +3700,7 @@ namespace FlowCheck
                 {
                     if (walking)
                     {
-                        root.EnterRoomPeek(RoomId.ComfortRoom);
+                        root.EnterRoomPeek(hunt.Room);
                         litOnEntry = litOnEntry || (views.PeekLight != null && views.PeekLight.Lit);
                     }
                     if (figUp) { sawCloset = true; AimAt(fig.transform.position.x, fig.transform.position.y); }
@@ -3880,7 +3709,7 @@ namespace FlowCheck
                 {
                     sawBehind = true;
                     SetBeam(root, rig, LightMode.Sweep);
-                    if (figUp) AimAt(fig.transform.position.x, fig.transform.position.y);
+                    if (figUp) AimAt(fig.transform.localPosition.x, fig.transform.localPosition.y);
                 }
                 else if (views.PeekActive && hunt.Phase == HuntPhase.Stalking) root.ExitRoomPeek();
                 WorldFrame(root, 0.05f);

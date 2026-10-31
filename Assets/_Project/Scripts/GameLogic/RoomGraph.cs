@@ -6,10 +6,6 @@ namespace Hollowbrook.Logic
     /// never teleport between rooms.</summary>
     public static class RoomGraph
     {
-        /// <summary>Where the comfort room's door stands in the hallway (the east end, in front of
-        /// the sealed server door at x = 13.2).</summary>
-        public const float ComfortDoorX = 11.2f;
-
         public static readonly RoomId[] Roamable = { RoomId.Hallway, RoomId.Classroom1, RoomId.Classroom2 };
 
         public static bool IsRoamable(RoomId r) =>
@@ -20,14 +16,14 @@ namespace Hollowbrook.Logic
         /// door is an exit, not a patrol route, so it is intentionally absent.</summary>
         public static float DoorX(RoomId from, RoomId to)
         {
-            if (from == RoomId.Hallway && to == RoomId.Classroom1) return -8.8f;   // the painted doors in the corridor art
-            if (from == RoomId.Hallway && to == RoomId.Classroom2) return 0.4f;
+            if (from == RoomId.Hallway && to != RoomId.Security)
+            {
+                var room = FloorPlan.ForRoom(to);
+                return room.HasValue && room.Value.HallX.HasValue ? room.Value.HallX.Value : float.NaN;
+            }
             if (from == RoomId.Classroom1 && to == RoomId.Hallway) return 7.6f;   // the painted door at the right edge of the room (inside the roaming limit)
             if (from == RoomId.Classroom2 && to == RoomId.Hallway) return 7.6f;
-            // the comfort room: its door is at the hallway's east end, beside the sealed server
-            // door. It is peeked into like the classrooms, and it is not a patrol route.
-            if (from == RoomId.Hallway && to == RoomId.ComfortRoom) return ComfortDoorX;
-            if (from == RoomId.ComfortRoom && to == RoomId.Hallway) return -1.5f;   // the dark wall at the end of the picture
+            if ((from == RoomId.ComfortRoom || from == RoomId.ComfortRoom2) && to == RoomId.Hallway) return 0f;
             return float.NaN;
         }
 

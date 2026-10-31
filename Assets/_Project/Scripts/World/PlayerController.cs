@@ -13,6 +13,9 @@ namespace Hollowbrook.World
         private SpriteRenderer _sr;
         private RoomInstance _room;
         private float _faceDir = 1f;
+
+        /// <summary>1 facing right, -1 facing left. The art is drawn facing right, so left is a flip.</summary>
+        public float Facing => _faceDir;
         private float _stepTimer, _animTimer;
         private int _animStep;   // where we are in the walk cycle
         // The walk cycle: step, stand, other step, stand. The standing pose is also the idle pose.
@@ -81,8 +84,18 @@ namespace Hollowbrook.World
                 _stepTimer = 0f;
             }
             transform.localPosition = p;
+            FaceTheBeam();
             var s = transform.localScale; s.x = _faceDir; transform.localScale = s;
             UpdatePrompt();
+        }
+
+        // A lit flashlight turns the guard to look where it points, even while he backs away.
+        // With it off he simply faces the way he walks. Straight up keeps the side he was on.
+        private void FaceTheBeam()
+        {
+            var rig = _gameRoot.Views.Flashlight;
+            if (rig != null && rig.BeamOn && Mathf.Abs(rig.Dir.x) > 0.05f)
+                _faceDir = rig.Dir.x > 0f ? 1f : -1f;
         }
 
         private void StepAndAnimate(bool running, float dt)
@@ -116,6 +129,12 @@ namespace Hollowbrook.World
 
         // The beam lives in FlashlightRig and world illumination queries live in ViewManager.
 
+        /// <summary>Forget the last prompt, so the guard writes his own on the next frame. The peek
+        /// shares the same prompt line, and what the cursor found there must not stay behind.</summary>
+        public void ResetPrompt() => _lastPrompt = "\0";
+
+        // Hallway interaction goes by the guard's body: the nearest thing he is standing at. The
+        // cursor plays no part here, it only aims the flashlight.
         private void UpdatePrompt()
         {
             string prompt = "";

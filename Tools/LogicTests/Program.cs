@@ -719,12 +719,12 @@ namespace Hollowbrook.LogicTests
                     inp.HoldingDoor = h.Phase == HuntPhase.AtDoor;
                     inp.BeamOnFace = h.Phase == HuntPhase.Behind;
                     if (h.Phase == HuntPhase.Closet)
-                    { inp.Peeking = true; inp.PlayerRoom = RoomId.ComfortRoom; inp.InHallway = false; inp.OnTarget = true; }
+                    { inp.Peeking = true; inp.PlayerRoom = h.Room; inp.InHallway = false; inp.OnTarget = true; }
                     break;
                 case HuntPlayer.Dodger:   // holds for 1 s, lets go for 2 s, again and again
                     inp.HoldingDoor = h.Phase == HuntPhase.AtDoor && (t % 3f) < 1f;
                     if (h.Phase == HuntPhase.Closet)
-                    { inp.Peeking = true; inp.PlayerRoom = RoomId.ComfortRoom; inp.InHallway = false; inp.OnTarget = (t % 3f) < 1f; }
+                    { inp.Peeking = true; inp.PlayerRoom = h.Room; inp.InHallway = false; inp.OnTarget = (t % 3f) < 1f; }
                     break;
                 case HuntPlayer.StepBackSpammer:   // peeks in and out every half second, never holds
                     if ((int)(t * 2f) % 2 == 0)
@@ -838,7 +838,7 @@ namespace Hollowbrook.LogicTests
             for (int i = 0; i < 6000 && off.Phase != HuntPhase.Closet; i++)
                 off.Tick(0.05f, new HuntInput { HoldingDoor = true, BeamOnFace = true, InHallway = true });
             int repelsBefore = off.Repels;
-            for (int i = 0; i < 100; i++) off.Tick(0.05f, new HuntInput { Peeking = true, PlayerRoom = RoomId.ComfortRoom, OnTarget = false });
+            for (int i = 0; i < 100; i++) off.Tick(0.05f, new HuntInput { Peeking = true, PlayerRoom = off.Room, OnTarget = false });
             Check(off.Repels == repelsBefore && off.Hold == 0f, "peeking without the lamp on his head never sends him away");
 
             // his picture: bounded, and harder after every stun
@@ -1795,8 +1795,8 @@ namespace Hollowbrook.LogicTests
                 "the sealed room says what it is (got '" + server.Value.Label.Replace("\n", " / ") + "')");
 
             // the reference drawing's spatial relationships
-            Check(sec.Value.Right <= hall.Value.Left + 0.01f,
-                $"the security checkpoint is on the LEFT (its right edge {sec.Value.Right} <= the hallway's {hall.Value.Left})");
+            Check(sec.Value.Left < hall.Value.Left && sec.Value.Top >= hall.Value.Bottom,
+                "the security checkpoint hangs under the hallway's west end, as on the desk map");
             Check(c1.Value.Bottom <= hall.Value.Top + 0.01f && c2.Value.Bottom <= hall.Value.Top + 0.01f,
                 $"BOTH classrooms are ABOVE the hallway, as the reference plan draws them " +
                 $"({c1.Value.Bottom} / {c2.Value.Bottom} <= {hall.Value.Top})");
@@ -1804,7 +1804,7 @@ namespace Hollowbrook.LogicTests
                 $"Room 101 sits WEST of Room 202 along the north wall ({c1.Value.Right} <= {c2.Value.Left})");
             Check(sec.Value.Top >= hall.Value.Bottom - 0.01f && sec.Value.X < hall.Value.X,
                 $"the security checkpoint hangs BELOW the hallway's west end ({sec.Value.Top} >= {hall.Value.Bottom})");
-            var crN = FloorPlan.ForKey("room_comfort").Value;
+            var crN = FloorPlan.ForKey("room_cr1").Value;
             Check(crN.Left >= hall.Value.Right - 0.01f,
                 "the comfort room hangs off the EAST end, clear of the corridor");
             Check(server.Value.Left >= hall.Value.Right - 0.01f,
@@ -1818,13 +1818,12 @@ namespace Hollowbrook.LogicTests
 
             // comfort rooms: present, labelled, and out of the way
             var comfort = FloorPlan.ComfortRooms();
-            Eq(comfort.Count, 1, "the plan carries one comfort room");
+            Eq(comfort.Count, 2, "the plan carries CR-1 and CR-2, like the desk map");
             foreach (var cr in comfort)
             {
-                Check(cr.Comfort && cr.Room == RoomId.ComfortRoom && !cr.Sealed,
-                      "'" + cr.Key + "' is the comfort room you can walk into, and it is not sealed");
-                Check(cr.Label.ToUpperInvariant().Contains("COMFORT ROOM"),
-                      "'" + cr.Key + "' is labelled as a comfort room");
+                Check(cr.Comfort && (cr.Room == RoomId.ComfortRoom || cr.Room == RoomId.ComfortRoom2) && !cr.Sealed,
+                      "'" + cr.Key + "' is a comfort room you can peek into, and it is not sealed");
+                Check(cr.Label.StartsWith("CR-"), "'" + cr.Key + "' is labelled like the desk map");
                 Check(!cr.Overlaps(hall.Value) && !cr.Overlaps(c1.Value) && !cr.Overlaps(c2.Value) &&
                       !cr.Overlaps(sec.Value) && !cr.Overlaps(server.Value),
                       "'" + cr.Key + "' obstructs nothing - not the hallway, not a room");

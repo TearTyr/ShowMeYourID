@@ -5,22 +5,19 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
-    // The cursor-locked circle of light used ONLY while peeking into a classroom. Created
-    // lazily by ViewManager.EnsurePeekLight (one per session). The trick: the room's darkness
-    // overlay is a SpriteRenderer that draws only OUTSIDE sprite masks, so the SpriteMask on
-    // this object cuts a lit hole wherever the cursor is; the tinted Glow child is the soft
-    // visible lamp on top of that hole. Interaction is cursor-distance based (no raycasts):
-    // an interactable is "under the light" when its anchor point sits within CursorHitRadius
-    // of the cursor's world position.
+    // The lamp used ONLY while peeking into a room. Created lazily by ViewManager.EnsurePeekLight.
     //
-    // The lamp is MANUAL: entering a classroom always starts DARK - the lamp
-    // is OFF until the player presses F, and F presses it out again. Two states, one source
-    // of truth: Active = a peek session is on screen (tracking + prompts + E keep running so
-    // the player is never locked in the dark); Lit = the light itself (mask + glow + the
-    // illumination query all answer to it). Mouse movement never lights anything.
+    // How the dark works: a peek draws a solid black cover over the whole room, and that cover
+    // has one soft round hole in it that follows the cursor. Whatever the room holds is simply
+    // seen through the hole. There is no light sprite and nothing tinted, the room's own art is
+    // what shows. PeekBlind plugs the hole while the lamp is off.
+    //
+    // The lamp is MANUAL: every peek starts dark, F turns it on and off. Active = a peek is on
+    // screen; Lit = the lamp itself. Mouse movement never lights anything. E only ever selects
+    // what the lit lamp is on; S or the bottom band steps back, so a dark room is never a trap.
     public class PeekLight : MonoBehaviour
     {
-        // Light circle size in world units (the mask and the glow share it).
+        // Size of the hole in world units.
         public float Radius = 2.6f;
         // Focus: the same idea as the handheld beam's Focus - a tighter, hotter circle for
         // reading details. Q toggles it; it never lights the lamp by itself and changing it
@@ -30,11 +27,9 @@ namespace Hollowbrook.World
         /// <summary>Is the lamp in its tight, concentrated mode right now?</summary>
         public bool Focused { get; private set; }
 
-        /// <summary>The circle the lamp actually reveals with - the illumination query and the
-        /// mask/glow scale both answer to this, so focus changes REAL light, not a label.</summary>
+        /// <summary>The circle the lamp actually reveals with: the coverage query and the hole's
+        /// size both answer to this.</summary>
         public float EffectiveRadius => Focused ? FocusRadius : Radius;
-        // How close the cursor's world point must be to an interactable anchor to prompt it.
-        public float CursorHitRadius = 1.3f;
 
         /// <summary>A peek session is on screen (fade-in through fade-out).</summary>
         public bool Active { get; private set; }
@@ -44,14 +39,10 @@ namespace Hollowbrook.World
         private GameRoot _gameRoot;
         private Camera _cam;
         private RoomInstance _room;
-        private SpriteMask _mask;
-        private SpriteRenderer _glow;
+        private GameObject _blind;            // plugs the hole while the lamp is off
         private Vector3 _worldPoint;
         private string _lastPrompt = "\0";   // "\0" = nothing published yet this peek
         private float _flickerLeft;           // > 0 while the lamp is dying (administrator hunt)
-
-        /// <summary>The lamp's sprite mask (headless diagnostics check its sorting range).</summary>
-        internal SpriteMask Mask => _mask;
 
         /// <summary>The cursor's point on the room plane (what the lamp is centred on).</summary>
         public Vector3 CursorWorld => _worldPoint;
@@ -59,38 +50,34 @@ namespace Hollowbrook.World
         /// <summary>True while a flicker has the lamp dead.</summary>
         public bool Flickering => _flickerLeft > 0f;
 
-        /// <summary>Builds the mask + glow children once. Starts inactive and unlit.</summary>
+        // How far the black reaches past the hole, in hole diameters. The smallest hole is 2.6
+        // units wide, so this covers the screen wherever the cursor goes.
+        private const float CoverReach = 16f;
+
+        /// <summary>Builds the cover once. Starts inactive and unlit.</summary>
         public void Init(GameRoot root, Camera cam)
         {
             _gameRoot = root;
             _cam = cam;
 
-            var maskGo = new GameObject("PeekMask");
-            maskGo.transform.SetParent(transform, false);
-            _mask = maskGo.AddComponent<SpriteMask>();
-            _mask.sprite = ProceduralArt.Get("lamp_glow");
-            _mask.isCustomRangeActive = true;
-            // The mask only cuts sprites inside its sorting range. The range used to run from 80
-            // down to 60 (front below back), which Unity treats as empty, so the lamp lit a glow
-            // but never opened the black cover. Front and back on the darkness layer itself
-            // cover exactly that one layer, whichever way round Unity reads the pair.
-            _mask.frontSortingOrder = WorldLayers.Darkness;
-            _mask.backSortingOrder = WorldLayers.Darkness;
-            _mask.alphaCutoff = 0.05f;   // soft edge: the hole follows the glow, not a hard disc
-            transform.localScale = Vector3.one * Radius * 2f;
-
-            var glowGo = new GameObject("Glow");
-            glowGo.transform.SetParent(transform, false);
-            _glow = glowGo.AddComponent<SpriteRenderer>();
-            _glow.sprite = ProceduralArt.Get("lamp_glow");
-            _glow.color = new Color(1f, 0.96f, 0.85f, 0.30f);
-            _glow.sortingOrder = 72;        // just above the darkness hole's edge
+            var hole = RoomBuilder.SpriteGO(transform, "PeekHole", ProceduralArt.Get("peek_hole"),
+                Vector3.zero, WorldLayers.PeekCover);
+            hole.transform.localScale = Vector3.one;
+            float side = 0.5f + CoverReach / 2f, tall = 1f + CoverReach * 2f;
+            AddCover("CoverLeft", new Vector3(-side, 0f, 0f), new Vector2(CoverReach, tall));
+            AddCover("CoverRight", new Vector3(side, 0f, 0f), new Vector2(CoverReach, tall));
+            AddCover("CoverTop", new Vector3(0f, side, 0f), new Vector2(1f, CoverReach));
+            AddCover("CoverBottom", new Vector3(0f, -side, 0f), new Vector2(1f, CoverReach));
+            _blind = AddCover("PeekBlind", Vector3.zero, Vector2.one);
 
             Active = false;
             SetLit(false, true);
             ApplyFocusVisual();
             gameObject.SetActive(false);
         }
+
+        private GameObject AddCover(string name, Vector3 pos, Vector2 size) =>
+            RoomBuilder.Quad(transform, name, pos, WorldLayers.PeekCover, size, Color.black);
 
         /// <summary>Begin a peek at the given room: the session goes live, the lamp stays
         /// OFF - arriving in a classroom always means arriving dark, and only a deliberate
@@ -127,6 +114,7 @@ namespace Hollowbrook.World
             SetLit(false, true);
             _room = null;
             _lastPrompt = "\0";
+            if (_gameRoot != null) _gameRoot.Bus.Publish(GameEvent.Of(EventIds.InteractionPrompt, ""));
             gameObject.SetActive(false);
         }
 
@@ -151,34 +139,23 @@ namespace Hollowbrook.World
                     on ? "FLASHLIGHT: FOCUS - a tight circle for details." : "FLASHLIGHT: WIDE - the whole sweep."));
         }
 
-        // Mask and glow are children, so one root scale reshapes the whole lamp; focus also
-        // burns a little hotter (the beam's Focus tint does the same on patrol).
+        // The whole cover is one scaled object: the hole's diameter is the root scale.
         private void ApplyFocusVisual()
         {
             transform.localScale = Vector3.one * EffectiveRadius * 2f;
-            if (_glow != null)
-            {
-                var c = _glow.color;
-                c.a = Focused ? 0.45f : 0.30f;
-                _glow.color = c;
-            }
         }
 
-        // Show or hide the mask + glow without touching the Lit state (used by the flicker).
+        // Open or plug the hole without touching the Lit state (used by the flicker).
         private void ApplyLampVisual(bool visible)
         {
-            if (_mask != null) _mask.gameObject.SetActive(visible);
-            if (_glow != null) _glow.gameObject.SetActive(visible);
+            if (_blind != null) _blind.SetActive(!visible);
         }
 
-        // The lamp's visual + illumination state. Mask and glow live and die together with
-        // the Covers query, so the spotlight, the beam-like glow and the actual
-        // illumination can never disagree. quiet = no toast (entry/exit resets).
+        // The lamp's state. quiet = no toast (entry/exit resets).
         private void SetLit(bool on, bool quiet)
         {
             Lit = on;
-            if (_mask != null) _mask.gameObject.SetActive(on);
-            if (_glow != null) _glow.gameObject.SetActive(on);
+            ApplyLampVisual(on);
             if (_gameRoot == null) return;
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.LightModeChanged, on));   // HUD sync
             if (!quiet)
@@ -249,12 +226,8 @@ namespace Hollowbrook.World
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.InteractionPrompt, prompt));
             }
 
-            if (Input.GetKeyDown(KeyCode.E) && nearest != null)
-            {
-                var door = nearest as Doorway;
-                if (door != null && door.Target == RoomId.Hallway) _gameRoot.ExitRoomPeek();
-                else nearest.Interact();
-            }
+            if (Input.GetKeyDown(KeyCode.E) && nearest != null) nearest.Interact();
+            if (Input.GetKeyDown(KeyCode.S)) _gameRoot.ExitRoomPeek();
         }
 
         // Count the flicker down. Strobing is skipped for photosensitive players (plain dark).
@@ -267,20 +240,21 @@ namespace Hollowbrook.World
             ApplyLampVisual(Lit && ((int)(_flickerLeft / 0.08f) % 2 == 0) && _flickerLeft < 0.45f);
         }
 
-        // Nearest interactable whose anchor point (chest height above the shared floor line)
-        // is within CursorHitRadius of the cursor. Squared distances: no sqrt, no allocations.
+        // What the lit lamp is pointing at: the closest thing whose box holds the cursor. A dark
+        // room has nothing to select, so E only ever works on what the player can see.
         private Interactable FindNearestUnderCursor(Vector3 cursor)
         {
-            if (_room == null) return null;
+            if (_room == null || !Lit || Flickering) return null;
             Interactable nearest = null;
-            float bestSq = CursorHitRadius * CursorHitRadius;
+            float bestSq = float.MaxValue;
             foreach (var it in _room.Interactables)
             {
                 if (it == null || !it.Enabled) continue;
                 float dx = cursor.x - it.AnchorX;
                 float dy = cursor.y - it.AnchorY;
+                if (Mathf.Abs(dx) > it.HitW / 2f || Mathf.Abs(dy) > it.HitH / 2f) continue;
                 float sq = dx * dx + dy * dy;
-                if (sq <= bestSq) { bestSq = sq; nearest = it; }
+                if (sq < bestSq) { bestSq = sq; nearest = it; }
             }
             return nearest;
         }

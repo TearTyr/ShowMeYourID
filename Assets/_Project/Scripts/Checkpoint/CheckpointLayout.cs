@@ -41,7 +41,6 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region Banner = new Region(20, 25, 375, 30);
         public static readonly Region SanityMeter = new Region(470, 22, 349, 38);   // kit pill, concept-measured
         public static readonly Region LightMeter = new Region(348, 96, 200, 40);   // patrol only, under the board
-        public static readonly Region TrackMeter = new Region(568, 96, 110, 40);   // chase only
         public static readonly Region Clock = new Region(1000, 25, 85, 30);
         public static readonly Region Pause = new Region(1119, 22, 125, 38);        // kit pill, concept-measured
 
@@ -169,8 +168,6 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region LightCap = new Region(8, 4, 60, 16);
             public static readonly Region LightTrack = new Region(8, 21, 120, 12);
             public static readonly Region LightState = new Region(134, 8, 62, 24);
-            public static readonly Region TrackCap = new Region(6, 4, 60, 14);
-            public static readonly Region TrackTrack = new Region(6, 20, 108, 12);
 
             // floor-files station (panel-local): caption and the two folder tabs - all
             // centred in the cabinet width so the front reads as one symmetric face

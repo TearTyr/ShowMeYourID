@@ -211,18 +211,18 @@ namespace Hollowbrook.World
             return dir;
         }
 
-        // Cursor aiming in world space: convert the mouse on the camera's z-plane, aim the cone
-        // from the player's shoulder along (aim - origin), rotate sprite, mask AND penumbra
-        // together. The DISPLAYED aim and geometry are damped towards their targets so a held
-        // beam glides instead of flickering/stretching with raw mouse jitter, while the logical
-        // cone test (_params/_dir) stays exact for gameplay. Switching the beam ON bypasses the
-        // damping entirely (see ApplyBeam) - the lamp is lit and aimed on the press itself.
+        // Cursor aiming in world space: the cone points from the player's shoulder at the mouse.
+        // The DISPLAYED aim swings round by angle, so a held beam glides (and can turn right
+        // round), while the logical cone test stays exact for gameplay. Switching the beam ON
+        // skips the swing (see ApplyBeam): the lamp is lit and aimed on the press itself.
         private void AimBeam(float dt)
         {
             if (_cone == null || _cam == null) return;
-            _aimSmooth = Vector3.Lerp(_aimSmooth, AimFromCursor(out _origin, out _dir), AimDamping(dt));
-            if (_aimSmooth.magnitude > 1e-4f) _aimSmooth = _aimSmooth.normalized;
-            else _aimSmooth = _dir;
+            var want = AimFromCursor(out _origin, out _dir);
+            float from = Mathf.Atan2(_aimSmooth.y, _aimSmooth.x) * Mathf.Rad2Deg;
+            float to = Mathf.Atan2(want.y, want.x) * Mathf.Rad2Deg;
+            float angle = (from + Mathf.DeltaAngle(from, to) * AimDamping(dt)) * Mathf.Deg2Rad;
+            _aimSmooth = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f);
             PlaceBeam();
             ScaleBeam(dt);
         }

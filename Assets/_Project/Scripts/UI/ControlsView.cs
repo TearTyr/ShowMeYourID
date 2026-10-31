@@ -46,17 +46,14 @@ namespace Hollowbrook.UI
                 "   start dark too: the flashlight is OFF until you press F (mouse never lights it).\n" +
                 "   A / D  or  ← / →     walk left / right\n" +
                 "   SHIFT                run\n" +
-                "   E                    interact (doors, clues)\n" +
+                "   MOUSE                aim the flashlight - a lit beam turns you to face it\n" +
+                "   E                    interact with what you are standing at (doors, clues)\n" +
                 "   F                    flashlight on / off - sweep beam on patrol, the cursor light on peeks\n" +
                 "   Q                    focus beam (toggle - tight, exposes & repels; on peeks it\n" +
                 "                        tightens the flashlight without turning it on)\n" +
                 "   L                    beam off\n" +
                 "   M                    map (at the security desk only)     ESC   pause\n" +
                 "   The HUD reads the flashlight state (FLASHLIGHT: OFF / SWEEP / FOCUS).\n\n" +
-                "SECURITY ROOM (School scene prototype, mouse)\n" +
-                "   Click the door panel to admit or deny late night students.\n" +
-                "   Click the marked spots to check the rooms for anomalies.\n\n" +
-                "DIALOGUE\n" +
                 "   CLICK / SPACE / ENTER / E     advance\n\n" +
                 "SYSTEM\n" +
                 "   F2 ×3 on the main menu, or OPTIONS → RESET DATA\n" +

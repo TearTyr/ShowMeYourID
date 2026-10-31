@@ -42,16 +42,18 @@ desk), the **rules note** and **tonight's log** (with ID numbers), and the **que
   either ends the run on the last night.
 - The prompt line at the top always names the next step.
 
-**Patrol (A/D or arrows, Shift run, E interact):** the corridor is one painted image, always dark.
-Every room is entered **dark** and the handheld **flashlight** is the only light: `F` sweep on/off,
-`Q` focus, `L` off. Classroom 1, Classroom 2 and the comfort room (the east door, beside the sealed
-server door) are all inspected by **peeking** from the doorway with a cursor lamp (`F` on/off, `Q`
-wide/tight); the exit is the bottom edge or `E` on the doorway. Besides the clues there are things
-to inspect: the patrol clipboard, a dead switch, the lockers, and the bathroom's mirror, sinks and
-stalls. The beam runs on a battery. Holding Focus on a roaming anomaly fills TRACK: roaming ->
-stalking -> detected -> exposed -> repelled (it retreats and drops a token, and may return). Tokens
-are banked between runs; 3 open Endless and Challenge on the main menu. Ten clues across three
-rooms, found in order, open the secret ending.
+**Patrol (A/D or arrows, Shift run, E interact):** the mouse only aims the flashlight, it selects
+nothing. Doors and items go by where the guard stands. The corridor is one painted image, always dark, and **no anomalies roam the school**: they only come to the
+security window. The doors follow the desk map: Security, Room 101, Room 202, CR-1, the sealed server
+room, CR-2 (FloorPlan.cs draws the hallway and both maps). The **flashlight** points at the cursor
+(`F` sweep on/off, `Q` focus, `L` off). While it is lit it turns the guard to face it; while it is off
+he faces the way he walks. Every room is a
+**peek** from its door: a black cover with a hole that follows the mouse shows the room behind it
+(`F` on/off, `Q` wide/tight). `E` selects what the lit lamp is on, nothing else; `S` or the bottom
+edge steps back. Besides the clues there are things to inspect: the patrol clipboard, a dead switch,
+the lockers, and each CR's mirror, sinks and stalls. One token lies in the hallway on each of nights
+1 to 4; tokens are banked between runs and 3 open Endless and Challenge on the main menu. Ten clues,
+found in order, open the secret ending.
 
 **Night 5 - the administrator:** no students and no roaming anomalies, only him, with a staff badge
 and a roster memo that do not match. The four student questions are gone. `T` opens the
@@ -60,10 +62,10 @@ Each answer has a follow-up that catches him out, and every **lie exposed** take
 night (it can never be shorter than 120 seconds). Talking never stamps. **REFUSE ENTRY** = the DENY
 stamp. Allowing him in loses at once.
 
-**The hunt (after the DENY):** like Nightmare Fredbear's night in FNaF 4. He forces the gate and
-walks the halls; footsteps tell you he is moving. When they stop he is at one of three places: **a
-classroom door** (stand there and hold `E` for 2 s within 10 s), **the comfort room** (peek in and
-hold the lamp on his head within 12 s), or **right behind you** (flash his face within 2.6 s). Too
+**The hunt (after the DENY):** he says he'll be back and leaves the window. Then it plays like
+Nightmare Fredbear's night in FNaF 4, with captions instead of audio: he walks the halls. When they stop he is at one of three places: **a
+classroom door** (stand there and hold `E` for 2 s within 10 s), **CR-1 or CR-2** (peek in and
+hold the lamp on his head within 12 s), or **right behind you** (aim at him and flash his face within 2.6 s). Too
 slow and he catches you: sanity drops and you are thrown back. **3 catches** = he reaches the server
 door (lose). Survive **210 s** to dawn (normal Win/Secret ending). The security door is locked and
 every phase has a time limit, so it cannot get stuck. Quit + CONTINUE restarts the hunt.

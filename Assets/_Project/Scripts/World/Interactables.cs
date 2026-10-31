@@ -16,6 +16,8 @@ namespace Hollowbrook.World
         // Where the peek lamp has to point to find this (world y). Most things sit at chest height;
         // the classroom art has its own heights (chalkboard high, desk low).
         public float AnchorY = RoomInstance.FloorY + 1.4f;
+        // In a peek the lamp's centre must be inside this box around the anchor (world units).
+        public float HitW = 2.6f, HitH = 2.6f;
         public bool Enabled = true;
         public SpriteRenderer Art;
 
@@ -37,11 +39,12 @@ namespace Hollowbrook.World
         {
             if (_gameRoot == null || _gameRoot.Session == null) return;
             _gameRoot.Session.TokensCollected++;
+            _gameRoot.Session.TokenNight = _gameRoot.Session.CurrentShift;
             _gameRoot.Records.TokensBanked++;   // spent on the main menu: see MainMenuView
             if (Room != null) Room.Interactables.Remove(this);
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.TokenCollected, _gameRoot.Session.TokensCollected));
             _gameRoot.Audio.PlaySfx("sfx_scan_ok", 0.6f);
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*you pocket the token - evidence*", 2.4f, null));
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*you pocket a token*", 2.4f, null));
             _gameRoot.PersistRun();   // a token is kept even if the run is abandoned
             Destroy(gameObject);
         }
@@ -166,7 +169,7 @@ namespace Hollowbrook.World
             _discovered = true;
             // same flat-quad convention as every other world placeholder (size in units)
             _marker = RoomBuilder.Quad(Room.Root.transform, "found_marker",
-                new Vector3(AnchorX, -1.35f, 0), 76,
+                new Vector3(AnchorX, -1.35f, 0), 60,
                 new Vector2(0.14f, 0.14f),
                 new Color(0.75f, 0.14f, 0.18f, 0.9f)); // restrained red = interacted/interactive
         }

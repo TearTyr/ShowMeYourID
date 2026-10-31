@@ -94,29 +94,18 @@ namespace Hollowbrook.Checkpoint
                 UIFactory.NsInk, TextAnchor.MiddleLeft);
             L.Place(mf.rectTransform, new L.Region(14, 42, 90, 14));
             mf.font = UIFactory.UiFont;
-            // hand-drawn room boxes (map-local): the reference plan's composition in
-            // miniature - both classrooms along the north wall, the hall between them and
-            // the security room, the checkpoint south-west, the comfort rooms north and
-            // south of the sealed server room at the east end. Same rooms, same order as
-            // the full plan, so the two can never disagree.
-            float[][] boxes =
+            // the plan in miniature: one table (FloorPlan) draws this, the full plan and the hallway
+            for (int i = 0; i < FloorPlan.Rooms.Length; i++)
             {
-                new float[] { 66, 56, 58, 28 },   new float[] { 132, 56, 58, 28 },
-                new float[] { 52, 92, 138, 20 },  new float[] { 18, 118, 50, 24 },
-                new float[] { 214, 56, 40, 20 },  new float[] { 214, 118, 40, 20 },
-                new float[] { 214, 84, 52, 26 },
-            };
-            string[] tags = { "ROOM 101", "ROOM 202", "MAIN HALL", "SECURITY",
-                              "CR-1", "CR-2", "SERVER - SEALED" };
-            for (int i = 0; i < boxes.Length; i++)
-            {
-                bool sealedRoom = i == boxes.Length - 1;
+                var def = FloorPlan.Rooms[i];
+                float bx, by, bw, bh;
+                FloorPlan.MiniBox(def, out bx, out by, out bw, out bh);
                 var box = UIFactory.Img(_mapBtn.transform, "mbox" + i,
-                    ProceduralArt.Get(sealedRoom ? "map_sealed" : "map_room"), Color.white);
+                    ProceduralArt.Get(def.Sealed ? "map_sealed" : "map_room"), Color.white);
                 box.raycastTarget = false;
-                L.Place(box.rectTransform, new L.Region(boxes[i][0], boxes[i][1], boxes[i][2], boxes[i][3]));
-                var bl = UIFactory.Label(box.rectTransform, "t", tags[i], 8,
-                    sealedRoom ? new Color(0.80f, 0.32f, 0.33f) : UIFactory.NsInk,
+                L.Place(box.rectTransform, new L.Region(bx, by, bw, bh));
+                var bl = UIFactory.Label(box.rectTransform, "t", def.MiniLabel, 8,
+                    def.Sealed ? new Color(0.80f, 0.32f, 0.33f) : UIFactory.NsInk,
                     TextAnchor.MiddleCenter);
                 UIFactory.AnchorsFull(bl.rectTransform);
                 bl.font = UIFactory.UiFont;
@@ -407,12 +396,14 @@ namespace Hollowbrook.Checkpoint
 
             if (resolved.IsAdministrator && _gameRoot.Session.AdminRejected)
             {
-                // he does not leave: the line is sent home and he forces the gate (the hunt)
+                // he says he will be back, then leaves the window; the hunt follows
                 if (Queue != null) Queue.AbandonLine();
-                _current = null;
-                SetVisitorVisible(false);
-                RefreshHud();
-                _gameRoot.BeginAdminHunt();
+                _gameRoot.BeginAdminHunt(() =>
+                {
+                    _current = null;
+                    SetVisitorVisible(false);
+                    RefreshHud();
+                });
                 yield break;
             }
 
