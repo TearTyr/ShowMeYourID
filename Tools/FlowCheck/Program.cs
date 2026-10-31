@@ -1547,10 +1547,9 @@ namespace FlowCheck
             var c2Node = map.RoomNode("room_classroom2");
             var secNode = map.RoomNode("room_security");
             var serverNode = map.RoomNode("room_server");
-            var crNorth = map.RoomNode("room_comfort_north");
-            var crSouth = map.RoomNode("room_comfort_south");
+            var crNorth = map.RoomNode("room_comfort");
             Check(hallNode != null && c1Node != null && c2Node != null && secNode != null &&
-                  serverNode != null && crNorth != null && crSouth != null,
+                  serverNode != null && crNorth != null,
                 "MAP: every room has its own node (label and hit area can never drift apart)");
             Check(secNode.GetComponent<RectTransform>().anchoredPosition.x <
                   hallNode.GetComponent<RectTransform>().anchoredPosition.x,
@@ -1574,10 +1573,9 @@ namespace FlowCheck
             Check(secY < hallY - 40f && secX < hallX,
                 $"MAP: the checkpoint hangs BELOW the hallway's west end ({secX:F0},{secY:F0})");
             float crNY = crNorth.GetComponent<RectTransform>().anchoredPosition.y;
-            float crSY = crSouth.GetComponent<RectTransform>().anchoredPosition.y;
             float crNX = crNorth.GetComponent<RectTransform>().anchoredPosition.x;
-            Check(crNY > hallY + 20f && crSY < hallY - 20f && crNX > hallX,
-                "MAP: the comfort rooms hang off the east end, north and south of the sealed room");
+            Check(crNY > hallY + 20f && crNX > hallX,
+                "MAP: the comfort room hangs off the east end, north of the sealed room");
             Check(serverNode.GetComponent<RectTransform>().anchoredPosition.x >
                   hallNode.GetComponent<RectTransform>().anchoredPosition.x,
                 "MAP: the server / identification room is on the RIGHT");
@@ -1589,17 +1587,14 @@ namespace FlowCheck
                   c2Node.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("CLASSROOM 2") &&
                   c2Node.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("Room 202"),
                 "MAP: the classrooms keep their room numbers (101 west, 202 east, both north)");
-            Check(crNorth.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("COMFORT ROOM") &&
-                  crSouth.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("COMFORT ROOM"),
-                "MAP: both comfort rooms are labelled on the plan");
-            Check(FloorPlan.ComfortRooms().Count == 2, "MAP: the comfort rooms live in the plan's data, not just its ink");
-            var crN = FloorPlan.ForKey("room_comfort_north").Value;
-            var crS = FloorPlan.ForKey("room_comfort_south").Value;
-            Check(!crN.Overlaps(hall.Value) && !crS.Overlaps(hall.Value) &&
-                  !crN.Overlaps(c1.Value) && !crS.Overlaps(c2.Value),
-                "MAP: the comfort rooms obstruct neither the hallway nor the classrooms");
-            Check(!crN.Room.HasValue && !crS.Room.HasValue && !crN.Sealed && !crS.Sealed,
-                "MAP: the comfort rooms are map-only - they are not patrol destinations");
+            Check(crNorth.Find("label").GetComponent<UnityEngine.UI.Text>().text.Contains("COMFORT ROOM"),
+                "MAP: the comfort room is labelled on the plan");
+            Check(FloorPlan.ComfortRooms().Count == 1, "MAP: the comfort room lives in the plan's data, not just its ink");
+            var crN = FloorPlan.ForKey("room_comfort").Value;
+            Check(!crN.Overlaps(hall.Value) && !crN.Overlaps(c1.Value) && !crN.Overlaps(c2.Value),
+                "MAP: the comfort room obstructs neither the hallway nor the classrooms");
+            Check(crN.Room == RoomId.ComfortRoom && !crN.Sealed,
+                "MAP: the comfort room is a real room (it has a door you can walk through), not sealed");
 
             // every drawn room sits inside the drawn plan, at its design-space size, and at the
             // position the table asks for - the check that catches a mirrored or hand-nudged plan
@@ -1655,9 +1650,8 @@ namespace FlowCheck
             }
             Check(!anyClickable,
                 "MAP: no room - patrol, comfort or sealed - has a button, a raycast or a hover cursor");
-            Check(crNorth.GetComponent<UnityEngine.UI.Button>() == null &&
-                  crSouth.GetComponent<UnityEngine.UI.Button>() == null,
-                "MAP: the comfort rooms are drawn on the plan but take no click either");
+            Check(crNorth.GetComponent<UnityEngine.UI.Button>() == null,
+                "MAP: the comfort room is drawn on the plan but takes no click either");
 
             // ---- you-are-here + the findings dots ----
             var here = FindDeep(plan, "here");
@@ -2578,7 +2572,7 @@ namespace FlowCheck
                 var d = it as Doorway;
                 if (d != null && d.Art != null) { doors++; if (QuadH(d.Art) < 3f) doorsFullHeight = false; }
             }
-            Check(doors == 3 && doorsFullHeight,
+            Check(doors == 4 && doorsFullHeight,
                   "P: all " + doors + " hallway doors draw as full-height slabs at their anchors");
             Check(FindDeep(hall.Root.transform, "lightswitch") == null,
                   "P: the hallway has no wall switch plate any more");
@@ -2715,6 +2709,24 @@ namespace FlowCheck
                 "W2: ...and every further entry starts dark again");
             if (!hall.Light.Lit) hall.Light.SetLit(true);   // later sections (battery) play lit
             Check(hall.Light.Lit, "W2: the hallway is relit for the battery proofs");
+
+            // ---- the comfort room: a door in the hallway's east end, E to go in, dimmed a lot ----
+            {
+                Doorway crDoor = null, crBack = null;
+                foreach (var it in hall.Interactables) { var d = it as Doorway; if (d != null && d.Target == RoomId.ComfortRoom) crDoor = d; }
+                Check(crDoor != null && crDoor.AnchorX > 7f && crDoor.AnchorX <= hall.HalfWidth - 0.6f,
+                      "CR: the hallway has a comfort room door the player can actually walk to (x " + (crDoor != null ? crDoor.AnchorX.ToString("F1") : "none") + ")");
+                Check(crDoor != null && crDoor.Prompt == "Enter Comfort Room [E]", "CR: the door says what it is");
+                crDoor.Interact();
+                Check(views.Current.Id == RoomId.ComfortRoom && !views.Transitioning, "CR: E at the door walks into the comfort room");
+                Check(views.Current.Darkness.color.a >= 0.85f && !views.Current.Light.Lit,
+                      "CR: the comfort room is dimmed a lot (alpha " + views.Current.Darkness.color.a.ToString("F2") + ")");
+                foreach (var it in views.Current.Interactables) { var d = it as Doorway; if (d != null && d.Target == RoomId.Hallway) crBack = d; }
+                Check(crBack != null, "CR: the comfort room has a door back to the hallway");
+                crBack.Interact();
+                Check(views.Current.Id == RoomId.Hallway && !views.Transitioning, "CR: the same door leads back out to the hallway");
+                if (!hall.Light.Lit) hall.Light.SetLit(true);
+            }
 
             // ---- W2b: limited hallway visibility - deeper ambient + a pool around the player
             Console.WriteLine("== W2b hallway limited visibility (dark corridor, manual beam) ==");

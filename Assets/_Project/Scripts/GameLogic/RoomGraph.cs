@@ -6,6 +6,10 @@ namespace Hollowbrook.Logic
     /// never teleport between rooms.</summary>
     public static class RoomGraph
     {
+        /// <summary>Where the comfort room's door stands in the hallway (the east end, in front of
+        /// the sealed server door at x = 10.4).</summary>
+        public const float ComfortDoorX = 8.6f;
+
         public static readonly RoomId[] Roamable = { RoomId.Hallway, RoomId.Classroom1, RoomId.Classroom2 };
 
         public static bool IsRoamable(RoomId r) =>
@@ -20,6 +24,10 @@ namespace Hollowbrook.Logic
             if (from == RoomId.Hallway && to == RoomId.Classroom2) return 4.6f;
             if (from == RoomId.Classroom1 && to == RoomId.Hallway) return 4.9f;
             if (from == RoomId.Classroom2 && to == RoomId.Hallway) return 4.9f;
+            // the comfort room: its door is at the hallway's east end, beside the sealed server
+            // door. It is a place to walk into, not a patrol route, so roamers never use it.
+            if (from == RoomId.Hallway && to == RoomId.ComfortRoom) return ComfortDoorX;
+            if (from == RoomId.ComfortRoom && to == RoomId.Hallway) return -6.0f;
             return float.NaN;
         }
 

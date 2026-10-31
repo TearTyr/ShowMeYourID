@@ -64,6 +64,9 @@ namespace Hollowbrook.World
             return go;
         }
 
+        // The comfort room is dimmed far more than the other rooms: only the flashlight shows anything.
+        private const float ComfortRoomDarkAlpha = 0.9f;
+
         public RoomInstance BuildRoom(RoomId id)
         {
             var room = new RoomInstance { Id = id };
@@ -72,6 +75,7 @@ namespace Hollowbrook.World
             room.Root = root;
 
             float floorY = RoomInstance.FloorY; // one shared floor line constant
+            float darkAlpha = LightController.DarkAlpha;   // ambient darkness; the comfort room sets its own
             switch (id)
             {
                 case RoomId.Hallway:
@@ -82,6 +86,7 @@ namespace Hollowbrook.World
                     AddDoor(room, "Security Door", -10.6f, floorY, RoomId.Security, "prop_door_security");
                     AddDoor(room, "Classroom 1", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), floorY, RoomId.Classroom1, "prop_door");
                     AddDoor(room, "Classroom 2", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), floorY, RoomId.Classroom2, "prop_door");
+                    AddDoor(room, "Comfort Room", RoomGraph.ComfortDoorX, floorY, RoomId.ComfortRoom, "prop_door");
                     var serverSprite = ProceduralArt.Get("prop_server_door");
                     float serverH = serverSprite.rect.height / Mathf.Max(1f, serverSprite.pixelsPerUnit);
                     SpriteGO(root.transform, "server_door_art", serverSprite,
@@ -114,6 +119,19 @@ namespace Hollowbrook.World
                     room.AnomalySpawnPoints.Add(new Vector3(1.5f, 0, 0));
                     break;
                 }
+                case RoomId.ComfortRoom:
+                {
+                    room.DisplayName = "COMFORT ROOM";
+                    room.HalfWidth = 8.2f;
+                    var backdrop = ProceduralArt.Get("bg_comfort_room");
+                    if (backdrop != null && backdrop.rect.width > 8f)
+                        SpriteGO(root.transform, "bg_comfort_room", backdrop, Vector3.zero, 0);
+                    else PlaceholderBg(root.transform, floorY);
+                    AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.ComfortRoom, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door");
+                    room.PlayerSpawn = new Vector3(-4.9f, 0, 0);
+                    darkAlpha = ComfortRoomDarkAlpha;   // dimmed a lot: only the flashlight shows anything
+                    break;
+                }
                 default: // Classroom2 - the server room adjoins it (every room now starts dark)
                 {
                     room.DisplayName = "CLASSROOM 2";
@@ -142,7 +160,6 @@ namespace Hollowbrook.World
             // under the darkness quad and INSIDE the beam mask's sorting range so the handheld
             // beam cuts through both. Classrooms keep the single uniform layer they always had.
             SpriteRenderer depth = null;
-            float darkAlpha = LightController.DarkAlpha;
             float depthAlpha = HallwayDarkness.DepthAlpha;
             if (id == RoomId.Hallway)
             {

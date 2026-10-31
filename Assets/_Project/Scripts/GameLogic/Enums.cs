@@ -15,7 +15,7 @@ namespace Hollowbrook.Logic
 
     public enum AnomalyBehaviorKind { Blink, Slide, Sprint, CoverHug }
 
-    public enum RoomId { Security, Hallway, Classroom1, Classroom2 }
+    public enum RoomId { Security, Hallway, Classroom1, Classroom2, ComfortRoom }
 
     public enum DefectType
     {

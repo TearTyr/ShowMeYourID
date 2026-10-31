@@ -21,7 +21,7 @@ wait; completion only when source dry + line empty + window free. `GameRoot` own
 survives scene reloads - patrol pauses the clock (the desk view, the only ticker, is destroyed) and
 snapshots (waiting line, cursor, timer, asked flag) ride in the save. Anomaly arrivals can vanish
 one legitimate student (seeded roll, once per shift, line-first, permanent). Patrol is a
-side-scroller: ViewManager owns rooms, transitions and the combined illumination queries
+side-scroller: ViewManager owns rooms (hallway, two peek-only classrooms, the walkable comfort room), transitions and the combined illumination queries
 (BeamCovers / IsFocusLit / RoomLit); each room's LightController owns ONLY ambient light (wall
 switch + flicker); FlashlightRig owns ONLY the handheld beam (pure `BeamGeometry` cone,
 `FlashlightInput` arbitration, `BatteryModel`); RoomSpawner owns the single live-threat slot,

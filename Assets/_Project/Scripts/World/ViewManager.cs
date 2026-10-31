@@ -76,6 +76,7 @@ namespace Hollowbrook.World
             _rooms[RoomId.Hallway] = _builder.BuildRoom(RoomId.Hallway);
             _rooms[RoomId.Classroom1] = _builder.BuildRoom(RoomId.Classroom1);
             _rooms[RoomId.Classroom2] = _builder.BuildRoom(RoomId.Classroom2);
+            _rooms[RoomId.ComfortRoom] = _builder.BuildRoom(RoomId.ComfortRoom);
         }
 
         private void BuildPlayer()

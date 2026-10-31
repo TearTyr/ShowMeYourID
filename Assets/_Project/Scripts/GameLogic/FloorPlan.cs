@@ -16,13 +16,13 @@ namespace Hollowbrook.Logic
         /// <summary>Centre in the floor plan's own design space (see FloorPlan.DesignW/H).</summary>
         public float X, Y;
         public float W, H;
-        /// <summary>The patrol room this square represents. Comfort rooms are map-only and
-        /// carry null: they are on the plan, they are not part of the patrol graph.</summary>
+        /// <summary>The patrol room this square represents. The sealed server room carries null:
+        /// it is on the plan but there is nothing to walk into.</summary>
         public RoomId? Room;
         /// <summary>The sealed server / identification room: restricted styling, never
         /// clickable - its locked behaviour is intentional (ClueRegistry "door").</summary>
         public bool Sealed;
-        /// <summary>Comfort room (CR): labelled on the plan, no patrol mechanics.</summary>
+        /// <summary>Comfort room (CR): a room you can walk into (press E at its door in the hallway).</summary>
         public bool Comfort;
         /// <summary>Where the door to the hallway is drawn, in design space. Null = no door
         /// drawn (the sealed room's is drawn as a barred plate instead).</summary>
@@ -43,8 +43,7 @@ namespace Hollowbrook.Logic
     /// layout, rebuilt to match the owner's hand-drawn reference plan: one long central
     /// hallway; BOTH classrooms (101 west of 202) along its north wall; the security
     /// checkpoint at the south-west, under the hallway's west end; the sealed server /
-    /// identification room capping the east end with the two comfort rooms north and south
-    /// of it; and the reference's stair hatch ("2ND FLOOR??") under the corridor's
+    /// identification room capping the east end with the comfort room north of it; and the reference's stair hatch ("2ND FLOOR??") under the corridor's
     /// east-centre long wall.
     ///
     /// Everything is expressed in a fixed DESIGN SPACE with the origin at the sheet's centre,
@@ -97,17 +96,11 @@ namespace Hollowbrook.Logic
             },
             new FloorRoom
             {
-                // the comfort rooms hang off the east end north and south of the sealed
-                // room (the reference's small north room), off a short chalk return
-                Key = "room_comfort_north", Label = "COMFORT ROOM\nCR-1",
-                X = 390f, Y = -115f, W = 150f, H = 70f, Room = null, Comfort = true,
+                // the comfort room hangs off the east end north of the sealed room, off a short
+                // chalk return. Its door opens onto the hallway's east end (press E to go in)
+                Key = "room_comfort", Label = "COMFORT ROOM\nCR",
+                X = 390f, Y = -115f, W = 150f, H = 70f, Room = RoomId.ComfortRoom, Comfort = true,
                 DoorX = 315f, DoorY = -115f,   // on the room's own west wall (X - W/2 = 315)
-            },
-            new FloorRoom
-            {
-                Key = "room_comfort_south", Label = "COMFORT ROOM\nCR-2",
-                X = 390f, Y = 115f, W = 150f, H = 70f, Room = null, Comfort = true,
-                DoorX = 315f, DoorY = 115f,    // on the room's own west wall
             },
         };
 
@@ -123,10 +116,8 @@ namespace Hollowbrook.Logic
             new[] { -160f, -55f, -160f, -35f },  // classroom 1 door -> hallway north wall
             new[] { 70f, -55f, 70f, -35f },      // classroom 2 door -> hallway north wall
             new[] { 310f, 0f, 315f, 0f },        // hallway east end -> the sealed plate
-            new[] { 315f, -115f, 300f, -115f },  // CR-1 door -> the return
+            new[] { 315f, -115f, 300f, -115f },  // CR door -> the return
             new[] { 300f, -115f, 300f, -35f },   // return -> hallway north wall
-            new[] { 315f, 115f, 300f, 115f },    // CR-2 door -> the return
-            new[] { 300f, 115f, 300f, 35f },     // return -> hallway south wall
         };
 
         /// <summary>The reference's stair hatch: short chalk ticks under the corridor's

@@ -42,6 +42,8 @@ namespace Hollowbrook.Bootstrap
                 // the guard's frames are 452 px tall and the old drawn guard stood 3.5 world units
                 // high, so 129 px per unit keeps him the same size
                 { "char_guard_idle", 129f }, { "char_guard_walk_a", 129f }, { "char_guard_walk_b", 129f },
+                // the 1920 x 1080 bathroom backdrop covers a room 17.1 units wide
+                { "bg_comfort_room", 112f },
             };
 
         /// <summary>True when a real file (or a cached sprite) exists for the key - callers that

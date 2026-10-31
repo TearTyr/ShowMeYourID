@@ -1781,10 +1781,9 @@ namespace Hollowbrook.LogicTests
                 $"Room 101 sits WEST of Room 202 along the north wall ({c1.Value.Right} <= {c2.Value.Left})");
             Check(sec.Value.Top >= hall.Value.Bottom - 0.01f && sec.Value.X < hall.Value.X,
                 $"the security checkpoint hangs BELOW the hallway's west end ({sec.Value.Top} >= {hall.Value.Bottom})");
-            var crN = FloorPlan.ForKey("room_comfort_north").Value;
-            var crS = FloorPlan.ForKey("room_comfort_south").Value;
-            Check(crN.Left >= hall.Value.Right - 0.01f && crS.Left >= hall.Value.Right - 0.01f,
-                "the comfort rooms hang off the EAST end, clear of the corridor");
+            var crN = FloorPlan.ForKey("room_comfort").Value;
+            Check(crN.Left >= hall.Value.Right - 0.01f,
+                "the comfort room hangs off the EAST end, clear of the corridor");
             Check(server.Value.Left >= hall.Value.Right - 0.01f,
                 $"the sealed room is on the RIGHT ({server.Value.Left} >= {hall.Value.Right})");
             Check(hall.Value.W > 2.5f * Math.Max(hall.Value.H, 1f) &&
@@ -1796,11 +1795,11 @@ namespace Hollowbrook.LogicTests
 
             // comfort rooms: present, labelled, and out of the way
             var comfort = FloorPlan.ComfortRooms();
-            Eq(comfort.Count, 2, "the plan carries two comfort rooms");
+            Eq(comfort.Count, 1, "the plan carries one comfort room");
             foreach (var cr in comfort)
             {
-                Check(cr.Comfort && !cr.Room.HasValue && !cr.Sealed,
-                      "'" + cr.Key + "' is a comfort room, not a patrol room and not sealed");
+                Check(cr.Comfort && cr.Room == RoomId.ComfortRoom && !cr.Sealed,
+                      "'" + cr.Key + "' is the comfort room you can walk into, and it is not sealed");
                 Check(cr.Label.ToUpperInvariant().Contains("COMFORT ROOM"),
                       "'" + cr.Key + "' is labelled as a comfort room");
                 Check(!cr.Overlaps(hall.Value) && !cr.Overlaps(c1.Value) && !cr.Overlaps(c2.Value) &&
