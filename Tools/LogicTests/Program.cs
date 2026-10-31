@@ -45,6 +45,7 @@ namespace Hollowbrook.LogicTests
             AdministratorTests();
             ClassroomQuestionTests();
             InterviewRuleTests();
+            CreditsTests();
             AdminHuntTests();
             HuntEndingTests();
             InspectionRulesTests();
@@ -588,6 +589,30 @@ namespace Hollowbrook.LogicTests
                 case QuestionId.Status: return InterviewRules.StatusSpeech(v.IdIsTransferee);
                 default: return v.ClassroomAnswer;
             }
+        }
+
+        private static void CreditsTests()
+        {
+            Group("Credits - every role has people, and the text is clean");
+            bool filled = CreditsData.Team.Length > 0;
+            foreach (var sec in CreditsData.Team)
+            {
+                filled &= !string.IsNullOrWhiteSpace(sec.Role) && sec.People != null && sec.People.Length > 0;
+                if (sec.People != null)
+                    foreach (var person in sec.People) filled &= !string.IsNullOrWhiteSpace(person);
+            }
+            Check(filled, "every credit has a role and at least one name");
+            string text = CreditsData.Build();
+            bool allThere = true;
+            foreach (var sec in CreditsData.Team)
+            {
+                allThere &= text.Contains(sec.Role);
+                foreach (var person in sec.People) allThere &= text.Contains(person);
+            }
+            Check(allThere, "the built credits text lists every role and every name");
+            Check(!text.Contains((char)0x2014) && !text.Contains("procedurally"),
+                  "the credits have no em dash and no stale 'generated at runtime' note");
+            Check(text.Contains("Unity") && text.Contains("Bahnschrift"), "the credits thank the engine and the fonts");
         }
 
         private static void InterviewRuleTests()

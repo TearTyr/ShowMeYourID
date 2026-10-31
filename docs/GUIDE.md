@@ -50,6 +50,7 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | Sanity drain and recovery | `GameLogic/ShiftPlan.cs` > `SanityModel` |
 | Win and lose rules | `GameLogic/EndingRules.cs` |
 | Replace art or sound | drop a file in `Resources/Art/<key>.png` or `Resources/Audio/<key>.wav`; names in `docs/ASSET-MANIFEST.md` |
+| Change the credits | `GameLogic/CreditsData.cs` (roles and names) |
 | Add a clue | `GameLogic/ClueRegistry.cs` + an interactable in `World/RoomBuilder.cs` (search `ClueObject`) |
 
 ## After you change something

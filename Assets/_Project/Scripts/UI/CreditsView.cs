@@ -10,7 +10,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    // Static credits sheet. Created by MenuSceneBootstrap.
+    // Credits sheet. The text comes from CreditsData. Created by MenuSceneBootstrap.
     public class CreditsView : MonoBehaviour, IScreenView
     {
         private GameRoot _gameRoot;
@@ -18,19 +18,10 @@ namespace Hollowbrook.UI
         public void Init(GameRoot root)
         {
             _gameRoot = root;
-            var sheet = UIFactory.LeftSheet(transform, "CREDITS", "A Twin Studio game.", out _);
+            var sheet = UIFactory.LeftSheet(transform, "CREDITS", "A " + CreditsData.Studio + " game.", out _);
 
-            string body =
-                "Project Director · Narrative - Jessie Mariel De Mesa\n" +
-                "Project Assistants - Elijah Japeth Ramos · Clarence Manalo\n" +
-                "Programming - Elijah Japeth Ramos · John Perilla\n" +
-                "Art - Daniel Steven Solitaria · Jessie Mariel De Mesa\n" +
-                "Audio - Clarence Manalo\n" +
-                "Marketing & Branding - Diosdado Fabelico II · Daniella Garing\n" +
-                "Storyboard - All members\n\n" +
-                "This build generates all art and audio procedurally at runtime\n" +
-                "(monochrome silhouettes, documents, and an E♭-minor score).\n" +
-                "Drop real assets into Resources/Art and Resources/Audio to replace any of them.";
+            // the names and roles live in GameLogic/CreditsData.cs
+            string body = CreditsData.Build();
             var txt = UIFactory.Label(sheet, "body", body, 16, UIFactory.InkDim, TextAnchor.UpperLeft);
             UIFactory.Anchor(txt.rectTransform, new Vector2(0f, 1f), new Vector2(560, 430), new Vector2(320, -360));
 
