@@ -33,6 +33,16 @@ Tools/**/obj/
 # Generated visual-check output (Tools/Preview/render_map_preview.py, FlowCheck --dump-drawer)
 /preview/
 
+# Old art kit, replaced by "Art/UI and Design Assets" (it stays in git history)
+/Art/Old/
+
+# Python tool leftovers
+__pycache__/
+*.pyc
+
+# Claude Code local files
+/.claude/
+
 # OS
 .DS_Store
 Thumbs.db
