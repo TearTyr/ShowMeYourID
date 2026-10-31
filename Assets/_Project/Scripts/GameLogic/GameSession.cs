@@ -48,6 +48,9 @@ namespace Hollowbrook.Logic
         public int VisitorIndexAtSave = 0;   // where a mid-shift continue resumes      // fully-tracked anomalies (master prompt §3)
         public bool AdminAllowed = false;
         public bool AdminRejected = false;
+        // After the DENY stamp the administrator hunts through the school (see AdminHunt).
+        // Won = he was driven off; Lost = he reached the server door.
+        public HuntState Hunt = HuntState.None;
         // The Shift-5 conversation: where it stands, which one-shots were spent, the tactic
         // counters. Encoded into the save as one invariant string (see SaveFormat "adminTalk").
         // It carries no mechanical power — no clues, no budget, no verdict — so resuming it
@@ -244,7 +247,8 @@ namespace Hollowbrook.Logic
 
 
         public bool LoseThresholdReached =>
-            AdminAllowed || Breaches >= EndingRules.LoseThreshold || FalseRejections >= EndingRules.LoseThreshold;
+            AdminAllowed || Hunt == HuntState.Lost || Breaches >= EndingRules.LoseThreshold ||
+            FalseRejections >= EndingRules.LoseThreshold;
     }
 
     [Serializable]

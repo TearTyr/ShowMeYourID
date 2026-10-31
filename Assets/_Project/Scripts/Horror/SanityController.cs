@@ -76,7 +76,7 @@ namespace Hollowbrook.Horror
                 var light = _gameRoot.Views.Current.Light;
                 // sanity reads the room's REAL ambient state; the handheld beam does not
                 // substitute for room light here (separation of concerns).
-                if (light != null && !light.Lit)
+                if (light != null && !light.Lit && !_gameRoot.HuntActive)   // the hunt has its own clock
                     session.ApplySanity(-SanityModel.DarknessDrainPerSecond * dt);
             }
 

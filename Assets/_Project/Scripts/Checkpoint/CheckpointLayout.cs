@@ -122,7 +122,7 @@ namespace Hollowbrook.Checkpoint
         // and the inline map, which it borrows the column from while it is open) ----------
         // While the administrator talks, the desk puts the question row and the inline map
         // away and gives the whole right column above the stamps to the conversation; when it
-        // closes, both come back exactly where they were. 14 option rows fit under the header.
+        // closes, both come back exactly where they were. Up to 8 two-line option rows fit.
         public static readonly Region AdminTalk = new Region(950, 116, 309, 373);
         // the slim re-open bar shown once the player steps back out of the conversation
         public static readonly Region AdminTalkBar = new Region(950, 492, 309, 20);
@@ -130,7 +130,7 @@ namespace Hollowbrook.Checkpoint
         {
             public static readonly Region Head = new Region(8, 4, 282, 18);
             public static readonly Region Sub = new Region(8, 22, 282, 14);
-            public const float OptY0 = 40f, OptStep = 24f, OptH = 22f;
+            public const float OptY0 = 40f, OptStep = 41f, OptH = 38f;
             public static readonly Region Opt = new Region(8, 0, 282, OptH);   // y set per row
         }
 

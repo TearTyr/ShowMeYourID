@@ -431,7 +431,7 @@ namespace Hollowbrook.Checkpoint
                 };
                 if (_gameRoot.Session.Clues.FoundCount >= 6)
                     lines.Add(new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "That face. The old school photo — the staff member who never aged. It's them." });
-                lines.Add(new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[3] });
+                lines.Add(new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[2] });
                 SayLine("AT THE WINDOW", "A formal coat. A briefcase. A smile that arrives a half-second late.");
                 // the scripted introduction hands over to the branching conversation: same
                 // visitor, same state, one owner (CheckpointView.AdminTalk)

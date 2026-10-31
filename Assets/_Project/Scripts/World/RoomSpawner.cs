@@ -62,6 +62,7 @@ namespace Hollowbrook.World
         {
             if (_root.State != AppViewState.Exploration) return;
             if (_views.Current == null || _views.Transitioning) return;
+            if (_root.HuntActive) { _returnTimer = -1f; return; }   // the administrator is the only threat
             if (_root.Dialogue != null && _root.Dialogue.IsActive) { _spawnCooldown = Mathf.Max(_spawnCooldown, 2f); return; }
 
             // a scheduled recovery is the continuation of an EXISTING threat, not ambient

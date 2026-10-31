@@ -13,7 +13,7 @@ namespace Hollowbrook.Core
     /// <summary>Central game orchestrator (the "root"). Owns services, the run session and
     /// explicit references to every view — assigned once by CoreBootstrap + the scene bootstraps.
     /// Gameplay code never uses GameObject.Find; it goes through this class or the EventBus.</summary>
-    public class GameRoot : MonoBehaviour
+    public partial class GameRoot : MonoBehaviour
     {
         // Flip to false to silence the [Flow] breadcrumb logs once the boot flow is trusted.
         private const bool VerboseFlow = true;
@@ -236,13 +236,13 @@ namespace Hollowbrook.Core
             if (ModeSelect != null) { if (s == AppViewState.ModeSelect) ModeSelect.Show(); else ModeSelect.Hide(); }
 
             bool inRun = s == AppViewState.Checkpoint || s == AppViewState.Exploration ||
-                         s == AppViewState.ShiftIntro || s == AppViewState.AdminEncounter ||
+                         s == AppViewState.ShiftIntro ||
                          s == AppViewState.Map || s == AppViewState.ShiftResults ||
                          s == AppViewState.RoomPeek;
             if (HUD != null) { if (inRun) HUD.Show(); else HUD.Hide(); }
             if (Checkpoint != null)
             {
-                if (s == AppViewState.Checkpoint || s == AppViewState.AdminEncounter) Checkpoint.Show();
+                if (s == AppViewState.Checkpoint) Checkpoint.Show();
                 else Checkpoint.Hide();
             }
             if (Views != null)
@@ -616,6 +616,7 @@ namespace Hollowbrook.Core
                 Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));
                 if (Views != null) Views.EnterRoom(room);
                 Audio.PlayMusic(MusicForRoom(room));
+                if (HuntActive && Views != null) Views.StartAdminHunt(BuildHuntTuning(), Session.Seed ^ 0x4A0B);
             });
             Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.School);
         }
@@ -776,6 +777,14 @@ namespace Hollowbrook.Core
 
         public void TriggerEnding(EndingRules.Evaluation eval)
         {
+            if (Ending == null)
+            {
+                // the ending screen lives in the desk scene: go there first (e.g. a blackout on patrol)
+                if (Views != null) Views.StopAdminHunt();
+                QueueSceneAction(() => TriggerEnding(eval));
+                Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
+                return;
+            }
             string key = eval.Ending == EndingType.Secret ? "secret" : (eval.Ending == EndingType.Win ? "win" : "lose");
             if (eval.ReasonKey != "exhibition" && !Records.EndingsSeen.Contains(key)) Records.EndingsSeen.Add(key);
             Session.RunFinished = true;
@@ -882,7 +891,7 @@ namespace Hollowbrook.Core
             bool target = force ?? !Paused;
             if (target == Paused) return;
             bool allowed = State == AppViewState.Checkpoint || State == AppViewState.Exploration ||
-                           State == AppViewState.AdminEncounter || State == AppViewState.Map ||
+                           State == AppViewState.Map ||
                            State == AppViewState.RoomPeek;
             if (target && !allowed) return;
             Paused = target;

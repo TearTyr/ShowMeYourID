@@ -26,6 +26,9 @@ namespace Hollowbrook.Logic
             if (s.AdminAllowed)
                 return Result(EndingType.Lose, "admin_breach",
                     "You let the administrator through. It walked straight to the server room, and the identification system came online. By morning the district had already replaced you.");
+            if (s.Hunt == HuntState.Lost)
+                return Result(EndingType.Lose, "server_door",
+                    "You turned the administrator away, but he did not leave. He found the sealed server door, and the identification system woke behind it. By morning the district had replaced you.");
             if (s.Breaches >= LoseThreshold)
                 return Result(EndingType.Lose, "breaches",
                     "Three anomalies entered Hollowbrook on your watch. The district pulled your contract before dawn.");
@@ -51,11 +54,11 @@ namespace Hollowbrook.Logic
                 // The design's Win definition names the administrator's rejection explicitly,
                 // so the evaluator checks it explicitly: a completed fifth shift with the
                 // administrator neither rejected nor allowed is an unfinished night, not a win.
-                if (!s.AdminRejected)
+                if (!s.AdminRejected || s.Hunt == HuntState.Active)
                     return Result(EndingType.None, "admin_unresolved",
                         "The books close with the district's administrator neither admitted nor turned away. Some nights refuse to be filed.");
                 return Result(EndingType.Win, "win",
-                    "Five nights. You trusted your own judgment, kept the checkpoint, and rejected the thing wearing the administrator's face. You walk out of Hollowbrook relieved — and alive.");
+                    "Five nights. You trusted your own judgment, kept the checkpoint, and drove the thing wearing the administrator's face back into the dark. You walk out of Hollowbrook relieved — and alive.");
             }
             return Result(EndingType.None, "continue", "");
         }

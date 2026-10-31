@@ -293,7 +293,7 @@ namespace Hollowbrook.Checkpoint
             RefreshStamps(live);
             bool patrolOn = !atWindow && Queue != null && Queue.Started && !collapsed;
             bool endOn = Queue != null && Queue.ShiftComplete &&
-                         _gameRoot.Session.Mode == GameMode.Normal;
+                         _gameRoot.Session.Mode == GameMode.Normal && !_gameRoot.HuntActive;
             if (_kitOn) { ApplyKitPill(_patrolBtn, patrolOn); ApplyKitPill(_endShiftBtn, endOn); }
             else
             {
@@ -357,7 +357,7 @@ namespace Hollowbrook.Checkpoint
         private IEnumerator AfterStamp(VisitorData resolved)
         {
             yield return WaitUnpaused(BannerSeconds);
-            if (_gameRoot.State != AppViewState.Checkpoint && _gameRoot.State != AppViewState.AdminEncounter) yield break;
+            if (_gameRoot.State != AppViewState.Checkpoint) yield break;
 
             // the resolved visitor leaves the window; the oldest waiting visitor steps up
             // immediately (no second waiting period when someone is already queued)
@@ -365,12 +365,12 @@ namespace Hollowbrook.Checkpoint
 
             if (resolved.IsAdministrator && _gameRoot.Session.AdminRejected)
             {
-                // the night ends without words: the line is sent home, the window closes
+                // he does not leave: the line is sent home and he forces the gate (the hunt)
                 if (Queue != null) Queue.AbandonLine();
                 _current = null;
                 SetVisitorVisible(false);
-                    RefreshHud();
-                _gameRoot.Audio.PlayMusic("checkpoint");
+                RefreshHud();
+                _gameRoot.BeginAdminHunt();
                 yield break;
             }
 

@@ -56,6 +56,11 @@ namespace Hollowbrook.World
         public override void Interact()
         {
             if (_gameRoot.Views.Transitioning) return;
+            if (Target == RoomId.Security && _gameRoot.HuntActive)
+            {
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, "THE SECURITY DOOR IS LOCKED — HE IS INSIDE THE SCHOOL."));
+                return;
+            }
             if (Target == RoomId.Security) _gameRoot.Views.ReturnToSecurity();
             // classrooms are peek-only: the player looks inside from the doorway, never enters
             else if (Target == RoomId.Classroom1 || Target == RoomId.Classroom2) _gameRoot.EnterRoomPeek(Target);

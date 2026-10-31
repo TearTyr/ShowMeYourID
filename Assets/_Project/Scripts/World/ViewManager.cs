@@ -33,6 +33,12 @@ namespace Hollowbrook.World
         private bool _peeking;           // true from EnterPeek until ExitPeek has finished
         private bool _peekExiting;       // guards the step-back routine (idempotent exit)
 
+        /// <summary>The administrator hunt driver (null until a hunt starts).</summary>
+        public AdminHuntDirector Hunt { get; private set; }
+
+        /// <summary>Half the width of the screen in world units (the framed peek view).</summary>
+        public float ScreenHalfWidth => _cam.orthographicSize * _cam.aspect;
+
         public Transform AnomalyRoot => _anomalyRoot != null ? _anomalyRoot.transform : null;
         public IReadOnlyList<WanderingAnomaly> Anomalies => _anomalies;
         public RoomSpawner Spawner => _spawner;   // exposed for headless diagnostics
@@ -208,6 +214,25 @@ namespace Hollowbrook.World
             yield return FadeTo(0f, 0.01f);
         }
 
+        /// <summary>Night 5, after the DENY stamp: start the administrator hunt. Whatever was
+        /// roaming is dismissed so the hunt is the only threat in the building.</summary>
+        public void StartAdminHunt(HuntTuning tuning, int seed)
+        {
+            if (Hunt == null)
+            {
+                var go = new GameObject("AdminHunt");
+                go.transform.SetParent(transform, false);
+                Hunt = go.AddComponent<AdminHuntDirector>();
+            }
+            _spawner.DiscardLive();
+            Hunt.Begin(_gameRoot, this, tuning, seed);
+        }
+
+        public void StopAdminHunt()
+        {
+            if (Hunt != null) Hunt.Stop();
+        }
+
         public void NoteBreach() => _spawner.NoteBreach();
 
         public void SpawnAnomaly(bool hallucination) => _spawner.SpawnAnomaly(hallucination);
@@ -252,7 +277,7 @@ namespace Hollowbrook.World
             SetPlayerVisible(false);   // the guard stays in the hallway behind the peek
             if (Current != null && Current.Light != null) Current.Light.EnterPeek(true);
             EnsurePeekLight();
-            _peekLight.Enter(Current);
+            _peekLight.Enter(Current, Hunt != null && Hunt.Running);   // the hunt starts the lamp ON
             _cam.transform.position = new Vector3(0f, 0f, -10f);   // frozen frame of the room
             yield return FadeTo(0f, 0.34f);
             Transitioning = false;
@@ -333,6 +358,7 @@ namespace Hollowbrook.World
         internal void TickWorld(float dt)
         {
             if (_gameRoot == null || Current == null || !_worldRoot.activeSelf || _gameRoot.Paused) return;
+            if (Hunt != null && Hunt.Running) Hunt.Tick(dt);
             // while peeking, the world holds its breath: only the cursor-locked light ticks
             if (_peeking)
             {

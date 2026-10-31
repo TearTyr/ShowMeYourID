@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -56,6 +57,7 @@ namespace Hollowbrook.Logic
             sb.Append("adminAllowed=").Append(s.AdminAllowed ? 1 : 0).Append('\n');
             KV(sb, "adminTalk", s.AdminTalk != null ? s.AdminTalk.Encode() : "");
             sb.Append("adminRejected=").Append(s.AdminRejected ? 1 : 0).Append('\n');
+            sb.Append("hunt=").Append((int)s.Hunt).Append('\n');
             sb.Append("shiftBreaches=").Append(s.ShiftBreaches).Append('\n');
             sb.Append("penaltySeverity=").Append(s.PendingPenaltySeverity).Append('\n');
             sb.Append("penaltyNight=").Append(s.PendingPenaltyNight).Append('\n');
@@ -165,6 +167,7 @@ namespace Hollowbrook.Logic
                 }
                 s.AdminAllowed = Int(map, "adminAllowed", 0) == 1;
                 s.AdminRejected = Int(map, "adminRejected", 0) == 1;
+                s.Hunt = (HuntState)Math.Max(0, Math.Min(3, Int(map, "hunt", 0)));
                 // absent in older saves: no failed night to pay for
                 s.ShiftBreaches = Int(map, "shiftBreaches", 0);
                 s.PendingPenaltySeverity = Int(map, "penaltySeverity", 0);

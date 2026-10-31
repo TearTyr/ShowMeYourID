@@ -48,6 +48,13 @@ namespace Hollowbrook.World
         private SpriteRenderer _glow;
         private Vector3 _worldPoint;
         private string _lastPrompt = "\0";   // "\0" = nothing published yet this peek
+        private float _flickerLeft;           // > 0 while the lamp is dying (administrator hunt)
+
+        /// <summary>The cursor's point on the room plane (what the lamp is centred on).</summary>
+        public Vector3 CursorWorld => _worldPoint;
+
+        /// <summary>True while a flicker has the lamp dead.</summary>
+        public bool Flickering => _flickerLeft > 0f;
 
         /// <summary>Builds the mask + glow children once. Starts inactive and unlit.</summary>
         public void Init(GameRoot root, Camera cam)
@@ -80,18 +87,29 @@ namespace Hollowbrook.World
         /// <summary>Begin a peek at the given room: the session goes live, the lamp stays
         /// OFF — arriving in a classroom always means arriving dark, and only a deliberate
         /// F lights it (one press; nothing was secretly pre-lit).</summary>
-        public void Enter(RoomInstance room)
+        public void Enter(RoomInstance room, bool lampOn = false)
         {
             _room = room;
             _lastPrompt = "\0";
+            _flickerLeft = 0f;
             Active = true;
             gameObject.SetActive(true);
-            SetLit(false, true);
+            SetLit(lampOn, true);   // the hunt starts the lamp ON; every other peek starts dark
             transform.position = Vector3.zero;
             _worldPoint = Vector3.zero;
-            if (_gameRoot != null)
+            if (_gameRoot != null && !lampOn)
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
                     "FLASHLIGHT OFF — press F to turn it on."));
+        }
+
+        /// <summary>The lamp dies for a moment (the administrator's stun). It comes back by
+        /// itself in the state the player left it. Photosensitive players get a plain dim,
+        /// never a strobe.</summary>
+        public void Flicker(float seconds)
+        {
+            if (!Active || seconds <= 0f) return;
+            _flickerLeft = seconds;
+            ApplyLampVisual(false);
         }
 
         /// <summary>Stop revealing. The hallway presentation is restored by ViewManager.</summary>
@@ -107,7 +125,7 @@ namespace Hollowbrook.World
         /// <summary>True when the world point sits inside the LIT light circle — an OFF
         /// lamp illuminates nothing, exactly like the handheld beam.</summary>
         public bool Covers(Vector3 worldPoint) =>
-            Active && Lit && Vector2.Distance(worldPoint, _worldPoint) <= EffectiveRadius;
+            Active && Lit && _flickerLeft <= 0f && Vector2.Distance(worldPoint, _worldPoint) <= EffectiveRadius;
 
         /// <summary>Q: wide wash <-> tight focus. Silent about ON/OFF — it only reshapes the
         /// circle, and only a lit lamp shows the difference (an OFF lamp stays OFF).</summary>
@@ -136,6 +154,13 @@ namespace Hollowbrook.World
                 c.a = Focused ? 0.45f : 0.30f;
                 _glow.color = c;
             }
+        }
+
+        // Show or hide the mask + glow without touching the Lit state (used by the flicker).
+        private void ApplyLampVisual(bool visible)
+        {
+            if (_mask != null) _mask.gameObject.SetActive(visible);
+            if (_glow != null) _glow.gameObject.SetActive(visible);
         }
 
         // The lamp's visual + illumination state. Mask and glow live and die together with
@@ -199,6 +224,8 @@ namespace Hollowbrook.World
                 else if (Input.GetKeyDown(KeyCode.Q)) ToggleFocus();   // reshapes, never lights
             }
 
+            if (_flickerLeft > 0f) TickFlicker(dt);
+
             var mouse = Input.mousePosition;
             mouse.z = -_cam.transform.position.z;           // project onto the z=0 world plane
             var wp = _cam.ScreenToWorldPoint(mouse);
@@ -220,6 +247,16 @@ namespace Hollowbrook.World
                 if (door != null && door.Target == RoomId.Hallway) _gameRoot.ExitRoomPeek();
                 else nearest.Interact();
             }
+        }
+
+        // Count the flicker down. Strobing is skipped for photosensitive players (plain dark).
+        private void TickFlicker(float dt)
+        {
+            _flickerLeft -= dt;
+            if (_flickerLeft <= 0f) { _flickerLeft = 0f; ApplyLampVisual(Lit); return; }
+            bool safe = _gameRoot.Settings != null && (_gameRoot.Settings.PhotosensitivitySafe || _gameRoot.Settings.ReduceMotion);
+            if (safe) return;
+            ApplyLampVisual(Lit && ((int)(_flickerLeft / 0.08f) % 2 == 0) && _flickerLeft < 0.45f);
         }
 
         // Nearest interactable whose anchor point (chest height above the shared floor line)

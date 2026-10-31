@@ -10,6 +10,9 @@ namespace Hollowbrook.Logic
 
     public enum LightMode { Off, Sweep, Focus }
 
+    /// <summary>Where the administrator hunt stands (saved with the run).</summary>
+    public enum HuntState { None, Active, Won, Lost }
+
     public enum AnomalyBehaviorKind { Blink, Slide, Sprint, CoverHug }
 
     public enum RoomId { Security, Hallway, Classroom1, Classroom2 }
@@ -46,7 +49,7 @@ namespace Hollowbrook.Logic
     {
         Boot, Loading, MainMenu, ModeSelect, Settings, Controls, Credits,
         ShiftIntro, Checkpoint, Exploration, Map, Pause, ShiftResults,
-        AdminEncounter, Ending, EndlessResults,
+        Ending, EndlessResults,
         RoomPeek,   // flashlight peek into a classroom from the doorway (no room entry)
     }
 }

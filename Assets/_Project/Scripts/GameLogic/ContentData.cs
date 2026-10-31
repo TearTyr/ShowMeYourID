@@ -314,7 +314,6 @@ namespace Hollowbrook.Logic
         {
             "Custodian. I'm the district administrator. I'll be taking control of this facility tonight.",
             "My credentials are in order. Badge and roster memo, as your instructions require.",
-            "There have been… complaints about your performance. Let's not add to them.",
             "Open the checkpoint. That is an order from the district.",
         };
     }

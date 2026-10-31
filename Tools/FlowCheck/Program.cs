@@ -161,6 +161,7 @@ namespace FlowCheck
             IssueOneProofs(root);
             ShiftFailureProof(root);
             AdminTalkProof(root);
+            AdminHuntProof(root);
             TeardownProof();
 
             Console.WriteLine(_failures == 0 ? "== FLOW CHAIN COMPLETE ==" : "== " + _failures + " CHECK(S) FAILED ==");
@@ -3579,80 +3580,72 @@ namespace FlowCheck
             return d.Count == 0 && a.Count == b.Count;
         }
 
-        // --------------------------------- Shift-5 administrator: the branching conversation
-        // Integration proof at the real desk: arrival intro hands over to the conversation, the
-        // panel borrows the question column, choices move only encounter state, the question
-        // budget and the stamps stay authoritative, silence and re-open cannot softlock, and the
-        // verdict still commits exactly once through the physical hand-back.
+        // --------------------------------- Shift-5 administrator: the questions and answers
+        // Integration proof at the real desk: the arrival speech hands over to the conversation,
+        // the panel borrows the question column, picks move only the conversation state, the
+        // classroom question and the stamps stay authoritative, stepping out and back in cannot
+        // lose the thread, and REFUSE ENTRY commits the DENY verdict exactly once.
         private static void AdminTalkProof(GameRoot root)
         {
-            Console.WriteLine("== administrator encounter: branching conversation at the checkpoint ==");
+            Console.WriteLine("== administrator encounter: questions and answers at the checkpoint ==");
             var cp = root.Checkpoint;
             cp.DebugPresentAdmin();
             cp.DebugTakeDocuments();
             var admin = cp.CurrentVisitor;
             Check(admin != null && admin.IsAdministrator, "AT: the administrator is at the window");
 
-            // click through the arrival intro exactly like the player; its completion opens the talk
+            // click through the arrival speech exactly like the player; its end opens the talk
             int guard = 0;
             while (root.Dialogue != null && root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
-            Check(cp.AdminTalkOpen, "AT: the arrival intro hands over to the conversation (hub open)");
+            Check(cp.AdminTalkOpen, "AT: the arrival speech hands over to the conversation (hub open)");
             var panel = FindDeep(cp.transform, "admintalk");
             Check(panel != null && panel.gameObject.activeSelf, "AT: the conversation panel is on the desk");
             Check(!FindDeep(cp.transform, "qpanel_border").gameObject.activeSelf &&
                   !FindDeep(cp.transform, "map").gameObject.activeSelf,
-                "AT: while it talks, the question row and the inline map step aside");
-            Check(FindDeep(cp.transform, "opt_chal_name") != null &&
-                  FindDeep(cp.transform, "opt_chal_num") != null &&
-                  FindDeep(cp.transform, "opt_chal_face") != null &&
-                  FindDeep(cp.transform, "opt_defer") != null &&
-                  FindDeep(cp.transform, "opt_silence") != null &&
+                "AT: while it talks, the question panel and the inline map step aside");
+            Check(FindDeep(cp.transform, "opt_ask_name") != null && FindDeep(cp.transform, "opt_ask_num") != null &&
+                  FindDeep(cp.transform, "opt_ask_face") != null && FindDeep(cp.transform, "opt_refuse") != null &&
                   FindDeep(cp.transform, "opt_end") != null,
-                "AT: the hub offers the three challenges, compliance, silence and the exit");
-            Check(FindDeep(cp.transform, "opt_ev_photo") == null &&
-                  FindDeep(cp.transform, "opt_ev_cabinet") == null,
-                "AT: the evidence branches stay shut while their clues are undiscovered");
+                "AT: the hub offers the three badge questions, REFUSE ENTRY and the exit");
+            Check(FindDeep(cp.transform, "opt_ask_photo") == null && FindDeep(cp.transform, "opt_ask_cabinet") == null &&
+                  FindDeep(cp.transform, "opt_ask_server") == null,
+                "AT: evidence and the server-room question stay shut until earned");
+            var refuseLabel = FindDeep(cp.transform, "opt_refuse").Find("label").GetComponent<UnityEngine.UI.Text>();
+            Check(refuseLabel.horizontalOverflow == UnityEngine.HorizontalWrapMode.Wrap,
+                "AT: option labels wrap to two lines instead of being cut off");
 
-            // a challenge moves encounter state and NOTHING else
-            FindDeep(cp.transform, "opt_chal_name").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            // a pick moves the conversation and NOTHING else
+            FindDeep(cp.transform, "opt_ask_name").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             guard = 0;
             while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
-            Check(root.Session.AdminTalk.Node == "chal_name" && root.Session.AdminTalk.Challenge == 1,
-                "AT: the challenge landed in the encounter state (node + tactic counter)");
+            Check(root.Session.AdminTalk.Node == "name", "AT: the pick landed in the conversation state");
             Check(!cp.SlipStamped && cp.PendingVerdict == Verdict.None,
-                "AT: no verdict, breach or ending moved because of a dialogue choice");
+                "AT: no verdict, breach or ending moved because of a dialogue pick");
 
             // double-commit: the same button fired twice in one beat takes effect once
             var twice = FindDeep(cp.transform, "opt_press_name").GetComponent<UnityEngine.UI.Button>();
             twice.onClick.Invoke();
             twice.onClick.Invoke();
-            Check(root.Session.AdminTalk.Node == "press_name" && root.Session.AdminTalk.Challenge == 2,
-                $"AT: firing one option twice commits it once (node={root.Session.AdminTalk.Node} chal={root.Session.AdminTalk.Challenge}: one challenge for the hub pick, one for the press — not three)");
+            Check(root.Session.AdminTalk.Node == "name2", "AT: firing one option twice commits it once");
             guard = 0;
             while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+            FindDeep(cp.transform, "opt_back").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            guard = 0;
+            while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+            Check(root.Session.AdminTalk.Node == AdminTalk.HubId && FindDeep(cp.transform, "opt_ask_name") == null,
+                "AT: back at the hub; a question already asked is not offered again");
 
-            // verification questions still work mid-conversation, and the talk adapts to them
+            // the classroom question still works mid-conversation, and unlocks the follow-up
             cp.AskClassroom();
             Check(root.Queue.ActiveQuestionAsked, "AT: the classroom question still works mid-conversation");
-            FindDeep(cp.transform, "opt_press_name_back").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            FindDeep(cp.transform, "opt_ask_num").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             guard = 0;
             while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
-            Check(FindDeep(cp.transform, "opt_q_server") != null,
-                "AT: after the server-room question, its follow-up branch appears");
-            var qLine = FindDeep(cp.transform, "opt_q_server").Find("label")
-                .GetComponent<UnityEngine.UI.Text>().text;
-            Check(qLine.Contains("server room"), "AT: the follow-up names the actual answer's subject");
-
-            // silence: a pause, a beat, and always a way back
-            FindDeep(cp.transform, "opt_silence").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            FindDeep(cp.transform, "opt_back").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             guard = 0;
             while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
-            Check(root.Session.AdminTalk.Silence == 1 && root.Session.AdminTalk.Node == "silence",
-                "AT: silence is a counted beat, not a question and not a verdict");
-            FindDeep(cp.transform, "opt_silence_back").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            guard = 0;
-            while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
-            Check(root.Session.AdminTalk.Node == AdminTalk.HubId, "AT: silence always returns to a usable hub");
+            Check(FindDeep(cp.transform, "opt_ask_server") != null,
+                "AT: after the classroom question, the server-room follow-up appears");
 
             // T steps out and back in without losing the thread
             PressDeskKey(cp, KeyCode.T);
@@ -3661,10 +3654,9 @@ namespace FlowCheck
                 "AT: stepping back restores the inspection column and leaves the re-open bar");
             PressDeskKey(cp, KeyCode.T);
             Check(cp.AdminTalkOpen && FindDeep(cp.transform, "opt_end") != null && !root.Dialogue.IsActive,
-                "AT: re-opening resumes the same node — options straight away, no replayed lines");
+                "AT: re-opening resumes the same node, options straight away, no replayed lines");
 
-            // interruption contract: the encounter survives pause and refuses to be walked away
-            // from mid-inspection, and neither resets the conversation nor the visitor
+            // interruption contract: pause freezes it, walking away mid-inspection is refused
             string talkBefore = root.Session.AdminTalk.Encode();
             root.TogglePause(true);
             PressDeskKey(cp, KeyCode.T);                    // gameplay keys stand down while paused
@@ -3673,37 +3665,125 @@ namespace FlowCheck
             root.TogglePause(false);
             cp.GoPatrol();
             Check(root.State == AppViewState.Checkpoint && root.Session.AdminTalk.Encode() == talkBefore,
-                "AT: walking away mid-inspection is refused — the administrator keeps the window");
+                "AT: walking away mid-inspection is refused, the administrator keeps the window");
 
             // the conversation persists with the run save
             root.PersistRun();
             string saveText = System.IO.File.ReadAllText(System.IO.Path.Combine(
                 UnityEngine.Application.persistentDataPath, "hollowbrook_save.txt"));
-            Check(saveText.Contains("adminTalk=") && saveText.Contains("chal_name".Length > 0 ? "hub" : "hub"),
-                "AT: the encounter state rides the run save (adminTalk key)");
+            Check(saveText.Contains("adminTalk=hub,"), "AT: the conversation state rides the run save");
 
-            // stepping back for good hands the desk over; the stamps remain the only decision
-            FindDeep(cp.transform, "opt_end").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            Check(root.State == AppViewState.Checkpoint,
-                "AT: completing the conversation awards nothing — the desk is simply handed back");
-            Check(root.Session.AdminTalk.Completed && !cp.AdminTalkOpen &&
-                  !FindDeep(cp.transform, "admintalkbar").gameObject.activeSelf &&
-                  FindDeep(cp.transform, "qpanel_border").gameObject.activeSelf &&
-                  FindDeep(cp.transform, "map").gameObject.activeSelf,
-                "AT: the exit completes the conversation and gives the desk back intact");
-
-            // the physical verdict, unchanged: stamp, hand back, exactly-once counters
-            StampSlip(root, Verdict.Reject);
-            HandBack(root, true, true);
+            // REFUSE ENTRY is the DENY stamp: one verdict, counted once, the desk handed back
+            FindDeep(cp.transform, "opt_refuse").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(root.Session.AdminTalk.Completed && !cp.AdminTalkOpen,
+                "AT: refusing completes the conversation and closes the panel");
             Check(root.Session.AdminRejected && !root.Session.AdminAllowed,
-                $"AT: rejecting the administrator through the stamps updates the session once (rejected={root.Session.AdminRejected} allowed={root.Session.AdminAllowed} stamped={cp.SlipStamped} pending={cp.PendingVerdict} processed={root.Session.Processed})");
+                $"AT: REFUSE ENTRY counts as rejecting the administrator (rejected={root.Session.AdminRejected} allowed={root.Session.AdminAllowed} processed={root.Session.Processed})");
             int processed = root.Session.Processed;
             int breaches = root.Session.Breaches;
             root.OnVerdictResolved(admin, InspectionRules.Apply(admin, Verdict.Reject, null));
-            Check(root.Session.Processed == processed && root.Session.Breaches == breaches &&
-                  root.Session.FalseRejections == root.Session.FalseRejections,
+            Check(root.Session.Processed == processed && root.Session.Breaches == breaches,
                 "AT: a duplicated verdict callback changes nothing (exactly-once guard)");
             Check(QueueAbandoned(root), "AT: the rejected administrator closes the night's line safely");
+            Console.WriteLine("   (after REFUSE: hunt state = " + root.Session.Hunt + ")");
+        }
+
+        // --------------------------------- after the DENY stamp: the administrator hunt
+        // Integration proof: the hunt starts where the stamp ended, the security door is locked,
+        // a perfect player (peek, hold the lamp on his head, flash him in the hallway) drives
+        // him off, and a player who does nothing loses to the server door meter.
+        private static void AdminHuntProof(GameRoot root)
+        {
+            Console.WriteLine("== administrator hunt: from the DENY stamp to the server door ==");
+            Check(root.HuntActive, "HUNT: the DENY stamp on the administrator starts the hunt");
+            int guard = 0;
+            while (root.Dialogue != null && root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+            SchoolSceneBootstrap.Build(root);                       // what Unity does after LoadScene(School)
+            var views = root.Views;
+            Check(root.State == AppViewState.Exploration && views.Hunt != null && views.Hunt.Running,
+                "HUNT: the radio call ends in the school and the hunt is running");
+            var hunt = views.Hunt.Model;
+            Check(hunt.Phase == HuntPhase.Hiding && hunt.Stuns == 0, "HUNT: he starts hidden, with no stuns");
+            Check(views.Spawner.Live == null, "HUNT: nothing else is roaming the school");
+
+            // the security door is locked while he is inside
+            Doorway secDoor = null;
+            foreach (var it in views.Current.Interactables)
+            {
+                var d = it as Doorway;
+                if (d != null && d.Target == RoomId.Security) secDoor = d;
+            }
+            Check(secDoor != null, "HUNT: the hallway has its security door");
+            secDoor.Interact();
+            Check(root.State == AppViewState.Exploration && !views.Transitioning,
+                "HUNT: the security door is locked, you cannot run back to the desk");
+
+            // time passes: the server door meter runs and the HUD says so
+            float before = hunt.ServerLeft;
+            WorldFrames(root, 30, 0.1f);
+            Check(hunt.ServerLeft < before, "HUNT: the server door meter runs while you wait");
+            Check(root.ObjectiveText.Contains("SERVER DOOR"), "HUNT: the HUD line shows the SERVER DOOR meter (got '" + root.ObjectiveText + "')");
+
+            // a perfect player: peek where he is, hold the lamp on his head, flash him in the hallway
+            var rig = views.Flashlight;
+            bool sawTracking = false, sawFlicker = false, sawCharge = false, litOnEntry = false;
+            for (int frame = 0; frame < 12000 && !hunt.Finished; frame++)
+            {
+                var fig = views.Hunt.Figure;
+                bool figUp = fig != null && fig.activeSelf;
+                if (hunt.Phase == HuntPhase.Tracking && figUp)
+                {
+                    sawTracking = true;
+                    AimAt(fig.transform.position.x, fig.transform.position.y);
+                }
+                else if (hunt.Phase == HuntPhase.Hiding)
+                {
+                    if (views.PeekActive && views.Current.Id != hunt.Room) root.ExitRoomPeek();
+                    else if (!views.PeekActive && !views.Transitioning && root.State == AppViewState.Exploration)
+                    {
+                        root.EnterRoomPeek(hunt.Room);
+                        litOnEntry = litOnEntry || (views.PeekLight != null && views.PeekLight.Lit);
+                    }
+                }
+                else if (hunt.Phase == HuntPhase.Flicker && views.PeekLight != null && views.PeekLight.Flickering) sawFlicker = true;
+                else if (hunt.Phase == HuntPhase.Charging && !views.PeekActive && root.State == AppViewState.Exploration)
+                {
+                    sawCharge = true;
+                    SetBeam(root, rig, LightMode.Sweep);
+                    if (figUp) AimAt(fig.transform.position.x, fig.transform.position.y);
+                }
+                WorldFrame(root, 0.05f);
+            }
+            Check(sawTracking, "HUNT: he was found by peeking into his room (a shaking picture under the lamp)");
+            Check(litOnEntry, "HUNT: during the hunt a peek starts with the lamp ON");
+            Check(sawFlicker, "HUNT: a stun makes the lamp flicker out");
+            Check(sawCharge, "HUNT: at least once he charged down the hallway and the beam was needed");
+            Check(hunt.Phase == HuntPhase.Won && hunt.Stuns == root.Config.huntStunsToWin,
+                $"HUNT: a perfect player drives him off after exactly {root.Config.huntStunsToWin} stuns (phase={hunt.Phase} stuns={hunt.Stuns})");
+            Check(root.Session.Hunt == HuntState.Won && !root.HuntActive,
+                "HUNT: the session records the win");
+            Check(EndingRules.Evaluate(root.Session).ReasonKey != "server_door",
+                "HUNT: winning never produces the server-door ending");
+
+            // click through his retreat speech (it queues the trip to the results; not needed here)
+            guard = 0;
+            while (root.Dialogue != null && root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+            root.ClearQueuedSceneAction();
+
+            // a second hunt where the player does nothing: the server door meter ends it
+            root.Session.Hunt = HuntState.Active;
+            root.Views.StopAdminHunt();
+            if (views.PeekActive) { root.ExitRoomPeek(); WorldFrames(root, 40, 0.05f); }
+            views.StartAdminHunt(root.BuildHuntTuning(), 99);
+            var idle = views.Hunt.Model;
+            for (int frame = 0; frame < 4000 && !idle.Finished; frame++) WorldFrame(root, 0.1f);
+            Check(idle.Phase == HuntPhase.Lost && idle.ServerLeft <= 0f,
+                "HUNT: doing nothing loses when the SERVER DOOR meter runs out (never stuck)");
+            Check(root.Session.Hunt == HuntState.Lost, "HUNT: the session records the loss");
+            root.Session.CurrentShift = ShiftPlan.TotalShifts;   // the hunt only ever happens on the final night
+            var verdict = EndingRules.Evaluate(root.Session);
+            Check(verdict.Ending == EndingType.Lose && verdict.ReasonKey == "server_door",
+                "HUNT: the loss is its own ending ('server_door')");
         }
 
         private static bool QueueAbandoned(GameRoot root) =>

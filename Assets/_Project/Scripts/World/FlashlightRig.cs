@@ -75,6 +75,10 @@ namespace Hollowbrook.World
                 worldPoint.x, worldPoint.y, radius);
         }
 
+        /// <summary>Full battery, not dead. The administrator hunt tops it up so a flat battery
+        /// can never leave the player without a way to stun him.</summary>
+        public void Recharge() { _battery = new BatteryState { Charge = 1f, Dead = false }; }
+
         /// <summary>Room-entry reset: arriving in a room ALWAYS means arriving dark — the
         /// beam goes off, latches clear, silently (no toast spam on every door); revival
         /// needs a deliberate F/Q. Called by ViewManager on every entry, patrol starts

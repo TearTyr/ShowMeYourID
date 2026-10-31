@@ -168,14 +168,7 @@ namespace Hollowbrook.Checkpoint
             CloseFileDrawer(true);   // ...nor an open drawer: the cabinet is shut on return
             // ...nor a half-spoken conversation: the panel goes dark, the state stays in the
             // session, and ResumeRun puts the re-open bar back if the administrator still waits
-            if (_talkOpen)
-            {
-                if (_talkPause != null) { StopCoroutine(_talkPause); _talkPause = null; }
-                _talkOpen = false;
-                _talkCommitting = false;
-                if (_talkPanel != null) _talkPanel.SetActive(false);
-                SetTalkColumn(false);
-            }
+            ParkAdminTalk();
         }
 
         public void BeginRun(ShiftDef shift)
@@ -184,6 +177,7 @@ namespace Hollowbrook.Checkpoint
             _shift = shift;
             ResetShiftState();
             RestoreQueuePresentation();
+            if (_gameRoot.HuntActive) _gameRoot.ResumeAdminHunt();   // saved mid-hunt: back to it
         }
 
         public void ResumeRun()

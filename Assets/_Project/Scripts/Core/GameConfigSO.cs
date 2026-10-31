@@ -85,6 +85,28 @@ namespace Hollowbrook.Core
         [Tooltip("Target body radius added to the cone test — grazing a silhouette still counts.")][Range(0f, 2f)]
         public float beamTargetRadius = BeamGeometry.DefaultTargetRadius;
 
+        [Header("Administrator hunt (night 5, after the DENY stamp)")]
+        [Tooltip("Stuns needed to drive the administrator off.")][Range(1, 10)]
+        public int huntStunsToWin = 4;
+        [Tooltip("The SERVER DOOR meter: seconds until he reaches the server room (paused while you hold the lamp on him).")][Range(30f, 600f)]
+        public float huntServerSeconds = 180f;
+        [Tooltip("How long he waits in a classroom before moving on by himself (min / max).")][Range(2f, 30f)]
+        public float huntHideMinSeconds = 6f;
+        [Range(2f, 40f)]
+        public float huntHideMaxSeconds = 14f;
+        [Tooltip("Longest a single tracking phase lasts before he slips away without a stun.")][Range(4f, 30f)]
+        public float huntTrackMaxSeconds = 12f;
+        [Tooltip("Seconds the lamp must stay on his head for one stun.")][Range(0.5f, 10f)]
+        public float huntHoldSeconds = 3.2f;
+        [Tooltip("How close (world units) the cursor must be to his head.")][Range(0.3f, 3f)]
+        public float huntHeadRadius = 1.0f;
+        [Tooltip("Seconds he takes to run down the hallway at you.")][Range(1f, 8f)]
+        public float huntChargeSeconds = 2.6f;
+        [Tooltip("Seconds of beam on his face that count as a hit.")][Range(0.1f, 2f)]
+        public float huntChargeHitSeconds = 0.35f;
+        [Tooltip("Sanity lost when he reaches you in the hallway.")][Range(0f, 40f)]
+        public float huntCaughtSanity = 15f;
+
         [Header("Encounter — repel meter")]
         [Tooltip("Meter per second while Focus holds the anomaly's body (the only way to progress).")][Range(0.05f, 2f)]
         public float focusProgressPerSecond = TrackingPolicy.FocusRatePerSecond;

@@ -31,6 +31,7 @@ namespace Hollowbrook.Horror
         {
             if (_gameRoot == null || _gameRoot.Session == null || _gameRoot.Paused) return;
             if (_gameRoot.State != AppViewState.Exploration && _gameRoot.State != AppViewState.Checkpoint) return;
+            if (_gameRoot.HuntActive) return;   // phantoms would hide the real hunt
             var stage = SanityModel.StageFor(_gameRoot.Session.Sanity);
             if (stage == SanityStage.Stable) return;
 
