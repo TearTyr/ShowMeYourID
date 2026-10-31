@@ -133,9 +133,6 @@ namespace Hollowbrook.World
         public bool IsFocusLit(Vector3 worldPoint) =>
             Flashlight != null && Flashlight.Beam == LightMode.Focus && Flashlight.ConeCovers(worldPoint);
 
-        /// <summary>Point is visibly lit: by the beam, or by the room's ambient light.</summary>
-        public bool IsIlluminated(Vector3 worldPoint) => BeamCovers(worldPoint) || RoomLit;
-
         public void Register(WanderingAnomaly a) { if (a != null && !_anomalies.Contains(a)) _anomalies.Add(a); }
         public void Unregister(WanderingAnomaly a) => _anomalies.Remove(a);
 

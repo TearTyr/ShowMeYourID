@@ -10,8 +10,6 @@ namespace Hollowbrook.Core
         [Header("Checkpoint pacing")]
         [Tooltip("Seconds the result banner stays up after a verdict.")]
         public float verdictBannerSeconds = 3.2f;
-        [Tooltip("In-story shift starts at 22:00 and ends at 02:00.")]
-        public int shiftStartHour = 22;
 
         [Header("Checkpoint queue")]
         [Tooltip("Lower bound of the randomized visitor arrival interval while a shift runs (Normal mode, night 1).")][Range(0.5f, 60f)]
@@ -54,8 +52,6 @@ namespace Hollowbrook.Core
         public float walkSpeed = 3.4f;
         public float runSpeed = 6.0f;
         public float interactRange = 1.35f;
-        public float roomHalfWidthHallway = 14f;
-        public float roomHalfWidthClassroom = 9f;
 
         [Header("Flashlight battery")]
         [Tooltip("Percent per second while the wide Sweep beam is on.")]

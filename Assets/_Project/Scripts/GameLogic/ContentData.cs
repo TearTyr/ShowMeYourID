@@ -103,7 +103,6 @@ namespace Hollowbrook.Logic
         // student always wears the same face on the card and at the window. Old saves load -1
         // and fall back to the procedural portraits.
         public int FaceAssetIndex = -1;
-        public bool OnLateList = true;        // office rule: on tonight's late list
 
         public bool PhotoMatches => WindowPortrait == IdPhoto;
 
@@ -197,8 +196,6 @@ namespace Hollowbrook.Logic
                 case "fourth_year_curfew": return !v.IsAnomaly && v.IdYearLevel == 4;
                 case "strict_expiry": return !v.IsAnomaly && v.ExpirationDay - Content.ShiftDayNumber(v.ShiftNumber) <= 60;
                 case "odd_serials": return !v.IsAnomaly && IdRules.SerialOf(v.IdNumber) % 2 == 1;
-                case "office_late_list": return !v.IsAnomaly &&
-                    (!v.OnLateList || IdRules.IsExpired(v, v.ShiftNumber));
                 default: return false;
             }
         }

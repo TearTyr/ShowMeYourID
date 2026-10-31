@@ -162,7 +162,6 @@ namespace Hollowbrook.UI
         private void Update()
         {
             if (!IsActive) return;
-            if (UIFactory.TypingInField()) return;   // the caret owns Enter while you type
             if (_gameRoot != null && _gameRoot.Paused) return; // no dialogue advance while paused
             if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.E))
                 Advance();

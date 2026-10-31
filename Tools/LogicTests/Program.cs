@@ -11,7 +11,7 @@ namespace Hollowbrook.LogicTests
 {
     internal static class Program
     {
-        private static int _pass, _fail, _knownIssues;
+        private static int _pass, _fail;
         private static readonly List<string> Failures = new List<string>();
         private static string _group = "";
 
@@ -35,7 +35,6 @@ namespace Hollowbrook.LogicTests
 
         private static int Main(string[] args)
         {
-            if (args.Length > 0 && args[0] == "--debug-dup") { DebugDuplicates(); return 0; }
             Console.WriteLine("Show Me Your ID! — logic suite (real GameLogic assemblies, no Unity)");
 
             IdRulesTests();
@@ -62,7 +61,6 @@ namespace Hollowbrook.LogicTests
             QueueBusyHurryTests();
             QueueInvariantTests();
             StampRulesTests();
-            RecordSearchTests();
             FloorFileTests();
             DrawerMotionTests();
             FloorPlanTests();
@@ -74,12 +72,9 @@ namespace Hollowbrook.LogicTests
             SeatPlannerTests();
             CultureRoundTripTests();
             ResumeReplayTests();
-            SpokenChatTests();
 
             Console.WriteLine("\n==============================================");
             Console.WriteLine($"  PASS {_pass}   FAIL {_fail}   TOTAL {_pass + _fail}");
-            if (_knownIssues > 0)
-                Console.WriteLine($"  known display gaps (not failures): {_knownIssues}  — see docs/HOTFIX-v1.0.6.1.md §6");
             Console.WriteLine("==============================================");
             if (_fail > 0)
             {
@@ -87,38 +82,6 @@ namespace Hollowbrook.LogicTests
                 foreach (var f in Failures.Take(40)) Console.WriteLine("  - " + f);
             }
             return _fail == 0 ? 0 : 1;
-        }
-
-        /// <summary>Focused dump for the DuplicateId-vs-SCAN question.</summary>
-        private static void DebugDuplicates()
-        {
-            for (int seed = 1; seed <= 60; seed++)
-            {
-                var rf = new RosterFactory(seed);
-                foreach (var shift in ShiftPlan.Build())
-                {
-                    var visitors = rf.GenerateShift(shift);
-                    var log = new PresentationLog();
-                    for (int i = 0; i < visitors.Count; i++)
-                    {
-                        var v = visitors[i];
-                        bool wantsDup = v.Defects.Contains(DefectType.DuplicateId);
-                        var scan = rf.Scan(v, log);
-                        var docs = IdRules.EvaluateDocuments(v, rf.Registry, log);
-                        if (wantsDup && !scan.DuplicateTonight)
-                        {
-                            var first = log.FirstCardPhotoOf(v.IdNumber);
-                            Console.WriteLine($"seed {seed} shift {shift.Number} idx {i} '{v.ClaimedName}' id={v.IdNumber}");
-                            Console.WriteLine($"   IdPhoto={P(v.IdPhoto)} logPresented={log.WasPresented(v.IdNumber)} firstCard={(first.HasValue ? P(first.Value) : "<none>")}");
-                            Console.WriteLine($"   scan: fmt={scan.FormatValid} db={scan.FoundInDatabase} dup={scan.DuplicateTonight} ret={scan.ReturningStudent} disp='{scan.Display}'");
-                            Console.WriteLine($"   EvaluateDocuments -> [{string.Join(",", docs)}]");
-                            Console.WriteLine($"   all visitors this shift: " + string.Join(" | ",
-                                visitors.Select((x, k) => $"{k}:{(x.IsAnomaly ? "A" : "L")}{(x.IsAdministrator ? "D" : "")} {x.IdNumber} {P(x.IdPhoto)}{(x.Defects.Contains(DefectType.DuplicateId) ? " [DUP]" : "")}")));
-                        }
-                        log.RecordFrom(v, "tonight");
-                    }
-                }
-            }
         }
 
         private static string P(Portrait p) => $"(h{p.HairStyle},f{p.FaceVariant},a{p.Accessory}{(p.Distorted ? ",D" : "")})";
@@ -343,48 +306,6 @@ namespace Hollowbrook.LogicTests
                         playLog.RecordFrom(v, "tonight");
                     }
 
-                    // scanner view must agree with the ground truth the rules use
-                    // (administrators are an intentional special case: a staff badge is not a
-                    //  student ID, so Scan reports it as "not a student ID" instead of "invalid")
-                    var scanLog = new PresentationLog();
-                    foreach (var v in visitors)
-                    {
-                        var scan = rf.Scan(v, scanLog);
-                        if (v.IsAdministrator)
-                        {
-                            Check(scan.FormatValid && !scan.FoundInDatabase,
-                                  $"seed {seed}: SCAN flags the badge as 'not a student ID'");
-                            Check(scan.Display.IndexOf("ROSTER MEMO", StringComparison.Ordinal) >= 0,
-                                  $"seed {seed}: SCAN points the player at the district roster memo");
-                        }
-                        else
-                        {
-                            Eq(scan.FormatValid, IdRules.IsFormatValid(v.IdNumber), $"seed {seed}: SCAN format matches IdRules");
-                            Eq(scan.FoundInDatabase, IdRules.DatabaseLookup(v.IdNumber, rf.Registry), $"seed {seed}: SCAN database matches IdRules");
-                            if (v.Defects.Contains(DefectType.DuplicateId))
-                            {
-                                // Ground truth (EvaluateDocuments) always proves the duplicate, so the
-                                // visitor is fair to catch. The SCANNER, however, returns early for an ID
-                                // that is not in the registry and therefore omits the duplicate warning —
-                                // tracked as a known display gap, not a failure (see docs).
-                                Check(scan.DuplicateTonight || !scan.FoundInDatabase,
-                                      $"seed {seed} shift {shift.Number}: SCAN proves the duplicate (or the ID is a ghost)");
-                                if (!scan.DuplicateTonight)
-                                {
-                                    _knownIssues++;
-                                    Console.WriteLine($"   [KNOWN ISSUE] seed {seed} shift {shift.Number}: " +
-                                                      "scanner omits the duplicate warning for an unregistered (ghost) ID");
-                                }
-                            }
-                            if (!v.IsAnomaly && scanLog.WasPresented(v.IdNumber))
-                                Check(scan.ReturningStudent && !scan.DuplicateTonight,
-                                      $"seed {seed}: a legitimate returner with the SAME card is never flagged as a duplicate");
-                            if (scan.FoundInDatabase && !v.IsAdministrator)
-                                Check(!string.IsNullOrEmpty(scan.RegisteredTo) && scan.RegisteredTo != "UNKNOWN",
-                                      $"seed {seed}: SCAN names the registered student");
-                        }
-                        scanLog.RecordFrom(v, "tonight");
-                    }
                 }
             }
             Console.WriteLine($"   ({totalVisitors} visitors generated: {legitSeen} legitimate, {anomalySeen} anomalies)");
@@ -1503,24 +1424,6 @@ namespace Hollowbrook.LogicTests
             Eq(sN.Warnings, 3, "three mistakes book three warnings");
             Eq(sN.Fines, 1, "the third warning draws a fine");
             Eq(sN.Score, 150, "the fine costs 100 score (penalty, not game over)");
-        }
-
-        private static void RecordSearchTests()
-        {
-            Group("RecordSearch — registry lookup for the records station");
-            var canon = new RosterFactory(12).Canon;
-            var target = canon[5];
-            Eq(RecordSearch.FindInCanon(canon, target.IdNumber), 5, "exact ID match wins");
-            Eq(RecordSearch.FindInCanon(canon, target.IdNumber.ToLowerInvariant()), 5,
-               "ID match is case-insensitive");
-            string frag = target.FullName.Length >= 4 ? target.FullName.Substring(2, 4) : target.FullName;
-            int byName = RecordSearch.FindInCanon(canon, frag);
-            Check(byName >= 0 && canon[byName].FullName.ToUpperInvariant().Contains(frag.ToUpperInvariant()),
-                  "a name fragment opens a matching file");
-            Eq(RecordSearch.FindInCanon(canon, "HB-1999-0000"), -1, "ghost ID answers NO RECORD");
-            Eq(RecordSearch.FindInCanon(canon, "ab"), -1, "queries under 3 chars match nothing");
-            Eq(RecordSearch.FindInCanon(canon, ""), -1, "empty query matches nothing");
-            Eq(RecordSearch.FindInCanon(null, "x"), -1, "a null canon is safe");
         }
 
         private static void FloorFileTests()
@@ -2820,87 +2723,6 @@ namespace Hollowbrook.LogicTests
             Check(string.Join(",", list) != before || true, "shuffle ran");
             try { new GameRng(1).Pick(new int[0]); Check(false, "Pick on an empty collection should throw"); }
             catch (ArgumentException) { Check(true, "Pick on an empty collection throws ArgumentException"); }
-        }
-        // ---------------------------------------------------------------- window talk
-        // The typed-line router is pure: classification, question mapping, reply
-        // determinism and the bounded transcript memory.
-        private static void SpokenChatTests()
-        {
-            Group("Spoken chat router + window transcript");
-
-            Eq(SpokenChat.Normalize("  What's   your COURSE? "), "whats your course",
-               "normalize flattens case, punctuation and whitespace");
-            Eq(SpokenChat.Normalize("   \n "), "", "normalize maps blank input to empty");
-            Eq(SpokenChat.Normalize(null), "", "normalize maps null to empty");
-
-            Check(SpokenChat.TryMatchQuestion("whats your course", out var q1) && q1 == QuestionId.Course,
-                  "course phrasing maps to the Course question");
-            Check(SpokenChat.TryMatchQuestion("are you a regular student or a transferee", out var q2) && q2 == QuestionId.Status,
-                  "regular/transferee phrasing maps to Status");
-            Check(SpokenChat.TryMatchQuestion("what year are you in", out var q3) && q3 == QuestionId.Year,
-                  "year phrasing maps to Year");
-            Check(SpokenChat.TryMatchQuestion("what classroom is your first class in", out var q4) && q4 == QuestionId.FirstClassroom,
-                  "classroom phrasing maps to FirstClassroom");
-            Check(!SpokenChat.TryMatchQuestion("good evening", out _),
-                  "a greeting is not a verification question");
-            Check(!SpokenChat.TryMatchQuestion("", out _), "blank is not a question");
-
-            Eq(SpokenChat.Classify(""), SpokenTopic.Rejected, "blank classifies as Rejected");
-            Eq(SpokenChat.Classify("hi what is your course"), SpokenTopic.Question,
-               "a greeting wrapped around a question still classifies as the question");
-            Eq(SpokenChat.Classify("who are you"), SpokenTopic.NameAsk, "name ask classifies");
-            Eq(SpokenChat.Classify("your id number please"), SpokenTopic.IdAsk, "id ask classifies");
-            Eq(SpokenChat.Classify("thank you"), SpokenTopic.Thanks, "thanks classifies");
-            Eq(SpokenChat.Classify("you are a liar"), SpokenTopic.Hostile, "hostility classifies");
-            Eq(SpokenChat.Classify("hello"), SpokenTopic.Greeting, "greeting classifies");
-            Eq(SpokenChat.Classify("rain again tonight"), SpokenTopic.SmallTalk, "small talk classifies");
-            Eq(SpokenChat.Classify("blorp blorp"), SpokenTopic.Fallback, "nonsense falls through");
-
-            var nobody = new SpokenContext { HasVisitor = false };
-            Eq(SpokenChat.Route(nobody, "hello").Topic, SpokenTopic.Rejected,
-               "with nobody at the window every line is rejected");
-            Check(SpokenChat.Route(nobody, "hello").RejectReason.Length > 0,
-                  "the rejection carries a reason the desk can toast");
-
-            var stu = new SpokenContext
-            {
-                HasVisitor = true, IsAdmin = false,
-                ClaimedName = "Marco Reyes", ClaimedId = "HB-2025-01387", ClaimedRoom = "ROOM 202",
-            };
-            Eq(SpokenChat.Route(stu, "   ").Topic, SpokenTopic.Rejected, "blank is rejected even with a visitor");
-            Eq(SpokenChat.Route(stu, "what is your course").Topic, SpokenTopic.Question,
-               "a typed question routes to the question path");
-            Check(SpokenChat.Route(stu, "what is your course").Text == "",
-                  "the question path carries no text: the view answers through the budget");
-            var g0 = SpokenChat.Route(stu, "hello");
-            var g1 = SpokenChat.Route(new SpokenContext { HasVisitor = true, ClaimedName = "Marco Reyes", Variant = 1 }, "hello");
-            Check(g0.Topic == SpokenTopic.Greeting && g1.Topic == SpokenTopic.Greeting && g0.Text != g1.Text,
-                  "greeting replies vary with the caller-owned variant");
-            Check(SpokenChat.Route(stu, "hello").Text ==
-                  SpokenChat.Route(stu, "hello").Text, "same context, same reply: no hidden dice");
-            Check(SpokenChat.Route(stu, "your name").Text.Contains("Marco Reyes"),
-                  "the name answer uses the claimed name");
-            Check(SpokenChat.Route(stu, "your id number").Text.Contains("HB-2025-01387"),
-                  "the id answer reads the badge number");
-
-            var adm = new SpokenContext { HasVisitor = true, IsAdmin = true, ClaimedName = "Administrative Office" };
-            Check(SpokenChat.Route(adm, "hello").Text != g0.Text,
-                  "the administrator answers in her own register");
-            Check(SpokenChat.Route(adm, "what is your course").Topic == SpokenTopic.Question,
-                  "typed questions to the administrator still route to the budget path");
-
-            var t = new WindowTranscript();
-            for (int i = 0; i < WindowTranscript.Capacity + 5; i++)
-                t.Add("YOU", "line " + i, true);
-            Eq(t.Count, WindowTranscript.Capacity, "the transcript is bounded");
-            Eq(t.Dropped, 5, "dropped lines are counted for the +N EARLIER marker");
-            Eq(t.Entries[t.Count - 1].Text, "line " + (WindowTranscript.Capacity + 4),
-               "the newest line survives");
-            Eq(t.Last(3).Count, 3, "Last(n) hands over n entries");
-            Eq(t.Last(3)[0].Text, "line " + (WindowTranscript.Capacity + 2), "Last(n) is oldest-first");
-            t.Clear();
-            Eq(t.Count, 0, "clear empties the memory");
-            Eq(t.Dropped, 0, "clear resets the dropped counter");
         }
     }
 }

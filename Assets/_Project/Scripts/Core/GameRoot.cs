@@ -19,12 +19,6 @@ namespace Hollowbrook.Core
         private const bool VerboseFlow = true;
         public static GameRoot Instance { get; private set; }
 
-        /// <summary>Menu gate for Endless/Challenge (run modes). The systems are fully
-        /// implemented and headless-tested, but the menu keeps them LOCKED placeholders
-        /// until the team flips this to true (structure is ready for later — per current
-        /// scope: New Game → Normal story only).</summary>
-        public static bool RunModesUnlocked = false;
-
         // ---- services ----
         public EventBus Bus { get; private set; }
         public GameConfigSO Config { get; private set; }
@@ -129,11 +123,6 @@ namespace Hollowbrook.Core
         // shift clock (22:00 → 02:00): real time x Config rate in any in-shift scene,
         // plus a bump per processed visitor. Atmosphere only — dawn never ends a shift early.
         private float _shiftMinutes;
-        /// <summary>Live shift-clock minutes since 22:00. Read by the desk top bar every frame
-        /// so the displayed time can never lag the model; written by the save/restore path so a
-        /// resumed night continues at the clock the player saved at, not back at 22:00.</summary>
-        public float ShiftMinutes => _shiftMinutes;
-        public void SetShiftMinutes(float minutes) { _shiftMinutes = Mathf.Max(0f, minutes); }
         /// <summary>One frame's worth of simulated time. Clamped so a stall (tab-out, GC hitch,
         /// debugger) can never fast-forward the night or burn run-timer seconds in one jump:
         /// pause/resume and focus loss already freeze the clock, this covers the wake-up spike.</summary>

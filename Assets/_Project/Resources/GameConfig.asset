@@ -13,7 +13,6 @@ MonoBehaviour:
   m_Name: GameConfig
   m_EditorClassIdentifier: 
   verdictBannerSeconds: 3.2
-  shiftStartHour: 22
   queueArrivalMinSeconds: 25
   queueArrivalMaxSeconds: 30
   queueRunMinSeconds: 3
@@ -27,8 +26,6 @@ MonoBehaviour:
   walkSpeed: 3.4
   runSpeed: 6
   interactRange: 1.35
-  roomHalfWidthHallway: 14
-  roomHalfWidthClassroom: 9
   anomalySpawnChancePerSecond: 0.05
   batteryDrainSweepPerSecond: 2.5
   batteryDrainFocusPerSecond: 6

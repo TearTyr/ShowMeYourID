@@ -49,7 +49,6 @@ namespace Hollowbrook.Logic
         public const float DoorLongWallW = 34f, DoorLongWallH = 16f;   // a gap in a long wall
         public const float DoorEndWallW = 16f, DoorEndWallH = 34f;     // a gap in an end wall
         public const float MarkerSize = 26f;
-        public const float ClueDotSize = 8f;
 
         /// <summary>Fit the sheet into the reference space the canvas actually shows.
         /// <paramref name="visibleW"/>/<paramref name="visibleH"/> come from

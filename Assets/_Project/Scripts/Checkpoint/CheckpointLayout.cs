@@ -137,7 +137,6 @@ namespace Hollowbrook.Checkpoint
         // ---- transient overlays (bounds-checked only; they cover the desk) ---
         public static readonly Region Toast = new Region(280, 94, 720, 30);
         public static readonly Region Prompt = new Region(450, 62, 440, 20);         // hand-over guidance strip
-        public static readonly Region ConfirmBox = new Region(430, 305, 420, 110);
         // the reading sheet for the rules note / tonight's log: centred over the desk with
         // room for crest, hand title, the hand-written block AND the printed live text
         // the reading sheet: the kit's photographed paper at its OWN aspect (789x879),
@@ -188,8 +187,6 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region DrawerHead = new Region(15, 30, 245, DrawerHeadH);
             public static readonly Region DrawerHandle = new Region(30, 9, 80, 7);
             public static readonly Region DrawerFrontLabel = new Region(0, 6, 266, 14);
-            // front-local, beside the handle: the registry readout rides out with the drawer
-            public static readonly Region DrawerFrontOut = new Region(170, 10, 90, 14);
             public const float FileRowX = 15f, FileRowY0 = 50f, FileRowStep = 27f,
                                FileRowW = 250f, FileRowH = 22f;
             public const float FileRowPillW = 160f;                // the dark name pill on the sheet
@@ -202,7 +199,6 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region RecordHeader = new Region(0, 2, 284, 24);  // clear of the X
             public const float RecordRowX = 14f, RecordRowW = 292f, RecordRowH = 14f;
             public static readonly float[] RecordRules = { 42f, 63f, 84f, 105f, 126f, 147f, 168f };
-            public static readonly Region StampLocal = new Region(195, 165, 110, 110);
 
             // id card (sprite is printed 1:1 at 320x220)
             public static readonly Region IdHeader = new Region(0, 2, 320, 24);
@@ -228,8 +224,6 @@ namespace Hollowbrook.Checkpoint
             // the sec_bubble master's pixels per layout unit (ProceduralArt.FilePpus) — 480px tail = 48u
             public const float BubbleKitArtPxPerUnit = 10f;
             public static readonly Region BubbleTail = new Region(-34, 26, 44, 36);
-            public static readonly Region NoteHead = new Region(10, 6, 260, 18);
-            public static readonly Region NoteBody = new Region(10, 28, 260, 74);
 
             // the counter slip (panel-local): the written lines own the sheet. The verdict
             // mark lands WHERE the player drops the stamp (Papers, Please style), clamped
@@ -245,11 +239,6 @@ namespace Hollowbrook.Checkpoint
             public const float QBtnX = 16f, QBtnW = 266f;
             public const float QContentY0 = 44f, QContentY1 = 193f, QBtnGap = 7f;
 
-            // confirmation popup
-            public static readonly Region ConfirmText = new Region(20, 12, 380, 40);
-            public static readonly Region ConfirmNo = new Region(150, 64, 90, 30);
-            public static readonly Region ConfirmYes = new Region(250, 64, 90, 30);
-
             // verdict banner
 
             // paper overlays (rules note / tonight's log): the photographed sheet owns
@@ -259,12 +248,6 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region PaperSlip = new Region(405, 596, 470, 116);
             public static readonly Region PaperSlipBody = new Region(14, 10, 442, 96);
             public static readonly Region PaperClose = new Region(688, 42, 140, 36);
-
-            // waiting-line strips (panel-local slots: 4 silhouettes each, 56px step)
-            public const float QueueSlotW = 44f, QueueSlotH = 52f, QueueSlotStep = 56f;
-            public const float QueueSlotLX = 8f, QueueSlotLY0 = 6f;    // inside the 60-wide left strip
-            public const float QueueSlotRX = 18f, QueueSlotRY0 = 22f;  // below the right strip's badge
-            public static readonly Region QueueBadge = new Region(0, -16, 123, 16);
 
             // day banner: night label on top, queue readout underneath
             public static readonly Region BannerTop = new Region(0, 0, 700, 30);   // pre-squeeze width

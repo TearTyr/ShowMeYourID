@@ -86,9 +86,6 @@ namespace Hollowbrook.Checkpoint
         private GameObject _notesRoot; private Text _notesText;
         private GameObject _recordsRoot; private Text _recordsText;
 
-        // Amber readout color while the waiting line is backing up (pressure level 1+).
-        private static readonly Color PressureColor = new Color(0.95f, 0.72f, 0.30f);
-
         public void Init(GameRoot root)
         {
             _gameRoot = root;
@@ -438,11 +435,6 @@ namespace Hollowbrook.Checkpoint
         // (stub MonoBehaviours never get Update calls).
         internal void TickHotkeys()
         {
-            // While any text field holds the caret the keyboard belongs to the sentence
-            // being typed: no gameplay key may fire (an "f" must not flip a paper, an "a"
-            // must not stamp). The desk itself keeps no typed input any more — the
-            // Questions panel is the only student-interaction interface.
-            if (UIFactory.TypingInField()) return;
             // Escape belongs to an open overlay sheet (Options/Controls/Credits) first —
             // without this guard Esc over the pause menu would close Options AND unpause.
             if (Input.GetKeyDown(KeyCode.Escape) && !_gameRoot.BlockingOverlayOpen && InputGate.TryEscape())

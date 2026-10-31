@@ -44,9 +44,7 @@ namespace Hollowbrook.Checkpoint
         // folder-tab shelf and the bottom rail, leaving the caption and tabs their room
         private const float CabFrontX = 20f, CabFrontY = 44f, CabFrontW = 265f, CabFrontH = 102f;
         private static readonly Color CabFaceInk = new Color(0.80f, 0.78f, 0.72f);
-        private static readonly Color CabFaceLit = new Color(0.90f, 0.88f, 0.82f);
         private static readonly Color CabGripInk = new Color(0.16f, 0.16f, 0.17f);
-        private static readonly Color CabGripLit = new Color(0.32f, 0.32f, 0.34f);
         private static readonly Color CabTagInk = new Color(0.28f, 0.27f, 0.25f);
 
         private readonly Button[] _folderTabs = new Button[2];

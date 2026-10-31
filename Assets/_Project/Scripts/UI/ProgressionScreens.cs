@@ -350,10 +350,6 @@ namespace Hollowbrook.UI
         private Vector2 Design(float x, float y) => new Vector2(
             MapSheetLayout.ToAnchoredX(x, _planScale), MapSheetLayout.ToAnchoredY(y, _planScale));
 
-        /// <summary>The same mapping exposed to the proofs, so "is the drawing faithful to the
-        /// floor-plan table?" can be asserted instead of eyeballed.</summary>
-        internal Vector2 DesignOf(float x, float y) => Design(x, y);
-
         /// <summary>Design size -> on-screen size: the sheet fit (clamped, so a small window
         /// shrinks the plan but never makes the labels unreadable) times the player's text-scale
         /// setting. The design size stays the recorded base, so ApplyTextScale and a relayout

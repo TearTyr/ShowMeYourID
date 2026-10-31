@@ -356,14 +356,6 @@ namespace Hollowbrook.Logic
 
         public StudentIdentity PickIdentity(GameRng rng) => _canon[rng.NextInt(0, _canon.Count)];
 
-        public VisitorData BuildLateStudent(StudentIdentity id, ShiftDef shift, bool anomaly)
-        {
-            var v = anomaly ? BuildAnomaly(id, shift) : BuildLegit(id, shift);
-            v.ShiftNumber = shift.Number;
-            v.VisitorIndex = -1;   // office visitors are outside the checkpoint roster
-            return v;
-        }
-
         public VisitorData BuildAdministrator(ShiftDef shift)
         {
             var badgePhoto = new Portrait { HairStyle = 2, FaceVariant = 3, Accessory = 0, Distorted = false };
@@ -425,63 +417,6 @@ namespace Hollowbrook.Logic
             v.ShiftNumber = 0;
             _genLog.RecordFrom(v, "presented earlier this run");
             return v;
-        }
-
-        public class ScanResult
-        {
-            public bool FormatValid;
-            public bool FoundInDatabase;
-            public string RegisteredTo = "";
-            public bool DuplicateTonight;
-            public bool ReturningStudent;
-            public string Display;
-        }
-
-        public ScanResult Scan(VisitorData v, PresentationLog playLog)
-        {
-            var r = new ScanResult();
-            if (v.IsAdministrator)
-            {
-                r.FormatValid = true;
-                r.FoundInDatabase = false;
-                r.Display = "NOT A STUDENT ID — VERIFY AGAINST DISTRICT ROSTER MEMO";
-                return r;
-            }
-            r.FormatValid = IdRules.IsFormatValid(v.IdNumber);
-            if (!r.FormatValid)
-            {
-                r.Display = "SYSTEM ERROR — UNREADABLE ID NUMBER";
-                return r;
-            }
-            bool presented = playLog != null && playLog.WasPresented(v.IdNumber);
-            r.DuplicateTonight = playLog != null && playLog.WasPresentedWithDifferentCard(v.IdNumber, v.IdPhoto);
-            r.ReturningStudent = presented && !r.DuplicateTonight;
-
-            r.FoundInDatabase = _registry.Contains(v.IdNumber);
-            r.RegisteredTo = NameForRegistryId(v.IdNumber);
-            if (!r.FoundInDatabase)
-            {
-                r.Display = "NOT FOUND — NO STUDENT RECORD FOR " + v.IdNumber
-                    + (r.DuplicateTonight
-                        ? " · ⚠ ALREADY PRESENTED " + (playLog.LabelFor(v.IdNumber) ?? "").ToUpperInvariant() + " WITH A DIFFERENT CARD"
-                        : "");
-                return r;
-            }
-            if (r.DuplicateTonight)
-                r.Display = "FOUND — REGISTERED TO " + r.RegisteredTo +
-                            " · ⚠ ALREADY PRESENTED " + (playLog.LabelFor(v.IdNumber) ?? "").ToUpperInvariant() +
-                            " WITH A DIFFERENT CARD";
-            else if (r.ReturningStudent)
-                r.Display = "FOUND — " + r.RegisteredTo + " · RETURNING STUDENT";
-            else
-                r.Display = "FOUND — " + r.RegisteredTo;
-            return r;
-        }
-
-        private string NameForRegistryId(string idNumber)
-        {
-            foreach (var s in _canon) if (s.IdNumber == idNumber) return s.FullName;
-            return "UNKNOWN";
         }
     }
 }

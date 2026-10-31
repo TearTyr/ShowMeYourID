@@ -489,7 +489,6 @@ namespace FlowCheck
             Add("admin talk bar", L.AdminTalkBar, "A");     // column alone while it is open
             Add("queue strip right", L.QueueStripR, "C");
             Add("toast", L.Toast, "T");
-            Add("confirm box", L.ConfirmBox, "T");
             Add("paper overlay", L.PaperOverlay, "T");
             Add("sticky note", L.StickyNote, "T");
 

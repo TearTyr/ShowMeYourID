@@ -24,10 +24,6 @@ namespace Hollowbrook.UI
 
         public void OnPointerExit(PointerEventData eventData) => Leave();
 
-        // A deactivated widget stops raycasting, and Unity may never deliver the exit for a
-        // target that vanished under the cursor — the owner calls this when it hides itself.
-        public void ForceExit() => Leave();
-
         private void Leave()
         {
             if (!Hovering) return;                // no duplicate / stale exits

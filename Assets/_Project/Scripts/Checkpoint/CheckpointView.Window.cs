@@ -274,15 +274,6 @@ namespace Hollowbrook.Checkpoint
             PresentFromQueue(admin, false);   // same state machine the queue path uses
         }
 
-        // Headless hook: the window goes empty mid-beat (the visitor walked off while a
-        // typed line was still in flight) so the dock's error path is provable.
-        internal void DebugClearVisitor()
-        {
-            _current = null;
-            SetVisitorVisible(false);
-            RefreshHud();
-        }
-
         // Arrival beat: the student slides the ID to the counter edge, unasked.
         private void OfferAtCounter()
         {
