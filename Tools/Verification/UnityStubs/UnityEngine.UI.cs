@@ -1,4 +1,4 @@
-// Unity API stubs (uGUI subset) — see UnityEngine.Core.cs header.
+// Unity API stubs (uGUI subset) - see UnityEngine.Core.cs header.
 // Namespace placement mirrors real Unity 2022.3:
 //   UnityEngine    : Canvas, CanvasScaler, CanvasGroup, RectTransform, Font, TextAnchor, …
 //   UnityEngine.UI : Graphic, Image, Text, Button, Slider, Toggle, layouts, Outline, GraphicRaycaster, …
@@ -42,8 +42,8 @@ namespace UnityEngine
         public Vector2 sizeDelta = Vector2.zero;
         // Unity's stretch drivers: the rect edges hang off the anchor points, and
         // anchoredPosition/sizeDelta are the derived pair. Modelling them (instead of four
-        // independent fields) keeps code that writes offsets — DialogueView, FileDrawer edges,
-        // paper stripes — in the same geometry as code that writes anchoredPosition.
+        // independent fields) keeps code that writes offsets - DialogueView, FileDrawer edges,
+        // paper stripes - in the same geometry as code that writes anchoredPosition.
         public Vector2 offsetMin
         {
             get => anchoredPosition - new Vector2(pivot.x * sizeDelta.x, pivot.y * sizeDelta.y);
@@ -110,9 +110,9 @@ namespace UnityEngine.UI
     // Minimal headless InputField: the text plus the events real uGUI fires.
     // Headless proofs set .text and invoke onEndEdit / SimulateEnter directly.
     // Line semantics mirror real uGUI and the project's input contract:
-    //   MultiLineSubmit — Enter submits (onSubmit), Shift+Enter inserts a newline;
-    //   MultiLineNewline — Enter inserts a newline, Shift+Enter submits;
-    //   SingleLine — Enter submits, newlines are refused.
+    //   MultiLineSubmit - Enter submits (onSubmit), Shift+Enter inserts a newline;
+    //   MultiLineNewline - Enter inserts a newline, Shift+Enter submits;
+    //   SingleLine - Enter submits, newlines are refused.
     public class InputField : Behaviour
     {
         private string _text = "";
@@ -141,7 +141,7 @@ namespace UnityEngine.UI
         public UnityEngine.Events.UnityEvent<string> onSubmit = new UnityEngine.Events.UnityEvent<string>();
         public enum LineType { SingleLine = 0, MultiLineNewline = 1, MultiLineSubmit = 2 }
 
-        // ActivateInputField mirrors real uGUI — and the stub deliberately exposes ONLY the
+        // ActivateInputField mirrors real uGUI - and the stub deliberately exposes ONLY the
         // real surface (uGUI's InputField has no Focus(); an invented member here once let a
         // stub-only call compile headless and then fail in the editor). The field becomes the
         // EventSystem's selected object, so UIFactory.TypingInField() sees it exactly as the

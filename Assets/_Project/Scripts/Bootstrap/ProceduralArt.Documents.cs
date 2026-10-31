@@ -65,7 +65,7 @@ namespace Hollowbrook.Bootstrap
         // Speech-bubble tail: a paper triangle pointing LEFT (toward the visitor's face),
         // bordered on its two slanted sides. The base (right edge) is borderless and is
         // buried a few pixels under the bubble panel, so bubble + tail read as one
-        // continuous outline — the classic comics seam.
+        // continuous outline - the classic comics seam.
         private static Sprite MakeBubbleTail()
         {
             int w = 20, h = 26;
@@ -95,7 +95,7 @@ namespace Hollowbrook.Bootstrap
         }
 
         // Floor-files folder front: a manila tab poking up on the left of a worn folder body.
-        // Drawn dark — the cabinet lives under the desk lamp, not in an office. Stretched
+        // Drawn dark - the cabinet lives under the desk lamp, not in an office. Stretched
         // across the station's tab rows; the label text sits on the body below the tab.
         private static Sprite MakeFolderTab(int w, int h)
         {

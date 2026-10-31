@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    /// <summary>Queue tuning knobs — fed from GameConfigSO in production. Tests may
+    /// <summary>Queue tuning knobs - fed from GameConfigSO in production. Tests may
     /// override the live instance; that is a test-only path, never a shipping value.</summary>
     public class QueueTuning
     {
@@ -28,7 +28,7 @@ namespace Hollowbrook.Logic
     }
 
     /// <summary>Flat, serializable queue state (SaveFormat writes it as the queue* keys).
-    /// Line membership is stored as VisitorIndex values — unique within a Normal-mode
+    /// Line membership is stored as VisitorIndex values - unique within a Normal-mode
     /// shift roster, which is regenerated identically from the run seed on load.</summary>
     [Serializable]
     public class QueueSnapshot
@@ -43,6 +43,7 @@ namespace Hollowbrook.Logic
         public List<int> VanishedIdx = new List<int>();
         public int MissingIncidents;
         public bool QuestionAsked;
+        public int QuestionMask;   // which questions were asked (InterviewRules.Bit)
         public bool Overwhelmed;
         public bool ResolutionPending;   // quit happened between the stamp and the banner end
         // -1 = the save file predates the key: RestoreFromSnapshot then reconstructs the
@@ -56,23 +57,23 @@ namespace Hollowbrook.Logic
     /// pure logic: it reports, the owner (desk view) presents, sounds and toasts.</summary>
     public struct QueueTickResult
     {
-        public VisitorData ToWindow;      // arrived with the window free — present now
-        public VisitorData ToLine;        // arrived behind an occupied window — enqueued
+        public VisitorData ToWindow;      // arrived with the window free - present now
+        public VisitorData ToLine;        // arrived behind an occupied window - enqueued
         public VisitorData Vanished;      // missing-student victim (with MissingStudent)
         public bool MissingStudent;       // a missing-student incident fired this call
-        public bool LineChanged;          // waiting line membership changed — rebuild the strip
+        public bool LineChanged;          // waiting line membership changed - rebuild the strip
         public bool PressureWarning;      // crossed PressureWarnAt (once per shift)
-        public bool Overwhelmed;          // crossed OverwhelmedAt (once — the queue collapses)
+        public bool Overwhelmed;          // crossed OverwhelmedAt (once - the queue collapses)
         public bool Any => ToWindow != null || ToLine != null || MissingStudent ||
                            PressureWarning || Overwhelmed || LineChanged;
     }
 
     /// <summary>The checkpoint arrival queue. Keeps apart the concepts the first
     /// single roster index conflated:
-    ///   roster source   — visitors who have not arrived yet (finite list or run generator),
-    ///   waiting line    — arrived, not yet at the window (strict FIFO),
-    ///   active visitor  — the one inspection the window holds,
-    ///   arrival clock   — randomized interval, armed only while a shift has started.
+    ///   roster source   - visitors who have not arrived yet (finite list or run generator),
+    ///   waiting line    - arrived, not yet at the window (strict FIFO),
+    ///   active visitor  - the one inspection the window holds,
+    ///   arrival clock   - randomized interval, armed only while a shift has started.
     /// Owned by GameRoot so it survives scene reloads; ticked by the desk view on scaled
     /// time, so pause (timeScale 0) and patrol (view destroyed) freeze it with no leaks.
     /// Missing-student incidents are a Normal-mode (finite roster) story mechanic.</summary>
@@ -99,9 +100,16 @@ namespace Hollowbrook.Logic
         public int RosterCursor { get; private set; }
         /// <summary>Seconds until the next arrival; negative = clock not armed.</summary>
         public float TimerSeconds { get; private set; } = -1f;
-        /// <summary>True once the classroom question was asked of the visitor at the window.
-        /// Synced by the desk view so a quit/continue keeps the answer note on screen.</summary>
-        public bool ActiveQuestionAsked { get; set; }
+        /// <summary>Which questions were asked of the visitor at the window (one bit per
+        /// QuestionId). Synced by the desk view so a quit/continue keeps the answers on screen.</summary>
+        public int ActiveQuestionMask { get; set; }
+
+        /// <summary>True once any question was asked of the visitor at the window.</summary>
+        public bool ActiveQuestionAsked
+        {
+            get => ActiveQuestionMask != 0;
+            set { if (!value) ActiveQuestionMask = 0; else if (ActiveQuestionMask == 0) ActiveQuestionMask = 1; }
+        }
 
         public bool IsAttached => _roster != null || _runSource != null;
         public bool InfiniteSource => _runSource != null;
@@ -133,7 +141,7 @@ namespace Hollowbrook.Logic
         }
 
         /// <summary>The shift is only over when the source is dry, the line is empty and
-        /// the window is free — never merely because the line ran dry mid-shift.</summary>
+        /// the window is free - never merely because the line ran dry mid-shift.</summary>
         public bool ShiftComplete => Started && !InfiniteSource && _roster != null &&
                                      SourceExhausted && _waiting.Count == 0 && Active == null;
 
@@ -243,7 +251,7 @@ namespace Hollowbrook.Logic
             else
             {
                 // strict FIFO: a free window with a waiting line belongs to the head of the
-                // line, never to a fresh arrival — the newcomer joins the line instead.
+                // line, never to a fresh arrival - the newcomer joins the line instead.
                 _waiting.Enqueue(v); r.ToLine = v;
                 if (Active == null) { Active = _waiting.Dequeue(); r.ToWindow = Active; }
             }
@@ -269,7 +277,7 @@ namespace Hollowbrook.Logic
         public bool ResolutionPending { get; private set; }
 
         /// <summary>The stamp moment: the verdict is permanent, so the processed count and
-        /// budget consumption are committed immediately — even if the player quits during
+        /// budget consumption are committed immediately - even if the player quits during
         /// the banner.</summary>
         public void CommitActiveResolution()
         {
@@ -280,7 +288,7 @@ namespace Hollowbrook.Logic
         }
 
         /// <summary>The window visitor leaves (after the banner): promotes the oldest
-        /// waiting visitor immediately — no second wait — and returns it, or null when the
+        /// waiting visitor immediately - no second wait - and returns it, or null when the
         /// window is now free for the arrival clock. Safe to call without a prior commit
         /// (it then counts the resolution itself, exactly once).</summary>
         public VisitorData CompleteActive()
@@ -295,7 +303,7 @@ namespace Hollowbrook.Logic
         }
 
         /// <summary>Story completion (the administrator encounter resolving): the night is
-        /// over — everyone still waiting is sent home and the window closes without
+        /// over - everyone still waiting is sent home and the window closes without
         /// counting anyone as processed. Returns how many left the line.</summary>
         public int AbandonLine()
         {
@@ -359,7 +367,7 @@ namespace Hollowbrook.Logic
 
             bool fromLine;
             var victim = PickVictim(out fromLine);
-            if (victim == null) return;               // nobody eligible left — nothing is consumed
+            if (victim == null) return;               // nobody eligible left - nothing is consumed
             _vanished.Add(victim);
             if (fromLine) ArrivalCount--;             // they slipped out of the night's books:
                                                       // arrival progression updates with the counts (§9.6)
@@ -416,6 +424,7 @@ namespace Hollowbrook.Logic
                 ActiveIdx = Active != null ? Active.VisitorIndex : -1,
                 MissingIncidents = MissingIncidents,
                 QuestionAsked = ActiveQuestionAsked,
+                QuestionMask = ActiveQuestionMask,
                 Overwhelmed = Collapsed,
                 ResolutionPending = ResolutionPending,
                 Warned = _warned ? 1 : 0,
@@ -431,7 +440,7 @@ namespace Hollowbrook.Logic
         }
 
         /// <summary>Silent restore (no arrival hooks): the roster must already be attached
-        /// and identically generated — VisitorIndex maps back to the same VisitorData.</summary>
+        /// and identically generated - VisitorIndex maps back to the same VisitorData.</summary>
         public void RestoreFromSnapshot(QueueSnapshot s, int reseedKey)
         {
             if (s == null) return;
@@ -442,7 +451,7 @@ namespace Hollowbrook.Logic
             ProcessedCount = Math.Max(0, s.Processed);
             TimerSeconds = s.TimerSeconds;
             MissingIncidents = Math.Max(0, s.MissingIncidents);
-            ActiveQuestionAsked = s.QuestionAsked;
+            ActiveQuestionMask = s.QuestionMask != 0 ? s.QuestionMask : (s.QuestionAsked ? 1 : 0);
             Collapsed = s.Overwhelmed;
             ResolutionPending = s.ResolutionPending;
             _waiting.Clear();

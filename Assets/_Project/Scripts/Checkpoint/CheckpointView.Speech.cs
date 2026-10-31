@@ -18,7 +18,7 @@ namespace Hollowbrook.Checkpoint
     // rectangular strip under the window is gone): paper stock, dark border, a small tail
     // pointing at the face. The bubble shows the latest window line, grows with the text
     // (SpeechBubbleLayout wraps/limits it inside the registered box) and STAYS until the next
-    // line replaces it or the desk clears it (visitor leaves, patrol, new shift) — there is no
+    // line replaces it or the desk clears it (visitor leaves, patrol, new shift) - there is no
     // timer, so a clue the player has not read yet can never vanish.
     public partial class CheckpointView
     {
@@ -49,7 +49,7 @@ namespace Hollowbrook.Checkpoint
             _bubblePanel.gameObject.AddComponent<RectMask2D>();   // text can never spill the paper
 
             // the tail rides ON TOP of the panel's left border (later sibling) so its
-            // borderless base melts into the bubble — tip points at the visitor's face
+            // borderless base melts into the bubble - tip points at the visitor's face
             var tail = UIFactory.Img(_bubbleRoot, "bubbletail", ProceduralArt.Get("bubble_tail"));
             L.Place(tail.rectTransform, L.Inner.BubbleTail);
             tail.raycastTarget = false;
@@ -78,18 +78,18 @@ namespace Hollowbrook.Checkpoint
 
         private void Say(string text) => SayLine("AT THE WINDOW", text);
 
-        // Headless hook: inject one window line — the same path the student's own
+        // Headless hook: inject one window line - the same path the student's own
         // dialogue takes (FlowCheck drives the bubble timing deterministically).
         internal void DebugSay(string text) => Say(text);
 
         // The bubble only ever speaks with the student's voice at the window. Other
-        // voices (radio, bulletins) are HUD toasts — a bubble anchored to the student's
+        // voices (radio, bulletins) are HUD toasts - a bubble anchored to the student's
         // head must not ventriloquise the intercom.
         private void SayLine(string who, string text)
         {
             if (who != "AT THE WINDOW")
             {
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, who + " — " + text));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, who + " - " + text));
                 return;
             }
             _bubble.Say(who, text);   // a new line cancels any pending hide (one clock)
@@ -105,7 +105,7 @@ namespace Hollowbrook.Checkpoint
         }
 
         // Cleanup path: leaving the desk (patrol), a new shift, or the visitor walking
-        // off hides the bubble instantly — a line never carries over to the next beat.
+        // off hides the bubble instantly - a line never carries over to the next beat.
         internal void HideBubbleNow()
         {
             _bubble.HideNow();
@@ -132,7 +132,7 @@ namespace Hollowbrook.Checkpoint
         // The kit bubble: the spoken line alone (the tail already points at who is talking), in
         // big dark type on the art's white. The panel hangs its painted-tail border OUTSIDE the
         // registered box so the white lands exactly on the reference rect, and the text sits
-        // inside the white with a clear inset — never on the jagged ink. Wrap budget and line
+        // inside the white with a clear inset - never on the jagged ink. Wrap budget and line
         // height follow the player's text scale, so the line count we size the panel for is the
         // line count the Text really wraps to; truncation is the last resort, never the first.
         private void LayoutKitBubble()
@@ -190,8 +190,8 @@ namespace Hollowbrook.Checkpoint
             if (_current != null && !_verdictLocked)
             {
                 if (_slipStamped) want = "CHANGE YOUR MIND? STAMP AGAIN. OTHERWISE DRAG THE ID BACK TO THE WINDOW";
-                else if (!_classroomAsked && !_current.IsAdministrator)
-                    want = "ASK WHICH CLASSROOM THEY ARE GOING TO [1], THEN CHECK THEIR FILE IN THE DRAWER";
+                else if (_questionMask == 0 && !_current.IsAdministrator)
+                    want = "ASK UP TO 2 QUESTIONS [1-4], THEN CHECK THEIR FILE IN THE DRAWER";
                 else want = "CHECK THE PAPERS AND THE FILE, THEN DRAG A STAMP ONTO THE SLIP";
             }
             RefreshWindowCue();

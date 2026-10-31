@@ -13,7 +13,7 @@ namespace Hollowbrook.UI
     // The main menu, F2 reset and its ambience. Created by MenuSceneBootstrap.
     //
     // Visual spec: Art/MainMenu/reference/main-menu-reference.png (2880x1620). The whole menu
-    // is built from the owner's kit (Assets/_Project/Resources/Art/MainMenu/menu_*.png, cut by
+    // is built from the owner's kit (Assets/_Project/Resources/Art/UI/MainMenu/menu_*.png, cut by
     // Tools/prep_mainmenu_art.py): the corridor backdrop, the "SHOW ME YOUR ID!" logo plate,
     // the two outlined wide buttons (NEW GAME / CONTINUE) and the three outlined icon squares
     // (SETTINGS / EXIT / CREDITS). Every rect below is the reference composite measured in
@@ -65,7 +65,7 @@ namespace Hollowbrook.UI
             FitBackground();
 
             // ambience: the rare static flicker only. The corridor art ships with its own
-            // vignette and grain baked in — an extra wash layer only dulls the reference.
+            // vignette and grain baked in - an extra wash layer only dulls the reference.
             _shade = UIFactory.Img(transform, "shade", ProceduralArt.Get("solid_white"), new Color(0, 0, 0, 0f));
             UIFactory.AnchorsFull(_shade.rectTransform);
             _shade.raycastTarget = false;
@@ -102,7 +102,7 @@ namespace Hollowbrook.UI
             SquareButton(col, "CREDITS", "menu_icon_credits", new Vector2(49.33f, 33.78f),
                 new Vector2(0f, 1.78f), () => { Click(); _gameRoot.OpenCredits(); }, Sq3X, SqY);
 
-            // transient messages (F2 reset arming / save erased) — empty means invisible
+            // transient messages (F2 reset arming / save erased) - empty means invisible
             _menuNote = UIFactory.Label(transform, "note", "", 14, new Color(1f, 1f, 1f, 0.75f),
                 TextAnchor.MiddleLeft);
             var noteRt = _menuNote.rectTransform;
@@ -288,7 +288,7 @@ namespace Hollowbrook.UI
                 _gameRoot.Audio.PlaySfx("sfx_glitch", 0.22f);
                 if (_f2Count < 3)
                 {
-                    ShowNote("Data reset armed — press F2 " + (3 - _f2Count) + " more time" + (3 - _f2Count == 1 ? "" : "s") + " (" + _f2Count + "/3).");
+                    ShowNote("Data reset armed - press F2 " + (3 - _f2Count) + " more time" + (3 - _f2Count == 1 ? "" : "s") + " (" + _f2Count + "/3).");
                 }
                 else
                 {

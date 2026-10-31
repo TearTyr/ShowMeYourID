@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 07ce8a96d6337def6ef81c95250859e9
+TextureImporter:
+  internalIDToNameTable: []
+  serializedVersion: 12
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  spriteMode: 1
+  textureType: 8
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

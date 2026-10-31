@@ -1,4 +1,4 @@
-// Unity API stubs (graphics / audio / input) — see UnityEngine.Core.cs header.
+// Unity API stubs (graphics / audio / input) - see UnityEngine.Core.cs header.
 using System;
 using System.Collections.Generic;
 
@@ -30,7 +30,7 @@ namespace UnityEngine
         }
         public static Texture2D whiteTexture { get; } = new Texture2D(4, 4);
         // file-probed textures carry real dimensions but no pixel buffer (headless proofs only
-        // need width/height/name — allocating 8M pixels per kit layer would sink the harness)
+        // need width/height/name - allocating 8M pixels per kit layer would sink the harness)
         public static Texture2D HeaderOnly(int w, int h, string texName)
         {
             var t = new Texture2D(w, h, TextureFormat.RGBA32, false, false);

@@ -14,7 +14,7 @@ namespace Hollowbrook.Checkpoint
     // Left column papers: record sheet + ID card, filling and the clean-desk gate.
     // One area of the inspection desk; see CheckpointView.cs for the state machine,
     // the shared fields and the whole-class comment. Same class, split by desk area.
-    // (The FLOOR FILES cabinet and its pull drawer live in CheckpointView.FileDrawer.cs —
+    // (The FLOOR FILES cabinet and its pull drawer live in CheckpointView.FileDrawer.cs -
     // built first so the pulled record sheet always lands on top of the open drawer.)
     public partial class CheckpointView
     {
@@ -25,14 +25,14 @@ namespace Hollowbrook.Checkpoint
             var recGo = UIFactory.NewUI(_desk, "record");
             var rec = recGo.gameObject.AddComponent<Hollowbrook.UI.HotRectImage>();
             rec.sprite = ProceduralArt.Get("record_sheet");
-            rec.raycastTarget = true;   // the file window grabs the pointer — by its header
+            rec.raycastTarget = true;   // the file window grabs the pointer - by its header
             L.Place(rec.rectTransform, new L.Region(16, 168, 320, 290));
             // Dragged by the header band only: an open file lies OVER the pulled drawer, so
             // the sheet's body stays click-through and the rows, tabs and cabinet under the
             // paper keep working while you read (the X button keeps its own raycast).
             rec.HotRectTopLeft = new Rect(0f, 0f, 320f, 30f);
             rec.gameObject.AddComponent<RectMask2D>();   // rows can never spill off the sheet
-            _recHeader = UIFactory.Label(rec.rectTransform, "header", "STUDENT RECORD — FORM 11-C", 12,
+            _recHeader = UIFactory.Label(rec.rectTransform, "header", "STUDENT RECORD - FORM 11-C", 12,
                 new Color(0.9f, 0.9f, 0.88f), TextAnchor.MiddleCenter);
             L.Place(_recHeader.rectTransform, L.Inner.RecordHeader);
             _recName = Row(rec.rectTransform, "rname", 0);
@@ -59,7 +59,7 @@ namespace Hollowbrook.Checkpoint
             rec.gameObject.SetActive(false);   // opens only by pulling a file at the station
 
             // The card is a CONTAINER at its concept-measured desk rect; the printed card
-            // (frame, photo, rows — all laid out in the 320x220 design space) rides inside
+            // (frame, photo, rows - all laid out in the 320x220 design space) rides inside
             // as one uniformly scaled art layer, so the desk footprint matches the concept
             // art while the card's inner grid keeps its designed proportions. The container
             // owns the pointer (invisible raycast surface); the art is click-through.
@@ -76,14 +76,14 @@ namespace Hollowbrook.Checkpoint
             var cardRt = art.rectTransform;
 
             // the verdict mark: born riding the ID (invisible), re-parented onto the slip
-            // when the stamp lands — it snaps into the slip's printed stamp box and
+            // when the stamp lands - it snaps into the slip's printed stamp box and
             // respects Reduced Motion (no punch, instant); it never blocks clicks
             _stampOverlay = UIFactory.Img(cardRt, "stampoverlay", null, new Color(1, 1, 1, 0f));
             UIFactory.AnchorsFull(_stampOverlay.rectTransform);
             _stampOverlay.rectTransform.localEulerAngles = new Vector3(0, 0, -12f);
             _stampOverlay.raycastTarget = false;
 
-            // the back face: seal, issue line and the UV strip — the subtle discrepancy tier.
+            // the back face: seal, issue line and the UV strip - the subtle discrepancy tier.
             // Flip with F (or a tap on the held card); the front hides while it shows.
             var back = UIFactory.Panel(cardRt, "idback", new Color(0.82f, 0.81f, 0.78f));
             UIFactory.AnchorsFull(back.rectTransform);
@@ -97,7 +97,7 @@ namespace Hollowbrook.Checkpoint
             L.Place(uv.rectTransform, new L.Region(20, 190, 280, 14));
             back.gameObject.SetActive(false);
             // the card's black spine: left edge on the front, mirrored to the right on the
-            // back — and the ONLY click target that flips the card (the
+            // back - and the ONLY click target that flips the card (the
             // whole-card flip fired from anywhere on the papers). Both spines carry the
             // hand-cursor hover so the handle reads as clickable.
             var stripe = UIFactory.Panel(cardRt, "idstripe", new Color(0.06f, 0.06f, 0.07f));
@@ -113,7 +113,7 @@ namespace Hollowbrook.Checkpoint
             bstripe.rectTransform.offsetMin = new Vector2(-14, 0);
             bstripe.rectTransform.offsetMax = new Vector2(0, 0);
             SpineHandle(bstripe, FlipId);
-            _idHeader = UIFactory.Label(cardRt, "header", "HOLLOWBROOK COLLEGE — STUDENT ID", 12,
+            _idHeader = UIFactory.Label(cardRt, "header", "HOLLOWBROOK COLLEGE - STUDENT ID", 12,
                 new Color(0.9f, 0.9f, 0.88f), TextAnchor.MiddleCenter);
             L.Place(_idHeader.rectTransform, L.Inner.IdHeader);
             _idPhoto = UIFactory.Img(cardRt, "idphoto",
@@ -138,7 +138,7 @@ namespace Hollowbrook.Checkpoint
             _idCardGo.SetActive(false);
 
             // papers are physical: draggable over the desk, lifted while held, settling
-            // back with their tilt on drop. Dropping the ID at the window hands it back —
+            // back with their tilt on drop. Dropping the ID at the window hands it back -
             // there is no scanner, verification is manual (documents, floor files,
             // questions).
             var recordDrag = _recordGo.AddComponent<DragPaper>();
@@ -175,8 +175,8 @@ namespace Hollowbrook.Checkpoint
         }
 
         // The ID's black spine as a flip handle: raycast on (the only sliver of the card
-        // that takes clicks), a subtle brighten on hover/press — multiplied UP because the
-        // spine is near-black — and the hand cursor while the pointer is over it.
+        // that takes clicks), a subtle brighten on hover/press - multiplied UP because the
+        // spine is near-black - and the hand cursor while the pointer is over it.
         private static Button SpineHandle(Image spine, System.Action onFlip)
         {
             spine.raycastTarget = true;
@@ -198,9 +198,9 @@ namespace Hollowbrook.Checkpoint
         // badge, so every line has an admin wording.
         private void FillIdCard(VisitorData v, bool admin)
         {
-            bool template = !admin && ProceduralArt.Get("id_card_template") != null;
+            bool template = !admin && ProceduralArt.Get("sec_id_card_template") != null;
             LayoutIdCard(template);
-            _idHeader.text = template ? "" : admin ? "DISTRICT STAFF BADGE" : "HOLLOWBROOK COLLEGE — STUDENT ID";
+            _idHeader.text = template ? "" : admin ? "DISTRICT STAFF BADGE" : "HOLLOWBROOK COLLEGE - STUDENT ID";
             // the printed template already carries the field names, so it holds the values only
             _idName.text = (template ? "" : "NAME: ") + v.ClaimedName;
             _idNumber.text = template ? v.IdNumber : (admin ? "BADGE NO: " : "ID NO: ") + v.IdNumber;
@@ -229,7 +229,7 @@ namespace Hollowbrook.Checkpoint
         private void LayoutIdCard(bool template)
         {
             if (_idArt == null) return;
-            _idArt.sprite = template ? ProceduralArt.Get("id_card_template") : ProceduralArt.Get("id_card_frame");
+            _idArt.sprite = template ? ProceduralArt.Get("sec_id_card_template") : ProceduralArt.Get("id_card_frame");
             var st = _idStripe.rectTransform;
             if (template)
             {
@@ -307,7 +307,7 @@ namespace Hollowbrook.Checkpoint
         // The registry file, filled from a canon row (the ground-truth student record).
         private void FillRecordSheet(StudentIdentity v)
         {
-            _recHeader.text = "STUDENT RECORD — FORM 11-C";
+            _recHeader.text = "STUDENT RECORD - FORM 11-C";
             _recName.text = "NAME: " + v.FullName;
             _recNumber.text = "ID NO: " + v.IdNumber;
             _recYear.text = "YEAR: " + v.YearString;

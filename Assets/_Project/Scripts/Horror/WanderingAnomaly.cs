@@ -8,7 +8,7 @@ namespace Hollowbrook.Horror
 {
     // One roaming anomaly: its behavior pattern plus the light encounter. Spawned by RoomSpawner
     // under the persistent AnomalyRoot, so it keeps living (and roaming through doors) while its
-    // room is off screen — it never freezes and never blocks the live slot from elsewhere.
+    // room is off screen - it never freezes and never blocks the live slot from elsewhere.
     //
     // Authority: AnomalyEncounter is the ONE progression path for real anomalies. The old
     // tracking-threshold reveal that bypassed Repelled/Recovering is gone; TrackingPolicy only
@@ -19,7 +19,7 @@ namespace Hollowbrook.Horror
     public class WanderingAnomaly : MonoBehaviour
     {
         private GameRoot _gameRoot;
-        private RoomInstance _room;              // room ownership — roaming updates this at doors
+        private RoomInstance _room;              // room ownership - roaming updates this at doors
         private SpriteRenderer _sr;
         private GameObject _faceGo;
         private SpriteRenderer _face;
@@ -86,7 +86,7 @@ namespace Hollowbrook.Horror
             _sr.sprite = ProceduralArt.Get("anomaly_" + kind.ToString().ToLowerInvariant());
             _sr.sortingOrder = 40; // under the darkness overlay => silhouette in dim light
 
-            // spawn INSIDE the behavior's own vertical band — no contradictory coordinates
+            // spawn INSIDE the behavior's own vertical band - no contradictory coordinates
             transform.localPosition = new Vector3(spawn.x, RoomInstance.FloorY + _profile.SpawnY, 0);
             _lifetime = hallucination ? 6.5f : 18f;
             PickWanderTarget(PlayerPos());
@@ -137,7 +137,7 @@ namespace Hollowbrook.Horror
 
             bool dialogueOpen = _gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive;
             bool sameRoom = _room != null && views.Current.Id == _room.Id;
-            // peek: nobody inside moves, escalates or despawns — but the cursor light may
+            // peek: nobody inside moves, escalates or despawns - but the cursor light may
             // still reveal them, so visibility keeps ticking for the peeked room only.
             if (views.PeekActive)
             {
@@ -213,7 +213,7 @@ namespace Hollowbrook.Horror
             else _graceLeft = Mathf.Max(0f, _graceLeft - dt);
 
             // Focus ADVANCES; any lesser observation (either beam mode, room lights, grace)
-            // only HOLDS — ambient light can never resolve an encounter by itself.
+            // only HOLDS - ambient light can never resolve an encounter by itself.
             bool observed = sameRoom && (views.BeamCovers(pos) || views.RoomLit);
             var cfg = _gameRoot.Config;
             float rate = TrackingPolicy.RatePerSecond(focus, observed || _graceLeft > 0f,
@@ -241,7 +241,7 @@ namespace Hollowbrook.Horror
             bool beam = sameRoom && rig != null && rig.BeamOn && rig.ConeCovers(pos);
             bool roomLit = sameRoom && views.RoomLit;
             bool focused = sameRoom && rig != null && rig.Beam == LightMode.Focus && rig.ConeCovers(pos);
-            // horizontal distance: this is a side-view school — "next to you" means next to you
+            // horizontal distance: this is a side-view school - "next to you" means next to you
             // on the floor plane, including directly under a ceiling lurker.
             float dist = sameRoom && views.Player != null
                 ? Mathf.Abs(views.Player.transform.localPosition.x - pos.x) : 999f;
@@ -363,8 +363,8 @@ namespace Hollowbrook.Horror
             transform.localPosition = ClampToBand(p);
         }
 
-        // Blink: moves only when not effectively observed — any beam or the room lights
-        // hold it still. Detection is not defeat — Focus is still needed to repel.
+        // Blink: moves only when not effectively observed - any beam or the room lights
+        // hold it still. Detection is not defeat - Focus is still needed to repel.
         private Vector3 MoveBlink(float dt, ViewManager views, Vector3 player, bool stalking, Vector3 p)
         {
             if (views.BeamCovers(p) || views.RoomLit) return p;
@@ -374,7 +374,7 @@ namespace Hollowbrook.Horror
             return p;
         }
 
-        // Slide: readable lateral glide — commits to a point, re-picks on arrival; while
+        // Slide: readable lateral glide - commits to a point, re-picks on arrival; while
         // stalking it picks flank points near the player. No teleporting.
         private Vector3 MoveSlide(float dt, Vector3 player, bool stalking, Vector3 p)
         {
@@ -383,7 +383,7 @@ namespace Hollowbrook.Horror
             return p;
         }
 
-        // Sprint: telegraphed burst — windup under darkness, dash, recover; light on it
+        // Sprint: telegraphed burst - windup under darkness, dash, recover; light on it
         // interrupts the windup (Sweep has a job).
         private Vector3 MoveSprint(float dt, ViewManager views, Vector3 player, float dist, Vector3 p)
         {
@@ -401,9 +401,9 @@ namespace Hollowbrook.Horror
             {
                 if (_telegraph < 0f)
                 {
-                    // understandable warning BEFORE the burst — the reaction window
+                    // understandable warning BEFORE the burst - the reaction window
                     _telegraph = _profile.TelegraphSeconds;
-                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it tenses — MOVE*", 1.6f, null));
+                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it tenses - MOVE*", 1.6f, null));
                     _gameRoot.Audio.PlaySfx("sfx_heartbeat", 0.8f);
                 }
                 _telegraph -= dt;
@@ -423,7 +423,7 @@ namespace Hollowbrook.Horror
             return p;
         }
 
-        // CoverHug: ceiling lurker — slow drift inside its own high band.
+        // CoverHug: ceiling lurker - slow drift inside its own high band.
         private Vector3 MoveCoverHug(float dt, Vector3 player, bool stalking, Vector3 p)
         {
             float tx = stalking ? player.x : _targetX;
@@ -460,10 +460,10 @@ namespace Hollowbrook.Horror
 
             if (hop == playerRoom)
             {
-                // walking into the player's room is always announced — never a silent appearance
+                // walking into the player's room is always announced - never a silent appearance
                 _gameRoot.Audio.PlaySfx("sfx_knock", 0.7f);
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested,
-                    "*a door creaks — something is in here with you*", 2.4f, null));
+                    "*a door creaks - something is in here with you*", 2.4f, null));
             }
         }
 
@@ -543,7 +543,7 @@ namespace Hollowbrook.Horror
             float alpha = _profile.CeilingLurker ? 0.30f : 0.92f;
             int order = 40;
             if (IsHallucination) alpha = 0.45f;
-            // any beam reads silhouettes — but the ceiling lurker only turns clear under Focus
+            // any beam reads silhouettes - but the ceiling lurker only turns clear under Focus
             if (beam && (!_profile.CeilingLurker || views.IsFocusLit(pos)))
             { alpha = Mathf.Max(alpha, 0.95f); order = 71; }
             if (!lit && !beam) alpha *= 0.6f;
@@ -615,13 +615,13 @@ namespace Hollowbrook.Horror
             if (views != null && views.Player != null && views.Current != null)
                 views.Player.PlaceInRoom(views.Current, views.Current.PlayerSpawn);
             // caught != repelled: the anomaly slips away UNRESOLVED (pool keeps it) and
-            // comes back later — patrol now has real stakes 
+            // comes back later - patrol now has real stakes 
             if (views != null) views.ScheduleReturn(Kind);
             Despawn(false);
         }
 
         /// <summary>End this entity. `resolved` marks it as dealt with (pool clears in
-        /// OnAnomalyGone). Runs exactly once — no duplicate handoffs, tokens or callbacks.</summary>
+        /// OnAnomalyGone). Runs exactly once - no duplicate handoffs, tokens or callbacks.</summary>
         public void Despawn(bool resolved)
         {
             if (_gone) return;

@@ -13,6 +13,9 @@ namespace Hollowbrook.World
         protected RoomInstance Room;
         public string Prompt = "Inspect";
         public float AnchorX;
+        // Where the peek lamp has to point to find this (world y). Most things sit at chest height;
+        // the classroom art has its own heights (chalkboard high, desk low).
+        public float AnchorY = RoomInstance.FloorY + 1.4f;
         public bool Enabled = true;
         public SpriteRenderer Art;
 
@@ -49,7 +52,9 @@ namespace Hollowbrook.World
         public void Init(GameRoot root, RoomInstance room, string label, RoomId target, float x)
         {
             _gameRoot = root; Room = room; Target = target; AnchorX = x;
-            Prompt = target == RoomId.Security ? "Return to Security [E]" : "Enter " + label + " [E]";
+            Prompt = target == RoomId.Security ? "Return to Security [E]"
+                   : target == RoomId.Hallway ? "Back to the hallway [E]"
+                   : "Enter " + label + " [E]";
             Art = GetComponent<SpriteRenderer>();
         }
 
@@ -58,7 +63,7 @@ namespace Hollowbrook.World
             if (_gameRoot.Views.Transitioning) return;
             if (Target == RoomId.Security && _gameRoot.HuntActive)
             {
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, "THE SECURITY DOOR IS LOCKED — HE IS INSIDE THE SCHOOL."));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, "THE SECURITY DOOR IS LOCKED - HE IS INSIDE THE SCHOOL."));
                 return;
             }
             if (Target == RoomId.Security) _gameRoot.Views.ReturnToSecurity();
@@ -83,7 +88,7 @@ namespace Hollowbrook.World
             _def = root.Session.Clues.Get(clueKey); // def content is static; tracker state lives in session
             Prompt = "Inspect " + label + " [E]";
             // no world sprite by design: the peek prompt and E reveal clues until real art
-            // exists — hang a SpriteRenderer here when it does
+            // exists - hang a SpriteRenderer here when it does
         }
 
         public override void Interact()
@@ -100,19 +105,35 @@ namespace Hollowbrook.World
 
             var lines = new System.Collections.Generic.List<DialogueLine>
             {
-                new DialogueLine { Speaker = _def.Display.ToUpperInvariant(), Text = _def.InspectText },
+                new DialogueLine { Speaker = _def.Display.ToUpperInvariant(), Text = _def.InspectText,
+                                   PortraitSpriteKey = InspectArt(_clueKey) },
             };
             if (res.FirstTime)
             {
                 lines.Add(new DialogueLine { Speaker = "NOTE TO SELF", Text = _def.ChainHint });
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    "FINDING " + _gameRoot.Session.Clues.FoundCount + "/10 — " + _def.Display));
+                    "FINDING " + _gameRoot.Session.Clues.FoundCount + "/10 - " + _def.Display));
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.ClueDiscovered, res));
                 AddMarker();
                 if (_def.IsScare && _gameRoot.Scares != null)
                     _gameRoot.Scares.Stinger("clue_" + _clueKey, 0f); // sanity already applied by DiscoverClue
             }
             if (_gameRoot.Dialogue != null) _gameRoot.Dialogue.Play(lines, null);
+        }
+
+        // The close up shown beside the text when the clue is inspected (null = no picture).
+        private static string InspectArt(string clueKey)
+        {
+            switch (clueKey)
+            {
+                case "light": return "inspect_light_bulb";
+                case "door": return "inspect_server_door";
+                case "board": return "inspect_noticeboard";
+                case "photo": return "inspect_photoframe";
+                case "clock": return "inspect_clock";
+                case "lostid": return "inspect_clipboard";
+                default: return null;
+            }
         }
 
         private void AddMarker()

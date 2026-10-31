@@ -9,7 +9,7 @@ The stubs placed `CanvasScaler` in `UnityEngine` instead of `UnityEngine.UI`, so
 CS0246. Compiling against the real assemblies makes that class of bug impossible.
 
 Sources (public):
-  * RocketModFix.UnityEngine.Redist 2022.3.62.3 (nuget.org) — the actual
+  * RocketModFix.UnityEngine.Redist 2022.3.62.3 (nuget.org) - the actual
     Editor/Data/Managed assemblies from Unity 2022.3.62f1, incl. UnityEngine.UI.dll.
   * (optional) com.unity.ugui source tarball from packages.unity.com, for
     grepping exact uGUI namespaces/member signatures.

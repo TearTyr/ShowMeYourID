@@ -93,7 +93,7 @@ namespace Hollowbrook.Core
                 var save = TryReadSave(p);
                 if (save == null && File.Exists(p + ".bak")) save = TryReadSave(p + ".bak");
                 if (save == null && File.Exists(p + ".tmp")) save = TryReadSave(p + ".tmp");
-                if (save == null && File.Exists(p)) Debug.LogWarning("[SaveSystem] save file corrupt/unsupported — treated as no save.");
+                if (save == null && File.Exists(p)) Debug.LogWarning("[SaveSystem] save file corrupt/unsupported - treated as no save.");
                 else _bus?.Publish(GameEvent.Of(EventIds.GameLoaded));
                 return save;
             }

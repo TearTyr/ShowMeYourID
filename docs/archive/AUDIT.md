@@ -1,4 +1,4 @@
-# Phase 0 — Project Audit: Show Me Your ID! (Twin Studio)
+# Phase 0 - Project Audit: Show Me Your ID! (Twin Studio)
 
 Date: 2026-10-18 · Environment: headless Linux sandbox (no Unity Editor available)
 
@@ -6,7 +6,7 @@ Date: 2026-10-18 · Environment: headless Linux sandbox (no Unity Editor availab
 
 | Expected source of truth | Found? | Notes |
 |---|---|---|
-| `SHOW ME YOUR ID-GAME DEVELOPMENT.pdf` | ⚠ as text | Supplied as `uploads/showmeyourid.txt` (2,766 lines) — the full Executive Game Production / concept document text. Treated as the authoritative approved concept. |
+| `SHOW ME YOUR ID-GAME DEVELOPMENT.pdf` | ⚠ as text | Supplied as `uploads/showmeyourid.txt` (2,766 lines) - the full Executive Game Production / concept document text. Treated as the authoritative approved concept. |
 | `ShowMeYourID_MasterPrompt.md` | ❌ | Not present in the workspace. Its technical requirements are quoted in the task brief (§5–§6) and are followed from there. |
 | Unity project / RollCall source / assets | ❌ | Workspace contained **no** Unity project, scenes, prefabs, scripts, or assets. There is nothing to preserve or reuse. |
 
@@ -47,8 +47,8 @@ ScriptableObject data with procedural fallbacks, save/load, Windows-buildable la
   reject the administrator). **Lose "Another Custodian"** (3 breaches OR 3 false rejections).
   **Secret "The Truth Behind Hollowbrook"** (all ten environmental interactions, in the intended
   sequence, having investigated Hallway + Classroom 1 + Classroom 2).
-- Exploration: 10 inspectable interaction types — Flickering Light, Chalkboard, Desk, Door,
-  Window, Notice Board, lost Student ID, Photo, Cabinet, Clock — across Hallway + 2 classrooms.
+- Exploration: 10 inspectable interaction types - Flickering Light, Chalkboard, Desk, Door,
+  Window, Notice Board, lost Student ID, Photo, Cabinet, Clock - across Hallway + 2 classrooms.
   Wandering anomalies may appear anytime in hallway/classrooms.
 - UI: main menu (New Game, Continue, Settings, Credits, Exit), mode select, pause + controls,
   loading screen, HUD (sanity bar, time, objective, interaction/notification indicators),
@@ -67,13 +67,13 @@ ScriptableObject data with procedural fallbacks, save/load, Windows-buildable la
 
 | # | Conflict | Resolution (documented, not silent) |
 |---|---|---|
-| C1 | Questions per inspection: tool list (doc line ~285) says "1–3", while §2.3, inspection step 5, and both testing checklists say "1–2". | **Max 2 questions per inspection** — the specific gameplay section and checklists (3 places) override the single summary bullet. Configurable in `GameConfig` if the team disagrees. |
+| C1 | Questions per inspection: tool list (doc line ~285) says "1–3", while §2.3, inspection step 5, and both testing checklists say "1–2". | **Max 2 questions per inspection** - the specific gameplay section and checklists (3 places) override the single summary bullet. Configurable in `GameConfig` if the team disagrees. |
 | C2 | Master-prompt anomaly behaviors (Blink/Slide/Sprint/CoverHug) & light modes (Off/Sweep/Focus) are not named in the PDF; PDF only says "wandering anomalies… may appear anytime" and the teaser shows "when the light goes out, the student moves closer". | Compatible, not contradictory: the four behaviors are the technical implementation of "wandering anomalies"; Blink matches the teaser's light-linked movement. Implemented as specified in the master prompt. |
-| C3 | Lose condition vs. Shift-5 administrator: win requires rejecting the administrator, but the strict lose trigger is "3 breaches". Allowing the administrator with <3 total breaches would leave the ending undefined. | Allowing the administrator = immediate Lose ("Another Custodian") — narratively mandated: the anomalies reach the identification system and the player "loses control of the situation". Documented in `EndingRules`. |
+| C3 | Lose condition vs. Shift-5 administrator: win requires rejecting the administrator, but the strict lose trigger is "3 breaches". Allowing the administrator with <3 total breaches would leave the ending undefined. | Allowing the administrator = immediate Lose ("Another Custodian") - narratively mandated: the anomalies reach the identification system and the player "loses control of the situation". Documented in `EndingRules`. |
 | C4 | Secret ending vs. Lose ending overlap (all clues found but 3 breaches/false rejects). | Lose overrides Secret (lose text: player leaves "without discovering the truth"). Secret overrides Win when both qualify. Priority: Lose > Secret > Win. |
 | C5 | "Intended sequence" for the 10 clues is not enumerated in the doc. | The document's own listing order in §2.6 is used as the intended sequence, and an in-game chain (each clue's text points to the next) makes the order discoverable and fair. Out-of-order finds still count as discovered but break the sequence (tracked separately). |
 | C6 | Target age "13+" (project info) vs "15+" (concept paper). | Non-gameplay; noted for marketing/ESRB paperwork. Game targets 13+ presentation (no gore), photosensitivity safeguards included. |
-| C7 | Master prompt asks for "1–3 questions", "ten clues", "three endings", "five shifts" — all match the PDF except C1. Visitor counts confirmed against PDF: 4/6/7/8/8+admin. | — |
+| C7 | Master prompt asks for "1–3 questions", "ten clues", "three endings", "five shifts" - all match the PDF except C1. Visitor counts confirmed against PDF: 4/6/7/8/8+admin. | - |
 
 ## 5. Prioritized work plan (defects = "missing" since project is empty)
 

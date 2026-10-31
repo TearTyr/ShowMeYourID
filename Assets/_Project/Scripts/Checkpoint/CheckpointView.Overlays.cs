@@ -19,7 +19,7 @@ namespace Hollowbrook.Checkpoint
         private void BuildOverlays()
         {
             // there is no verdict banner: post-decision feedback is the stamp mark, the
-            // sound and the subject walking off — never text
+            // sound and the subject walking off - never text
 
             _notesRoot = BuildPaperOverlay("OverlayRules", "sec_rules_paper", out _notesText);
             _recordsRoot = BuildPaperOverlay("OverlayLog", "sec_log_paper", out _recordsText);
@@ -33,8 +33,8 @@ namespace Hollowbrook.Checkpoint
         // Re-typesetting any of that over the photo double-printed the ink (the earlier
         // plain-sheet pass) and stretching the photo over a wide sheet dragged the baked
         // tilt under straight type. So: the paper is shown at its own aspect, untouched,
-        // and the LIVE body — the per-night briefing / tonight's entries, which no photo
-        // can carry — rides on a typed addendum slip pinned over the sheet's blank bottom
+        // and the LIVE body - the per-night briefing / tonight's entries, which no photo
+        // can carry - rides on a typed addendum slip pinned over the sheet's blank bottom
         // band, exactly where a clipped typed page would sit on a photographed document.
         // Nothing of either document's content is lost; nothing is stretched or re-inked.
         private GameObject BuildPaperOverlay(string goName, string kitKey, out Text body)
@@ -49,13 +49,13 @@ namespace Hollowbrook.Checkpoint
             dimClose.onClick.AddListener(() => { go.SetActive(false); _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.5f); });
             // the photographed paper, centred at its own proportions (preserveAspect keeps
             // the 789x879 export undistorted whatever the sheet rect rounds to); no extra
-            // rotation — the print already lies at its angle
+            // rotation - the print already lies at its angle
             var panel = UIFactory.Img(goRt, "paper", ProceduralArt.Get(kitKey));
             L.Place(panel.rectTransform, L.PaperOverlay);
             panel.preserveAspect = true;
             panel.raycastTarget = false;
             // the typed addendum slip: distressed stock, a breath of tilt, over the sheet's
-            // blank bottom band — the live body scrolls inside its own masked column
+            // blank bottom band - the live body scrolls inside its own masked column
             var slip = UIFactory.Img(goRt, "slip", ProceduralArt.Get("paper_flat"), Color.white);
             L.Place(slip.rectTransform, L.Inner.PaperSlip);
             slip.raycastTarget = false;
@@ -79,7 +79,7 @@ namespace Hollowbrook.Checkpoint
         }
 
         /// <summary>Headless dumps open a reading sheet exactly as its desk prop click
-        /// would — same refresh, same toggle, no shortcut path.</summary>
+        /// would - same refresh, same toggle, no shortcut path.</summary>
         internal void DebugOpenOverlay(string which)
         {
             if (which == "rules") { RefreshNotes(); ToggleOverlay(_notesRoot); }
@@ -115,10 +115,10 @@ namespace Hollowbrook.Checkpoint
         private void RefreshNotes()
         {
             var sb = new StringBuilder();
-            sb.Append("BASE RULES — Every person presents a Student ID and record form.\n");
+            sb.Append("BASE RULES - Every person presents a Student ID and record form.\n");
             sb.Append("Verify: ID format (HB-YYYY-NNNN) · photo vs. the person · expiration · year level · course/program · Regular/Transferee status · record name.\n");
             sb.Append("Ask which classroom they are going to, then check the answer against their file in the drawer. Decisions are permanent.\n");
-            sb.Append("Compare the face at the window with the ID photo yourself — the desk keeps no appearance form.\n\n");
+            sb.Append("Compare the face at the window with the ID photo yourself - the desk keeps no appearance form.\n\n");
             if (_shift != null) { sb.Append(_shift.RuleNoteAddendum).Append('\n'); }
             if (_gameRoot.Session.Mode == GameMode.Challenge)
             {

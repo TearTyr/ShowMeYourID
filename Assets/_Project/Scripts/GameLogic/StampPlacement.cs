@@ -36,7 +36,7 @@ namespace Hollowbrook.Logic
         }
 
         /// <summary>Half extent of the mark's axis-aligned bounds once tilted: a square of side
-        /// s rotated by t spans s/2 * (|cos t| + |sin t|) each way — worst case (45°) is the
+        /// s rotated by t spans s/2 * (|cos t| + |sin t|) each way - worst case (45°) is the
         /// half diagonal. The clamp budgets this so no corner ever hangs off the paper.</summary>
         public static float TiltedHalfExtent(float markSize, float tiltDeg)
         {
@@ -46,7 +46,7 @@ namespace Hollowbrook.Logic
         }
 
         /// <summary>Pulls a local spot in until the whole tilted mark (plus <paramref name="edgePad"/>)
-        /// fits the sheet. A sheet smaller than the mark clamps to its centre — the range is
+        /// fits the sheet. A sheet smaller than the mark clamps to its centre - the range is
         /// never allowed to invert.</summary>
         public static Point ClampToPrintable(Point local, float paperW, float paperH,
             float markSize, float maxTiltDeg, float edgePad)

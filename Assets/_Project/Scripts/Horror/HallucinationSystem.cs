@@ -69,7 +69,7 @@ namespace Hollowbrook.Horror
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.HallucinationTriggered, "explore_" + roll));
             switch (roll)
             {
-                case 0: // phantom figure — harmless, fades on its own
+                case 0: // phantom figure - harmless, fades on its own
                     _gameRoot.Views.SpawnAnomaly(true);
                     break;
                 case 1:

@@ -26,7 +26,13 @@ namespace Hollowbrook.Logic
             _genLog.Clear(); // duplicates are a "tonight" rule in story mode
             var visitors = new List<VisitorData>();
             var identities = PickDistinctIdentities(shift.VisitorCount);
-            var anomalySlots = PickAnomalySlots(shift.VisitorCount, shift.AnomalyCount);
+            // The school only has so many students. When a night is longer than the registry,
+            // the extra visitors are impostors wearing a student's name (never a second honest
+            // visit by the same student).
+            int honestSlots = Math.Min(shift.VisitorCount, _canon.Count);
+            while (identities.Count < shift.VisitorCount)
+                identities.Add(_canon[_rng.NextInt(0, _canon.Count)]);
+            var anomalySlots = PickAnomalySlots(shift.VisitorCount, shift.AnomalyCount, honestSlots);
 
             for (int i = 0; i < shift.VisitorCount; i++)
             {
@@ -52,14 +58,16 @@ namespace Hollowbrook.Logic
             return pool.GetRange(0, Math.Min(count, pool.Count));
         }
 
-        private HashSet<int> PickAnomalySlots(int visitorCount, int anomalyCount)
+        private HashSet<int> PickAnomalySlots(int visitorCount, int anomalyCount, int forcedFrom)
         {
             var slots = new HashSet<int>();
+            for (int i = forcedFrom; i < visitorCount; i++) slots.Add(i);   // impostors beyond the registry
             if (anomalyCount <= 0) return slots;
             var candidates = new List<int>();
-            for (int i = 0; i < visitorCount; i++) candidates.Add(i);
+            for (int i = 0; i < forcedFrom; i++) candidates.Add(i);
             _rng.Shuffle(candidates);
-            for (int i = 0; i < anomalyCount && i < candidates.Count; i++) slots.Add(candidates[i]);
+            int stillNeeded = Math.Max(0, anomalyCount - slots.Count);
+            for (int i = 0; i < stillNeeded && i < candidates.Count; i++) slots.Add(candidates[i]);
             return slots;
         }
 
@@ -93,7 +101,7 @@ namespace Hollowbrook.Logic
             v.ExpirationDisplay = DisplayOf(expDay);
             v.FaceAssetIndex = _canon.IndexOf(id);   // stable face-asset identity
             v.WindowFaceIndex = v.FaceAssetIndex;    // the real student stands at the window
-            BuildClassroomAnswer(v, id);
+            BuildAnswers(v, id);
             v.SlipName = v.ClaimedName;             // legit slips always agree with the card
             v.SlipIdNumber = v.IdNumber;
             return v;
@@ -160,7 +168,7 @@ namespace Hollowbrook.Logic
                 ApplyDefect(v, DefectType.ExpiredId, id);
 
             v.InDatabase = IdRules.IsFormatValid(v.IdNumber) && _registry.Contains(v.IdNumber);
-            BuildClassroomAnswer(v, id);
+            BuildAnswers(v, id);
             // defects that rewrote the card ID (duplicate/format) resync an unbooked slip,
             // so a slip disagrees with the card exactly when SlipMismatch is booked
             if (!v.Defects.Contains(DefectType.SlipMismatch))
@@ -203,6 +211,7 @@ namespace Hollowbrook.Logic
             };
             if (shift.SubtleDefectsAllowed) pool.Add(DefectType.PhotoSubtleMismatch);
             if (shift.ClassroomLieAllowed) pool.Add(DefectType.ClassroomMismatch);
+            if (shift.ClassroomLieAllowed) pool.Add(DefectType.SpokenMismatch);
             if (shift.DuplicateIdsAllowed) pool.Add(DefectType.DuplicateId);
             if (shift.Number >= 2) pool.Add(DefectType.SlipMismatch);   // slip vs card, shift 2+
             return pool;
@@ -275,7 +284,10 @@ namespace Hollowbrook.Logic
                     break;
                 }
                 case DefectType.ClassroomMismatch:
-                    break;   // nothing on the papers: the lie is told in BuildClassroomAnswer
+                    break;   // nothing on the papers: the lie is told in BuildAnswers
+                case DefectType.SpokenMismatch:
+                    v.SpokenLieQuestion = _rng.NextInt(0, 3);   // course, year or status
+                    break;
                 case DefectType.SlipMismatch:
                     // the ticket disagrees with the card: serial nudge or name typo
                     v.SlipName = v.ClaimedName;
@@ -303,14 +315,41 @@ namespace Hollowbrook.Logic
             }
         }
 
-        // The answer to "Which classroom are you going to?". Everyone tells the truth (the room
-        // and class on their file) except a visitor carrying the ClassroomMismatch defect.
-        private void BuildClassroomAnswer(VisitorData v, StudentIdentity id)
+        // What the visitor says to each of the four questions. An honest student says what their
+        // card says (and the classroom on their file). Two kinds of anomaly lie out loud:
+        // ClassroomMismatch about the room, SpokenMismatch about course, year or status. The
+        // tone of voice is rolled once and belongs to the whole conversation.
+        private void BuildAnswers(VisitorData v, StudentIdentity id)
         {
+            v.Answers[(int)QuestionId.Course] = InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex]);
+            v.Answers[(int)QuestionId.Year] = InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1]);
+            v.Answers[(int)QuestionId.Status] = InterviewRules.StatusSpeech(v.IdIsTransferee);
             v.ClassroomAnswer = id.ClassroomSpeech;
             v.ClassroomTone = ToneFor(v);
             if (v.Defects.Contains(DefectType.ClassroomMismatch))
                 v.ClassroomAnswer = LieAboutClassroom(id);
+            v.Answers[(int)QuestionId.Classroom] = v.ClassroomAnswer;
+            if (v.Defects.Contains(DefectType.SpokenMismatch)) LieAboutCard(v);
+        }
+
+        // The spoken answer to the chosen question is never what the card says.
+        private void LieAboutCard(VisitorData v)
+        {
+            var q = (QuestionId)v.SpokenLieQuestion;
+            switch (q)
+            {
+                case QuestionId.Course:
+                    int other = (v.IdCourseIndex + 1 + _rng.NextInt(0, Content.Courses.Length - 1)) % Content.Courses.Length;
+                    v.Answers[(int)q] = InterviewRules.CourseSpeech(Content.Courses[other]);
+                    break;
+                case QuestionId.Year:
+                    int year = 1 + (v.IdYearLevel + _rng.NextInt(0, 3)) % 4;   // 1..4, never the card's
+                    v.Answers[(int)q] = InterviewRules.YearSpeech(Content.YearNames[year - 1]);
+                    break;
+                default:
+                    v.Answers[(int)q] = InterviewRules.StatusSpeech(!v.IdIsTransferee);
+                    break;
+            }
         }
 
         // Three kinds of lie, all provable against the file: the other room, a room the school
@@ -361,7 +400,7 @@ namespace Hollowbrook.Logic
                 ClaimedName = "V. Marlowe",
                 RecordName = "R. Vance",                  // roster memo lists a different administrator
                 IdNumber = "DA-0233",                     // staff badge number, not on the roster memo
-                RecordIdNumber = "DA-1147",               // memo: "R. Vance — DA-1147"
+                RecordIdNumber = "DA-1147",               // memo: "R. Vance - DA-1147"
                 IdYearLevel = 1, RecordYearLevel = 1,     // unused for staff (no year level)
                 IdCourseIndex = 0, RecordCourseIndex = 0, // unused ("District Administration")
                 IdIsTransferee = false, RecordIsTransferee = false,
@@ -371,7 +410,7 @@ namespace Hollowbrook.Logic
                 IdPhoto = badgePhoto,                     // subtle photo defect + distortion at window
                 InDatabase = false,                       // badge not in the student registry
                 DuplicateOfShift = "",
-                RecordFirstClassroom = "— (district personnel)",
+                RecordFirstClassroom = "- (district personnel)",
                 Greeting = Content.AdminLines[0],
             };
             v.Defects.Add(DefectType.RecordNameMismatch);  // badge vs roster memo name
@@ -379,12 +418,14 @@ namespace Hollowbrook.Logic
             v.Defects.Add(DefectType.PhotoSubtleMismatch); // same glitch as the other anomalies
             v.ClassroomAnswer = "My first stop is your server room.";
             v.ClassroomTone = ToneTag.Echoing;
+            for (int q = 0; q < InterviewRules.Count; q++) v.Answers[q] = "That is not your concern.";
+            v.Answers[(int)QuestionId.Classroom] = v.ClassroomAnswer;
             v.WindowFaceIndex = -1;                        // the administrator has his own face art
             v.SlipName = v.ClaimedName;
             v.SlipIdNumber = v.IdNumber;
-            v.SlipReason = "DISTRICT BUSINESS — SEE OFFICE";
+            v.SlipReason = "DISTRICT BUSINESS - SEE OFFICE";
             // the administrator is the EXTRA final entry after the standard roster, so its
-            // run-wide index is the roster length — set here, where the identity is built, so
+            // run-wide index is the roster length - set here, where the identity is built, so
             // every caller (roster generation AND the headless harness) gets a unique index
             v.VisitorIndex = shift.VisitorCount;
             return v;

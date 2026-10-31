@@ -23,15 +23,15 @@ namespace Hollowbrook.Audio
         {
             { "sfx_knock", "*KNOCK  KNOCK  KNOCK*" },
             { "sfx_stinger", "*a sharp, dissonant sting*" },
-            { "sfx_scare", "*SCREAM — something lunges*" },
+            { "sfx_scare", "*SCREAM - something lunges*" },
             { "sfx_glitch", "*static crackles and snaps*" },
             { "sfx_flicker", "*the fluorescent light buzzes and stutters*" },
             { "sfx_heartbeat", "*your own heartbeat, too loud*" },
             { "sfx_intercom", "*intercom static*" },
             { "sfx_alarm", "*alarm klaxon*" },
             { "sfx_bell", "*shift bell*" },
-            { "sfx_stamp_reject", "*REJECTED — the stamp comes down*" },
-            { "sfx_stamp_allow", "*ALLOWED — the stamp comes down*" },
+            { "sfx_stamp_reject", "*REJECTED - the stamp comes down*" },
+            { "sfx_stamp_allow", "*ALLOWED - the stamp comes down*" },
             { "sfx_scan_error", "*scanner: error tone*" },
             { "sfx_scan_ok", "*scanner: chirp*" },
             { "sfx_door", "*a door opens somewhere*" },
@@ -71,7 +71,7 @@ namespace Hollowbrook.Audio
             var clip = ProceduralAudio.Get(key);
             if (clip == null)
             {
-                if (_missingWarned.Add(key)) Debug.LogWarning("[AudioDirector] missing sfx '" + key + "' — skipped gracefully.");
+                if (_missingWarned.Add(key)) Debug.LogWarning("[AudioDirector] missing sfx '" + key + "' - skipped gracefully.");
                 return;
             }
             if (_sfxPool == null || _sfxPool.Length == 0) return;
@@ -107,7 +107,7 @@ namespace Hollowbrook.Audio
                 clip = ProceduralAudio.Get(clipKey);
                 if (clip == null)
                 {
-                    if (_missingWarned.Add(clipKey)) Debug.LogWarning("[AudioDirector] missing music '" + clipKey + "' — staying silent.");
+                    if (_missingWarned.Add(clipKey)) Debug.LogWarning("[AudioDirector] missing music '" + clipKey + "' - staying silent.");
                 }
             }
             to.clip = clip;

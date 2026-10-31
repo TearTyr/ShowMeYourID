@@ -1,13 +1,13 @@
-# Gameplay increment — anomaly tracking, reveal & tokens (master-prompt §3/§4)
+# Gameplay increment - anomaly tracking, reveal & tokens (master-prompt §3/§4)
 
 > **UPDATED by the flashlight/anomaly rework (`feat/flashlight-anomaly-rework`)**: the meter no longer
-> "reveals/dispels" on its own. `AnomalyEncounter` is the single authority — a full meter means
+> "reveals/dispels" on its own. `AnomalyEncounter` is the single authority - a full meter means
 > **Repelled** (physical retreat, token once, spawner-owned recovery return), and ambient light only
 > **holds** the meter instead of advancing it. See `docs/FLASHLIGHT-ANOMALY-AUDIT.md` for the baseline
 > defects this replaced.
 
 Closes deviation **D10** from `docs/SPEC-CONFORMANCE.md`: the spec's tracking layer did not exist.
-Design goal: the light beam becomes a *verb* — hold it and the haze solidifies into ink.
+Design goal: the light beam becomes a *verb* - hold it and the haze solidifies into ink.
 
 ## Rules (`GameLogic/TrackingPolicy.cs`, engine-free, unit-tested)
 
@@ -19,22 +19,22 @@ Design goal: the light beam becomes a *verb* — hold it and the haze solidifies
 | Neither (unobserved) | −0.35 /s → the haze closes back up |
 | Meter > 0.55 under Focus | **Exposed**: distorted face shown; losing Focus falls back (recoverable) |
 | Meter reaches 1.0 | **Repelled**: it physically retreats for 0.9 s, drops a token once, leaves the stage; the spawner returns the same kind elsewhere after ~14 s |
-| Focus held 0.5 s on a *hallucination* | it shimmers out ("*it was never there*") — spec §4 truth-check; never touches pool/token |
+| Focus held 0.5 s on a *hallucination* | it shimmers out ("*it was never there*") - spec §4 truth-check; never touches pool/token |
 
 ## Wiring
 
-- `Horror/WanderingAnomaly.cs` — `TickTracking` (meter) feeds `TickStates` (`AnomalyEncounter.Step`,
+- `Horror/WanderingAnomaly.cs` - `TickTracking` (meter) feeds `TickStates` (`AnomalyEncounter.Step`,
   the one authoritative path); publishes `EventIds.TrackingChanged` (throttled to 10 Hz),
   `AnomalyStateChanged` per transition, `AnomalyRevealed` once per repulsion, caption + stinger.
   Repelled anomalies retreat physically (hunting and catch timers stop); `TickVisibility` renders
   exposed ones at full alpha / sorting order 80 and hides off-stage roamers.
-- `World/Interactables.cs` — `TokenPickup : Interactable` ("Collect token [E]") registers itself in
+- `World/Interactables.cs` - `TokenPickup : Interactable` ("Collect token [E]") registers itself in
   `RoomInstance.Interactables`, increments `GameSession.TokensCollected`, publishes `TokenCollected`,
   removes itself from the room list and destroys its GameObject.
-- `Bootstrap/ProceduralArt.cs` — new `token` key (28 px pocket-watch motif; still zero image files).
-- `UI/HudAndCommon.cs` — a TRACK meter under the sanity bar, visible only while 0 < meter < 1;
+- `Bootstrap/ProceduralArt.cs` - new `token` key (28 px pocket-watch motif; still zero image files).
+- `UI/HudAndCommon.cs` - a TRACK meter under the sanity bar, visible only while 0 < meter < 1;
   hidden on reveal/decay/collection. No new screen, no clutter.
-- `GameLogic/GameSession.cs` + `SaveFormat.cs` — `TokensCollected` persists with the run
+- `GameLogic/GameSession.cs` + `SaveFormat.cs` - `TokensCollected` persists with the run
   (`tokens=` line; old saves without it load as 0).
 
 ## Verification
@@ -46,7 +46,7 @@ Design goal: the light beam becomes a *verb* — hold it and the haze solidifies
 | `Tools/Verification/EngineSmoke` (the team's suite) | PASS 159 / 159 |
 | `Tools/LogicTests` (independent suite, incl. 19 new tracking/token assertions) | PASS 27,125 / 27,125 |
 | Static audit (`Tools/Verify/audit.py`, 44 scripts) | clean |
-| Feel/pixels in Play mode | **NOT TESTED** — needs the Unity editor |
+| Feel/pixels in Play mode | **NOT TESTED** - needs the Unity editor |
 
 ## Manual test (2 minutes, in the editor)
 

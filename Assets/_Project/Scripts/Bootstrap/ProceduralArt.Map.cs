@@ -5,11 +5,11 @@ namespace Hollowbrook.Bootstrap
 {
     // The hand-drawn ground-floor plan: aged paper, rough room outlines, a barred seal and the
     // corridor chalk. Everything is painted in code like the rest of the game's art, so the map
-    // ships with no external files — and a real file dropped at Resources/Art/<key>.png still
+    // ships with no external files - and a real file dropped at Resources/Art/<key>.png still
     // wins (ProceduralArt.Get), which is how the owner's reference drawing can replace it later.
     //
     // Palette: this is a document read under a night-shift lamp, so the paper stays DARK (the
-    // horror UI is never blown out by a bright sheet) and the "ink" is a pale warm chalk — the
+    // horror UI is never blown out by a bright sheet) and the "ink" is a pale warm chalk - the
     // same relationship the ID cards and record sheets use, inverted. The sealed server /
     // identification room is the only red thing on the plan.
     public static partial class ProceduralArt
@@ -54,7 +54,7 @@ namespace Hollowbrook.Bootstrap
                 c.BlendRect(x, y, s, s, new Color(0.42f, 0.36f, 0.26f, 0.05f + (float)r.NextDouble() * 0.07f));
             }
 
-            // folds: one down the middle, one across — a plan that has been kept in a drawer
+            // folds: one down the middle, one across - a plan that has been kept in a drawer
             Fold(c, w / 2, true);
             Fold(c, (int)(h * 0.46f), false);
 
@@ -85,7 +85,7 @@ namespace Hollowbrook.Bootstrap
         }
 
         /// <summary>One hand-drawn room: a wobbly double-stroked outline around a soft fill.
-        /// Stretched to any room rect — the wobble is proportional, so a corridor and a
+        /// Stretched to any room rect - the wobble is proportional, so a corridor and a
         /// classroom both look ruled by the same unsteady hand.</summary>
         private static Sprite MakeMapRoom(int w, int h)
         {
@@ -169,7 +169,7 @@ namespace Hollowbrook.Bootstrap
             }
         }
 
-        // A faint ring stain (coffee, water) — outline only, the way a dried ring looks.
+        // A faint ring stain (coffee, water) - outline only, the way a dried ring looks.
         private static void Ring(Canvas2D c, int cx, int cy, int rad, Color col)
         {
             for (int a = 0; a < 90; a++)

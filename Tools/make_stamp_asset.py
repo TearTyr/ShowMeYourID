@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Renders the ACCEPT stamp placeholder into Assets/_Project/Resources/Art/stamp_allow.png.
+"""Renders the ACCEPT stamp placeholder into Assets/_Project/Resources/Art/UI/SecurityDesk/stamp_allow.png.
 
 Why a generator and not a hand-made/AI raster
 ---------------------------------------------
 * The project paints every sprite in code (ProceduralArt) and prefers a dropped-in file at
-  `Resources/Art/<key>.png` when one exists — this writes exactly that override for the ONE
+  `Resources/Art/<key>.png` when one exists - this writes exactly that override for the ONE
   key the task asks for (`stamp_allow`). The procedural painter stays in place as the
   fallback, so nothing is deleted or replaced.
 * A worn rubber stamp needs a real alpha channel and muted flat ink; generating it keeps the
@@ -13,7 +13,7 @@ Why a generator and not a hand-made/AI raster
 Art direction (matches MakeStamp + the desk's monochrome stock)
 ---------------------------------------------------------------
 * double ring emblem (bold outer, thinner inner) with a heavy check mark inside
-* muted, low-saturation green-grey ink — the ACCEPT tray tint (0.42,0.58,0.42) pulled dark,
+* muted, low-saturation green-grey ink - the ACCEPT tray tint (0.42,0.58,0.42) pulled dark,
   so it sits with the warm paper stock (#dbd9d2) and the cool UI ink (#3a3a40)
 * worn press: low-frequency alpha mottling, ink-starved specks, two chips on the outer ring
 * transparent background; RGB stays the ink colour even where alpha is 0, so bilinear
@@ -35,7 +35,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 # ---- art constants (512 px working canvas = 4x the shipped 128 px asset) -----------------
 WORK = 512
 INK_RGB = (62, 71, 62)          # muted dark green-grey: saturation ~13%, reads as approval ink
-INK_ALPHA = 0.94                # never fully opaque — pressed ink on paper stock
+INK_ALPHA = 0.94                # never fully opaque - pressed ink on paper stock
 OUTER_R, OUTER_W = 214, 32      # bold outer ring
 INNER_R, INNER_W = 168, 24      # thinner inner ring (a classic rubber-stamp double border)
 CHECK_PTS = ((150, 262), (220, 338), (360, 186))
@@ -52,7 +52,7 @@ def press(mask, seed):
     never break the emblem's readability at 39 px, so it bites thin bands only."""
     import random
 
-    # low-frequency alpha mottle (0.82..1.0 of the pressed ink) — an uneven rubber pad
+    # low-frequency alpha mottle (0.82..1.0 of the pressed ink) - an uneven rubber pad
     noise = Image.effect_noise((WORK, WORK), 128).filter(ImageFilter.GaussianBlur(7))
     mottle = noise.point(lambda v: int(209 + (v / 255.0) * 46))
     mask = ImageChops.multiply(mask, mottle)
@@ -125,7 +125,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--size", type=int, default=128)
     ap.add_argument("--seed", type=int, default=4)
-    ap.add_argument("--out", default=os.path.join(root, "Assets/_Project/Resources/Art/stamp_allow.png"))
+    ap.add_argument("--out", default=os.path.join(root, "Assets/_Project/Resources/Art/UI/SecurityDesk/stamp_allow.png"))
     ap.add_argument("--preview", default=os.path.join(here, "stamp_preview.png"))
     args = ap.parse_args()
 

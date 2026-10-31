@@ -31,5 +31,5 @@
 <rect x="260" y="640" width="200" height="42" fill="#1f1f21" stroke="#4d4d52" stroke-width="2"/>
 <text x="282" y="668.0" font-size="20" fill="#e8e8e6" text-anchor="start" font-weight="normal">◂ BACK</text>
 <text x="960" y="360" font-size="16" fill="#4d4d52" text-anchor="middle" font-weight="normal">(game continues behind dim)</text>
-<text x="640" y="20" font-size="16" fill="#8a8a88" text-anchor="middle" font-weight="normal">OPTIONS — AFTER (v1.0.6): left sheet, single 40px gutter, bottom-left actions</text>
+<text x="640" y="20" font-size="16" fill="#8a8a88" text-anchor="middle" font-weight="normal">OPTIONS - AFTER (v1.0.6): left sheet, single 40px gutter, bottom-left actions</text>
 </svg>

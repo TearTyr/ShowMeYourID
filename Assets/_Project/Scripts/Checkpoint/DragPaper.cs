@@ -10,9 +10,9 @@ namespace Hollowbrook.Checkpoint
     // drag it over the desk, drop it. While held the paper lifts (slight scale, straightened
     // tilt, top sibling) and settles back on drop. A drop OUTSIDE the desk frame returns the
     // paper to its home slot; a drop inside stays where the player put it (clamped). A tap
-    // (a click, or barely any movement) fires OnTapped instead of OnDropped — that is the
+    // (a click, or barely any movement) fires OnTapped instead of OnDropped - that is the
     // path for "pick up" / "inspect". An Inspectable paper (the ID) is lifted by a tap into the
-    // inspect view — centred, untilted, enlarged, over a dimmer — and a click anywhere off it
+    // inspect view - centred, untilted, enlarged, over a dimmer - and a click anywhere off it
     // puts it back where it lay. Tools with ReturnsHome (stamps, the offered ID) always go back
     // to their tray/counter slot after every drop. BeginDrag/DragBy/PlaceAt/EndDrag/Tap are
     // public so the headless harness drives the same path the pointer handlers use.

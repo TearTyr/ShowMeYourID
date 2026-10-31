@@ -5,7 +5,7 @@ namespace Hollowbrook.Logic
 {
     /// <summary>The speech bubble's ONE record of what is on screen: a line shows the bubble and
     /// it STAYS until the next line replaces it or the desk clears it (visitor walks off, room
-    /// change, new shift) — nothing times out, so the player can never lose a clue to a timer.
+    /// change, new shift) - nothing times out, so the player can never lose a clue to a timer.
     /// Every new line advances the generation so the view re-renders only on a change. Pure so the
     /// rules are unit-testable without an engine; CheckpointView.Speech renders whatever this
     /// reports.</summary>
@@ -13,7 +13,7 @@ namespace Hollowbrook.Logic
     {
         /// <summary>Is the bubble on screen right now?</summary>
         public bool Visible { get; private set; }
-        /// <summary>Strictly monotonic line counter — the view re-renders only on a change.</summary>
+        /// <summary>Strictly monotonic line counter - the view re-renders only on a change.</summary>
         public int Generation { get; private set; }
         public string Who { get; private set; } = "";
         public string Text { get; private set; } = "";

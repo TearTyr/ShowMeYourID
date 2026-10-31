@@ -7,7 +7,7 @@ namespace Hollowbrook.Logic
     /// This is the piece that used to be hand-tuned pixel offsets inside the view (and is why
     /// the sheet sat off-centre with CLOSE colliding into the hint line). Given the reference
     /// space the canvas actually shows, it answers: how big is the sheet, how far does the
-    /// drawing inside it scale, where does the CLOSE row go, and how big is the type — all
+    /// drawing inside it scale, where does the CLOSE row go, and how big is the type - all
     /// centred by construction, so no resolution needs its own magic numbers.
     ///
     /// Engine-free on purpose (see the GameLogic folder's rule): MapView applies these numbers
@@ -26,7 +26,7 @@ namespace Hollowbrook.Logic
         /// <summary>Clamped type scales: the drawing's labels and the sheet's own chrome.</summary>
         public float PlanTextScale, ChromeTextScale;
         /// <summary>CLOSE row: size, plus its centre Y measured UP from the bottom of the
-        /// visible area — exactly the number a bottom-edge anchor wants.</summary>
+        /// visible area - exactly the number a bottom-edge anchor wants.</summary>
         public float CloseW, CloseH, CloseFromBottom;
         /// <summary>Width of the title/legend/hint lines inside the sheet.</summary>
         public float ContentW;
@@ -86,7 +86,7 @@ namespace Hollowbrook.Logic
         public static float ToAnchoredY(float designY, float planScale) => -designY * planScale;
 
         /// <summary>True when the whole sheet AND its CLOSE row fit inside the visible area,
-        /// with CLOSE clear of the sheet — the "centred, never clipped, never overflowing"
+        /// with CLOSE clear of the sheet - the "centred, never clipped, never overflowing"
         /// invariant, provable at any resolution. CloseFromBottom is measured UP from the
         /// bottom edge, while the sheet is centred, so the sheet's bottom edge sits at
         /// SheetH/2 above that same bottom edge.</summary>
@@ -102,10 +102,10 @@ namespace Hollowbrook.Logic
 
         // CloseFromBottom is an anchoredPosition for a BOTTOM-edge anchor with a CENTRE pivot,
         // so the row's edges in that same bottom-up space are +/- CloseH/2 around it. The sheet
-        // is centred instead, hence its own conversion — the two only become comparable once
+        // is centred instead, hence its own conversion - the two only become comparable once
         // both are expressed from the bottom of the visible area.
         /// <summary>The CLOSE row's bottom edge, measured up from the bottom of the visible
-        /// area — its on-screen bottom margin. Proved non-negative at every resolution, so the
+        /// area - its on-screen bottom margin. Proved non-negative at every resolution, so the
         /// row can never be pushed off the bottom of the window.</summary>
         public float CloseBottomMargin => CloseFromBottom - CloseH / 2f;
 
@@ -116,7 +116,7 @@ namespace Hollowbrook.Logic
         public float SheetBottomFromBottom(float visibleH) => (visibleH - SheetH) / 2f;
 
         /// <summary>The gap left between the sheet's bottom edge and the CLOSE row. Always
-        /// CloseGap, at every resolution — which is the point: nothing here is a fixed pixel
+        /// CloseGap, at every resolution - which is the point: nothing here is a fixed pixel
         /// offset that only works on one screen.</summary>
         public float GapUnderSheet(float visibleH) =>
             SheetBottomFromBottom(visibleH) - CloseTopFromBottom;

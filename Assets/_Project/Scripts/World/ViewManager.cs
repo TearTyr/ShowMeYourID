@@ -10,7 +10,7 @@ using UnityEngine;
 namespace Hollowbrook.World
 {
     // Rooms, doors, transitions, anomaly spawning, flashlight rig. Created by SchoolSceneBootstrap.
-    // Illumination queries are coordinated HERE (one place, one coordinate space — the shared
+    // Illumination queries are coordinated HERE (one place, one coordinate space - the shared
     // world/room plane): the beam cone belongs to FlashlightRig, ambient light to each room's
     // LightController. Consumers (anomalies, sanity, spawner) never mix the two themselves.
     public class ViewManager : MonoBehaviour
@@ -47,7 +47,7 @@ namespace Hollowbrook.World
         /// <summary>True while a classroom peek is on screen (fade-in through fade-out).</summary>
         public bool PeekActive => _peeking;
 
-        /// <summary>True when the point is inside the peek light's circle — the only light
+        /// <summary>True when the point is inside the peek light's circle - the only light
         /// that reveals anything while peeking.</summary>
         public bool IsPeekLit(Vector3 worldPoint) =>
             _peekLight != null && _peekLight.Active && _peekLight.Covers(worldPoint);
@@ -76,6 +76,7 @@ namespace Hollowbrook.World
             _rooms[RoomId.Hallway] = _builder.BuildRoom(RoomId.Hallway);
             _rooms[RoomId.Classroom1] = _builder.BuildRoom(RoomId.Classroom1);
             _rooms[RoomId.Classroom2] = _builder.BuildRoom(RoomId.Classroom2);
+            _rooms[RoomId.ComfortRoom] = _builder.BuildRoom(RoomId.ComfortRoom);
         }
 
         private void BuildPlayer()
@@ -86,7 +87,8 @@ namespace Hollowbrook.World
             var sr = go.AddComponent<SpriteRenderer>();
             // the guard is drawn but stands still (PlayerController gates walking); peek
             // hides him because the hallway room is not on screen while looking in
-            sr.sprite = ProceduralArt.Get("custodian_0");
+            Sprite idle;
+            sr.sprite = ProceduralArt.TryGet("char_guard_idle", out idle) ? idle : ProceduralArt.Get("custodian_0");
             sr.sortingOrder = 73; // above the darkness overlay (70), lit by design (the
                                   // custodian you play); anomalies stay under it (40) as
                                   // silhouettes, switches/markers (75+) stay on top
@@ -115,7 +117,7 @@ namespace Hollowbrook.World
             SetFade(0f);
             _worldRoot.SetActive(false);
             // NOTE: deliberately does NOT discard the live anomaly. HideWorld also runs for
-            // overlay states (map, security room) — an overlay must not wipe an encounter.
+            // overlay states (map, security room) - an overlay must not wipe an encounter.
             // Only ReturnToSecurity (leaving the patrol for good) discards it, unresolved.
         }
 
@@ -123,10 +125,10 @@ namespace Hollowbrook.World
 
         // ---- illumination queries (the ONLY place beam + ambient are combined) ----
 
-        /// <summary>True when the room's ambient light is on (scripted flicker only — real ambient state).</summary>
+        /// <summary>True when the room's ambient light is on (scripted flicker only - real ambient state).</summary>
         public bool RoomLit => Current != null && Current.Light != null && Current.Light.Lit;
 
-        /// <summary>The current room's ambient darkness as one alpha — the level a light's
+        /// <summary>The current room's ambient darkness as one alpha - the level a light's
         /// penumbra fades back to at its rim (see LightController.AmbientAlpha).</summary>
         public float AmbientAlpha =>
             Current != null && Current.Light != null ? Current.Light.AmbientAlpha : LightController.DarkAlpha;
@@ -134,7 +136,7 @@ namespace Hollowbrook.World
         /// <summary>True when the point is inside the handheld beam's cone (either live mode).</summary>
         public bool BeamCovers(Vector3 worldPoint) => Flashlight != null && Flashlight.ConeCovers(worldPoint);
 
-        /// <summary>True when the point is inside the tight Focus cone — the truth beam:
+        /// <summary>True when the point is inside the tight Focus cone - the truth beam:
         /// the only light that advances the repel meter and truth-checks hallucinations.</summary>
         public bool IsFocusLit(Vector3 worldPoint) =>
             Flashlight != null && Flashlight.Beam == LightMode.Focus && Flashlight.ConeCovers(worldPoint);
@@ -163,12 +165,12 @@ namespace Hollowbrook.World
         {
             if (!_rooms.TryGetValue(id, out var room) || room.Root == null)
             {
-                Debug.LogWarning("[Views] room '" + id + "' missing — rebuilding.");
+                Debug.LogWarning("[Views] room '" + id + "' missing - rebuilding.");
                 room = _builder.BuildRoom(id);
             }
             if (room.Root == null)
             {
-                Debug.LogError("[Views] room '" + id + "' could not be built — returning to security.");
+                Debug.LogError("[Views] room '" + id + "' could not be built - returning to security.");
                 _gameRoot.ReturnToCheckpoint();
                 return;
             }
@@ -237,7 +239,7 @@ namespace Hollowbrook.World
 
         public void SpawnAnomaly(bool hallucination) => _spawner.SpawnAnomaly(hallucination);
 
-        /// <summary>Spawn a specific real behavior — used by the recovery return and by tests.</summary>
+        /// <summary>Spawn a specific real behavior - used by the recovery return and by tests.</summary>
         public WanderingAnomaly SpawnAnomalyOfKind(AnomalyBehaviorKind kind, RoomId? roomId = null) =>
             _spawner.SpawnKind(kind, roomId);
 

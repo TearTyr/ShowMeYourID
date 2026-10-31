@@ -130,7 +130,7 @@ namespace Hollowbrook.Bootstrap
         // RoomBuilder draws it under the room darkness layer and inside the beam mask's sorting
         // range, so the flashlight punches through both; LightController scales the alpha (and
         // drops it to nothing when the room light is on). 10 px per world unit is plenty for a
-        // smoothstep gradient — bilinear filtering does the rest.
+        // smoothstep gradient - bilinear filtering does the rest.
         // The desk backdrop from the night-shift mockup: one radial grayscale wash (bright pool
         // behind the booth, falling to near-black at the edges). Replaces the flat black room.
         private static Sprite MakeDeskBg(int w, int h)

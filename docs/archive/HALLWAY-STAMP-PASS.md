@@ -1,4 +1,4 @@
-# Hallway limited visibility + smaller stamp asset — implementation report
+# Hallway limited visibility + smaller stamp asset - implementation report
 
 Branch/repo: `github.com/TearTyr/ShowMeYourID`, cloned at `1ac4c79` ("JP Patch").
 Companion baseline record: `docs/PHASE0-BASELINE.md`. Lighting sim: `docs/ui/hallway_lighting_sim.png`.
@@ -8,7 +8,7 @@ Stamp legibility preview: `Tools/stamp_preview.png` (regenerate: `python3 Tools/
 
 ## 0. A pre-existing build break had to be fixed first (documented gap)
 
-At clone the project **did not compile** — in the Unity editor, in `verify.sh`, and in both live
+At clone the project **did not compile** - in the Unity editor, in `verify.sh`, and in both live
 test suites. `git log --all -S` proves the three missing types first appear as *references* in
 `1ac4c79` and were never committed on any branch:
 
@@ -37,13 +37,13 @@ scheme; the desk is uGUI on a fixed 1280×720 grid (`CheckpointLayout`).
   alpha owned by `LightController` (`LitAlpha 0.12` / `DarkAlpha 0.62`);
 - `FlashlightRig` handheld beam: cone `SpriteRenderer` (order 71, tint `(1, 0.96, 0.85, 0.30)`) +
   `SpriteMask` with custom range **60..70**, pure cone maths in `GameLogic/BeamGeometry`;
-- `PeekLight` classroom lamp (mask range 60..80) — classroom peeks only, never the hallway.
+- `PeekLight` classroom lamp (mask range 60..80) - classroom peeks only, never the hallway.
 
 **Hallway areas (one only):** `RoomId.Hallway` "MAIN HALLWAY" in `School.unity`, built by
 `RoomBuilder` (`HalfWidth 11.4`, 3 doors, wall switch at −9.2). Classroom peeks frame classrooms;
 `SecurityRoomView`/the desk are not hallways. Entries go through
 `ViewManager.EnterRoomImmediate`, which already calls `LightController.ForceDarkOnEntry()` +
-`FlashlightRig.ForceBeamOffOnEntry()` on **every** entry — the "never auto-activate on transition"
+`FlashlightRig.ForceBeamOffOnEntry()` on **every** entry - the "never auto-activate on transition"
 rule already held and is preserved.
 
 **Flashlight system:** state = `FlashlightRig.Beam` + `FlashlightLatches`; input arbitration in
@@ -60,7 +60,7 @@ tray regions in `CheckpointLayout` (frozen wireframe, left untouched).
 `Assets/_Project/Resources/Art/<key>.png` (README), `.meta` GUIDs from `Tools/generate_meta.py`
 (TextureImporter block for `.png`).
 
-**Baselines (before edits):** hallway ambient alpha `0.62` — identical to every room (0 % darker
+**Baselines (before edits):** hallway ambient alpha `0.62` - identical to every room (0 % darker
 than a dark classroom, 57 % darker than a lit one); visibility with the beam OFF: **unlimited**
 (whole 22.8 u corridor at 38 % brightness); stamp mark `56×56` reference px on a 200×120 slip
 (28 % of its width), clamp margin 37.28 px; no files under `Resources/Art/`.
@@ -78,7 +78,7 @@ than a dark classroom, 57 % darker than a lit one); visibility with the beam OFF
 | `Assets/_Project/Scripts/World/LightController.cs` | per-room dark alpha; owns the depth layer (alpha + enable + per-frame player follow); flicker restore uses the per-room alpha |
 | `Assets/_Project/Scripts/World/RoomBuilder.cs` | hallway builds the `depth_darkness` shroud (order 65, beam-mask range, `VisibleOutsideMask`) and passes the darker ambient; hallway extent now sourced from `HallwayDarkness` |
 | `Assets/_Project/Scripts/World/RoomInstance.cs` | new `Depth` field (hallway-only layer handle) |
-| `Assets/_Project/Scripts/Bootstrap/ProceduralArt.Rooms.cs` | new painter `MakeHallDepth()` — radial falloff baked in **world units** |
+| `Assets/_Project/Scripts/Bootstrap/ProceduralArt.Rooms.cs` | new painter `MakeHallDepth()` - radial falloff baked in **world units** |
 | `Assets/_Project/Scripts/Bootstrap/ProceduralArt.cs` | registers `hall_depth`; the Resources override path now names its sprite after the key (so a dropped-in PNG behaves exactly like procedural art) |
 | `Assets/_Project/Scripts/Core/GameConfigSO.cs` | two new tunables `hallwayDarkAlpha` / `hallwayDepthAlpha` (defaults from `HallwayDarkness`), per the project's "new tunables go in GameConfigSO" rule |
 | `Assets/_Project/Scripts/Checkpoint/CheckpointView.Decision.cs` | `StampMarkSize 56 → 39` (and the three constants became `internal` so the harnesses measure the real numbers) |
@@ -95,12 +95,12 @@ HUD wiring and all controls are byte-identical.
 
 ## 3. Asset created
 
-`Assets/_Project/Resources/Art/stamp_allow.png` — **PNG, RGBA (colour type 6), 128×128 px**,
+`Assets/_Project/Resources/Art/stamp_allow.png` - **PNG, RGBA (colour type 6), 128×128 px**,
 transparent background (corner alpha 0), ink `rgb(62,71,62)` @ α 0.94.
 
 - **Generation:** rendered deterministically by `Tools/make_stamp_asset.py` (PIL, 512 px
   supersample → LANCZOS to 128). AI raster generation was deliberately *not* used: the mark needs
-  a true alpha channel, a muted flat ink, and the project's lo-fi worn-ink language — all of which
+  a true alpha channel, a muted flat ink, and the project's lo-fi worn-ink language - all of which
   a generator guarantees and reproduces (`--seed` re-rolls the wear).
 - **Art direction:** double-ring stamped emblem + heavy check; muted low-saturation green-grey ink
   (the ACCEPT tray tint pulled dark) that sits with the warm paper stock and cool UI ink; worn
@@ -108,13 +108,13 @@ transparent background (corner alpha 0), ink `rgb(62,71,62)` @ α 0.94.
 - **Sized for the reduced display:** authored strokes are chunky (outer ring 8 px, check 14 px at
   128) so at the new **39 px** display the ring reads ≈2.4 px and the check ≈4.3 px
   (`Tools/stamp_preview.png` shows 39 / 56 / 58 px side by side).
-- **Integration:** no code reference needed — `ProceduralArt.Get("stamp_allow")` prefers
+- **Integration:** no code reference needed - `ProceduralArt.Get("stamp_allow")` prefers
   `Resources/Art/stamp_allow.png` automatically (the project's documented override path); the one
   added line (`spr.name = key`) makes the override indistinguishable from procedural art for
   name-based lookups and the headless proofs. `.meta` = `generate_meta.py` output plus two
   deliberate keys (`alphaIsTransparency: 1`, `textureCompression: 0`) for a transparency- and
   legibility-critical UI mark.
-- **Backup:** no existing file was replaced — `Resources/Art/` did not exist and the procedural
+- **Backup:** no existing file was replaced - `Resources/Art/` did not exist and the procedural
   `MakeStamp(false)` remains in place as the runtime fallback (a strictly better backup than a
   `.bak` copy). `stamp_reject` keeps its procedural art, so the pair stays stylistically matched.
 
@@ -138,9 +138,9 @@ Mechanics of the change, reusing the existing framework only:
   per-room alpha;
 - a **second black layer** (`depth_darkness`, order 65, inside the beam mask's 60..70 range, so one
   beam hole cuts both) carries a radial alpha gradient **baked in world units** and follows the
-  player each frame (`LightController.FollowPlayer`, struct maths only — no per-frame allocations);
+  player each frame (`LightController.FollowPlayer`, struct maths only - no per-frame allocations);
 - because the layer *adds darkness* instead of adding light, the OFF state shows **no light
-  circle, no beam, no cursor glow anywhere** — `FlashlightRig.ApplyBeam(Off)` still deactivates
+  circle, no beam, no cursor glow anywhere** - `FlashlightRig.ApplyBeam(Off)` still deactivates
   cone + mask, verified;
 - the gradient is a hole-free smoothstep, so the pool has a gradual radial falloff with no rim;
 - classrooms keep their single uniform layer (asserted), peek stays solid black, sanity drain /
@@ -171,7 +171,7 @@ Suites (all run in-sandbox; .NET SDK 8.0.404 + real Unity 2022.3.62f1 assemblies
 
 | Suite | Before task edits (post-reconstruction) | After |
 |---|---|---|
-| `verify.sh` compile (minimal + full 76-asm) + `audit.py` | clean | **clean — 0 errors, 0 warnings, audit clean (93 scripts, 15,119 lines)** |
+| `verify.sh` compile (minimal + full 76-asm) + `audit.py` | clean | **clean - 0 errors, 0 warnings, audit clean (93 scripts, 15,119 lines)** |
 | `Tools/LogicTests` | 27 519 / 0 | **27 533 PASS / 0 FAIL** |
 | `Tools/FlowCheck` | 910 OK / 0 BAD | **936 OK / 0 BAD, exit 0** |
 | `Tools/Verification/LogicTests` (frozen) | 663 / 663 | **663 passed / 0 failed** |
@@ -184,7 +184,7 @@ Per acceptance item (measured):
 - F → limited illumination, soft falloff: OK (W1 cone+mask active; `docs/ui/hallway_lighting_sim.png` shows the smoothstep pool; LogicTests asserts monotone, no single step > 0.12).
 - F again → illumination fully removed: OK (cone + mask `activeSelf == false`; `ConeCovers` false everywhere).
 - Repeated entries → never auto-activates: OK (W2 entry-reset arc ×3 rooms + W2b "no lighting change ever auto-activated the beam").
-- Mouse movement alone never activates: OK (W1: held LMB, held RMB, **plus a 28-frame cursor sweep** — beam stays Off).
+- Mouse movement alone never activates: OK (W1: held LMB, held RMB, **plus a 28-frame cursor sweep** - beam stays Off).
 - Movement/interaction/HUD work in darkness: OK (interaction is distance-based, prompts unaffected; HUD room line asserted in sync; player + switch plate render above the darkness by design).
 - Cursor-follow still works while ON: OK (W3 aiming/cone proofs unchanged and passing).
 - Hallway 70–85 % darker than a lit room: **73 %** (asserted in LogicTests + FlowCheck W2b).
@@ -198,7 +198,7 @@ Per acceptance item (measured):
 - Moves with the slip when dragged: OK (SP drag proof: mark's slip-local spot unchanged, desk position moved > 50 px).
 - Stays within the paper bounds: OK (tilted-extent bounds proof at the corner: clamped exactly to margin **27.9**).
 - Approve/reject both preserved: OK (SP runs both verdicts across the suite; tray untouched).
-- Original asset backed up: N/A — nothing was replaced; the procedural painter remains as fallback.
+- Original asset backed up: N/A - nothing was replaced; the procedural painter remains as fallback.
 
 ---
 
@@ -221,7 +221,7 @@ Per acceptance item (measured):
 - The depth layer's baked radii live in `HallwayDarkness` (they are painted into `hall_depth`);
   the two alphas are the only runtime tunables (`GameConfigSO`). Changing `HallwayHalfWidth` or the
   player clamp now automatically resizes the shroud through the shared constants, but repainting
-  the sprite still requires a code edit — noted in the config tooltip.
+  the sprite still requires a code edit - noted in the config tooltip.
 - With the shipped near-black placeholder art the pool is subtle by eye (measured 8/255 near vs
   2/255 far on walls); the mid-tone row of `docs/ui/hallway_lighting_sim.png` shows how it reads
   once real art lands. If the team wants a brighter pool, `hallwayDarkAlpha` is a slider in

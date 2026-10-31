@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Static audit for Show Me Your ID!
 
-Catches the bug classes that only appear in the real Unity editor — namespace /
+Catches the bug classes that only appear in the real Unity editor - namespace /
 using-directive fidelity, nested-type misuse, legacy-only compliance, and the
 canvas/scaler/EventSystem wiring the whole UI depends on.
 
@@ -92,7 +92,7 @@ UNITY6_RISK = [
     (r"\bMovieTexture\b", "MovieTexture removed"),
     (r"\bGUIText\b|\bGUITexture\b", "GUIText/GUITexture removed"),
     (r"\bApplication\.LoadLevel", "removed -> SceneManager.LoadScene"),
-    (r'"Arial\.ttf"', "built-in Arial.ttf no longer ships in Unity 6 — must be a FALLBACK only, "
+    (r'"Arial\.ttf"', "built-in Arial.ttf no longer ships in Unity 6 - must be a FALLBACK only, "
                       "with LegacyRuntime.ttf tried first (otherwise no text renders)"),
     (r"\bFindObjectOfType\b", "obsolete in Unity 6 -> FindFirstObjectByType"),
     (r"\bFindObjectsOfType\b", "obsolete in Unity 6 -> FindObjectsByType"),
@@ -140,7 +140,7 @@ def main():
     for rel, src in sorted(code.items()):
         usings = set(re.findall(r"^\s*using\s+([\w.]+)\s*;", raw[rel], re.M))
 
-        # 1. using-directive fidelity — the bug class that broke the editor build
+        # 1. using-directive fidelity - the bug class that broke the editor build
         for ns, types in NS_REQUIRED.items():
             if ns in usings:
                 continue
@@ -163,7 +163,7 @@ def main():
         for pat, why in UNITY6_RISK:
             m = re.search(pat, nocomment[rel])
             if m:
-                notes.append(f"{rel}: '{m.group(0)}' — {why}")
+                notes.append(f"{rel}: '{m.group(0)}' - {why}")
 
         # 4. legacy-only compliance
         for pat, why in FORBIDDEN:
@@ -192,12 +192,12 @@ def main():
     for label, pat, why in rows:
         hits = find(pat, raw)
         mark = "OK " if hits else "!! "
-        print(f"  {mark}{label:38s} {', '.join(h.split('/')[-1] for h in hits) or 'MISSING — ' + why}")
+        print(f"  {mark}{label:38s} {', '.join(h.split('/')[-1] for h in hits) or 'MISSING - ' + why}")
 
     # scaler default: screenMatchMode is never set explicitly -> Unity's default
     # (MatchWidthOrHeight) is what makes AspectMatchGuard's match switch work.
     if find(r"CreateRootCanvas\s*\(", raw) and not find(r"screenMatchMode\s*=", raw):
-        notes.append("UIFactory.CreateRootCanvas never sets scaler.screenMatchMode — it relies on "
+        notes.append("UIFactory.CreateRootCanvas never sets scaler.screenMatchMode - it relies on "
                      "Unity's default (MatchWidthOrHeight), which is what AspectMatchGuard assumes. "
                      "Works, but setting it explicitly would be self-documenting.")
 
@@ -215,7 +215,7 @@ def main():
         if missing:
             issues.append(f"SceneRouter references scenes that do not exist: {missing}")
         else:
-            print("  OK — every routed scene exists (still verify ProjectSettings/EditorBuildSettings.asset)")
+            print("  OK - every routed scene exists (still verify ProjectSettings/EditorBuildSettings.asset)")
 
     # canvas reference resolution vs AspectMatchGuard's hard-coded 16:9
     m = re.search(r"canvasReferenceWidth\s*=\s*(\d+).*?canvasReferenceHeight\s*=\s*(\d+)",
@@ -232,16 +232,16 @@ def main():
             print(f"  AspectMatchGuard.ReferenceAspect : {guard.group(1)}/{guard.group(2)} = {ga:.4f}")
             if abs(ga - w / h) > 1e-4:
                 issues.append(f"AspectMatchGuard assumes {ga:.4f} but the canvas reference is {w/h:.4f} "
-                              f"— the guard will pick the wrong match axis.")
+                              f"- the guard will pick the wrong match axis.")
             else:
-                print("  OK — guard aspect matches the configured reference")
+                print("  OK - guard aspect matches the configured reference")
 
     print("\n--- findings (would break or misbehave in the editor) ---")
     if issues:
         for i in issues:
             print("  [ERROR-RISK]", i)
     else:
-        print("  none — using-directives, qualified types and wiring all match real Unity")
+        print("  none - using-directives, qualified types and wiring all match real Unity")
 
     print("\n--- review notes (not errors) ---")
     for n in notes:
