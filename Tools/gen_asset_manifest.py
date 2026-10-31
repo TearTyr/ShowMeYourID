@@ -190,6 +190,19 @@ SEC = [
     ("sec_bubble",           "kit", "P0", "speech box, 9-sliced (left tail + rough edge preserved): bubble + dialogue panel skin"),
 ]
 
+# ---- the owner's Main Menu kit: shipped, sliced where measured, all live keys ----
+MENU = [
+    ("menu_background",    "kit", "P0", "full-frame 2880x1620 corridor backdrop (cover-cropped by MainMenuView.FitBackground)"),
+    ("menu_logo",          "kit", "P0", "cropped logo plate: SHOW ME YOUR ID! lettering + soft halo, top right"),
+    ("menu_frame_wide",    "kit", "P0", "cropped 977x197 white outline: NEW GAME / CONTINUE button frame"),
+    ("menu_frame_square",  "kit", "P0", "cropped 160x162 white outline: SETTINGS / EXIT / CREDITS button frame"),
+    ("menu_icon_newgame",  "kit", "P0", "cropped skull icon inside the NEW GAME frame"),
+    ("menu_icon_continue", "kit", "P0", "cropped four-arrow icon inside the CONTINUE frame"),
+    ("menu_icon_settings", "kit", "P0", "cropped gear icon inside the first square"),
+    ("menu_icon_exit",     "kit", "P0", "cropped door+arrow icon inside the second square"),
+    ("menu_icon_credits",  "kit", "P1", "cropped theatre-masks icon inside the third square"),
+]
+
 FONTS = [
     ("kit_bahnschrift_regular", "font", "P0", "shipped-kit", "OTF, owner-supplied — UI body face (UiFont, fallback BarlowCondensed)", "UIFactory.UiFont", ""),
     ("kit_bahnschrift_bold", "font", "P0", "shipped-kit", "OTF, owner-supplied — UI emphasis (UiFontBold, fallback BarlowCondensed-SemiBold)", "UIFactory.UiFontBold", ""),
@@ -215,6 +228,9 @@ def main():
     for key, cat, prio, spec in SEC:
         rows.append([key, "art", cat, prio, "shipped-kit", "PNG", spec,
                      "CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults", ""])
+    for key, cat, prio, spec in MENU:
+        rows.append([key, "art", cat, prio, "shipped-kit", "PNG", spec,
+                     "MainMenuView (main menu composite per Art/MainMenu/reference)", ""])
     for key, typ, prio, status, spec, used, notes in FONTS:
         rows.append([key, typ, "type", prio, status, "TTF", spec, used, notes])
 

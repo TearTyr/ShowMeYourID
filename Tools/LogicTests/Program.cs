@@ -62,7 +62,9 @@ namespace Hollowbrook.LogicTests
             QueueBusyHurryTests();
             QueueInvariantTests();
             StampRulesTests();
-            CohortFolderTests();
+            RecordSearchTests();
+            FloorFileTests();
+            DrawerMotionTests();
             FloorPlanTests();
             MapSheetLayoutTests();
             AdminTalkSuite();
@@ -159,9 +161,9 @@ namespace Hollowbrook.LogicTests
             Eq(roster.Select(s => s.FullName).Distinct().Count(), roster.Count, "roster names unique");
             Eq(roster.Select(s => s.IdNumber).Distinct().Count(), roster.Count, "roster IDs unique");
             Check(roster.All(s => IdRules.IsFormatValid(s.IdNumber)), "every canon ID is format-valid");
-            Check(roster.All(s => s.YearLevel >= 1 && s.YearLevel <= 3), "year levels in 1..3 (no 4th years on file)");
+            Check(roster.All(s => s.YearLevel >= 1 && s.YearLevel <= 4), "year levels in 1..4");
             Check(roster.All(s => s.CourseIndex >= 0 && s.CourseIndex < Content.Courses.Length), "course indices in range");
-            Check(Content.Courses.Length > 0 && Content.YearNames.Length == 3, "course/year pools populated");
+            Check(Content.Courses.Length > 0 && Content.YearNames.Length == 4, "course/year pools populated");
             Eq(Content.ShiftDates.Length, 5, "five shift dates");
             // day-number mapping must be strictly monotonic ACROSS THE WINDOW THE GAME
             // ACTUALLY GENERATES (Jun 2026 .. Mar 2027). The model uses 30-day months, so
@@ -765,9 +767,8 @@ namespace Hollowbrook.LogicTests
             Check(!strict.ForcesReject(anomaly), "mutations never force-reject an anomaly (it is already Reject)");
             var noTransferees = new RuleMutationDef("no_transferees", "test");
             var odd = new RuleMutationDef("odd_serials", "test");
+            var curfew = new RuleMutationDef("fourth_year_curfew", "test");
             Check(!new RuleMutationDef("unknown_key", "x").ForcesReject(legit), "unknown mutation key is inert");
-            Check(!ShiftPlan.ChallengeMutations.Any(m => m.Key.Contains("curfew")),
-                  "no year-based curfew rule exists (the school has no 4th years to single out)");
 
             // strict_expiry works on a 60-day window measured on Content's day-number axis
             var far = new VisitorData
@@ -797,13 +798,16 @@ namespace Hollowbrook.LogicTests
 
             var probe = new VisitorData
             {
-                IsAnomaly = false, ShiftNumber = 3, IdIsTransferee = true, IdYearLevel = 3,
+                IsAnomaly = false, ShiftNumber = 3, IdIsTransferee = true, IdYearLevel = 4,
                 IdNumber = "HB-2026-0003", ExpirationDay = Content.DayNumberOfDate(2027, 3, 31),
             };
             Check(noTransferees.ForcesReject(probe), "no_transferees forces reject on a transferee");
+            Check(curfew.ForcesReject(probe), "fourth_year_curfew forces reject on a 4th year");
             Check(odd.ForcesReject(probe), "odd_serials forces reject on serial 0003");
             Check(!noTransferees.ForcesReject(new VisitorData { ShiftNumber = 3, IdNumber = "HB-2026-0004" }),
                   "no_transferees ignores a regular student");
+            Check(!curfew.ForcesReject(new VisitorData { ShiftNumber = 3, IdYearLevel = 2, IdNumber = "HB-2026-0004" }),
+                  "fourth_year_curfew ignores a 2nd year");
             Check(!odd.ForcesReject(new VisitorData { ShiftNumber = 3, IdNumber = "HB-2026-0004" }),
                   "odd_serials ignores an even serial");
 
@@ -1316,33 +1320,30 @@ namespace Hollowbrook.LogicTests
             Eq(p.Range, 9f, "ParamsFor picks the Focus numbers");
             Eq(p.HalfAngleDeg, 6f, "ParamsFor picks the Focus angle");
 
-            Group("FlashlightInput — on/off + narrow toggles (F/Q/L and left/right click)");
+            Group("FlashlightInput — latch/hold arbitration (F/Q/L + mouse holds)");
             FlashlightLatches l;
             var none = new FlashlightLatches();
-            Eq(FlashlightInput.Resolve(none, false, false, false, false, out l), LightMode.Off, "no input => Off");
-            Eq(FlashlightInput.Resolve(none, true, false, false, false, out l), LightMode.Sweep, "on/off toggle: Off -> wide Sweep");
-            Check(l.Sweep && !l.Focus, "...and sets only the sweep latch");
+            Eq(FlashlightInput.Resolve(none, false, false, false, false, false, false, out l), LightMode.Off, "no input => Off");
+            Eq(FlashlightInput.Resolve(none, true, false, false, false, false, false, out l), LightMode.Sweep, "F latches Sweep");
+            Check(l.Sweep && !l.Focus, "F sets only the sweep latch");
             var sweepLatched = new FlashlightLatches { Sweep = true };
-            Eq(FlashlightInput.Resolve(sweepLatched, true, false, false, false, out l), LightMode.Off, "on/off toggle: Sweep -> Off");
-            Check(!l.Sweep && !l.Focus, "...clearing the latches");
+            Eq(FlashlightInput.Resolve(sweepLatched, false, true, false, false, false, false, out l), LightMode.Focus, "Q switches to Focus");
+            Check(l.Focus && !l.Sweep, "keyboard toggles are mutually exclusive — Q clears the sweep latch");
             var focusLatched = new FlashlightLatches { Focus = true };
-            Eq(FlashlightInput.Resolve(focusLatched, true, false, false, false, out l), LightMode.Off, "on/off toggle turns a Focus beam off too");
-            Eq(FlashlightInput.Resolve(sweepLatched, false, true, false, false, out l), LightMode.Focus, "narrow toggle while on: Sweep -> Focus");
-            Check(l.Focus && !l.Sweep, "...the two modes are mutually exclusive");
-            Eq(FlashlightInput.Resolve(focusLatched, false, true, false, false, out l), LightMode.Sweep, "narrow toggle again: Focus -> back to the wide Sweep");
-            Check(l.Sweep && !l.Focus, "...it never turns the light off");
-            Eq(FlashlightInput.Resolve(none, false, true, false, false, out l), LightMode.Off, "narrow toggle while OFF does nothing — it never turns the light on");
-            Check(!l.Sweep && !l.Focus, "...and latches nothing");
-            Eq(FlashlightInput.Resolve(sweepLatched, true, true, false, false, out l), LightMode.Off, "both toggles in one frame: on/off wins");
-            Eq(FlashlightInput.Resolve(sweepLatched, false, false, true, false, out l), LightMode.Off, "L switches the beam off");
-            Check(!l.Sweep && !l.Focus, "L clears the latches");
-            Eq(FlashlightInput.Resolve(focusLatched, false, false, true, false, out l), LightMode.Off, "L switches a Focus beam off too");
-            Eq(FlashlightInput.Resolve(sweepLatched, false, false, false, false, out l), LightMode.Sweep, "no input holds the latched mode");
-            Eq(FlashlightInput.Resolve(sweepLatched, false, false, false, true, out l), LightMode.Off, "a dead battery forces Off");
+            Eq(FlashlightInput.Resolve(focusLatched, false, true, false, false, false, false, out l), LightMode.Off, "Q again toggles Focus off");
+            Eq(FlashlightInput.Resolve(sweepLatched, false, false, true, false, false, false, out l), LightMode.Off, "L switches the beam off");
+            Check(!l.Sweep && !l.Focus, "L clears conflicting latches");
+            Eq(FlashlightInput.Resolve(sweepLatched, false, false, false, false, true, false, out l), LightMode.Focus, "held RMB overrides a latched mode");
+            Check(l.Sweep && !l.Focus, "a mouse hold never changes the latches");
+            Eq(FlashlightInput.Resolve(sweepLatched, false, false, false, false, false, false, out l), LightMode.Sweep, "releasing the mouse returns to the latched mode");
+            Eq(FlashlightInput.Resolve(focusLatched, false, false, false, true, false, false, out l), LightMode.Sweep, "held LMB temporarily beats a Focus latch");
+            Eq(FlashlightInput.Resolve(none, false, false, false, true, true, false, out l), LightMode.Focus, "both buttons held: Focus wins");
+            Eq(FlashlightInput.Resolve(sweepLatched, false, false, false, false, false, true, out l), LightMode.Off, "a dead battery forces Off");
             Check(!l.Sweep && !l.Focus, "a dead battery clears the latches — revival needs deliberate input");
-            Eq(FlashlightInput.Resolve(sweepLatched, true, false, false, true, out l), LightMode.Off, "toggling on/off while dead does nothing");
-            Check(!l.Sweep, "toggling while dead does not re-latch");
-            Eq(FlashlightInput.Resolve(none, true, false, false, false, out l), LightMode.Sweep, "after a death the next deliberate press relights it");
+            Eq(FlashlightInput.Resolve(sweepLatched, true, false, false, false, false, true, out l), LightMode.Off, "toggling F while dead does nothing");
+            Check(!l.Sweep, "toggling F while dead does not re-latch");
+            Eq(FlashlightInput.Resolve(sweepLatched, false, false, true, true, false, false, out l), LightMode.Sweep, "L+hold same frame: the hold still shows a beam this frame");
+            Eq(FlashlightInput.Resolve(l, false, false, false, false, false, false, out l), LightMode.Off, "...and L's clear sticks after the hold is released");
 
             Group("BatteryModel — drain, recover, death and deliberate reboot");
             var bp = new BatteryParams { DrainSweepPerSecond = 2.5f, DrainFocusPerSecond = 6f, RecoverDarkPerSecond = 4f, RecoverLitPerSecond = 8f, RebootFraction = 0.2f };
@@ -1433,32 +1434,6 @@ namespace Hollowbrook.LogicTests
             Eq(RoomGraph.NextHop(RoomId.Classroom1, RoomId.Classroom1), RoomId.Classroom1, "already there: no hop");
             Eq(RoomGraph.NextHop(RoomId.Security, RoomId.Hallway), RoomId.Security, "off-graph origins do not route");
 
-            Group("RoomGraph — the comfort hallway and the two comfort rooms");
-            Check(RoomGraph.IsPeekRoom(RoomId.Classroom1) && RoomGraph.IsPeekRoom(RoomId.Classroom2) &&
-                  RoomGraph.IsPeekRoom(RoomId.Comfort1) && RoomGraph.IsPeekRoom(RoomId.Comfort2),
-                  "the classrooms and the comfort rooms are peek-only");
-            Check(!RoomGraph.IsPeekRoom(RoomId.Hallway) && !RoomGraph.IsPeekRoom(RoomId.ComfortHall) &&
-                  !RoomGraph.IsPeekRoom(RoomId.Security),
-                  "the hallway, the comfort hallway and the security room are walked, not peeked");
-            Eq(RoomGraph.ParentOf(RoomId.Classroom1), RoomId.Hallway, "a classroom hangs off the hallway");
-            Eq(RoomGraph.ParentOf(RoomId.ComfortHall), RoomId.Hallway, "the comfort hallway hangs off the hallway");
-            Eq(RoomGraph.ParentOf(RoomId.Comfort1), RoomId.ComfortHall, "CR-1 hangs off the comfort hallway");
-            Eq(RoomGraph.ParentOf(RoomId.Comfort2), RoomId.ComfortHall, "CR-2 hangs off the comfort hallway");
-            Eq(RoomGraph.ParentOf(RoomId.Hallway), RoomId.Hallway, "the hallway is the root");
-            Check(RoomGraph.Connected(RoomId.Hallway, RoomId.ComfortHall) && RoomGraph.Connected(RoomId.ComfortHall, RoomId.Hallway),
-                  "hallway <-> comfort hallway are connected both ways");
-            Check(RoomGraph.Connected(RoomId.ComfortHall, RoomId.Comfort1) && RoomGraph.Connected(RoomId.Comfort1, RoomId.ComfortHall) &&
-                  RoomGraph.Connected(RoomId.ComfortHall, RoomId.Comfort2) && RoomGraph.Connected(RoomId.Comfort2, RoomId.ComfortHall),
-                  "the comfort hallway <-> each comfort room are connected both ways");
-            Check(!RoomGraph.Connected(RoomId.Hallway, RoomId.Comfort1) && !RoomGraph.Connected(RoomId.Comfort1, RoomId.Comfort2),
-                  "the comfort rooms are only reachable through the comfort hallway");
-            Check(RoomGraph.DoorX(RoomId.Hallway, RoomId.ComfortHall) > 8f,
-                  "the comfort hallway's entrance is at the hallway's east end");
-            Eq(RoomGraph.Roamable.Length, 3, "roaming anomalies still walk only the hallway and the two classrooms");
-            Check(!RoomGraph.IsRoamable(RoomId.Comfort1) && !RoomGraph.IsRoamable(RoomId.ComfortHall),
-                  "the comfort rooms are not roam routes (an anomaly there stays where it spawned)");
-            Eq(RoomGraph.NextHop(RoomId.Comfort1, RoomId.Hallway), RoomId.Comfort1, "an anomaly in a comfort room does not roam out");
-
             Group("Tokens — collection persists with the run");
             var ses = new GameSession();
             Eq(ses.TokensCollected, 0, "a fresh run holds no tokens");
@@ -1530,22 +1505,36 @@ namespace Hollowbrook.LogicTests
             Eq(sN.Score, 150, "the fine costs 100 score (penalty, not game over)");
         }
 
-        private static void CohortFolderTests()
+        private static void RecordSearchTests()
         {
-            Group("RecordSearch — cohort folders for the STUDENT RECORDS folder");
+            Group("RecordSearch — registry lookup for the records station");
             var canon = new RosterFactory(12).Canon;
-            var folders = RecordSearch.BuildCohortFolders(canon);
-            Eq(folders.Count, RecordSearch.CohortCount, "the roster files under exactly three cohorts");
-            Eq(folders[0].Cohort, 2024, "the oldest cohort is 2024 (3rd year)");
-            Eq(folders[1].Cohort, 2025, "then 2025 (2nd year)");
-            Eq(folders[2].Cohort, 2026, "then 2026 (1st year)");
-            Eq(folders[0].Label, "S2024-2028", "the first folder reads S2024-2028");
-            Eq(folders[1].Label, "S2025-2029", "the second folder reads S2025-2029");
-            Eq(folders[2].Label, "S2026-2030", "the third folder reads S2026-2030");
-            foreach (var f in folders)
-                Check(f.Indices.Count > 0, f.Label + " holds files (no dead folder in shipping content)");
+            var target = canon[5];
+            Eq(RecordSearch.FindInCanon(canon, target.IdNumber), 5, "exact ID match wins");
+            Eq(RecordSearch.FindInCanon(canon, target.IdNumber.ToLowerInvariant()), 5,
+               "ID match is case-insensitive");
+            string frag = target.FullName.Length >= 4 ? target.FullName.Substring(2, 4) : target.FullName;
+            int byName = RecordSearch.FindInCanon(canon, frag);
+            Check(byName >= 0 && canon[byName].FullName.ToUpperInvariant().Contains(frag.ToUpperInvariant()),
+                  "a name fragment opens a matching file");
+            Eq(RecordSearch.FindInCanon(canon, "HB-1999-0000"), -1, "ghost ID answers NO RECORD");
+            Eq(RecordSearch.FindInCanon(canon, "ab"), -1, "queries under 3 chars match nothing");
+            Eq(RecordSearch.FindInCanon(canon, ""), -1, "empty query matches nothing");
+            Eq(RecordSearch.FindInCanon(null, "x"), -1, "a null canon is safe");
+        }
+
+        private static void FloorFileTests()
+        {
+            Group("RecordSearch — floor folders for the FLOOR FILES cabinet");
+            var canon = new RosterFactory(12).Canon;
+            var folders = RecordSearch.BuildFloorFolders(canon);
+            Eq(folders.Count, 2, "the roster files under exactly two floors");
+            Eq(folders[0].Floor, 1, "folders come out floor-ascending");
+            Eq(folders[1].Floor, 2, "the second folder is the second floor");
+            Check(folders[0].Indices.Count > 0 && folders[1].Indices.Count > 0,
+                  "both floors hold files (no dead folder in shipping content)");
             var seen = new HashSet<int>();
-            bool ordered = true, cohortsOk = true;
+            bool ordered = true, floorsOk = true;
             foreach (var f in folders)
             {
                 int prev = -1;
@@ -1554,32 +1543,95 @@ namespace Hollowbrook.LogicTests
                     if (i <= prev) ordered = false;              // roster order inside a folder
                     prev = i;
                     if (!seen.Add(i)) ordered = false;           // filed exactly once
-                    if (RecordSearch.CohortOf(canon[i]) != f.Cohort) cohortsOk = false;
+                    if (RecordSearch.FloorOf(canon[i].FirstClassroom) != f.Floor) floorsOk = false;
                 }
             }
             Eq(seen.Count, canon.Count, "every canon student is filed exactly once");
             Check(ordered, "files keep roster order inside their folder");
-            Check(cohortsOk, "each file sits under the cohort its year level implies");
-            bool idsMatch = true;
-            foreach (var s in canon)
-                if (!s.IdNumber.StartsWith("HB-" + RecordSearch.CohortOf(s) + "-")) idsMatch = false;
-            Check(idsMatch, "a student's cohort is the year printed in their ID number");
-            Eq(RecordSearch.CohortOfTab(0), 2024, "tab 0 is the oldest cohort");
-            Eq(RecordSearch.CohortOfTab(RecordSearch.CohortCount - 1), 2026, "the last tab is the newest cohort");
-            Eq(RecordSearch.BuildCohortFolders(null).Count, 0, "a null canon files nothing");
-            Eq(RecordSearch.BuildCohortFolders(new List<StudentIdentity>()).Count, 0, "an empty canon files nothing");
-            var again = RecordSearch.BuildCohortFolders(canon);
+            Check(floorsOk, "each file sits on its classroom's floor");
+            Check(folders[0].Label != folders[1].Label &&
+                  folders[0].Label.Contains("ROOM 101") && folders[1].Label.Contains("ROOM 202"),
+                  "folder labels are distinct and name the room (got '" + folders[0].Label + "')");
+            Eq(RecordSearch.FloorOf(RoomId.Classroom1), 1, "Room 101 is the 1st floor");
+            Eq(RecordSearch.FloorOf(RoomId.Classroom2), 2, "Room 202 is the 2nd floor");
+            Eq(RecordSearch.BuildFloorFolders(null).Count, 0, "a null canon files nothing");
+            Eq(RecordSearch.BuildFloorFolders(new List<StudentIdentity>()).Count, 0,
+               "an empty canon files nothing");
+            // determinism: the same roster always produces the same folders
+            var again = RecordSearch.BuildFloorFolders(canon);
             bool same = again.Count == folders.Count;
             for (int f = 0; same && f < again.Count; f++)
             {
-                same = again[f].Cohort == folders[f].Cohort && again[f].Label == folders[f].Label &&
+                same = again[f].Floor == folders[f].Floor && again[f].Label == folders[f].Label &&
                        again[f].Indices.Count == folders[f].Indices.Count;
                 for (int k = 0; same && k < again[f].Indices.Count; k++)
                     same = again[f].Indices[k] == folders[f].Indices[k];
             }
-            Check(same, "cohort folders are deterministic (same canon, same folders)");
+            Check(same, "floor folders are deterministic (same canon, same folders)");
         }
 
+        // The floor-files drawer's motion curve. Pure maths, so "does it answer the click
+        // almost instantly, decelerate, and never bounce?" is a testable claim, not a vibe.
+        private static void DrawerMotionTests()
+        {
+            Group("DrawerMotion — the floor-files pull drawer");
+            Eq(DrawerMotion.EaseOut(0f), 0f, "the pull starts at 0");
+            Eq(DrawerMotion.EaseOut(1f), 1f, "the pull ends at 1");
+            Check(DrawerMotion.EaseOut(0.5f) > 0.5f,
+                  $"an ease-out covers more than half the travel in half the time ({DrawerMotion.EaseOut(0.5f):F3})");
+            Check(DrawerMotion.EaseOut(0.25f) > 0.5f,
+                  $"...and over half of it in the first quarter ({DrawerMotion.EaseOut(0.25f):F3}) — it answers the click");
+            bool monotonic = true, noOvershoot = true;
+            float prev = 0f;
+            for (int i = 0; i <= 200; i++)
+            {
+                float v = DrawerMotion.EaseOut(i / 200f);
+                if (v < prev - 1e-6f) monotonic = false;   // never runs backwards = never bounces
+                if (v > 1f + 1e-6f) noOvershoot = false;   // never passes the end = no overshoot
+                prev = v;
+            }
+            Check(monotonic, "the pull is monotonic (no bounce, no rubber-band)");
+            Check(noOvershoot, "the pull never overshoots the open position");
+
+            Eq(DrawerMotion.Advance(0f, 1f / 60f, true), 1f / 60f / DrawerMotion.DurationSeconds,
+               "one 60 Hz frame advances exactly dt/duration");
+            Check(DrawerMotion.Advance(0f, 0f, true) == 0f, "a zero frame moves nothing");
+            Check(DrawerMotion.Advance(0.5f, -3f, true) == 0.5f, "a negative dt is treated as no time at all");
+            Eq(DrawerMotion.Advance(0.5f, 99f, true), 1f, "opening clamps at 1 (no run-away)");
+            Eq(DrawerMotion.Advance(0.5f, 99f, false), 0f, "closing clamps at 0");
+            int frames = 0;
+            float pull = 0f;
+            while (pull < 1f && frames < 600) { pull = DrawerMotion.Advance(pull, 1f / 60f, true); frames++; }
+            Check(pull >= 1f && Math.Abs(frames * (1f / 60f) - DrawerMotion.DurationSeconds) < 1f / 60f + 1e-4f,
+                  $"a full pull takes its stated {DrawerMotion.DurationSeconds * 1000f:F0} ms ({frames} frames at 60 Hz)");
+            Check(DrawerMotion.DurationSeconds <= 0.2f,
+                  $"the whole motion is under a fifth of a second ({DrawerMotion.DurationSeconds:F3}s) — it feels immediate");
+
+            Eq(DrawerMotion.BodyOffset(0f), 0f, "a shut drawer has travelled 0px");
+            Eq(DrawerMotion.BodyOffset(1f), DrawerMotion.TravelPx, "an open drawer has travelled the full depth");
+            Eq(DrawerMotion.BodyScale(0f), 1f, "shut, the body is at 1x");
+            Eq(DrawerMotion.BodyScale(1f), DrawerMotion.NearScale, "out, it is at the near scale");
+            Check(DrawerMotion.NearScale > 1f && DrawerMotion.NearScale < 1.1f,
+                  $"the depth cue is real but subtle ({DrawerMotion.NearScale:F3}x)");
+
+            Eq(DrawerMotion.RowReveal(0f), 0f, "shut, the files are not revealed");
+            Eq(DrawerMotion.RowReveal(1f), 1f, "open, the files are fully revealed");
+            Check(DrawerMotion.RowReveal(0.5f) < DrawerMotion.EaseOut(0.5f),
+                  "the files LAG the body, so they emerge from the drawer instead of riding painted on it");
+            Eq(DrawerMotion.RowOffset(0f), DrawerMotion.RowEmergePx, "shut, each file still sits its emerge-distance up");
+            Eq(DrawerMotion.RowOffset(1f), 0f, "open, every file has settled into place");
+            Eq(DrawerMotion.CavityShadeAt(0f), 0f, "shut, the cavity is not shaded");
+            Eq(DrawerMotion.CavityShadeAt(1f), DrawerMotion.CavityShadeAlpha, "open, the cavity shade is at full depth");
+
+            Check(!DrawerMotion.Finished(0.5f, true) && DrawerMotion.Finished(1f, true),
+                  "Finished only reports done at the end of an opening");
+            Check(!DrawerMotion.Finished(0.5f, false) && DrawerMotion.Finished(0f, false),
+                  "...and at the start of a closing (i.e. fully shut)");
+        }
+
+        // The ground-floor plan is data, so the map's layout rules are provable without pixels:
+        // every room present, in the place the reference drawing puts it, none overlapping, and
+        // the sealed / comfort rooms distinguishable from the patrol rooms.
         private static void FloorPlanTests()
         {
             Group("FloorPlan — HOLLOWBROOK COLLEGE ground floor");
@@ -1637,8 +1689,8 @@ namespace Hollowbrook.LogicTests
             Eq(comfort.Count, 2, "the plan carries two comfort rooms");
             foreach (var cr in comfort)
             {
-                Check(cr.Comfort && cr.Room.HasValue && RoomGraph.IsPeekRoom(cr.Room.Value) && !cr.Sealed,
-                      "'" + cr.Key + "' is a comfort room: a peek room of the patrol, not sealed");
+                Check(cr.Comfort && !cr.Room.HasValue && !cr.Sealed,
+                      "'" + cr.Key + "' is a comfort room, not a patrol room and not sealed");
                 Check(cr.Label.ToUpperInvariant().Contains("COMFORT ROOM"),
                       "'" + cr.Key + "' is labelled as a comfort room");
                 Check(!cr.Overlaps(hall.Value) && !cr.Overlaps(c1.Value) && !cr.Overlaps(c2.Value) &&

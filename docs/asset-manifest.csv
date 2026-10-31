@@ -8,6 +8,14 @@ hallway_bg,art,world-bg,P0,procedural,PNG,"PNG 1536x640 px @64 ppu (=24x10 world
 id_card_frame,art,desk-doc,P0,procedural,PNG,PNG RGBA 320x220 px @100 ppu (prints 1:1 in the desk grid); photo slot + 6 text rows are drawn ON TOP by code — deliver the blank card art only,"CheckpointView (ID card, offered card)",hollow frame with black spine area left dark
 lamp_glow,art,fx,P0,procedural,PNG,"PNG RGBA 128x128 px, radial warm glow (peek lamp + mask)",PeekLight,
 light_cone,art,fx,P0,procedural,PNG,"PNG RGBA 512x288 px @64 ppu, the beam wedge: hot at the lamp, gone at the reach, feathered shoulders (BeamProfile bakes it)",FlashlightRig cone + stencil mask,mask alpha-cutoff 0.05 depends on the feather — keep the falloff
+menu_background,art,kit,P0,shipped-kit,PNG,full-frame 2880x1620 corridor backdrop (cover-cropped by MainMenuView.FitBackground),MainMenuView (main menu composite per Art/MainMenu/reference),
+menu_frame_square,art,kit,P0,shipped-kit,PNG,cropped 160x162 white outline: SETTINGS / EXIT / CREDITS button frame,MainMenuView (main menu composite per Art/MainMenu/reference),
+menu_frame_wide,art,kit,P0,shipped-kit,PNG,cropped 977x197 white outline: NEW GAME / CONTINUE button frame,MainMenuView (main menu composite per Art/MainMenu/reference),
+menu_icon_continue,art,kit,P0,shipped-kit,PNG,cropped four-arrow icon inside the CONTINUE frame,MainMenuView (main menu composite per Art/MainMenu/reference),
+menu_icon_exit,art,kit,P0,shipped-kit,PNG,cropped door+arrow icon inside the second square,MainMenuView (main menu composite per Art/MainMenu/reference),
+menu_icon_newgame,art,kit,P0,shipped-kit,PNG,cropped skull icon inside the NEW GAME frame,MainMenuView (main menu composite per Art/MainMenu/reference),
+menu_icon_settings,art,kit,P0,shipped-kit,PNG,cropped gear icon inside the first square,MainMenuView (main menu composite per Art/MainMenu/reference),
+menu_logo,art,kit,P0,shipped-kit,PNG,"cropped logo plate: SHOW ME YOUR ID! lettering + soft halo, top right",MainMenuView (main menu composite per Art/MainMenu/reference),
 paper_flat,art,desk-doc,P0,procedural,PNG,"PNG RGBA 760x480 px @100 ppu, plain aged sheet for the RULES NOTE / TONIGHT'S LOG overlays",CheckpointView overlays,
 prop_door,art,world-prop,P0,procedural,PNG,"PNG RGBA 160x384 px @64 ppu (2.5x6 units), classroom door, stands on the floor line",RoomBuilder doors,drawn standing: centre = floor + h/2
 prop_door_security,art,world-prop,P0,procedural,PNG,"PNG RGBA 160x384 px @64 ppu, booth/security door with plate",RoomBuilder security door + office door,
@@ -69,6 +77,7 @@ classroom1_bg,art,world-bg,P1,procedural,PNG,"PNG 1152x640 px @64 ppu, Room 101 
 classroom2_bg,art,world-bg,P1,procedural,PNG,"PNG 1152x640 px @64 ppu, Room 202 side view (night window glow)",ViewManager classroom 2 / peek,
 clipboard,art,desk-doc,P1,procedural,PNG,PNG RGBA 370x490 px @100 ppu,reserve (overlay variant),
 hood_figure,art,character,P1,procedural,PNG,"PNG RGBA 24x48 px @100 ppu, waiting-line silhouette for the queue stands",CheckpointView stands,
+menu_icon_credits,art,kit,P1,shipped-kit,PNG,cropped theatre-masks icon inside the third square,MainMenuView (main menu composite per Art/MainMenu/reference),
 note_paper,art,desk-doc,P1,procedural,PNG,"PNG RGBA 390x300 px @100 ppu, sticky/notice paper",reserve (overlay variant),
 prop_chalkboard,art,world-prop,P1,procedural,PNG,"PNG RGBA 384x224 px @64 ppu, half-erased board (clue #2)",classroom 1 clue 'chalkboard',GDD interaction list
 prop_desk,art,world-prop,P1,procedural,PNG,"PNG RGBA 208x128 px @64 ppu, teacher's desk (clue #3)",classroom 1,

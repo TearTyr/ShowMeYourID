@@ -234,7 +234,7 @@ namespace Hollowbrook.Logic
                     v.IdNumber = CorruptId(id.IdNumber);
                     break;
                 case DefectType.YearMismatch:
-                    v.RecordYearLevel = 1 + (id.YearLevel % 3); // guaranteed different, stays 1..3
+                    v.RecordYearLevel = 1 + (id.YearLevel % 4); // guaranteed different, stays 1..4
                     break;
                 case DefectType.CourseMismatch:
                     v.RecordCourseIndex = (id.CourseIndex + 1 + _rng.NextInt(0, Content.Courses.Length - 1))

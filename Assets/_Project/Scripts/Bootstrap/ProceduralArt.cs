@@ -55,6 +55,8 @@ namespace Hollowbrook.Bootstrap
             if (tex == null) tex = Resources.Load<Texture2D>("Art/" + key);
             if (tex == null) tex = Resources.Load<Texture2D>("Art/SecurityRoom/" + fileKey);
             if (tex == null) tex = Resources.Load<Texture2D>("Art/SecurityRoom/" + key);
+            if (tex == null) tex = Resources.Load<Texture2D>("Art/MainMenu/" + fileKey);
+            if (tex == null) tex = Resources.Load<Texture2D>("Art/MainMenu/" + key);
             return tex;
         }
 
@@ -243,6 +245,18 @@ namespace Hollowbrook.Bootstrap
             "folder_tab", "cursor_hand", "icon_check", "icon_x", "bubble_tail",
             "id_card_frame",
             "map_paper", "map_room", "map_sealed", "map_door",
+        };
+
+        /// <summary>The Main Menu art kit (Assets/_Project/Resources/Art/MainMenu/&lt;key&gt;.png,
+        /// cut from Art/MainMenu by Tools/prep_mainmenu_art.py). Kit keys live OUTSIDE AllKeys —
+        /// they have no procedural painter, exactly like the SecurityRoom kit — but they resolve
+        /// through the same Get()/LoadFileTexture() path and the same manifest rows. FlowCheck
+        /// proves the folder ships whole (`== Main Menu art kit ==`).</summary>
+        public static readonly string[] MainMenuKitKeys =
+        {
+            "menu_background", "menu_logo", "menu_frame_wide", "menu_frame_square",
+            "menu_icon_newgame", "menu_icon_continue", "menu_icon_settings",
+            "menu_icon_exit", "menu_icon_credits",
         };
 
         private static Sprite Build(string key)

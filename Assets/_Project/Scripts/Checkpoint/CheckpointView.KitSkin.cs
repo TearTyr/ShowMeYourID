@@ -122,7 +122,7 @@ namespace Hollowbrook.Checkpoint
             SkinButtonWithIcon(_patrolBtn, "sec_wide_pill", "sec_icon_patrol", UIFactory.NsInk);
             SkinButtonWithIcon(_endShiftBtn, "sec_wide_pill", "sec_icon_endshift", UIFactory.NsInk);
 
-            // ---- records station: kit cabinet face, kit folder tabs, kit panel sheet ----
+            // ---- registry cabinet: kit cabinet face, kit folder tabs, kit drawer skin ----
             if (_stationInk != null)
             {
                 var cab = ProceduralArt.Get("sec_cabinet1");
@@ -137,23 +137,28 @@ namespace Hollowbrook.Checkpoint
                 var tab = ProceduralArt.Get("sec_folder_tab1");
                 if (tab != null && _folderTabInks[i] != null) _folderTabInks[i].sprite = tab;
             }
-            if (_recordsBody != null)
+            if (_drawerBody != null)
             {
-                var bodyInk = _recordsBody.GetComponent<Image>();
+                var bodyInk = _drawerBody.GetComponent<Image>();
                 var cab2 = ProceduralArt.Get("sec_cabinet2");
-                // the export carries a pulled-front bracket painted under the sheet; crop to
-                // the sheet so the file rows sit on clean paper, not on a handle
+                // the export carries its pulled-front bracket painted under the sheet; the
+                // desk draws that front as its own moving panel, so the painted one would
+                // land across the last file row. Crop to the sheet: rows keep the body.
                 var sheet = DrawerSheetSprite(cab2);
                 if (bodyInk != null && sheet != null) { bodyInk.sprite = sheet; bodyInk.color = Color.white; }
             }
-            // the reference sheet reads dark ink on light paper: the head flips from the
-            // procedural night ink to the kit's paper language
+            // the reference sheet reads dark ink on light paper: head, front bracket and
+            // handle flip from the procedural night inks to the kit's paper language
             var headT = FindTransform(_desk, "drawerhead");
             if (headT != null)
             {
                 var ht = headT.GetComponent<Text>();
                 if (ht != null) { ht.color = UIFactory.NsInk; ht.font = UIFactory.UiFontBold; }
             }
+            var front = FindImage(_desk, "drawerfront");
+            if (front != null) front.color = new Color(0.84f, 0.83f, 0.80f, 1f);
+            var handle = FindImage(_desk, "handle");
+            if (handle != null) handle.color = new Color(0.16f, 0.16f, 0.17f, 1f);
 
             // ---- verdict tray: kit circles under the stamps, kit caption bars, kit stamp art ----
             var allow = FindTransform(_desk, "stamp_allow");
@@ -285,10 +290,10 @@ namespace Hollowbrook.Checkpoint
             img.color = Color.white;
         }
 
-        // The panel sheet export (sec_cabinet2) is the paper sheet PLUS a pulled-front
-        // bracket painted under it (~the bottom 14% of the export). The stretched sheet must
-        // stop at the paper: cropping the export keeps all seven file rows on clean sheet
-        // instead of on a handle.
+        // The drawer sheet export (sec_cabinet2) is the paper sheet PLUS the pulled-front
+        // bracket painted under it (~the bottom 14% of the export). The desk's own front
+        // panel is that bracket, so the stretched sheet must stop at the paper: cropping
+        // the export keeps all seven file rows on clean sheet instead of on a handle.
         private static Sprite _drawerSheet;
         private static Sprite DrawerSheetSprite(Sprite src)
         {

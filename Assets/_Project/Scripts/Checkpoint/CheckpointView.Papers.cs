@@ -14,20 +14,20 @@ namespace Hollowbrook.Checkpoint
     // Left column papers: record sheet + ID card, filling and the clean-desk gate.
     // One area of the inspection desk; see CheckpointView.cs for the state machine,
     // the shared fields and the whole-class comment. Same class, split by desk area.
-    // (The STUDENT RECORDS folder and its cohort panel live in CheckpointView.RecordsFolder.cs —
-    // built first so the pulled record sheet always lands on top of the open panel.)
+    // (The FLOOR FILES cabinet and its pull drawer live in CheckpointView.FileDrawer.cs —
+    // built first so the pulled record sheet always lands on top of the open drawer.)
     public partial class CheckpointView
     {
         private void BuildLeftColumn()
         {
-            // The student file: a draggable window, opened only by picking a student in the
-            // STUDENT RECORDS folder.
+            // The student file: a draggable window, opened only by pulling it from the
+            // floor-files drawer.
             var recGo = UIFactory.NewUI(_desk, "record");
             var rec = recGo.gameObject.AddComponent<Hollowbrook.UI.HotRectImage>();
             rec.sprite = ProceduralArt.Get("record_sheet");
             rec.raycastTarget = true;   // the file window grabs the pointer — by its header
             L.Place(rec.rectTransform, new L.Region(16, 168, 320, 290));
-            // Dragged by the header band only: an open file lies OVER the records panel, so
+            // Dragged by the header band only: an open file lies OVER the pulled drawer, so
             // the sheet's body stays click-through and the rows, tabs and cabinet under the
             // paper keep working while you read (the X button keeps its own raycast).
             rec.HotRectTopLeft = new Rect(0f, 0f, 320f, 30f);
@@ -55,7 +55,7 @@ namespace Hollowbrook.Checkpoint
             UIFactory.PlaceTL(fileBounds, 0, 0, 960, 720);
             var fileDrag = rec.gameObject.AddComponent<DragPaper>();
             fileDrag.Init(fileBounds, -0.6f);
-            fileDrag.SetHome(new Vector2(16f, 168f));   // left column under the station
+            fileDrag.SetHome(new Vector2(16f, 168f));   // left column under the cabinet
             rec.gameObject.SetActive(false);   // opens only by pulling a file at the station
 
             // The card is a CONTAINER at its concept-measured desk rect; the printed card

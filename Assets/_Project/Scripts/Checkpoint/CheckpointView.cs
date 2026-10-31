@@ -111,7 +111,7 @@ namespace Hollowbrook.Checkpoint
             _audit = _desk.gameObject.AddComponent<DeskLayoutAudit>();
 
             BuildTopBar();
-            BuildRecordsFolder();  // the STUDENT RECORDS station + its cohort panel...
+            BuildFileCabinet();    // floor-files station + the physical pull drawer...
             BuildLeftColumn();     // ...then the papers that ride above it
             BuildWindowArea();
             BuildOfferedId();
@@ -169,7 +169,7 @@ namespace Hollowbrook.Checkpoint
             _notesRoot.SetActive(false);
             _recordsRoot.SetActive(false);
             HideBubbleNow();   // leaving the desk never carries a line along
-            ResetRecords();          // ...nor an open records panel: the folder is shut on return
+            CloseFileDrawer(true);   // ...nor an open drawer: the cabinet is shut on return
             // ...nor a half-spoken conversation: the panel goes dark, the state stays in the
             // session, and ResumeRun puts the re-open bar back if the administrator still waits
             if (_talkOpen)
@@ -429,6 +429,7 @@ namespace Hollowbrook.Checkpoint
             if (_gameRoot == null || !gameObject.activeInHierarchy) return;
             TickClockText();                  // the header clock follows the model every frame
             AdvanceQueue(Time.deltaTime);
+            TickDrawer(Time.unscaledDeltaTime);   // the floor-files drawer's pull/slide
             TickKitLight(Time.unscaledDeltaTime); // the booth lamp's slow breath
             TickHotkeys();
         }
@@ -451,9 +452,9 @@ namespace Hollowbrook.Checkpoint
                 (_gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive) ||
                 _gameRoot.State != AppViewState.Checkpoint) return;
             if (Input.GetKeyDown(KeyCode.M) && InputGate.TryM()) _gameRoot.OpenMap();
-            // TAB opens / closes the STUDENT RECORDS folder (same act as clicking its icon);
-            // it re-opens on the cohort you were last browsing
-            if (Input.GetKeyDown(KeyCode.Tab)) ToggleRecords();
+            // TAB pulls the floor-files drawer open / pushes it shut (same act as clicking
+            // the cabinet front); with a floor already open it re-opens that floor's files
+            if (Input.GetKeyDown(KeyCode.Tab)) ToggleDrawerByKey();
             // T speaks with the administrator (or steps back out of the conversation); it is
             // inert unless the administrator is actually at the window
             if (Input.GetKeyDown(KeyCode.T)) ToggleAdminTalkByKey();

@@ -16,13 +16,13 @@ namespace Hollowbrook.Logic
         /// <summary>Centre in the floor plan's own design space (see FloorPlan.DesignW/H).</summary>
         public float X, Y;
         public float W, H;
-        /// <summary>The patrol room this square represents (null for the sealed room). Comfort
-        /// rooms map to Comfort1 / Comfort2: peek rooms like the classrooms.</summary>
+        /// <summary>The patrol room this square represents. Comfort rooms are map-only and
+        /// carry null: they are on the plan, they are not part of the patrol graph.</summary>
         public RoomId? Room;
         /// <summary>The sealed server / identification room: restricted styling, never
         /// clickable — its locked behaviour is intentional (ClueRegistry "door").</summary>
         public bool Sealed;
-        /// <summary>Comfort room (CR): a peek room off the comfort hallway at the east end.</summary>
+        /// <summary>Comfort room (CR): labelled on the plan, no patrol mechanics.</summary>
         public bool Comfort;
         /// <summary>Where the door to the hallway is drawn, in design space. Null = no door
         /// drawn (the sealed room's is drawn as a barred plate instead).</summary>
@@ -100,13 +100,13 @@ namespace Hollowbrook.Logic
                 // the comfort rooms hang off the east end north and south of the sealed
                 // room (the reference's small north room), off a short chalk return
                 Key = "room_comfort_north", Label = "COMFORT ROOM\nCR-1",
-                X = 390f, Y = -115f, W = 150f, H = 70f, Room = RoomId.Comfort1, Comfort = true,
+                X = 390f, Y = -115f, W = 150f, H = 70f, Room = null, Comfort = true,
                 DoorX = 315f, DoorY = -115f,   // on the room's own west wall (X - W/2 = 315)
             },
             new FloorRoom
             {
                 Key = "room_comfort_south", Label = "COMFORT ROOM\nCR-2",
-                X = 390f, Y = 115f, W = 150f, H = 70f, Room = RoomId.Comfort2, Comfort = true,
+                X = 390f, Y = 115f, W = 150f, H = 70f, Room = null, Comfort = true,
                 DoorX = 315f, DoorY = 115f,    // on the room's own west wall
             },
         };

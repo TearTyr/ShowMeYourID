@@ -33,10 +33,26 @@ namespace FlowCheck
             // travel, so the animation can be LOOKED AT rather than inferred from numbers.
             // Not part of the proof run: `dotnet run --project Tools/FlowCheck -- --dump-drawer=DIR`
             string screenArg = null, dumpState = "occupied";
+            string menuArg = null;
+            int menuW = 1920, menuH = 1080;   // the game's shipping resolution
+            bool menuSave = false;
             foreach (var a in args)
             {
                 if (a.StartsWith("--dump-screen=")) screenArg = a.Substring("--dump-screen=".Length);
                 if (a.StartsWith("--dump-state=")) dumpState = a.Substring("--dump-state=".Length);
+                if (a.StartsWith("--dump-menu=")) menuArg = a.Substring("--dump-menu=".Length);
+                if (a == "--menu-save") menuSave = true;
+                if (a.StartsWith("--menu-res="))
+                {
+                    var parts = a.Substring("--menu-res=".Length).Split('x');
+                    if (parts.Length == 2 && int.TryParse(parts[0], out var mw) && int.TryParse(parts[1], out var mh))
+                    { menuW = mw; menuH = mh; }
+                }
+            }
+            if (menuArg != null)
+            {
+                DumpMenu(menuArg, menuW, menuH, menuSave);
+                return;
             }
             if (screenArg != null)
             {
@@ -124,6 +140,7 @@ namespace FlowCheck
             PapersProof(root);
             FaceMatchRetiredProof(root);
             SecurityKitProof(root);
+            MainMenuKitProof(root);
             MapProof(root);
             AssetManifestProof(root);
             SaveContinueResume();
@@ -272,8 +289,8 @@ namespace FlowCheck
             string[] deskNames =
             {
                 "DeskFrame", "topbar", "daybanner_border", "clock", "pause", "runstats", "mutationbg",
-                "record", "station", "folder1", "folder2", "folder3", "recordsicon", "filedrawer_border", "closefile", "idcard", "nightcounter",
-                "drawerbody", "drawerhead",
+                "record", "station", "folder1", "folder2", "filedrawer_border", "closefile", "idcard", "nightcounter",
+                "drawerbody", "drawerfront", "drawercavity", "drawerhead", "cabfront",
                 "windowframe", "glass", "facade", "visitor", "glitch", "sill",
                 "speechbubble", "bubble_border", "bubble", "bubbletext", "bubbletail",
                 "offeredid", "patrol", "endshift",
@@ -397,26 +414,23 @@ namespace FlowCheck
                   L.Inner.QContentY0 < L.Inner.QContentY1 &&
                   (L.Inner.QContentY1 - L.Inner.QContentY0) / 4f >= 22f,
                 "question rows divide the panel content box, clear of the painted frame");
-            // cohort tabs: station-local grid; file rows: records-panel grid, starting under the
-            // 18px header — a whole cohort folder (7 files) fits
+            // folder tabs: station-local grid; file rows: drawer-body grid, starting under the
+            // 52px front lip and the 18px header — a whole floor folder (7 files) fits
             Check(Math.Abs(L.Inner.FolderTabX - (L.Station.W - L.Inner.FolderTabW) / 2f) < 0.01f &&
                   Math.Abs(L.Inner.FolderTabY0 - 40) < 0.01f &&
                   Math.Abs(L.Inner.FolderTabStep - 35) < 0.01f && Math.Abs(L.Inner.FolderTabW - 230) < 0.01f &&
                   Math.Abs(L.Inner.FolderTabH - 34) < 0.01f,
-                "folder tabs == the centred station grid ((W-230)/2,40 + i*35, 230x34): one symmetric face");
-            Check(L.Inner.FolderTabY0 + (RecordSearch.CohortCount - 1) * L.Inner.FolderTabStep +
-                  L.Inner.FolderTabH <= L.Station.H + 0.01f,
-                "all three cohort tabs fit inside the station");
-            Check(L.Inner.RecordsIcon.X >= 0f && L.Inner.RecordsIcon.Right <= L.Station.W &&
-                  L.Inner.RecordsIcon.Y >= L.Inner.StationCap.Bottom - 0.01f &&
-                  L.Inner.RecordsIcon.Bottom <= L.Station.H + 0.01f,
-                "the folder icon sits inside the station, under the caption");
+                "folder tabs == the centred cabinet grid ((W-230)/2,40 + i*35, 230x34): one symmetric face");
             Check(Math.Abs(L.Inner.FileRowX - 15) < 0.01f && Math.Abs(L.Inner.FileRowY0 - 50) < 0.01f &&
                   Math.Abs(L.Inner.FileRowStep - 27) < 0.01f && Math.Abs(L.Inner.FileRowW - 250) < 0.01f &&
-                  L.Inner.FileRowY0 + 6 * L.Inner.FileRowStep + L.Inner.FileRowH <= L.Inner.RecordsPanelH + 0.01f,
-                "file rows == the reference panel grid (15,50 + i*27, 250x22), 7 rows fit the sheet");
-            Check(CheckpointView.RecordsRowCapacity() >= 7,
-                "the records panel holds a whole cohort folder (>= 7 file rows)");
+                  L.Inner.FileRowY0 + 6 * L.Inner.FileRowStep + L.Inner.FileRowH <= L.Inner.DrawerBodyH + 0.01f,
+                "file rows == the reference drawer grid (15,50 + i*27, 250x22), 7 rows fit the sheet");
+            Check(Math.Abs(L.Inner.DrawerLipH - 28f) < 0.01f &&
+                  Math.Abs(DrawerMotion.TravelPx - (L.FileDrawer.H - L.Inner.DrawerLipH)) < 0.01f,
+                $"the drawer travels exactly its own hidden depth ({DrawerMotion.TravelPx:F0}px): " +
+                "shut = fully behind the front, open = flush with the mouth");
+            Check(CheckpointView.DrawerRowCapacity() >= 7,
+                "the pulled drawer holds a whole floor folder (>= 7 file rows)");
             // the retired appearance check left its slot to the stamp tray: the right
             // column reads questions-above / stamps-below, with the tray hugging the panel
             Check(Mathf.Abs(L.StampAllow.W - L.StampDeny.W) < 0.01f &&
@@ -718,45 +732,68 @@ namespace FlowCheck
                   FindDeep(cp.transform, "query") == null &&
                   FindDeep(cp.transform, "station").GetComponent<UnityEngine.UI.InputField>() == null,
                   "the old registry terminal is gone: no FIND button, no text input");
-            // ---- the STUDENT RECORDS folder: one folder icon that opens a three-cohort panel ----
-            var panelBox = FindDeep(cp.transform, "filedrawer_border");   // the panel slot: pinned to the grid
-            var station = FindDeep(cp.transform, "station");
-            var icon = FindDeep(cp.transform, "recordsicon");
-            Check(panelBox != null && station != null && icon != null && icon.parent == station,
-                "RECORDS: the station holds one folder icon and the panel slot sits on the grid");
-            Check(icon.Find("label").GetComponent<UnityEngine.UI.Text>().text == "STUDENT RECORDS" &&
-                  FindDeep(station, "cap").GetComponent<UnityEngine.UI.Text>().text == "STUDENT RECORDS",
-                "RECORDS: the folder is labelled STUDENT RECORDS");
-            Check(station.GetComponent<UnityEngine.UI.Button>() == null &&
-                  FindDeep(cp.transform, "cabfront") == null && FindDeep(cp.transform, "drawerfront") == null &&
-                  FindDeep(cp.transform, "handle") == null && FindDeep(cp.transform, "drawercavity") == null,
-                "RECORDS: no drawer machinery is left — no pull button, cabinet front, handle or cavity");
-            cp.ResetRecords();
-            DeskFrames(cp, 1);
-            Check(!cp.RecordsOpen && icon.gameObject.activeSelf && !panelBox.gameObject.activeSelf &&
-                  !FindDeep(cp.transform, "folder1").gameObject.activeSelf,
-                "RECORDS: a fresh desk shows the closed folder icon and nothing else");
+            // ---- the floor-files cabinet: a physical pull drawer, not a hover pop-up ----
+            var drawer = FindDeep(cp.transform, "filedrawer_border");   // the mouth: pinned to the grid
+            var body = FindDeep(cp.transform, "drawerbody");            // what actually slides
+            var front = FindDeep(cp.transform, "drawerfront");          // the worn front + handle
+            var shadow = FindDeep(cp.transform, "drawercavity");
+            var cabinet = FindDeep(cp.transform, "station");
+            var pull = cabinet.GetComponent<UnityEngine.UI.Button>();
+            Check(body != null && front != null && pull != null && drawer != null,
+                "DRAWER: the cabinet is one mouth + one sliding body + one front, and the front is the pull");
+            Check(FindDeep(cp.transform, "drawerzone") == null,
+                "DRAWER: the old hover-gated zone is gone — nothing pops open just because the cursor passed");
+            Check(FindDeep(cp.transform, "stationout") == null,
+                "DRAWER: no permanent status text under the cabinet — the pulled sheet IS the feedback");
+            var cabFront = FindDeep(cp.transform, "cabfront");
+            Check(cabFront != null && cabFront.parent == cabinet && cabFront.Find("cabgrip") != null &&
+                  cabFront.Find("cabtag") != null,
+                "DRAWER: the shut cabinet wears a gripped, tagged drawer front — the pull reads before it moves");
+            Check(!FindDeep(cp.transform, "folder1").gameObject.activeSelf && !drawer.gameObject.activeSelf,
+                "DRAWER: floor files start HIDDEN inside the shut cabinet (front label + handle only)");
+            // start from a known state: whatever the preceding proofs left behind, push the
+            // drawer home and let the motion finish before measuring the shut geometry
+            cp.CloseFileDrawer(true);
+            DeskFrames(cp, 2);
+            float shutY = body.GetComponent<RectTransform>().anchoredPosition.y;
+            Check(Mathf.Abs(shutY - DrawerMotion.TravelPx) < 0.01f,
+                $"DRAWER: a shut body sits {DrawerMotion.TravelPx:F0}px ABOVE the mouth (desk y {-shutY:F0}), " +
+                "so the cabinet front is all that shows");
+            Check(cp.DrawerPull <= 0f && !cp.DrawerIsOpen, "DRAWER: born shut, with no motion running");
 
-            // the click is answered on the SAME call: no timer, no coroutine, no animation
-            icon.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            Check(cp.RecordsOpen && panelBox.gameObject.activeSelf && !icon.gameObject.activeSelf,
-                "RECORDS: one click on the folder opens the panel on that very call (no delay, no slide)");
-            var cohorts = RecordSearch.BuildCohortFolders(root.Roster.Canon);
-            string[] wantTabs = { "S2024-2028", "S2025-2029", "S2026-2030" };
-            bool tabsOk = true;
-            for (int t = 0; t < 3; t++)
-            {
-                var tabGo = FindDeep(cp.transform, "folder" + (t + 1));
-                if (tabGo == null || !tabGo.gameObject.activeSelf ||
-                    tabGo.Find("label").GetComponent<UnityEngine.UI.Text>().text != wantTabs[t]) tabsOk = false;
-            }
-            Check(tabsOk && FindDeep(cp.transform, "folder4") == null,
-                "RECORDS: three cohort tabs — S2024-2028, S2025-2029, S2026-2030 — appear once it is open");
-            Check(FindDeep(cp.transform, "filerow0") != null, "RECORDS: the oldest cohort's files are listed");
+            // the click is answered on the SAME call: no timer, no coroutine, no wind-up
+            pull.onClick.Invoke();
+            Check(cp.DrawerIsOpen && cp.DrawerPull > 0f && drawer.gameObject.activeSelf,
+                "DRAWER: one click on the cabinet front starts the pull immediately (no delay, no pop-in)");
+            float clickFrameOut = DrawerMotion.BodyOffset(cp.DrawerPull);
+            Check(clickFrameOut > 20f && body.GetComponent<RectTransform>().anchoredPosition.y < shutY - 20f,
+                // (anchoredPosition.y falls as the body travels down/out — PlaceTL stores desk y negated)
+                $"DRAWER: the click frame ALREADY has the body {clickFrameOut:F0}px out of the cabinet " +
+                "(the input is answered by the same frame that received it — no wind-up, no pop-in)");
+            Check(clickFrameOut < DrawerMotion.TravelPx * 0.5f,
+                "DRAWER: ...and it travels, rather than jumping straight to the end (a real pull)");
+            DeskFrames(cp, 2);   // two more 60 Hz frames — exactly what the player sees next
+            Check(DrawerMotion.BodyOffset(cp.DrawerPull) > clickFrameOut + 20f,
+                $"DRAWER: the next frames carry it further out ({DrawerMotion.BodyOffset(cp.DrawerPull):F0}px)");
+            Check(shadow.GetComponent<UnityEngine.UI.Image>().color.a > 0.05f,
+                $"DRAWER: the cavity behind the front lip darkens as the body comes out (a={shadow.GetComponent<UnityEngine.UI.Image>().color.a:F2})");
+            DeskFrames(cp, 12);
+            Check(Mathf.Abs(cp.DrawerPull - 1f) < 1e-4f && cp.DrawerIsOpen,
+                "DRAWER: fully out inside a fifth of a second, and it STAYS out (no bounce, no auto-close)");
+            Check(Mathf.Abs(body.GetComponent<RectTransform>().anchoredPosition.y) < 0.01f,
+                "DRAWER: the open body sits flush with the mouth — every file row is reachable");
+            Check(FindDeep(cp.transform, "folder1").gameObject.activeSelf &&
+                  FindDeep(cp.transform, "folder2").gameObject.activeSelf,
+                "DRAWER: the floor folders are only reachable once the drawer is out");
+            Check(FindDeep(cp.transform, "filerow0") != null, "DRAWER: the files came out with it");
+            var rowGroup = FindDeep(cp.transform, "filerow0").GetComponent<CanvasGroup>();
+            Check(rowGroup != null && Mathf.Abs(rowGroup.alpha - 1f) < 1e-3f && rowGroup.blocksRaycasts,
+                "DRAWER: a settled file is fully visible AND clickable");
             var headText = FindDeep(cp.transform, "drawerhead").GetComponent<UnityEngine.UI.Text>().text;
-            Check(headText.Contains("S2024-2028") && headText.Contains(cohorts[0].Indices.Count + " FILES"),
-                  "the panel head names the cohort and counts its files (got '" + headText + "')");
-            Check(cp.RecordsTab == 0, "RECORDS: it opens on the oldest cohort");
+            Check(headText.Contains("ROOM 101") && headText.Contains("7 FILES"),
+                  "the drawer head names the room and counts its files (got '" + headText + "')");
+            Check(CheckpointView.DrawerRowCapacity() >= 7,
+                $"DRAWER: the pulled drawer holds a whole floor folder ({CheckpointView.DrawerRowCapacity()} rows)");
 
             // pull a file: same record-window path the old FIND search triggered
             var row0 = FindDeep(cp.transform, "filerow0");
@@ -767,59 +804,73 @@ namespace FlowCheck
             Check(FindDeep(cp.transform, "rname").GetComponent<UnityEngine.UI.Text>().text
                       .ToUpperInvariant().Contains(rowName),
                   "the pulled record is the row that was clicked");
+            Check(Mathf.Approximately(
+                      FindDeep(cp.transform, "cabfront").GetComponent<CanvasGroup>().alpha, 0f),
+                  "the shut cabinet face yields to the pulled drawer — never two fronts at once");
             Check(row0.Find("pill").GetComponent<UnityEngine.UI.Image>().color !=
                   FindDeep(cp.transform, "filerow1").Find("pill").GetComponent<UnityEngine.UI.Image>().color,
                   "the selected file row stays highlighted");
-            Check(cp.RecordsOpen,
-                  "RECORDS: taking a file leaves the panel OPEN — browsing several files never re-opens it");
+            Check(cp.DrawerIsOpen,
+                  "DRAWER: taking a file leaves the drawer OUT — browsing several files never re-pulls it");
             var closeBtn = FindDeep(cp.transform, "closefile").GetComponent<UnityEngine.UI.Button>();
             closeBtn.onClick.Invoke();
             Check(!FindDeep(cp.transform, "record").gameObject.activeSelf, "the file's X closes the window");
 
-            // the other cohorts: different files, and pulling one repopulates the sheet
+            // the second floor folder: different files, and pulling one repopulates the sheet
             var tab2 = FindDeep(cp.transform, "folder2").GetComponent<UnityEngine.UI.Button>();
             tab2.onClick.Invoke();
-            Check(cp.RecordsOpen && cp.RecordsTab == 1, "RECORDS: another cohort tab swaps the panel's contents");
+            Check(cp.DrawerIsOpen && cp.DrawerFloor == 2, "DRAWER: the other folder swaps the drawer's contents");
             var row2 = FindDeep(cp.transform, "filerow0");
             string row2Name = row2.Find("pill/fname").GetComponent<UnityEngine.UI.Text>().text;
-            Check(row2Name != rowName, "the second cohort lists a different set of files");
+            Check(row2Name != rowName, "the second floor folder lists a different set of files");
             row2.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Check(FindDeep(cp.transform, "record").gameObject.activeSelf &&
                   FindDeep(cp.transform, "rname").GetComponent<UnityEngine.UI.Text>().text
                       .ToUpperInvariant().Contains(row2Name),
-                  "pulling from the second cohort reopens the record sheet");
-            FindDeep(cp.transform, "folder3").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            Check(cp.RecordsTab == 2 &&
-                  FindDeep(cp.transform, "drawerhead").GetComponent<UnityEngine.UI.Text>().text.Contains("S2026-2030"),
-                "the third tab opens S2026-2030");
+                  "pulling from the second folder reopens the record sheet");
 
-            // repeated input: one panel, one set of files — never a pile-up
-            for (int k = 0; k < 6; k++)
-                FindDeep(cp.transform, "folder" + (1 + k % 3)).GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            Check(CountDeep(cp.transform, "drawerbody") == 1 && CountDeep(cp.transform, "filerow0") == 1,
-                "RECORDS: repeated tab clicks never build a second panel or a second set of files");
+            // repeated input: one drawer, one animation, one set of files — never a pile-up
+            int rowsBefore = CountDeep(cp.transform, "filerow0");
+            int bodiesBefore = CountDeep(cp.transform, "drawerbody");
+            pull.onClick.Invoke();   // the open drawer's own toggle: pushes it back in
+            Check(!cp.DrawerIsOpen, "DRAWER: clicking the front again pushes the drawer back in");
+            Check(cp.DrawerPull > 0f, "DRAWER: ...and it starts moving on the click frame, not later");
+            pull.onClick.Invoke();   // yanked straight back out MID-TRAVEL: the motion reverses
+            pull.onClick.Invoke();   // and again — three toggles, still one drawer, one animation
+            pull.onClick.Invoke();   // (an even number, so it ends the way the player left it: out)
+            DeskFrames(cp, 16);
+            Check(CountDeep(cp.transform, "drawerbody") == bodiesBefore && bodiesBefore == 1 &&
+                  CountDeep(cp.transform, "filerow0") == rowsBefore && rowsBefore == 1,
+                "DRAWER: repeated clicks never build a second drawer or a second set of files");
+            Check(Mathf.Abs(cp.DrawerPull - 1f) < 1e-4f,
+                "DRAWER: after the click storm it settles fully open exactly once (no overlapping animation)");
 
-            // closing: clicking the open tab again, or TAB, puts the folder back
-            int openTab = cp.RecordsTab;
-            FindDeep(cp.transform, "folder" + (openTab + 1)).GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            Check(!cp.RecordsOpen && !panelBox.gameObject.activeSelf && icon.gameObject.activeSelf &&
+            // keyboard: TAB is the same act as clicking the cabinet front
+            PressDeskKey(cp, KeyCode.Tab);
+            Check(!cp.DrawerIsOpen, "DRAWER: TAB pushes the drawer shut");
+            DeskFrames(cp, 14);
+            Check(cp.DrawerPull <= 0f && !drawer.gameObject.activeSelf &&
                   !FindDeep(cp.transform, "folder1").gameObject.activeSelf,
-                "RECORDS: clicking the open tab closes the panel and brings the folder icon back");
+                "DRAWER: closing reverses the motion and restores the shut cabinet (front + handle only)");
+            Check(Mathf.Abs(body.GetComponent<RectTransform>().anchoredPosition.y - shutY) < 0.01f,
+                "DRAWER: the body parks back exactly where it started — no drift across open/close cycles");
             PressDeskKey(cp, KeyCode.Tab);
-            Check(cp.RecordsOpen && cp.RecordsTab == openTab,
-                "RECORDS: TAB reopens the folder on the cohort it was last on");
-            PressDeskKey(cp, KeyCode.Tab);
-            Check(!cp.RecordsOpen, "RECORDS: TAB closes it again");
+            DeskFrames(cp, 14);
+            Check(cp.DrawerIsOpen && cp.DrawerFloor == 2,
+                "DRAWER: TAB pulls the same drawer back out on the floor it was last opened on");
 
-            // empty folder edge: the panel still opens, with an explicit NO FILES line
-            cp.OpenRecords(0);
-            cp.PopulateRecords(RecordSearch.CohortLabel(2023), null, new int[0]);
+            // empty folder edge: the drawer still opens, with an explicit NO FILES line
+            cp.PopulateDrawer(RecordSearch.FloorLabel(3), null, new int[0]);
             Check(FindDeep(cp.transform, "nofiles") != null &&
                   FindDeep(cp.transform, "nofiles").GetComponent<UnityEngine.UI.Text>().text.Contains("NO FILES"),
                   "an empty folder shows a NO FILES state");
-            cp.ResetRecords();
-            Check(!cp.RecordsOpen && !panelBox.gameObject.activeSelf && cp.RecordsTab == -1,
-                "RECORDS: a reset (new visitor) closes the folder and clears the cohort");
+            var tab1 = FindDeep(cp.transform, "folder1").GetComponent<UnityEngine.UI.Button>();
+            tab1.onClick.Invoke();      // back to the real 1st-floor folder...
+            DeskFrames(cp, 2);
+            Check(FindDeep(cp.transform, "filerow0") != null, "DRAWER: ...and its files come back");
+            tab1.onClick.Invoke();      // ...then shut the drawer: clean desk for the next checks
+            DeskFrames(cp, 14);
+            Check(!drawer.gameObject.activeSelf && !cp.DrawerIsOpen, "the drawer closes again after browsing");
 
             // the slip: counter -> desk, stamp target, one stamp, pending until hand-back
             var slipGo = FindDeep(cp.transform, "slip");
@@ -1500,8 +1551,8 @@ namespace FlowCheck
             Check(!crN.Overlaps(hall.Value) && !crS.Overlaps(hall.Value) &&
                   !crN.Overlaps(c1.Value) && !crS.Overlaps(c2.Value),
                 "MAP: the comfort rooms obstruct neither the hallway nor the classrooms");
-            Check(crN.Room == RoomId.Comfort1 && crS.Room == RoomId.Comfort2 && !crN.Sealed && !crS.Sealed,
-                "MAP: the comfort rooms are the CR-1 / CR-2 peek rooms of the patrol");
+            Check(!crN.Room.HasValue && !crS.Room.HasValue && !crN.Sealed && !crS.Sealed,
+                "MAP: the comfort rooms are map-only — they are not patrol destinations");
 
             // every drawn room sits inside the drawn plan, at its design-space size, and at the
             // position the table asks for — the check that catches a mirrored or hand-nudged plan
@@ -1647,8 +1698,9 @@ namespace FlowCheck
             Check(cp.CurrentVisitor != null && FindDeep(desk, "idcard").gameObject.activeSelf &&
                   FindDeep(desk, "slip").gameObject.activeSelf,
                   "a fresh visitor arrives with both documents already on the desk (§6 automation)");
-            Check(!FaceOf(FindDeep(desk, "idcard"), "idback").gameObject.activeSelf,
-                  "the fresh visitor's ID is born FACE-UP (flip state never carries over)");
+            Check(!FaceOf(FindDeep(desk, "idcard"), "idback").gameObject.activeSelf &&
+                  FaceOf(FindDeep(desk, "slip"), "slipback") == null,
+                  "the fresh visitor's papers are born FACE-UP (flip state never carries over)");
 
             // ---- the night counter, and the night title that opens each night ----
             {
@@ -2483,7 +2535,7 @@ namespace FlowCheck
                 var d = it as Doorway;
                 if (d != null && d.Art != null) { doors++; if (QuadH(d.Art) < 3f) doorsFullHeight = false; }
             }
-            Check(doors == 4 && doorsFullHeight,
+            Check(doors == 3 && doorsFullHeight,
                   "P: all " + doors + " hallway doors draw as full-height slabs at their anchors");
             Check(FindDeep(hall.Root.transform, "lightswitch") == null,
                   "P: the hallway has no wall switch plate any more");
@@ -2551,44 +2603,14 @@ namespace FlowCheck
             Check(beamInfo.Contains("FLASHLIGHT: OFF"),
                 "W1: the HUD reads FLASHLIGHT: OFF in sync with the hidden beam (got '" + beamInfo + "')");
             PressKey(root, KeyCode.Q);
-            Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep && !rig.Latches.Focus,
-                "W1: Q while the flashlight is OFF does nothing — the narrow beam never turns it on");
-            PressKey(root, KeyCode.F);
-            PressKey(root, KeyCode.Q);
             Check(rig.Beam == LightMode.Focus && !rig.Latches.Sweep && rig.Latches.Focus,
-                "W1: Q while it is ON switches to the narrow Focus — the two modes are mutually exclusive");
-            PressKey(root, KeyCode.Q);
+                "W1: Q takes over with Focus — the keyboard toggles are mutually exclusive");
+            PressKey(root, KeyCode.F);
             Check(rig.Beam == LightMode.Sweep && rig.Latches.Sweep && !rig.Latches.Focus,
-                "W1: Q again goes back to the wide Sweep — it never turns the light off");
-            PressKey(root, KeyCode.Q);
-            PressKey(root, KeyCode.F);
-            Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep && !rig.Latches.Focus,
-                "W1: F turns a narrow beam OFF too (on/off is always F)");
-            PressKey(root, KeyCode.F);
+                "W1: F while Focus-latched switches back to Sweep (no dead toggle)");
             PressKey(root, KeyCode.L);
             Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep && !rig.Latches.Focus,
                 "W1: L switches off and clears conflicting latches");
-
-            // the same controls on the mouse: left click = on / off, right click = narrow beam
-            ClickMouse(root, 1);
-            Check(rig.Beam == LightMode.Off, "W1: a right click while OFF does nothing");
-            ClickMouse(root, 0);
-            Check(rig.Beam == LightMode.Sweep, "W1: a left click turns the flashlight ON (wide)");
-            ClickMouse(root, 1);
-            Check(rig.Beam == LightMode.Focus, "W1: a right click while ON switches to the narrow beam");
-            ClickMouse(root, 1);
-            Check(rig.Beam == LightMode.Sweep, "W1: a right click again returns the wide sweep");
-            UnityEngine.EventSystems.EventSystem.PointerOverUi = true;      // pause button, a sheet...
-            ClickMouse(root, 0);
-            ClickMouse(root, 1);
-            UnityEngine.EventSystems.EventSystem.PointerOverUi = false;
-            Check(rig.Beam == LightMode.Sweep, "W1: clicks that land on UI never drive the flashlight");
-            ClickMouse(root, 0);
-            Check(rig.Beam == LightMode.Off, "W1: a left click turns it OFF");
-            Input.MouseHeld.Add(0);
-            WorldFrames(root, 5);
-            Input.MouseHeld.Clear();
-            Check(rig.Beam == LightMode.Off, "W1: HOLDING a mouse button never lights it — only the press toggles");
             CheckLightSync(root, "W1 after L");
 
             // ---- W2: room lighting and the beam are independent systems
@@ -2615,7 +2637,7 @@ namespace FlowCheck
             Check(roomInfo.Contains("MAIN HALLWAY") && roomInfo.Contains("FLASHLIGHT: OFF") &&
                   !roomInfo.Contains("LIGHTS:") && !roomInfo.ToLowerInvariant().Contains("switch"),
                   "W2: the HUD names the room and the flashlight and points at no switch (got '" + roomInfo + "')");
-            SetBeam(root, rig, LightMode.Focus);
+            PressKey(root, KeyCode.Q);
             Check(!hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: the beam is the portable light: Focus does NOT touch the room lights");
             hall.Light.SetLit(true);   // only a scripted event (the hallucination flicker) can light a room
             Check(hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: a scripted light change lights the room, beam stays Focus");
@@ -3289,25 +3311,20 @@ namespace FlowCheck
                 "W10: mouse movement never lights the lamp (cursor is not lamp input)");
             Check(!views.IsPeekLit(new Vector3(0f, 0f, 0f)),
                 "W10: an OFF lamp illuminates nothing — the coverage query agrees with the visuals");
-            // the peek SESSION keeps running dark: the bottom step-back strip is always there, so an
-            // OFF light can never lock the player in a classroom. It is the ONLY way back: the
-            // room's doorway is scenery while peeking (no prompt, E does nothing).
+            // the peek SESSION keeps running dark: the exit prompt is reachable without
+            // the lamp, so an OFF light can never lock the player in a classroom
             Doorway exitDoor = null;
             foreach (var it in views.Current.Interactables)
             {
                 var d = it as Doorway;
                 if (d != null && d.Target == RoomId.Hallway) exitDoor = d;
             }
-            Check(exitDoor != null, "W10: the peeked classroom still has its door (scenery)");
+            Check(exitDoor != null, "W10: the peeked classroom has its exit doorway");
             AimAt(exitDoor.AnchorX, RoomInstance.FloorY + 1.4f);
             WorldFrames(root, 2);
             string darkPrompt = FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>().text;
-            Check(darkPrompt.Length == 0, "W10: aiming at the doorway shows no prompt (got '" + darkPrompt + "')");
-            PressKey(root, KeyCode.E);
-            Check(views.PeekActive && root.State == AppViewState.RoomPeek,
-                "W10: E at the doorway does nothing — the peek stays up");
-            Check(FindDeep(root.HUD.transform, "peekexitband").gameObject.activeSelf,
-                "W10: the bottom step-back strip is up while peeking, lamp on or off");
+            Check(!lamp.Lit && darkPrompt.Length > 0,
+                "W10: dark is not a trap — the exit prompt answers under the cursor without the lamp (got '" + darkPrompt + "')");
             string peekInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
             Check(peekInfo.Contains("FLASHLIGHT: OFF"),
                 "W10: the HUD reads FLASHLIGHT: OFF in the dark classroom (got '" + peekInfo + "')");
@@ -3353,20 +3370,6 @@ namespace FlowCheck
             PressKey(root, KeyCode.Q);
             Check(lamp.Lit && !lamp.Focused && views.IsPeekLit(new Vector3(2.2f, 0f, 0f)),
                 "W10: Q again returns the broad wash — the wide/focus toggle is clean both ways");
-            ClickMouse(root, 1);
-            Check(lamp.Lit && lamp.Focused, "W10: a right click narrows the lit flashlight");
-            ClickMouse(root, 1);
-            Check(lamp.Lit && !lamp.Focused, "W10: ...and a second right click widens it again");
-            UnityEngine.EventSystems.EventSystem.PointerOverUi = true;      // the bottom step-back strip
-            ClickMouse(root, 0);
-            UnityEngine.EventSystems.EventSystem.PointerOverUi = false;
-            Check(lamp.Lit, "W10: a click on the bottom strip (UI) never switches the flashlight — it steps back");
-            ClickMouse(root, 0);
-            Check(!lamp.Lit, "W10: a left click anywhere else turns the flashlight OFF");
-            ClickMouse(root, 1);
-            Check(!lamp.Lit && !lamp.Focused, "W10: a right click while OFF does nothing");
-            ClickMouse(root, 0);
-            Check(lamp.Lit && !lamp.Focused, "W10: a left click turns it back ON, wide");
             AimAt(3f, 1f);
             WorldFrames(root, 5);
             Check(views.IsPeekLit(new Vector3(3f, 1f, 0f)) && !views.IsPeekLit(new Vector3(-6f, 0f, 0f)),
@@ -3391,76 +3394,21 @@ namespace FlowCheck
             Check(views.PeekLight.Lit, "W10: one F press lights the second classroom too");
             PressKey(root, KeyCode.F);
             Check(!views.PeekLight.Lit, "W10: ...and one F press puts it out again (a clean toggle)");
-            // the dark exit: clicking the bottom strip steps back with the lamp OFF
-            FindDeep(root.HUD.transform, "peekexitband").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            // the dark exit: E on the doorway works with the lamp OFF
+            Doorway exitDoor2 = null;
+            foreach (var it in views.Current.Interactables)
+            {
+                var d = it as Doorway;
+                if (d != null && d.Target == RoomId.Hallway) exitDoor2 = d;
+            }
+            AimAt(exitDoor2.AnchorX, RoomInstance.FloorY + 1.4f);
+            PressKey(root, KeyCode.E);
             Check(!views.PeekActive && root.State == AppViewState.Exploration,
-                "W10: clicking the bottom strip steps back to the hallway — even with the lamp OFF");
+                "W10: E on the exit doorway steps back to the hallway — even with the lamp OFF");
             Check(!FindDeep(root.HUD.transform, "peekexitband").gameObject.activeSelf,
-                "W10: the step-back strip is gone after leaving");
+                "W10: the step-back band is gone after leaving the doorway");
             Check(!views.PeekLight.Lit && rig.Beam == LightMode.Off,
                 "W10: exiting leaves everything dark — restarting patrol never re-lights anything");
-
-            // ---- W11: the comfort rooms — a corridor off the hallway's east end, two peek rooms behind it
-            Console.WriteLine("== W11 comfort rooms ==");
-            Doorway toComfort = null;
-            foreach (var it in hall.Interactables)
-            {
-                var d = it as Doorway;
-                if (d != null && d.Target == RoomId.ComfortHall) toComfort = d;
-            }
-            Check(toComfort != null && toComfort.AnchorX > 8f &&
-                  Mathf.Abs(toComfort.AnchorX - RoomGraph.DoorX(RoomId.Hallway, RoomId.ComfortHall)) < 0.01f &&
-                  toComfort.Prompt.Contains("Comfort Rooms") && toComfort.Prompt.Contains("[E]"),
-                "W11: the east end of the hallway has a doorway to the comfort rooms, used with E");
-            toComfort.Interact();
-            Check(views.Current.Id == RoomId.ComfortHall && root.State == AppViewState.Exploration &&
-                  !views.PeekActive && views.Current.DisplayName == "COMFORT ROOMS",
-                "W11: E walks into the comfort hallway — a walkable room, not a peek");
-            Doorway cr1 = null, cr2 = null, backDoor = null;
-            foreach (var it in views.Current.Interactables)
-            {
-                var d = it as Doorway;
-                if (d == null) continue;
-                if (d.Target == RoomId.Comfort1) cr1 = d;
-                else if (d.Target == RoomId.Comfort2) cr2 = d;
-                else if (d.Target == RoomId.Hallway) backDoor = d;
-            }
-            Check(cr1 != null && cr2 != null && backDoor != null &&
-                  cr1.Prompt.Contains("CR-1") && cr2.Prompt.Contains("CR-2"),
-                "W11: the comfort hallway has a door to CR-1, a door to CR-2 and a way back to the hallway");
-            cr1.Interact();
-            Check(root.State == AppViewState.RoomPeek && views.PeekActive &&
-                  views.Current.Id == RoomId.Comfort1 && root.PeekRoom == RoomId.Comfort1,
-                "W11: a comfort-room door peeks in like a classroom — you never walk inside");
-            Check(!views.PeekLight.Lit, "W11: CR-1 starts dark like every other room");
-            PressKey(root, KeyCode.F);
-            Check(views.PeekLight.Lit, "W11: the flashlight works in the comfort room");
-            PressKey(root, KeyCode.F);
-            Doorway crExit = null;
-            foreach (var it in views.Current.Interactables)
-            {
-                var d = it as Doorway;
-                if (d != null && d.Target == RoomId.ComfortHall) crExit = d;
-            }
-            Check(crExit != null, "W11: CR-1 has its door back to the comfort hallway (scenery while peeking)");
-            AimAt(crExit.AnchorX, RoomInstance.FloorY + 1.4f);
-            PressKey(root, KeyCode.E);
-            Check(views.PeekActive, "W11: E at CR-1's door does nothing — only the bottom strip leads back");
-            FindDeep(root.HUD.transform, "peekexitband").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            Check(!views.PeekActive && root.State == AppViewState.Exploration &&
-                  views.Current.Id == RoomId.ComfortHall,
-                "W11: the bottom strip steps back from CR-1 to the COMFORT hallway, not the main hallway");
-            cr2.Interact();
-            Check(views.PeekActive && views.Current.Id == RoomId.Comfort2 && root.PeekRoom == RoomId.Comfort2,
-                "W11: CR-2 peeks the same way");
-            root.ExitRoomPeek();
-            Check(!views.PeekActive && views.Current.Id == RoomId.ComfortHall && root.State == AppViewState.Exploration,
-                "W11: the step-back strip also returns from CR-2 to the comfort hallway");
-            backDoor.Interact();
-            Check(views.Current.Id == RoomId.Hallway && root.State == AppViewState.Exploration,
-                "W11: the comfort hallway's door walks back out to the main hallway");
-            Check(rig.Beam == LightMode.Off && !views.PeekLight.Lit,
-                "W11: the whole trip left everything dark");
 
             // ---- W9: spawn ownership under ambient pressure + the desk handoff
             Console.WriteLine("== W9 spawn ownership + desk handoff ==");
@@ -3535,6 +3483,7 @@ namespace FlowCheck
             codeArt.Add(Hollowbrook.Logic.FaceAssets.AdminKey);
             codeArt.Add(Hollowbrook.Logic.FaceAssets.AdminWindowKey);
             codeArt.AddRange(SecurityKitKeys);   // the owner's SecurityRoom kit rows
+            codeArt.AddRange(Hollowbrook.Bootstrap.ProceduralArt.MainMenuKitKeys);   // the Main Menu kit rows
             Check(SameSet(artRows, codeArt, out string artDiff),
                 "AM: every art row is a real procedural key and every key has a row" +
                 (artDiff.Length > 0 ? " (diff: " + artDiff + ")" : ""));
@@ -3575,9 +3524,22 @@ namespace FlowCheck
                 var parts = row.Split('|');
                 string rel;
                 if (parts[1] == "art")
-                    rel = System.IO.Path.Combine(parts[2] == "kit"
-                        ? "Assets/_Project/Resources/Art/SecurityRoom" : "Assets/_Project/Resources/Art",
-                        parts[0] + ".png");
+                {
+                    if (parts[2] == "kit")
+                    {
+                        // kit rows ship under their own folder: probe every kit folder the
+                        // drop-in loader knows (SecurityRoom first, then the Main Menu kit)
+                        rel = System.IO.Path.Combine("Assets/_Project/Resources/Art/SecurityRoom", parts[0] + ".png");
+                        foreach (var kitFolder in new[] { "SecurityRoom", "MainMenu" })
+                        {
+                            var cand = System.IO.Path.Combine(
+                                System.IO.Path.Combine("Assets/_Project/Resources/Art", kitFolder),
+                                parts[0] + ".png");
+                            if (System.IO.File.Exists(System.IO.Path.Combine(rootDir, cand))) { rel = cand; break; }
+                        }
+                    }
+                    else rel = System.IO.Path.Combine("Assets/_Project/Resources/Art", parts[0] + ".png");
+                }
                 else
                     rel = System.IO.Path.Combine("Assets/_Project/Resources/Fonts",
                         System.IO.File.Exists(System.IO.Path.Combine(rootDir,
@@ -3787,6 +3749,60 @@ namespace FlowCheck
 
         private static int Idx(Transform t) => t != null ? t.GetSiblingIndex() : -1;
 
+        // The Main Menu kit: ships whole, resolves through the drop-in path, and the menu's
+        // decorative layers stay click-through so the five buttons own the pointer.
+        private static void MainMenuKitProof(GameRoot root)
+        {
+            Console.WriteLine("== Main Menu art kit: shipped, resolved, click-through ==");
+            string rootDir = RepoRoot();
+            string kitDir = rootDir == null ? null :
+                System.IO.Path.Combine(rootDir, "Assets/_Project/Resources/Art/MainMenu");
+            string[] keys = Hollowbrook.Bootstrap.ProceduralArt.MainMenuKitKeys;
+            bool shipped = true, resolves = true;
+            string missing = "";
+            foreach (var k in keys)
+            {
+                if (kitDir == null || !System.IO.File.Exists(System.IO.Path.Combine(kitDir, k + ".png")))
+                { shipped = false; missing = k; break; }
+                var sp = Hollowbrook.Bootstrap.ProceduralArt.Get(k);
+                if (sp == null || sp.name != k) { resolves = false; missing = k; break; }
+            }
+            Check(shipped, "MKIT: all " + keys.Length + " kit sprites ship under Resources/Art/MainMenu" +
+                  (shipped ? "" : " (missing " + missing + ")"));
+            Check(resolves, "MKIT: every kit key resolves to a sprite named after itself (drop-in wiring works)");
+
+            var menu = root.MainMenu != null ? root.MainMenu.transform : null;
+            Check(menu != null, "MKIT: the main menu view exists");
+            if (menu == null) return;
+            bool clickThrough = true;
+            foreach (var n in new[] { "logo", "shade", "note" })
+            {
+                var t = FindDeep(menu, n);
+                Check(t != null, "MKIT: layer " + n + " exists (proof is not a silent no-op)");
+                if (t == null) continue;
+                var im = t.GetComponent<UnityEngine.UI.Image>();
+                if (im != null && im.raycastTarget) clickThrough = false;
+            }
+            foreach (var b in new[] { "NEW GAME", "CONTINUE", "SETTINGS", "EXIT", "CREDITS" })
+            {
+                var t = menu.Find("buttons/" + b);
+                Check(t != null && t.GetComponent<UnityEngine.UI.Button>() != null,
+                      "MKIT: button " + b + " ships under buttons/");
+                if (t == null) continue;
+                foreach (var child in new[] { "icon", "label", "fill" })
+                {
+                    var c = t.Find(child);
+                    if (c == null) continue;
+                    var im = c.GetComponent<UnityEngine.UI.Image>();
+                    var tx = c.GetComponent<UnityEngine.UI.Text>();
+                    if ((im != null && im.raycastTarget) || (tx != null && tx.raycastTarget)) clickThrough = false;
+                }
+                var frame = t.GetComponent<UnityEngine.UI.Image>();
+                if (frame == null || !frame.raycastTarget) clickThrough = false;   // the frame IS the click target
+            }
+            Check(clickThrough, "MKIT: decorative layers are click-through and every frame owns its clicks");
+        }
+
         private static void SecurityKitProof(GameRoot root)
         {
             Console.WriteLine("== SecurityRoom art kit: shipped, resolved, click-through ==");
@@ -3915,12 +3931,13 @@ namespace FlowCheck
         // ------------------------------------------------------- desk helpers
         // The desk view runs its own Update in the editor; headlessly nothing ticks unless the
         // harness does it, exactly like WorldFrame does for the patrol. These drive the same
-        // per-frame paths (queue clock, hotkeys) so an
+        // per-frame paths (queue clock, bubble cooldown, drawer motion, hotkeys) so an
         // animation's real timing is what gets asserted — never a synthetic jump to the end.
         private static void DeskFrame(CheckpointView cp, float dt = 1f / 60f)
         {
             Time.deltaTime = dt;
             Time.unscaledDeltaTime = dt;
+            cp.TickDrawer(dt);
             Input.KeysDown.Clear();     // edge-triggered keys last exactly one frame
         }
 
@@ -3963,6 +3980,50 @@ namespace FlowCheck
             int n = t.name == name ? 1 : 0;
             for (int i = 0; i < t.childCount; i++) n += CountDeep(t.GetChild(i), name);
             return n;
+        }
+
+        // Dumps the LIVE main menu (the real MainMenuView hierarchy, resolved through the same
+        // WalkScreen geometry the desk dumps use) at any screen size, in VISIBLE reference
+        // space (origin = top-left of the window, exactly what AspectMatchGuard shows), so
+        // Tools/Preview/render_screen.py can pixel it against Art/MainMenu/reference.
+        private static void DumpMenu(string path, int w, int h, bool withSave = false)
+        {
+            UnityEngine.Screen.width = w;
+            UnityEngine.Screen.height = h;
+            MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore());
+            var root = GameRoot.Instance;
+            // pose the ambience at rest: the reference shows the menu between flickers, and
+            // the stub coroutine pump can otherwise freeze a 0.55 s flicker mid-pulse
+            var shade = root.MainMenu.transform.Find("shade");
+            if (shade != null)
+            {
+                var sim = shade.GetComponent<UnityEngine.UI.Image>();
+                if (sim != null) { var sc = sim.color; sc.a = 0f; sim.color = sc; }
+            }
+            if (withSave)
+            {
+                // the reference art shows CONTINUE live: pose the menu as if a save exists so
+                // the verification pixels compare against the design, not the no-save state
+                var cont = root.MainMenu.transform.Find("buttons").Find("CONTINUE");
+                if (cont != null) Hollowbrook.UI.UIFactory.SetButtonEnabled(
+                    cont.GetComponent<UnityEngine.UI.Button>(), true);
+            }
+            float aspect = w / (float)h;
+            float visW, visH;
+            if (aspect > 1280f / 720f) { visW = 720f * w / h; visH = 720f; }
+            else { visW = 1280f; visH = 1280f * h / w; }
+            var sb = new System.Text.StringBuilder();
+            sb.Append("{\"refw\":").Append(visW.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            sb.Append(",\"refh\":").Append(visH.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            sb.Append(",\"space\":\"visible\",\"nodes\":[");
+            bool first = true;
+            WalkScreen(root.MainMenu.transform as RectTransform, 0f, 0f, visW, visH,
+                       new List<DumpRot>(), sb, ref first, 1f, 1f);
+            sb.Append("]}");
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path)) ?? ".");
+            System.IO.File.WriteAllText(path, sb.ToString());
+            Console.WriteLine("wrote " + path + " (menu " + w + "x" + h + ", visible ref " +
+                              visW.ToString("F1") + "x" + visH.ToString("F1") + ")");
         }
 
         private static void DumpScreen(string path, string state = "occupied")
@@ -4045,19 +4106,19 @@ namespace FlowCheck
             // reading-sheet and map dumps open the real view the way its own click does
             if (state == "rules" || state == "log")
                 cp.DebugOpenOverlay(state);
-            // records dumps: the open panel on a cohort, and the pulled record sheet over it
-            // — the two states a player browsing the registry sees
+            // floor-files dumps: the pulled drawer with a folder open, and the pulled
+            // record sheet over it — the two states a player browsing the registry sees
             if (state == "files" || state == "record")
             {
-                // the occupied setup already opens the panel once (oldest cohort): asking for
-                // the same cohort again would shut it, so only steer when it is elsewhere
-                if (!cp.RecordsOpen || cp.RecordsTab != 0) cp.OpenRecords(0);
+                // the occupied setup already pulls the cabinet once (floor 1): asking for
+                // the same floor again would shut it, so only steer when it is elsewhere
+                if (!cp.DrawerIsOpen || cp.DrawerFloor != 1) cp.OpenFolder(1);
                 DeskFrames(cp, 14);
                 if (state == "record")
                 {
                     int idx = -1;
-                    foreach (var f in Hollowbrook.Logic.RecordSearch.BuildCohortFolders(root.Roster.Canon))
-                        if (f.Cohort == RecordSearch.FirstCohort && f.Indices.Count > 2) { idx = f.Indices[2]; break; }
+                    foreach (var f in Hollowbrook.Logic.RecordSearch.BuildFloorFolders(root.Roster.Canon))
+                        if (f.Floor == 1 && f.Indices.Count > 2) { idx = f.Indices[2]; break; }
                     if (idx >= 0) cp.OpenCanonFile(idx);
                     DeskFrames(cp, 3);
                 }
@@ -4286,18 +4347,20 @@ namespace FlowCheck
             while (cp.CurrentVisitor == null && guard++ < 8) cp.AdvanceQueue(6f);
 
             var frameRt = FindDeep(cp.transform, "DeskFrame").GetComponent<RectTransform>();
-            string[] names = { "station", "recordsicon", "filedrawer_border", "drawerbody",
-                               "drawerhead", "filerow0", "filerow3", "filerow6",
-                               "folder1", "folder2", "folder3", "record" };
-            var frames = new[] { new { Tag = "0_closed", Frames = 0, Open = false },
-                                 new { Tag = "1_open", Frames = 2, Open = true },
+            string[] names = { "station", "filedrawer_border", "drawerbody", "drawerfront",
+                               "handle", "drawerhead", "filerow0", "filerow3", "filerow6",
+                               "drawercavity", "folder1", "folder2", "cabfront", "record" };
+            var frames = new[] { new { Tag = "0_shut", Frames = 0, Open = false },
+                                 new { Tag = "1_click_frame", Frames = -1, Open = true },
+                                 new { Tag = "2_2frames", Frames = 2, Open = true },
+                                 new { Tag = "3_5frames", Frames = 3, Open = true },
                                  new { Tag = "4_open", Frames = 20, Open = true } };
             bool opened = false;
             foreach (var f in frames)
             {
                 if (f.Open && !opened)
                 {
-                    FindDeep(cp.transform, "recordsicon").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+                    FindDeep(cp.transform, "station").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
                     opened = true;
                 }
                 if (f.Frames > 0) DeskFrames(cp, f.Frames);
@@ -4311,7 +4374,7 @@ namespace FlowCheck
                               "viewBox=\"0 0 420 560\" font-family=\"sans-serif\">");
                 sb.AppendLine("<rect width=\"420\" height=\"560\" fill=\"#0b0b0d\"/>");
                 sb.AppendLine($"<text x=\"10\" y=\"18\" fill=\"#8a8a92\" font-size=\"12\">" +
-                              $"{f.Tag}  open={cp.RecordsOpen}</text>");
+                              $"{f.Tag}  pull={cp.DrawerPull:F3}  open={cp.DrawerIsOpen}</text>");
                 // desk-grid (x right, y down) -> svg, cropped to the left column and shifted up
                 const float ox = 20f, oy = -90f;
                 foreach (var n in names)
@@ -4371,7 +4434,6 @@ namespace FlowCheck
             Time.unscaledDeltaTime = dt;
             root.Views.TickWorld(dt);
             Input.KeysDown.Clear();     // edge-triggered keys last exactly one frame
-            Input.MouseDown.Clear();    // ...and so do mouse presses
         }
 
         private static void WorldFrames(GameRoot root, int n, float dt = 1f / 60f)
@@ -4385,18 +4447,10 @@ namespace FlowCheck
             WorldFrame(root);
         }
 
-        // one mouse press (0 = left, 1 = right) for one patrol / peek frame, like PressKey
-        private static void ClickMouse(GameRoot root, int button)
-        {
-            Input.MouseDown.Add(button);
-            WorldFrame(root);
-        }
-
         private static void AimAt(float x, float y) => Input.mousePosition = new Vector3(x, y, 0f);
 
-        // idempotent beam selection through the real toggles (F turns it on / off, Q switches
-        // the wide sweep to the narrow focus and only works while it is on — scenarios need
-        // the mode, not the keypress count)
+        // idempotent beam selection through the real toggles (pressing Q while Focus is
+        // latched would switch it OFF — scenarios need the mode, not the keypress count)
         private static void SetBeam(GameRoot root, FlashlightRig rig, LightMode want)
         {
             if (want == LightMode.Off)
@@ -4405,14 +4459,9 @@ namespace FlowCheck
             }
             else if (want == LightMode.Sweep)
             {
-                if (rig.Latches.Focus) PressKey(root, KeyCode.Q);       // narrow -> wide
-                else if (!rig.Latches.Sweep) PressKey(root, KeyCode.F);
+                if (!rig.Latches.Sweep) PressKey(root, KeyCode.F);
             }
-            else if (!rig.Latches.Focus)
-            {
-                if (!rig.Latches.Sweep) PressKey(root, KeyCode.F);      // the narrow beam needs the light on
-                PressKey(root, KeyCode.Q);
-            }
+            else if (!rig.Latches.Focus) PressKey(root, KeyCode.Q);
         }
 
         private static T FindInteractable<T>(RoomInstance room) where T : Interactable

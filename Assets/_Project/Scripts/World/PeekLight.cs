@@ -109,12 +109,9 @@ namespace Hollowbrook.World
         public bool Covers(Vector3 worldPoint) =>
             Active && Lit && Vector2.Distance(worldPoint, _worldPoint) <= EffectiveRadius;
 
-        /// <summary>Q / right click: wide wash <-> tight focus, only while the flashlight is on.
-        /// It never turns the light on by itself, and does nothing while it is off.</summary>
-        public void ToggleFocus()
-        {
-            if (Lit) SetFocused(!Focused, false);
-        }
+        /// <summary>Q: wide wash <-> tight focus. Silent about ON/OFF — it only reshapes the
+        /// circle, and only a lit lamp shows the difference (an OFF lamp stays OFF).</summary>
+        public void ToggleFocus() => SetFocused(!Focused, false);
 
         private void SetFocused(bool on, bool quiet)
         {
@@ -156,7 +153,7 @@ namespace Hollowbrook.World
                     on ? "FLASHLIGHT: ON" : "FLASHLIGHT: OFF"));
         }
 
-        /// <summary>F / left click is the flashlight switch — the same deliberate toggle the handheld
+        /// <summary>F is the ONLY lamp switch — the same deliberate toggle the handheld
         /// beam uses. One press on, one press off; no latch can survive an entry reset.</summary>
         internal void ToggleLamp() => SetLit(!Lit, false);
 
@@ -198,8 +195,8 @@ namespace Hollowbrook.World
             if (!_gameRoot.Paused && !_gameRoot.BlockingOverlayOpen &&
                 (_gameRoot.Dialogue == null || !_gameRoot.Dialogue.IsActive))
             {
-                if (Input.GetKeyDown(KeyCode.F) || InputGate.FlashlightClick(0)) ToggleLamp();
-                else if (Input.GetKeyDown(KeyCode.Q) || InputGate.FlashlightClick(1)) ToggleFocus();
+                if (Input.GetKeyDown(KeyCode.F)) ToggleLamp();
+                else if (Input.GetKeyDown(KeyCode.Q)) ToggleFocus();   // reshapes, never lights
             }
 
             var mouse = Input.mousePosition;
@@ -217,7 +214,12 @@ namespace Hollowbrook.World
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.InteractionPrompt, prompt));
             }
 
-            if (Input.GetKeyDown(KeyCode.E) && nearest != null) nearest.Interact();
+            if (Input.GetKeyDown(KeyCode.E) && nearest != null)
+            {
+                var door = nearest as Doorway;
+                if (door != null && door.Target == RoomId.Hallway) _gameRoot.ExitRoomPeek();
+                else nearest.Interact();
+            }
         }
 
         // Nearest interactable whose anchor point (chest height above the shared floor line)
@@ -230,9 +232,7 @@ namespace Hollowbrook.World
             float anchorY = RoomInstance.FloorY + 1.4f;
             foreach (var it in _room.Interactables)
             {
-                // the way back is the bottom of the screen and nothing else: a doorway is scenery
-                // while peeking (no prompt, no E)
-                if (it == null || !it.Enabled || it is Doorway) continue;
+                if (it == null || !it.Enabled) continue;
                 float dx = cursor.x - it.AnchorX;
                 float dy = cursor.y - anchorY;
                 float sq = dx * dx + dy * dy;

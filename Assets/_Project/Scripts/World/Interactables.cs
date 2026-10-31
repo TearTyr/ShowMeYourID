@@ -57,10 +57,9 @@ namespace Hollowbrook.World
         {
             if (_gameRoot.Views.Transitioning) return;
             if (Target == RoomId.Security) _gameRoot.Views.ReturnToSecurity();
-            // classrooms and comfort rooms are peek-only: the player looks inside from the
-            // doorway, never enters
-            else if (RoomGraph.IsPeekRoom(Target)) _gameRoot.EnterRoomPeek(Target);
-            else _gameRoot.Views.EnterRoom(Target);   // the hallway, or the comfort hallway off it
+            // classrooms are peek-only: the player looks inside from the doorway, never enters
+            else if (Target == RoomId.Classroom1 || Target == RoomId.Classroom2) _gameRoot.EnterRoomPeek(Target);
+            else _gameRoot.Views.EnterRoom(Target);   // hallway door from inside a room
         }
     }
 

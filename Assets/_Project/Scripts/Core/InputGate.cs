@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.EventSystems;
 
 namespace Hollowbrook.Core
 {
@@ -27,16 +26,6 @@ namespace Hollowbrook.Core
             _mFrame = f;
             return true;
         }
-
-        /// <summary>True while the pointer is over any UI that takes clicks (the pause button,
-        /// the peek's step-back strip, a sheet): those clicks keep their own meaning.</summary>
-        public static bool PointerOverUi() =>
-            EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
-
-        /// <summary>A mouse press that may drive the flashlight (0 = left: on/off, 1 = right:
-        /// narrow beam): the press itself, and never one that lands on UI.</summary>
-        public static bool FlashlightClick(int button) =>
-            Input.GetMouseButtonDown(button) && !PointerOverUi();
 
         /// <summary>Headless harnesses drive handlers by hand inside one "frame"; bump the
         /// frame between simulated key presses so each gets a fresh gate.</summary>

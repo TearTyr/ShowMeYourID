@@ -141,7 +141,7 @@ namespace Hollowbrook.UI
             var bandBtn = bandRt.gameObject.AddComponent<Button>();
             bandBtn.targetGraphic = bandImg;
             bandBtn.onClick.AddListener(() => _gameRoot.ExitRoomPeek());
-            var bandCap = UIFactory.Label(bandRt, "cap", "STEP BACK", 13,
+            var bandCap = UIFactory.Label(bandRt, "cap", "STEP BACK TO THE HALLWAY", 13,
                 UIFactory.InkDim, TextAnchor.MiddleCenter);
             UIFactory.AnchorsFull(bandCap.rectTransform);
             _peekExitBand = bandRt.gameObject;
@@ -215,7 +215,7 @@ namespace Hollowbrook.UI
             if (!exploring && !peeking) _prompt.text = "";
             if (!exploring && !peeking && _batteryBar != null) _batteryBar.SetActive(false); // desk has no flashlight
             if (s == AppViewState.Checkpoint) _objective.text = _gameRoot.ObjectiveText ?? "";
-            if (peeking) _objective.text = "Press F (or left-click) to switch the flashlight on — sweep it across the room; click the bottom strip to step back.";
+            if (peeking) _objective.text = "Press F to switch the flashlight on — sweep it across the room; click the bottom edge to step back.";
             if (exploring) _objective.text = _gameRoot.ObjectiveText;   // restore after a peek overwrote the hint
             if (_peekExitBand != null) _peekExitBand.SetActive(peeking);
             RefreshFindings();

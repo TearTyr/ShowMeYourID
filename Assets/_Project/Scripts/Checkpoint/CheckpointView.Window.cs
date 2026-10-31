@@ -243,7 +243,7 @@ namespace Hollowbrook.Checkpoint
             if (_recordGo != null) _recordGo.SetActive(false);
             FaceUp(_idCardGo);          // flip state never carries across visitors: the ID
                                         // is born face-up on a fresh desk (the slip has no back)
-            ResetRecords();             // folder shut, no file highlighted on a fresh desk
+            CloseFileDrawer();          // drawer shut, no file highlighted on a fresh desk
             _selectedCanon = -1;
             _stampRng = new GameRng((_gameRoot.Session != null ? _gameRoot.Session.Seed : 1) ^ (v.VisitorIndex * 131 + 7));
             SetPaperHeld(_idCardGo, true);

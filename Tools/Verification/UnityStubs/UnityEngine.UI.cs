@@ -463,9 +463,6 @@ namespace UnityEngine.EventSystems
         // harnesses that build a bootstrap (CoreBootstrap) get a live EventSystem for free.
         public EventSystem() { current = this; }
         public static EventSystem current { get; set; }
-        /// <summary>Headless: tests set this to put the "pointer" over UI.</summary>
-        public static bool PointerOverUi;
-        public bool IsPointerOverGameObject() => PointerOverUi;
         public GameObject currentSelectedGameObject;
         public bool sendNavigationEvents = true;
         public void SetSelectedGameObject(GameObject go) { currentSelectedGameObject = go; }

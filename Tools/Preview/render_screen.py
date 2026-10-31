@@ -246,6 +246,12 @@ def render(dump, W, H, out_path):
     vis_w, vis_h = W * scale, H * scale
     ox, oy = (vis_w - REFW) / 2.0, (vis_h - REFH) / 2.0
     ppu = 1.0 / scale                                # screen pixels per ref unit
+    if dump.get('space') == 'visible':
+        # menu dumps are walked in VISIBLE reference space (origin = window top-left),
+        # so there is no centred 1280x720 frame to offset into
+        vis_w, vis_h = float(dump['refw']), float(dump['refh'])
+        ox = oy = 0.0
+        ppu = W / vis_w
     canvas = Image.new('RGBA', (W, H), (0, 0, 0, 255))
     for node in dump['nodes']:
         w, h = node['w'] * ppu, node['h'] * ppu

@@ -148,9 +148,35 @@ Contract of the integration pass (`CheckpointView.KitSkin.cs`):
 - Backdrops: `sec_background_close` behind the NIGHT loading card, `sec_background_open`
   behind the shift summary.
 
-## 10. Adding a new asset name
+## 10. The owner's Main Menu kit (`category: kit`) — shipped & integrated
+
+The approved menu composite lives at `Art/MainMenu/reference/main-menu-reference.png`;
+`Art/MainMenu/README.md` documents every source file, crop rect and naming rule.
+`Tools/prep_mainmenu_art.py` cuts the kit into `Resources/Art/MainMenu/<key>.png`
+(`menu_background`, `menu_logo`, `menu_frame_wide`, `menu_frame_square`, `menu_icon_*`);
+keys resolve through the same `ProceduralArt.Get()` drop-in path as the SecurityRoom kit
+(`ProceduralArt.MainMenuKitKeys`), and `MainMenuView` rebuilds the composite from them at
+1:1 (reference px ÷ 2.25 = canvas units). Verification: `Tools/FlowCheck --dump-menu=…`
+walks the live menu hierarchy and `Tools/Preview/render_screen.py` pixels it against the
+reference at any resolution.
+
+Contract of the integration pass (`MainMenuView`):
+
+- **The kit is the layout spec, not a skin over the old one.** The previous text-stack menu
+  (black backdrop, five filled rows, footer) was removed; every rect is measured off the
+  reference composite. Button *addresses* kept their old names (`buttons/NEW GAME`,
+  `buttons/SETTINGS`, …) so headless proofs and the game-start sequence never moved.
+- **Live text, live states:** labels are Chiller (`UIFactory.TypeFont`) at the measured
+  size/tracking, not raster crops, so hover wash, keyboard focus, disabled CONTINUE
+  (no save) and localisation keep working. Frames own the raycast; every decorative
+  layer (logo, icons, labels, wash) is click-through.
+- **Cover-crop, never stretch:** the backdrop sizes itself from
+  `UIFactory.VisibleReferenceSize` (16:9 envelope), so odd aspects crop instead of distort.
+
+## 11. Adding a new asset name
 
 1. Add the painter case **and** the key to `ProceduralArt.AllKeys` (same edit, same place) —
-   or the audio case + `ProceduralAudio.AllKeys`.
+   or the audio case + `ProceduralAudio.AllKeys`. Kit-only sprites (no painter) instead join
+   `ProceduralArt.MainMenuKitKeys` / FlowCheck's `SecurityKitKeys` and ship their PNG.
 2. Add the row to `Tools/gen_asset_manifest.py`, re-run it, commit the CSV.
 3. FlowCheck's manifest-sync proof fails loudly if any of the three disagree.

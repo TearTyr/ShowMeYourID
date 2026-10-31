@@ -12,13 +12,7 @@ namespace Hollowbrook.Logic
 
     public enum AnomalyBehaviorKind { Blink, Slide, Sprint, CoverHug }
 
-    public enum RoomId
-    {
-        Security, Hallway, Classroom1, Classroom2,
-        ComfortHall,   // the corridor off the hallway's east end: walk it, two doors lead to the comfort rooms
-        Comfort1,      // CR-1 — peek-only, like a classroom
-        Comfort2,      // CR-2 — peek-only
-    }
+    public enum RoomId { Security, Hallway, Classroom1, Classroom2 }
 
     public enum QuestionId { Course, Year, Status, FirstClassroom }
 
