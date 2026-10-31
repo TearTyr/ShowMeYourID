@@ -13,7 +13,7 @@ namespace Hollowbrook.World
     // an interactable is "under the light" when its anchor point sits within CursorHitRadius
     // of the cursor's world position.
     //
-    // The lamp is MANUAL: entering a classroom always starts DARK — the lamp
+    // The lamp is MANUAL: entering a classroom always starts DARK - the lamp
     // is OFF until the player presses F, and F presses it out again. Two states, one source
     // of truth: Active = a peek session is on screen (tracking + prompts + E keep running so
     // the player is never locked in the dark); Lit = the light itself (mask + glow + the
@@ -22,7 +22,7 @@ namespace Hollowbrook.World
     {
         // Light circle size in world units (the mask and the glow share it).
         public float Radius = 2.6f;
-        // Focus: the same idea as the handheld beam's Focus — a tighter, hotter circle for
+        // Focus: the same idea as the handheld beam's Focus - a tighter, hotter circle for
         // reading details. Q toggles it; it never lights the lamp by itself and changing it
         // never moves the ON/OFF state (two independent flags, one source of truth each).
         public float FocusRadius = 1.3f;
@@ -30,7 +30,7 @@ namespace Hollowbrook.World
         /// <summary>Is the lamp in its tight, concentrated mode right now?</summary>
         public bool Focused { get; private set; }
 
-        /// <summary>The circle the lamp actually reveals with — the illumination query and the
+        /// <summary>The circle the lamp actually reveals with - the illumination query and the
         /// mask/glow scale both answer to this, so focus changes REAL light, not a label.</summary>
         public float EffectiveRadius => Focused ? FocusRadius : Radius;
         // How close the cursor's world point must be to an interactable anchor to prompt it.
@@ -85,7 +85,7 @@ namespace Hollowbrook.World
         }
 
         /// <summary>Begin a peek at the given room: the session goes live, the lamp stays
-        /// OFF — arriving in a classroom always means arriving dark, and only a deliberate
+        /// OFF - arriving in a classroom always means arriving dark, and only a deliberate
         /// F lights it (one press; nothing was secretly pre-lit).</summary>
         public void Enter(RoomInstance room, bool lampOn = false)
         {
@@ -99,7 +99,7 @@ namespace Hollowbrook.World
             _worldPoint = Vector3.zero;
             if (_gameRoot != null && !lampOn)
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    "FLASHLIGHT OFF — press F to turn it on."));
+                    "FLASHLIGHT OFF - press F to turn it on."));
         }
 
         /// <summary>The lamp dies for a moment (the administrator's stun). It comes back by
@@ -122,12 +122,12 @@ namespace Hollowbrook.World
             gameObject.SetActive(false);
         }
 
-        /// <summary>True when the world point sits inside the LIT light circle — an OFF
+        /// <summary>True when the world point sits inside the LIT light circle - an OFF
         /// lamp illuminates nothing, exactly like the handheld beam.</summary>
         public bool Covers(Vector3 worldPoint) =>
             Active && Lit && _flickerLeft <= 0f && Vector2.Distance(worldPoint, _worldPoint) <= EffectiveRadius;
 
-        /// <summary>Q: wide wash <-> tight focus. Silent about ON/OFF — it only reshapes the
+        /// <summary>Q: wide wash <-> tight focus. Silent about ON/OFF - it only reshapes the
         /// circle, and only a lit lamp shows the difference (an OFF lamp stays OFF).</summary>
         public void ToggleFocus() => SetFocused(!Focused, false);
 
@@ -140,7 +140,7 @@ namespace Hollowbrook.World
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.LightModeChanged, Lit));  // HUD sync
             if (!quiet)
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    on ? "FLASHLIGHT: FOCUS — a tight circle for details." : "FLASHLIGHT: WIDE — the whole sweep."));
+                    on ? "FLASHLIGHT: FOCUS - a tight circle for details." : "FLASHLIGHT: WIDE - the whole sweep."));
         }
 
         // Mask and glow are children, so one root scale reshapes the whole lamp; focus also
@@ -178,7 +178,7 @@ namespace Hollowbrook.World
                     on ? "FLASHLIGHT: ON" : "FLASHLIGHT: OFF"));
         }
 
-        /// <summary>F is the ONLY lamp switch — the same deliberate toggle the handheld
+        /// <summary>F is the ONLY lamp switch - the same deliberate toggle the handheld
         /// beam uses. One press on, one press off; no latch can survive an entry reset.</summary>
         internal void ToggleLamp() => SetLit(!Lit, false);
 
@@ -198,7 +198,7 @@ namespace Hollowbrook.World
         }
 
         // Split out so the headless harness can drive the same arbitration deterministically
-        // (stub MonoBehaviours never get Update calls) — the TickHotkeys trick.
+        // (stub MonoBehaviours never get Update calls) - the TickHotkeys trick.
         internal void TickEscape()
         {
             if (_gameRoot.BlockingOverlayOpen) return;      // Esc belongs to the open sheet
@@ -208,8 +208,8 @@ namespace Hollowbrook.World
 
         // One frame of peek light: the F toggle, then follow the cursor on the z=0 plane,
         // publish the prompt for whatever sits under the circle, and act on E. Tracking and
-        // prompts run while the lamp is OFF too — the exit stays reachable in the dark (the
-        // bottom band and the doorway) — but with mask + glow hidden nothing is visible and
+        // prompts run while the lamp is OFF too - the exit stays reachable in the dark (the
+        // bottom band and the doorway) - but with mask + glow hidden nothing is visible and
         // Covers() reports no illumination. internal so the headless harness can step
         // frames deterministically (stub MonoBehaviours never get Update calls).
         internal void Tick(float dt)

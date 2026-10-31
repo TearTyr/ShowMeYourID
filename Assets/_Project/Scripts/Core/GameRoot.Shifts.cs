@@ -44,7 +44,7 @@ namespace Hollowbrook.Core
         {
             Session.RunTimer = EndlessRules.StartSeconds;
             Roster = new RosterFactory(seed);
-            // run modes draw visitors on demand — the queue gets the same infinite source
+            // run modes draw visitors on demand - the queue gets the same infinite source
             Queue = new CheckpointQueue();
             Queue.AttachRunSource(NextRunVisitor, BuildQueueTuning(), seed ^ 0x9E37);
             var intro = mode == GameMode.Endless
@@ -158,7 +158,7 @@ namespace Hollowbrook.Core
         {
             var intro = new List<DialogueLine>
             {
-                new DialogueLine { Speaker = "NIGHT " + number + " — " + CurrentShiftDef.DateLabel.ToUpperInvariant(), Text = CurrentShiftDef.Title + ". " + CurrentShiftDef.Objective },
+                new DialogueLine { Speaker = "NIGHT " + number + " - " + CurrentShiftDef.DateLabel.ToUpperInvariant(), Text = CurrentShiftDef.Title + ". " + CurrentShiftDef.Objective },
                 new DialogueLine { Speaker = "PAPER NOTE", Text = CurrentShiftDef.RuleNoteAddendum },
             };
             if (number == 5)
@@ -220,14 +220,14 @@ namespace Hollowbrook.Core
         }
 
         /// <summary>The configured overwhelmed consequence: the waiting line
-        /// overran the checkpoint. One-shot — the queue has already collapsed, so no
+        /// overran the checkpoint. One-shot - the queue has already collapsed, so no
         /// arrivals follow and no second ending/penalty can fire.</summary>
         public void TriggerQueueOverwhelmed()
         {
             if (Session.QueueOverwhelmed || Session.RunFinished || State == AppViewState.Ending) return;
             Session.QueueOverwhelmed = true;
             Audio.PlaySfx("sfx_alarm", 1f);
-            Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the line surges against the glass — too many, too fast*", 3.5f, null));
+            Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the line surges against the glass - too many, too fast*", 3.5f, null));
             Bus.Publish(GameEvent.Of(EventIds.Notification, "THE LINE HAS OVERRUN THE CHECKPOINT."));
             TriggerEnding(Session.EvaluateEnding());
         }
@@ -251,7 +251,7 @@ namespace Hollowbrook.Core
                 Loading.PlayNightTitle(
                     shift != null ? "NIGHT " + shift.Number
                         : (Session.Mode == GameMode.Endless ? "ENDLESS WATCH" : "CHALLENGE PROTOCOL"),
-                    shift != null ? shift.DateLabel.ToUpperInvariant() : "HOLLOWBROOK COLLEGE — NIGHT CUSTODIAN PROGRAM",
+                    shift != null ? shift.DateLabel.ToUpperInvariant() : "HOLLOWBROOK COLLEGE - NIGHT CUSTODIAN PROGRAM",
                     startDialogue);
             else startDialogue();
         }
@@ -302,7 +302,7 @@ namespace Hollowbrook.Core
                 if (Views != null) Views.NoteBreach();
             }
 
-            // ending check — lose conditions can fire mid-shift (C3/C4)
+            // ending check - lose conditions can fire mid-shift (C3/C4)
             var eval = Session.EvaluateEnding();
             if (eval.Ending != EndingType.None)
             {

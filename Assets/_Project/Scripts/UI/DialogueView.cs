@@ -39,8 +39,8 @@ namespace Hollowbrook.UI
             _dim.raycastTarget = true;
 
             // Pre-gameplay narration rides the kit's CAPTION BAR (sec_caption_bar): the torn
-            // white bar at its own proportions — the panel rect carries the bar's 325:90
-            // aspect, so the art scales uniformly and is never stretched — with dark ink
+            // white bar at its own proportions - the panel rect carries the bar's 325:90
+            // aspect, so the art scales uniformly and is never stretched - with dark ink
             // inside the torn edges. The desk speech bubble (sec_bubble) stays the desk
             // bubble's skin only: narration and student dialogue are two UI contexts.
             var panelRt = UIFactory.NewUI(transform, "panel_border");

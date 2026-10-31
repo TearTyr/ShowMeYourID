@@ -1,4 +1,4 @@
-# Peek-In Flashlight Room Inspection — implementation notes
+# Peek-In Flashlight Room Inspection - implementation notes
 
 Classrooms 1 and 2 are **peek-only**: the player never walks inside. Standing at a classroom
 doorway and pressing `E` fades to black, frames the room, and hands the reveal to a
@@ -28,7 +28,7 @@ RoomPeek    --(E at the room's hallway door, or click the bottom HUD band:
   Both set `Transitioning` while running, so doorways and beam input stay locked mid-fade
   exactly like normal room transitions. They are idempotent (`_peeking` / `_peekExiting`).
 * While `_peeking`, `ViewManager` skips the spawner (`Update`), skips the camera clamp
-  (`LateUpdate`), and `TickWorld` ticks **only** `PeekLight.Tick(dt)` — no Player, no
+  (`LateUpdate`), and `TickWorld` ticks **only** `PeekLight.Tick(dt)` - no Player, no
   Flashlight, no anomalies, no spawner (acceptance 10). In the editor each component's own
   `Update` still runs; every one of them is peek-aware (see below).
 
@@ -40,9 +40,9 @@ RoomPeek    --(E at the room's hallway door, or click the bottom HUD band:
   masked) plus a tinted `Glow` child (`sortingOrder = 72`) as the visible lamp.
 * `LightController.EnterPeek(true)` is a *presentation override*: darkness alpha 1, flicker
   stopped, and `SetLit`/`Tick` may not touch the visual while the override is on. The real
-  `Lit` state is unchanged — `EnterPeek(false)` restores it via `ApplyVisual()`.
+  `Lit` state is unchanged - `EnterPeek(false)` restores it via `ApplyVisual()`.
 * `FlashlightRig.Tick` early-returns in `RoomPeek`: beam forced Off, latches cleared (so
-  stepping back never re-lights it by itself — revival needs a deliberate F/Q), battery
+  stepping back never re-lights it by itself - revival needs a deliberate F/Q), battery
   neither drains nor recovers.
 * Anomalies freeze: `WanderingAnomaly.Tick` in `RoomPeek` runs only `TickVisibility`, and the
   peek branch there shows the silhouette **only** while `ViewManager.IsPeekLit(position)`
@@ -54,7 +54,7 @@ RoomPeek    --(E at the room's hallway door, or click the bottom HUD band:
 * `PeekLight.Tick` projects `Input.mousePosition` onto the z=0 plane and moves the circle
   there. An interactable is "under the light" when its anchor point
   `(AnchorX, RoomInstance.FloorY + 1.4f, 0)` is within `CursorHitRadius` (default **1.3
-  world units**) of the cursor — squared-distance scan over `RoomInstance.Interactables`,
+  world units**) of the cursor - squared-distance scan over `RoomInstance.Interactables`,
   no raycasts, no per-frame allocation.
 * The prompt is published on `EventIds.InteractionPrompt` only when it changes (same contract
   as the hallway player). `E` interacts; `E` on the room's hallway doorway exits the peek.
@@ -64,7 +64,7 @@ RoomPeek    --(E at the room's hallway door, or click the bottom HUD band:
 ## Input arbitration (documented deviation from the task spec)
 
 The original spec had `Esc` exit the peek (acceptance 5) *and* open the pause menu
-(acceptance 6) — mutually exclusive on one press, and in this scene the pause menu had no
+(acceptance 6) - mutually exclusive on one press, and in this scene the pause menu had no
 other entry point while peeking (the player controller does not tick). Decision taken with
 the game owner during implementation:
 
@@ -73,7 +73,7 @@ the game owner during implementation:
   overridden by this decision.
 * **Exiting a peek** is done by clicking the **bottom screen band** (HUDView `peekexitband`
   button, visible only in `RoomPeek`) or by `E` at the room's hallway doorway.
-* Consequently the HUD peek objective reads "Sweep the light — click the bottom edge to step
+* Consequently the HUD peek objective reads "Sweep the light - click the bottom edge to step
   back." instead of the spec's "Esc to step back."
 
 Other small, deliberate additions beyond the spec bullet list (all to satisfy the spec's own
@@ -98,7 +98,7 @@ hard requirements/acceptance tests):
 2. **Dialogue-pause interplay.** Dialogue suppresses all peek input (cursor, E, Esc) per the
    hard requirements, and `PeekLight.Update` also skips while paused or while an overlay
    sheet is open. If a clue dialogue and the pause menu are opened in quick succession the
-   peek simply freezes until both are closed — correct, but it can feel like a hiccup.
+   peek simply freezes until both are closed - correct, but it can feel like a hiccup.
 3. **Clues have no sprite in the showcase build.** The placeholder `visual` child was
    removed (it read as a floating white block in lit rooms); peek reveals clues through the
    prompt + E only, until real clue art exists. Already-discovered clues keep their red
@@ -111,14 +111,14 @@ hard requirements/acceptance tests):
 ## Verification performed (headless, no Unity editor in this environment)
 
 * `Tools/Verification/CompileCheck` and `Tools/Verify/verify.sh` (real Unity 2022.3
-  assemblies, min + full) — clean; `audit.py` clean.
-* `Tools/Verification/LogicTests` 663/663 and `Tools/LogicTests` 27,336/27,336 — unchanged.
-* `Tools/FlowCheck` 830 OK / 0 BAD — unchanged (desk loop, queue proofs, patrol world loop).
+  assemblies, min + full) - clean; `audit.py` clean.
+* `Tools/Verification/LogicTests` 663/663 and `Tools/LogicTests` 27,336/27,336 - unchanged.
+* `Tools/FlowCheck` 830 OK / 0 BAD - unchanged (desk loop, queue proofs, patrol world loop).
 * Scratch harness (outside the repo, not committed): boots menu → NEW GAME → patrol →
   peek headlessly and proves: peek entry/exit paths, hidden player, beam Off + battery
   frozen, player/anomaly/spawner freeze, cursor prompt + E inspect, anomaly reveal only
   under the circle, Esc pause arbitration, bottom-band exit, deliberate relight after peek,
-  and return-to-checkpoint — 32/32 checks pass.
+  and return-to-checkpoint - 32/32 checks pass.
 * **Not testable here:** everything visual/audible (fade feel, mask edge softness, glow tint,
   silhouette legibility), real-input feel, and the editor-only `DeskLayoutAudit` warnings.
   Acceptance items 1–12 were verified headlessly where logic allows; the purely visual ones

@@ -15,7 +15,7 @@ namespace Hollowbrook.Checkpoint
     // Why this is its own area of the desk: the drawer has to be built BEFORE the papers so
     // the pulled record sheet lands on top of it (the papers layer is a later sibling), and
     // its motion is driven from CheckpointView.TickDrawer (unscaled time) so a click is
-    // answered on the next frames — never after a wind-up, never by a coroutine that a
+    // answered on the next frames - never after a wind-up, never by a coroutine that a
     // scene change could orphan.
     //
     // The physical read: the cabinet mouth is a RectMask2D slot at its approved grid rect;
@@ -23,7 +23,7 @@ namespace Hollowbrook.Checkpoint
     // down/out on a fast ease-out, growing a touch in scale as it comes toward the player,
     // while a contact shadow deepens under the front lip and the files emerge from the body
     // a beat behind it (DrawerMotion owns every number, so the curve is unit-testable).
-    // The drawer front — the worn panel with the handle — rides out a few pixels with it and
+    // The drawer front - the worn panel with the handle - rides out a few pixels with it and
     // covers the mouth when shut, so a closed cabinet shows front and handle only.
     public partial class CheckpointView
     {
@@ -51,7 +51,7 @@ namespace Hollowbrook.Checkpoint
         private readonly Image[] _folderTabInks = new Image[2];
         private Image _stationInk;          // the cabinet front (also the pull's click target)
         private Image _drawerHandle;        // brightens on hover so the pull reads as a handle
-        // the shut cabinet's own drawer front: face, grip, tag, recess shadow — one group
+        // the shut cabinet's own drawer front: face, grip, tag, recess shadow - one group
         // that fades out as the real drawer pulls (the pulled body carries its own bracket)
         private CanvasGroup _cabFront;
         private Image _cabFace, _cabGrip;
@@ -76,7 +76,7 @@ namespace Hollowbrook.Checkpoint
         private bool _drawerSteppedThisFrame; // the click already moved it: TickDrawer must not
         private bool _drawerVisible;          // the box is on screen (open, or still moving)
 
-        /// <summary>True while the drawer is out (or on its way out) — the headless proofs
+        /// <summary>True while the drawer is out (or on its way out) - the headless proofs
         /// read this instead of sampling a mid-animation rect.</summary>
         internal bool DrawerIsOpen => _drawerOpen;
         /// <summary>0..1 pull of the drawer body: 0 shut, 1 fully out.</summary>
@@ -88,12 +88,12 @@ namespace Hollowbrook.Checkpoint
         private void BuildFileCabinet()
         {
             // The cabinet front: caption, two floor-folder tabs, the pull handle and the
-            // status readout. The whole front is the pull — clicking anywhere on the cabinet
+            // status readout. The whole front is the pull - clicking anywhere on the cabinet
             // (that is not a folder tab) opens or closes the drawer.
             var station = UIFactory.Panel(_desk, "station", StationInk);
             Reg("station", station.rectTransform, L.Station);
             _stationInk = station;
-            var cap = UIFactory.Label(station.rectTransform, "cap", "FLOOR FILES — STUDENT REGISTRY", 12,
+            var cap = UIFactory.Label(station.rectTransform, "cap", "FLOOR FILES - STUDENT REGISTRY", 12,
                 UIFactory.NsChalk, TextAnchor.MiddleCenter);
             cap.font = UIFactory.UiFontBold;
             cap.raycastTarget = false;
@@ -110,7 +110,7 @@ namespace Hollowbrook.Checkpoint
                 _folderTabInks[f - 1] = tab.targetGraphic as Image;
             }
             // The shut cabinet face: a worn drawer front seated in a shadowed recess, with
-            // a grip slot and a small OPEN tag — the closed station reads as a physical
+            // a grip slot and a small OPEN tag - the closed station reads as a physical
             // drawer you pull, never as an empty frame. One CanvasGroup fades the whole
             // front out as the drawer body takes over (ApplyDrawerPull), so the shut face
             // and the pulled drawer can never paint at once.
@@ -128,7 +128,7 @@ namespace Hollowbrook.Checkpoint
                 CabFaceInk);
             UIFactory.AnchorsFull(_cabFace.rectTransform);
             _cabFace.raycastTarget = false;
-            // grip slot, centred — the hand closes here
+            // grip slot, centred - the hand closes here
             _cabGrip = UIFactory.Panel(frontRt, "cabgrip", CabGripInk);
             UIFactory.PlaceTL(_cabGrip.rectTransform, (CabFrontW - 76f) * 0.5f, 45f, 76f, 11f);
             _cabGrip.raycastTarget = false;
@@ -144,7 +144,7 @@ namespace Hollowbrook.Checkpoint
             UIFactory.PlaceTL(shade.rectTransform, 4f, CabFrontH, CabFrontW - 8f, 5f);
             shade.raycastTarget = false;
 
-            // the pull: one Button on the cabinet front (no colour tint of its own — the
+            // the pull: one Button on the cabinet front (no colour tint of its own - the
             // handle brightens instead, so the front never flashes), plus the hand cursor and
             // a hover sense so the handle reads as "grip me" before the drawer ever moves.
             var pull = station.gameObject.AddComponent<Button>();
@@ -248,7 +248,7 @@ namespace Hollowbrook.Checkpoint
         }
 
         // The handle brightens while the pointer is over the cabinet, and stays bright while
-        // the drawer is out — the front and the handle are one object, so they read as one state.
+        // the drawer is out - the front and the handle are one object, so they read as one state.
         private bool _stationHovered;
         private void SetHandleLit(bool hovered)
         {
@@ -301,7 +301,7 @@ namespace Hollowbrook.Checkpoint
             if (_drawerBody != null)
             {
                 // Placed top-left inside the mouth, y DOWN. Shut, the whole body sits ABOVE the
-                // mouth (negative y) — pushed up inside the cabinet, so nothing of it shows and
+                // mouth (negative y) - pushed up inside the cabinet, so nothing of it shows and
                 // only the front panel is on screen. As it is pulled, outPx brings it down until
                 // it is flush with the mouth: that downward travel IS the pull. The scale pivot is
                 // the top-left corner, so the 3.5% "coming toward you" growth never slides it.
@@ -399,7 +399,7 @@ namespace Hollowbrook.Checkpoint
             // sheet can never disagree about which room you are browsing
             bool floorChanged = _openFloor != floor;
             _openFloor = floor;
-            // only a sheet the drawer itself pulled retires with its folder — the admin's
+            // only a sheet the drawer itself pulled retires with its folder - the admin's
             // District Roster Memo rides the same window and is never "stale"
             if (floorChanged && _recordFromFile && _recordGo != null && _recordGo.activeSelf)
             {
@@ -433,7 +433,7 @@ namespace Hollowbrook.Checkpoint
         /// <summary>Move the drawer on the SAME frame the player asked for it, so the click and
         /// the first visible travel are one moment. It advances exactly one frame's worth and
         /// marks the frame as stepped, so TickDrawer continues from there instead of stepping
-        /// twice — one drawer, one animation, one advance per frame, however fast the clicking.
+        /// twice - one drawer, one animation, one advance per frame, however fast the clicking.
         /// </summary>
         private void StepDrawerNow(bool opening)
         {
@@ -482,7 +482,7 @@ namespace Hollowbrook.Checkpoint
         }
 
         // Rebuilds the drawer's contents: header + one file row per student (name + registry
-        // number). An empty floor still opens — with an explicit NO FILES line. Internal so
+        // number). An empty floor still opens - with an explicit NO FILES line. Internal so
         // the headless FlowCheck can drive the empty-folder edge with a synthetic list.
         internal void PopulateDrawer(string label, IReadOnlyList<StudentIdentity> canon,
             IReadOnlyList<int> indices)
@@ -498,10 +498,10 @@ namespace Hollowbrook.Checkpoint
             UIFactory.AnchorsFull(_drawerRows);
             int count = indices != null ? indices.Count : 0;
             if (_drawerHead != null)
-                _drawerHead.text = label + " — " + count + (count == 1 ? " FILE" : " FILES");
+                _drawerHead.text = label + " - " + count + (count == 1 ? " FILE" : " FILES");
             if (count == 0)
             {
-                var none = UIFactory.Label(_drawerRows, "nofiles", "NO FILES — NOTHING FLOOR-FILED HERE", 11,
+                var none = UIFactory.Label(_drawerRows, "nofiles", "NO FILES - NOTHING FLOOR-FILED HERE", 11,
                     UIFactory.InkFaint, TextAnchor.MiddleCenter);
                 none.raycastTarget = false;
                 L.Place(none.rectTransform, new L.Region(L.Inner.FileRowX, L.Inner.FileRowY0,
@@ -525,7 +525,7 @@ namespace Hollowbrook.Checkpoint
                 var bg = pillRt.gameObject.AddComponent<Image>();
                 bg.color = canonIdx == _selectedCanon ? FileRowSel : FileRowIdle;
                 // the pill IS the row's click and hover surface (the Button's targetGraphic):
-                // with the raycast off here no pointer event ever reached the row in play —
+                // with the raycast off here no pointer event ever reached the row in play -
                 // the drawer listed files nobody could pull
                 bg.raycastTarget = true;
                 var edge = UIFactory.Panel(pillRt, "edge", new Color(0.55f, 0.49f, 0.33f));
@@ -534,7 +534,7 @@ namespace Hollowbrook.Checkpoint
                 edge.rectTransform.offsetMin = Vector2.zero;
                 edge.rectTransform.offsetMax = new Vector2(5, 0);
                 edge.raycastTarget = false;
-                var nm = UIFactory.Label(pillRt, "fname", s != null ? s.FullName.ToUpperInvariant() : "—",
+                var nm = UIFactory.Label(pillRt, "fname", s != null ? s.FullName.ToUpperInvariant() : "-",
                     10, UIFactory.Ink, TextAnchor.MiddleLeft);
                 UIFactory.PlaceTL(nm.rectTransform, L.Inner.FileRowNameX, 0,
                     L.Inner.FileRowNameW, L.Inner.FileRowH);
@@ -572,7 +572,7 @@ namespace Hollowbrook.Checkpoint
             if (count > shown)
             {
                 var more = UIFactory.Label(_drawerRows, "morefiles",
-                    "+ " + (count - shown) + " MORE FILES — NOT SHOWN", 10,
+                    "+ " + (count - shown) + " MORE FILES - NOT SHOWN", 10,
                     UIFactory.InkFaint, TextAnchor.MiddleCenter);
                 more.raycastTarget = false;
                 L.Place(more.rectTransform, new L.Region(L.Inner.FileRowX,
@@ -597,7 +597,7 @@ namespace Hollowbrook.Checkpoint
                     _folderTabInks[i].color = _openFloor == i + 1 ? FolderOpen : FolderIdle;
         }
 
-        // Pulls one canon file into the record window — the folder-browsing replacement for
+        // Pulls one canon file into the record window - the folder-browsing replacement for
         // a typed search. The drawer STAYS OUT: browsing several files in a row is the
         // normal use, and a physical drawer does not slam shut because you took a sheet.
         // Same rule as before: during the administrator's visit the registry holds no badge,
@@ -611,9 +611,9 @@ namespace Hollowbrook.Checkpoint
             {
                 // the registry holds no badge during the administrator's visit: the memo
                 // already on the desk is the record, and the desk says so the way every
-                // other refusal is said — a HUD toast, no permanent status text
+                // other refusal is said - a HUD toast, no permanent status text
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    "NO RECORD — SEE ATTACHED MEMO"));
+                    "NO RECORD - SEE ATTACHED MEMO"));
                 return;
             }
             var v = canon[canonIdx];

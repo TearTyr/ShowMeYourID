@@ -1,8 +1,8 @@
-# Complete UI Overhaul & Dialogue Input Integration — final report
+# Complete UI Overhaul & Dialogue Input Integration - final report
 
-Scope: the two stacked owner directives — (1) make the unused dialogue text box a **functional**
+Scope: the two stacked owner directives - (1) make the unused dialogue text box a **functional**
 typed input wired into the real interaction loop, and (2) redesign the desk UI to the concept art
-(`uploads/1_image.png`, treated as the source of truth for proportions and placement) — finished
+(`uploads/1_image.png`, treated as the source of truth for proportions and placement) - finished
 end-to-end, responsive across breakpoints, with fonts from the kit zips, on top of the previously
 integrated SecurityRoom art kit. All work is **uncommitted** by instruction. No pushes.
 
@@ -47,7 +47,7 @@ invented student dialogue.
   selection.
 - Obsolete UI was removed, not layered: the procedural hood/sill/bases/windowframe/glass/facade/
   banner/topbar retire under the kit; the old registry-terminal search box stays gone
-  (FlowCheck asserts `station` has no InputField and no searchbox/placeholder node — which is why
+  (FlowCheck asserts `station` has no InputField and no searchbox/placeholder node - which is why
   the new placeholder Text is named `ph`).
 
 ## 3. Responsive breakpoints (screenshots)
@@ -66,9 +66,9 @@ matched-axis behaviour); nothing stretches, overlaps or clips at any of the seve
 ## 4. Bugs found and fixed in final hardening
 
 1. **Sanity pill never wore the kit tint.** Bootstrap builds the desk before the HUD, so
-   `ApplyKitSanity(true)` hit a null HUD at Init — and `SetSanity` repaints the fill on every
+   `ApplyKitSanity(true)` hit a null HUD at Init - and `SetSanity` repaints the fill on every
    sanity event, so even a successful one-shot tint was clobbered. Fixed with a sticky
-   `_kitSanity` flag (kit-aware inks inside `SetSanity`; alarm reds/oranges kept — they read on
+   `_kitSanity` flag (kit-aware inks inside `SetSanity`; alarm reds/oranges kept - they read on
    the white pill) plus a lazy once-call in `CheckpointView.RefreshHud`. FlowCheck now proves:
    track bed retired, caption/value dark, stage caption hidden, fill stage-correct.
 2. **Speech bubble drew without its paper.** The kit master shipped padded with transparent
@@ -77,7 +77,7 @@ matched-axis behaviour); nothing stretches, overlaps or clips at any of the seve
    units). Fixed on all three layers: prep trims `sec_bubble` to its alpha box (2879×1031),
    `ProceduralArt.FileBorders` measures the real art (480/140/140/140) with a PPU-10 override,
    the dump emits `pixelsPerUnit`, and the renderer converts borders through it (source crops in
-   texture pixels, destinations in screen pixels — exactly uGUI). Proof: tail slice ≥ 20
+   texture pixels, destinations in screen pixels - exactly uGUI). Proof: tail slice ≥ 20
    reference units (measured 48).
 3. **Silent no-op proofs.** The shutter proof still referenced the pre-band `sec_window` node
    (skipped silently) and the click-through loop tolerated missing layers. Both now assert
@@ -97,27 +97,27 @@ matched-axis behaviour); nothing stretches, overlaps or clips at any of the seve
 
 | Suite | Result |
 |---|---|
-| `dotnet run --project Tools/FlowCheck` | exit 0 — **1127 OK / 0 BAD** |
+| `dotnet run --project Tools/FlowCheck` | exit 0 - **1127 OK / 0 BAD** |
 | `dotnet run --project Tools/LogicTests` | **27,773 PASS / 0 FAIL** |
 | `dotnet run --project Tools/Verification/LogicTests` (frozen) | **663 passed / 0 failed** |
 | `bash Tools/Verify/verify.sh` | compile clean + audit clean (107 scripts) |
-| Unity-editor Play Mode / Windows build | **NOT RUN** — no Unity editor in this environment; geometry verified via the dump/render pipeline instead |
+| Unity-editor Play Mode / Windows build | **NOT RUN** - no Unity editor in this environment; geometry verified via the dump/render pipeline instead |
 
 ## 7. Changelog of touched items (this turn, on top of the pass)
 
-- `Assets/_Project/Scripts/UI/HUDView.cs` — `_kitSanity` flag; kit-aware `SetSanity`/`FillInk`;
+- `Assets/_Project/Scripts/UI/HUDView.cs` - `_kitSanity` flag; kit-aware `SetSanity`/`FillInk`;
   `ApplyKitSanity` routes its repaint through `SetSanity`.
-- `Assets/_Project/Scripts/Checkpoint/CheckpointView.cs` — lazy kit-sanity once-call in
+- `Assets/_Project/Scripts/Checkpoint/CheckpointView.cs` - lazy kit-sanity once-call in
   `RefreshHud` (+ `_kitSanityApplied`).
-- `Assets/_Project/Scripts/Checkpoint/CheckpointView.KitSkin.cs` — comment: immediate tint is
+- `Assets/_Project/Scripts/Checkpoint/CheckpointView.KitSkin.cs` - comment: immediate tint is
   best-effort; the lazy path owns the normal bootstrap order.
-- `Assets/_Project/Scripts/Bootstrap/ProceduralArt.cs` — `FilePpus` (sec_bubble PPU 10);
+- `Assets/_Project/Scripts/Bootstrap/ProceduralArt.cs` - `FilePpus` (sec_bubble PPU 10);
   `FileBorders` re-measured on the trimmed master (480/140/140/140).
-- `Assets/_Project/Resources/Art/SecurityRoom/sec_bubble.png` — trimmed to alpha box in place
+- `Assets/_Project/Resources/Art/SecurityRoom/sec_bubble.png` - trimmed to alpha box in place
   (meta/guid untouched); `Tools/prep_securityroom_art.py` trims on export for reproducibility.
-- `Tools/FlowCheck/Program.cs` — sanity-pill proofs, band-synced shutter proof, presence
+- `Tools/FlowCheck/Program.cs` - sanity-pill proofs, band-synced shutter proof, presence
   assertions on every kit layer, tail-slice-units proof, `pu` field in the screen dump.
-- `Tools/Preview/render_screen.py` — uGUI-correct 9-slice (source vs destination borders through
+- `Tools/Preview/render_screen.py` - uGUI-correct 9-slice (source vs destination borders through
   pixelsPerUnit); docstring updated.
 - Docs: `REFACTOR_LOG.md` (new top entry), `README.md` (window-talk controls row, verification
   counts + dump/render commands), `ARCHITECTURE.md` (typed window talk paragraph), this report.

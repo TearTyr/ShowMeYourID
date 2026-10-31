@@ -23,7 +23,7 @@ namespace Hollowbrook.Logic
     ///    passes the ROOM's ambient state, never a flashlight mode).
     ///  - Hitting 0 sets Dead exactly once (justDied) and the beam stays off.
     ///  - Dead clears exactly once (justRebooted) at RebootFraction; the beam does NOT
-    ///    switch back on by itself — input arbitration demands a deliberate press.</summary>
+    ///    switch back on by itself - input arbitration demands a deliberate press.</summary>
     public static class BatteryModel
     {
         public static BatteryState Tick(BatteryState s, LightMode beam, bool roomLit, float dt,

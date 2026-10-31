@@ -361,7 +361,7 @@ namespace Hollowbrook.Logic
                 ClaimedName = "V. Marlowe",
                 RecordName = "R. Vance",                  // roster memo lists a different administrator
                 IdNumber = "DA-0233",                     // staff badge number, not on the roster memo
-                RecordIdNumber = "DA-1147",               // memo: "R. Vance — DA-1147"
+                RecordIdNumber = "DA-1147",               // memo: "R. Vance - DA-1147"
                 IdYearLevel = 1, RecordYearLevel = 1,     // unused for staff (no year level)
                 IdCourseIndex = 0, RecordCourseIndex = 0, // unused ("District Administration")
                 IdIsTransferee = false, RecordIsTransferee = false,
@@ -371,7 +371,7 @@ namespace Hollowbrook.Logic
                 IdPhoto = badgePhoto,                     // subtle photo defect + distortion at window
                 InDatabase = false,                       // badge not in the student registry
                 DuplicateOfShift = "",
-                RecordFirstClassroom = "— (district personnel)",
+                RecordFirstClassroom = "- (district personnel)",
                 Greeting = Content.AdminLines[0],
             };
             v.Defects.Add(DefectType.RecordNameMismatch);  // badge vs roster memo name
@@ -382,9 +382,9 @@ namespace Hollowbrook.Logic
             v.WindowFaceIndex = -1;                        // the administrator has his own face art
             v.SlipName = v.ClaimedName;
             v.SlipIdNumber = v.IdNumber;
-            v.SlipReason = "DISTRICT BUSINESS — SEE OFFICE";
+            v.SlipReason = "DISTRICT BUSINESS - SEE OFFICE";
             // the administrator is the EXTRA final entry after the standard roster, so its
-            // run-wide index is the roster length — set here, where the identity is built, so
+            // run-wide index is the roster length - set here, where the identity is built, so
             // every caller (roster generation AND the headless harness) gets a unique index
             v.VisitorIndex = shift.VisitorCount;
             return v;

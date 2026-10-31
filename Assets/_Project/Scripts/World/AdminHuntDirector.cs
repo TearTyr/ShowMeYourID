@@ -185,7 +185,7 @@ namespace Hollowbrook.World
             _chargeFromX = (playerX > 0f ? -1f : 1f) * (half - 1.2f);
             ShowFigureIn(RoomId.Hallway, new Vector3(_chargeFromX, RoomInstance.FloorY + FigureHeight * 0.5f, 0f));
             if (_views.Flashlight != null) _views.Flashlight.Recharge();
-            Say("*heavy footsteps in the hallway — FLASH HIS FACE!  (F / Q)*", 2.6f);
+            Say("*heavy footsteps in the hallway - FLASH HIS FACE!  (F / Q)*", 2.6f);
             _root.Audio.PlaySfx("sfx_heartbeat", 0.8f);
         }
 
@@ -215,7 +215,7 @@ namespace Hollowbrook.World
         {
             PlaceForTracking();
             _root.Audio.PlaySfx("sfx_glitch", 0.5f);
-            Say("*he is right there — keep the light on his head*", 2.4f);
+            Say("*he is right there - keep the light on his head*", 2.4f);
         }
 
         private void OnStun()
@@ -248,7 +248,7 @@ namespace Hollowbrook.World
             if (_root.Scares != null) _root.Scares.Capture(AnomalyBehaviorKind.Blink);
             var current = _views.Current;
             if (_views.Player != null && current != null) _views.Player.PlaceInRoom(current, current.PlayerSpawn);
-            Say("*he reached you — you are shoved back*", 2.4f);
+            Say("*he reached you - you are shoved back*", 2.4f);
         }
 
         // ------------------------------------------------------------ hints and the HUD line
@@ -288,7 +288,7 @@ namespace Hollowbrook.World
             switch (_hunt.Phase)
             {
                 case HuntPhase.Tracking: return "KEEP THE LIGHT ON HIS HEAD!   " + meter;
-                case HuntPhase.Charging: return "FLASH HIS FACE — F or Q!   " + meter;
+                case HuntPhase.Charging: return "FLASH HIS FACE - F or Q!   " + meter;
                 case HuntPhase.Hiding: return "He is inside the school. Peek into the classrooms (E at a door).   " + meter;
                 default: return meter;
             }

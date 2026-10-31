@@ -2,7 +2,7 @@ namespace Hollowbrook.Logic
 {
     /// <summary>School floor connectivity: the hallway hub plus two classrooms, and where each
     /// door sits in its room's local x. Single source of truth for both the physical doors
-    /// RoomBuilder places and the routes anomalies patrol — roamers walk through doors, they
+    /// RoomBuilder places and the routes anomalies patrol - roamers walk through doors, they
     /// never teleport between rooms.</summary>
     public static class RoomGraph
     {

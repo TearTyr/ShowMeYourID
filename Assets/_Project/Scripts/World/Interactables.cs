@@ -58,7 +58,7 @@ namespace Hollowbrook.World
             if (_gameRoot.Views.Transitioning) return;
             if (Target == RoomId.Security && _gameRoot.HuntActive)
             {
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, "THE SECURITY DOOR IS LOCKED — HE IS INSIDE THE SCHOOL."));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, "THE SECURITY DOOR IS LOCKED - HE IS INSIDE THE SCHOOL."));
                 return;
             }
             if (Target == RoomId.Security) _gameRoot.Views.ReturnToSecurity();
@@ -83,7 +83,7 @@ namespace Hollowbrook.World
             _def = root.Session.Clues.Get(clueKey); // def content is static; tracker state lives in session
             Prompt = "Inspect " + label + " [E]";
             // no world sprite by design: the peek prompt and E reveal clues until real art
-            // exists — hang a SpriteRenderer here when it does
+            // exists - hang a SpriteRenderer here when it does
         }
 
         public override void Interact()
@@ -106,7 +106,7 @@ namespace Hollowbrook.World
             {
                 lines.Add(new DialogueLine { Speaker = "NOTE TO SELF", Text = _def.ChainHint });
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    "FINDING " + _gameRoot.Session.Clues.FoundCount + "/10 — " + _def.Display));
+                    "FINDING " + _gameRoot.Session.Clues.FoundCount + "/10 - " + _def.Display));
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.ClueDiscovered, res));
                 AddMarker();
                 if (_def.IsScare && _gameRoot.Scares != null)

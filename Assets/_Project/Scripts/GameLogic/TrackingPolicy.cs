@@ -1,10 +1,10 @@
 namespace Hollowbrook.Logic
 {
-    /// <summary>Rate model for the repel meter — nothing else. Focus illumination ADVANCES the
+    /// <summary>Rate model for the repel meter - nothing else. Focus illumination ADVANCES the
     /// meter; any lesser observation (Sweep beam, lit room, the short grace window after Focus
     /// is lost) only HOLDS it, so ambient light can never resolve an encounter by itself;
     /// darkness decays it. Whether a full meter means "exposed" or "repelled" is decided by
-    /// AnomalyEncounter — the single authoritative progression path. Hallucinations keep their
+    /// AnomalyEncounter - the single authoritative progression path. Hallucinations keep their
     /// separate Focus-seconds truth-check.</summary>
     public static class TrackingPolicy
     {

@@ -104,7 +104,7 @@ namespace Hollowbrook.Horror
         }
 
         // At the desk: a student at the window wears sanity down slowly (a scary one a little
-        // more), an empty window lets the custodian rest. Interactions are the same path — the
+        // more), an empty window lets the custodian rest. Interactions are the same path - the
         // drain follows whoever is at the glass, whether they are a student or an anomaly.
         private void TickDesk(GameSession session, float dt)
         {

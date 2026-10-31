@@ -252,7 +252,7 @@ namespace FlowCheck
         // ------------------------------------------------------- teardown (OnDestroy)
         // GameRoot.OnDestroy releases the procedural caches. Kit/drop-in sprites BORROW
         // imported Resources textures: those are assets on disk, and Destroy on them is
-        // refused by Unity ("Destroying assets is not permitted to avoid data loss") —
+        // refused by Unity ("Destroying assets is not permitted to avoid data loss") -
         // exactly the editor-console flood this proof pins shut. Runtime objects (painted
         // textures, Sprite wrappers, synthesised clips) must still be freed.
         private static void TeardownProof()
@@ -271,7 +271,7 @@ namespace FlowCheck
             ProceduralAudio.ClearCache();
             Check(UnityEngine.Debug.ErrorCount == errs,
                   "teardown logs no engine error (no 'Destroying assets is not permitted')");
-            Check(fileTex, "the imported kit texture SURVIVES teardown (asset on disk — not ours to free)");
+            Check(fileTex, "the imported kit texture SURVIVES teardown (asset on disk - not ours to free)");
             Check(!procTex, "the procedural texture is released with the core");
             Check(!fileSprite && !procSprite, "both runtime Sprite wrappers are released");
             Check(!ProceduralArt.CachedKeys.Any(), "the art cache is empty after teardown");
@@ -412,7 +412,7 @@ namespace FlowCheck
                   L.Inner.QAnswer.Bottom <= 195f,
                 "question button and answer note stack inside the panel, clear of the painted frame");
             // folder tabs: station-local grid; file rows: drawer-body grid, starting under the
-            // 52px front lip and the 18px header — a whole floor folder (7 files) fits
+            // 52px front lip and the 18px header - a whole floor folder (7 files) fits
             Check(Math.Abs(L.Inner.FolderTabX - (L.Station.W - L.Inner.FolderTabW) / 2f) < 0.01f &&
                   Math.Abs(L.Inner.FolderTabY0 - 40) < 0.01f &&
                   Math.Abs(L.Inner.FolderTabStep - 35) < 0.01f && Math.Abs(L.Inner.FolderTabW - 230) < 0.01f &&
@@ -515,7 +515,7 @@ namespace FlowCheck
 
         // Centre-Y of an element in its parent's centred space (+y up), pivot- and anchor-aware:
         // the map's sheets and rows are anchored to different edges, so raw anchoredPosition
-        // values are not comparable — this is.
+        // values are not comparable - this is.
         private static float CentreY(RectTransform rt)
         {
             // a full-screen parent reports sizeDelta (0,0) because it is anchored to stretch,
@@ -529,7 +529,7 @@ namespace FlowCheck
                 parentH = Screen.height / sf;
             }
             // anchor reference point relative to the PARENT'S centre, then the element's own
-            // anchoredPosition (which its pivot is measured from) — Unity's RectTransform rule
+            // anchoredPosition (which its pivot is measured from) - Unity's RectTransform rule
             float anchorFromCentre = ((rt.anchorMin.y + rt.anchorMax.y) / 2f - 0.5f) * parentH;
             return anchorFromCentre + rt.anchoredPosition.y;
         }
@@ -559,7 +559,7 @@ namespace FlowCheck
             if (audit == null) return;
             var bad = audit.CheckAll();
             foreach (var line in bad) Console.WriteLine("  BAD  " + frameName + " " + line);
-            Check(bad.Count == 0, frameName + ": " + audit.Count + " registered elements match the grid within 2px — zero warnings");
+            Check(bad.Count == 0, frameName + ": " + audit.Count + " registered elements match the grid within 2px - zero warnings");
         }
 
         private static bool ShareState(string a, string b)
@@ -574,7 +574,7 @@ namespace FlowCheck
             FindDeep(root.HUD.transform, "objective").GetComponent<UnityEngine.UI.Text>().text;
 
         // the red interaction strip: the moment-to-moment instruction (the grey objective
-        // strip no longer mirrors it — one instruction per band, owner UI report #2A)
+        // strip no longer mirrors it - one instruction per band, owner UI report #2A)
         private static string PromptText(GameRoot root) =>
             FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>().text;
 
@@ -664,7 +664,7 @@ namespace FlowCheck
             idDrag.PlaceCenter(home);                      // tidy back for the next checks
             idDrag.EndDrag();
 
-            // task 5: the ID card's DEFAULT display is slightly smaller — the whole card
+            // task 5: the ID card's DEFAULT display is slightly smaller - the whole card
             // (sprite, photo, rows) scales uniformly through its art layer, so the design
             // proportions survive and the inspect view enlarges it from the resting size
             float cardRatio = CheckpointView.IdCardScale;
@@ -684,7 +684,7 @@ namespace FlowCheck
                 "the card footprint is the concept rect; the printed art keeps its 320x220 design space");
 
             // the scanner is gone: dropping the ID anywhere on the open desk is just
-            // repositioning — no side effects
+            // repositioning - no side effects
             idDrag.BeginDrag();
             idDrag.PlaceCenter(new Vector2(820f, 620f));
             idDrag.EndDrag();
@@ -730,13 +730,13 @@ namespace FlowCheck
             Check(body != null && front != null && pull != null && drawer != null,
                 "DRAWER: the cabinet is one mouth + one sliding body + one front, and the front is the pull");
             Check(FindDeep(cp.transform, "drawerzone") == null,
-                "DRAWER: the old hover-gated zone is gone — nothing pops open just because the cursor passed");
+                "DRAWER: the old hover-gated zone is gone - nothing pops open just because the cursor passed");
             Check(FindDeep(cp.transform, "stationout") == null,
-                "DRAWER: no permanent status text under the cabinet — the pulled sheet IS the feedback");
+                "DRAWER: no permanent status text under the cabinet - the pulled sheet IS the feedback");
             var cabFront = FindDeep(cp.transform, "cabfront");
             Check(cabFront != null && cabFront.parent == cabinet && cabFront.Find("cabgrip") != null &&
                   cabFront.Find("cabtag") != null,
-                "DRAWER: the shut cabinet wears a gripped, tagged drawer front — the pull reads before it moves");
+                "DRAWER: the shut cabinet wears a gripped, tagged drawer front - the pull reads before it moves");
             Check(!FindDeep(cp.transform, "folder1").gameObject.activeSelf && !drawer.gameObject.activeSelf,
                 "DRAWER: floor files start HIDDEN inside the shut cabinet (front label + handle only)");
             // start from a known state: whatever the preceding proofs left behind, push the
@@ -755,12 +755,12 @@ namespace FlowCheck
                 "DRAWER: one click on the cabinet front starts the pull immediately (no delay, no pop-in)");
             float clickFrameOut = DrawerMotion.BodyOffset(cp.DrawerPull);
             Check(clickFrameOut > 20f && body.GetComponent<RectTransform>().anchoredPosition.y < shutY - 20f,
-                // (anchoredPosition.y falls as the body travels down/out — PlaceTL stores desk y negated)
+                // (anchoredPosition.y falls as the body travels down/out - PlaceTL stores desk y negated)
                 $"DRAWER: the click frame ALREADY has the body {clickFrameOut:F0}px out of the cabinet " +
-                "(the input is answered by the same frame that received it — no wind-up, no pop-in)");
+                "(the input is answered by the same frame that received it - no wind-up, no pop-in)");
             Check(clickFrameOut < DrawerMotion.TravelPx * 0.5f,
                 "DRAWER: ...and it travels, rather than jumping straight to the end (a real pull)");
-            DeskFrames(cp, 2);   // two more 60 Hz frames — exactly what the player sees next
+            DeskFrames(cp, 2);   // two more 60 Hz frames - exactly what the player sees next
             Check(DrawerMotion.BodyOffset(cp.DrawerPull) > clickFrameOut + 20f,
                 $"DRAWER: the next frames carry it further out ({DrawerMotion.BodyOffset(cp.DrawerPull):F0}px)");
             Check(shadow.GetComponent<UnityEngine.UI.Image>().color.a > 0.05f,
@@ -769,7 +769,7 @@ namespace FlowCheck
             Check(Mathf.Abs(cp.DrawerPull - 1f) < 1e-4f && cp.DrawerIsOpen,
                 "DRAWER: fully out inside a fifth of a second, and it STAYS out (no bounce, no auto-close)");
             Check(Mathf.Abs(body.GetComponent<RectTransform>().anchoredPosition.y) < 0.01f,
-                "DRAWER: the open body sits flush with the mouth — every file row is reachable");
+                "DRAWER: the open body sits flush with the mouth - every file row is reachable");
             Check(FindDeep(cp.transform, "folder1").gameObject.activeSelf &&
                   FindDeep(cp.transform, "folder2").gameObject.activeSelf,
                 "DRAWER: the floor folders are only reachable once the drawer is out");
@@ -794,12 +794,12 @@ namespace FlowCheck
                   "the pulled record is the row that was clicked");
             Check(Mathf.Approximately(
                       FindDeep(cp.transform, "cabfront").GetComponent<CanvasGroup>().alpha, 0f),
-                  "the shut cabinet face yields to the pulled drawer — never two fronts at once");
+                  "the shut cabinet face yields to the pulled drawer - never two fronts at once");
             Check(row0.Find("pill").GetComponent<UnityEngine.UI.Image>().color !=
                   FindDeep(cp.transform, "filerow1").Find("pill").GetComponent<UnityEngine.UI.Image>().color,
                   "the selected file row stays highlighted");
             Check(cp.DrawerIsOpen,
-                  "DRAWER: taking a file leaves the drawer OUT — browsing several files never re-pulls it");
+                  "DRAWER: taking a file leaves the drawer OUT - browsing several files never re-pulls it");
             var closeBtn = FindDeep(cp.transform, "closefile").GetComponent<UnityEngine.UI.Button>();
             closeBtn.onClick.Invoke();
             Check(!FindDeep(cp.transform, "record").gameObject.activeSelf, "the file's X closes the window");
@@ -817,14 +817,14 @@ namespace FlowCheck
                       .ToUpperInvariant().Contains(row2Name),
                   "pulling from the second folder reopens the record sheet");
 
-            // repeated input: one drawer, one animation, one set of files — never a pile-up
+            // repeated input: one drawer, one animation, one set of files - never a pile-up
             int rowsBefore = CountDeep(cp.transform, "filerow0");
             int bodiesBefore = CountDeep(cp.transform, "drawerbody");
             pull.onClick.Invoke();   // the open drawer's own toggle: pushes it back in
             Check(!cp.DrawerIsOpen, "DRAWER: clicking the front again pushes the drawer back in");
             Check(cp.DrawerPull > 0f, "DRAWER: ...and it starts moving on the click frame, not later");
             pull.onClick.Invoke();   // yanked straight back out MID-TRAVEL: the motion reverses
-            pull.onClick.Invoke();   // and again — three toggles, still one drawer, one animation
+            pull.onClick.Invoke();   // and again - three toggles, still one drawer, one animation
             pull.onClick.Invoke();   // (an even number, so it ends the way the player left it: out)
             DeskFrames(cp, 16);
             Check(CountDeep(cp.transform, "drawerbody") == bodiesBefore && bodiesBefore == 1 &&
@@ -841,7 +841,7 @@ namespace FlowCheck
                   !FindDeep(cp.transform, "folder1").gameObject.activeSelf,
                 "DRAWER: closing reverses the motion and restores the shut cabinet (front + handle only)");
             Check(Mathf.Abs(body.GetComponent<RectTransform>().anchoredPosition.y - shutY) < 0.01f,
-                "DRAWER: the body parks back exactly where it started — no drift across open/close cycles");
+                "DRAWER: the body parks back exactly where it started - no drift across open/close cycles");
             PressDeskKey(cp, KeyCode.Tab);
             DeskFrames(cp, 14);
             Check(cp.DrawerIsOpen && cp.DrawerFloor == 2,
@@ -957,7 +957,7 @@ namespace FlowCheck
             slipDragC.BeginDrag();
             slipDragC.EndDrag();      // a tap on the taken slip used to turn it over
             Check(FaceOf(slipT, "bg").gameObject.activeSelf,
-                "tapping the taken slip does nothing — its face stays up");
+                "tapping the taken slip does nothing - its face stays up");
             Check(FindDeep(cp.transform, "stampoverlay").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
                 "the stamp mark stays on the slip");
             Check(!FaceOf(idGo, "idback").gameObject.activeSelf, "(the ID is face-up before F)");
@@ -968,7 +968,7 @@ namespace FlowCheck
                 "...and never touches the slip");
             // the ID deliberately STAYS face-down here: the desk loop's fresh-visitor
             // check proves the hand-over reset turns it face-up (flip never carries over)
-            // task 1: stacking — right-column panels below papers, stamps above papers
+            // task 1: stacking - right-column panels below papers, stamps above papers
             int qPI = FindDeep(cp.transform, "qpanel_border").GetSiblingIndex();
             int layI = FindDeep(cp.transform, "PapersLayer").GetSiblingIndex();
             int stpI = FindDeep(cp.transform, "stamp_allow").GetSiblingIndex();
@@ -976,7 +976,7 @@ namespace FlowCheck
             // task 2: stripe on both faces
             Check(FindDeep(cp.transform, "idstripe") != null && FindDeep(cp.transform, "idstripeback") != null,
                   "the ID carries its black stripe on front and (mirrored) back");
-            // task 3 (reworked): folder tabs sit exactly on the station grid — PlaceTL, no pixel nudges
+            // task 3 (reworked): folder tabs sit exactly on the station grid - PlaceTL, no pixel nudges
             var tabRt = FindDeep(cp.transform, "folder1").GetComponent<RectTransform>();
             var tl = new Vector2(0f, 1f);
             Check(tabRt.anchorMin == tl && tabRt.anchorMax == tl && tabRt.pivot == tl &&
@@ -1000,7 +1000,7 @@ namespace FlowCheck
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
             Check(Mathf.Abs(idRtI.localScale.x - restScale) < 0.01f && !idDragI.Inspecting,
-                "INSPECT: Z does nothing any more — the zoom key is gone");
+                "INSPECT: Z does nothing any more - the zoom key is gone");
             idDragI.Tap();      // exactly what a still click on the card body does
             Check(idDragI.Inspecting && Mathf.Abs(idRtI.localScale.x - restScale * idDragI.InspectScale) < 0.01f,
                 "INSPECT: a click lifts the ID, enlarged to " + idDragI.InspectScale + "x");
@@ -1014,7 +1014,7 @@ namespace FlowCheck
                   catcher.GetSiblingIndex() < idGo.GetSiblingIndex(),
                 "INSPECT: a dimmer sits right under the card and takes the click-away");
             idDragI.BeginDrag();
-            Check(!idDragI.Dragging, "INSPECT: an inspected card cannot be dragged — click off it first");
+            Check(!idDragI.Dragging, "INSPECT: an inspected card cannot be dragged - click off it first");
             catcher.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();     // click anywhere off the card
             Check(!idDragI.Inspecting && Mathf.Abs(idRtI.localScale.x - restScale) < 0.01f &&
                   Mathf.Abs(Mathf.DeltaAngle(idRtI.localEulerAngles.z, restTilt)) < 0.01f &&
@@ -1026,13 +1026,13 @@ namespace FlowCheck
             slipDragI.Tap();
             slipDragI.Inspect();
             Check(!slipDragI.Inspecting && Mathf.Abs(slipT.localScale.x - 1f) < 0.01f,
-                "INSPECT: tapping or asking the slip to inspect does nothing — it stays 1x");
+                "INSPECT: tapping or asking the slip to inspect does nothing - it stays 1x");
         }
 
         // ---------------------------------------------------- speech bubble proof
         // The student's voice lives in a comic bubble beside the portrait's head:
         // visible while the line is up and STAYING up until the next line replaces it or the
-        // desk clears it — no timer, so a clue can never vanish before it is read.
+        // desk clears it - no timer, so a clue can never vanish before it is read.
         private static void BubbleProof(GameRoot root)
         {
             Console.WriteLine("== speech bubble beside the student's head ==");
@@ -1044,7 +1044,7 @@ namespace FlowCheck
             Check(bubbleRoot != null && bubbleRoot.gameObject.activeSelf,
                 "SB: the bubble is up while the visitor's greeting is showing");
             Check(!text.text.Contains("AT THE WINDOW") && text.text.Length > 0,
-                "SB: the reference bubble speaks the line alone — the tail points at the speaker");
+                "SB: the reference bubble speaks the line alone - the tail points at the speaker");
             Check(!text.text.StartsWith("<b><color="),
                 "SB: no speaker-tag markup rides in the kit bubble");
             Check(tail.sprite != null, "SB: the bubble carries its pointing tail");
@@ -1054,30 +1054,30 @@ namespace FlowCheck
             foreach (var t in bubbleRoot.gameObject.GetComponentsInChildren<UnityEngine.UI.Text>(true))
                 if (t.raycastTarget) anyRaycast = true;
             Check(!anyRaycast,
-                "SB: the bubble is entirely click-through — a click or drag over it reaches the desk below");
+                "SB: the bubble is entirely click-through - a click or drag over it reaches the desk below");
             Check(bubbleRoot.GetSiblingIndex() < FindDeep(cp.transform, "PapersLayer").GetSiblingIndex(),
-                "SB: the bubble sits under the papers layer — a dragged paper rides over it");
+                "SB: the bubble sits under the papers layer - a dragged paper rides over it");
             Check(L.Inner.BubbleTail.X < 0f && L.Inner.BubbleTail.Right > 0f,
                 "SB: the tail straddles the panel's left edge (seamless comics seam)");
             Check(Mathf.Abs(panel.anchoredPosition.x + 48f) < 0.01f &&
                   Mathf.Abs(-panel.anchoredPosition.y) < 0.01f &&
                   Mathf.Abs(panel.anchoredPosition.x + panel.sizeDelta.x - 14f - L.Inner.BubblePanelW) < 0.01f,
-                "SB: the kit panel hangs its painted tail border OUTSIDE the box — the white " +
+                "SB: the kit panel hangs its painted tail border OUTSIDE the box - the white " +
                 "panel grows down from the container top at exactly the full box width");
             Check(L.SpeechBubble.X >= 735f &&
                   L.SpeechBubble.Y < L.Portrait.Y + L.Portrait.H / 2f + 40f &&
                   L.SpeechBubble.Bottom < L.Sill.Bottom,
-                "SB: the bubble hangs BESIDE the head — right of the face, at head height, above the sill");
+                "SB: the bubble hangs BESIDE the head - right of the face, at head height, above the sill");
             float h0 = panel.sizeDelta.y;
             Check(h0 >= 56f && h0 <= L.SpeechBubble.H + 0.01f,
                 "SB: the panel wraps to the line count inside its box (h=" + h0 + ")");
 
             // no timer: the line is still up long after it was spoken
             Check(bubbleRoot.gameObject.activeSelf && cp.BubbleClock.Visible,
-                "SB: the line is up and stays up — nothing ticks it away");
+                "SB: the line is up and stays up - nothing ticks it away");
 
             // a new line replaces the old one and shows normally
-            cp.DebugSay("One more thing — the intercom crackles.");
+            cp.DebugSay("One more thing - the intercom crackles.");
             Check(bubbleRoot.gameObject.activeSelf, "SB: a fresh line keeps the bubble up");
             int gen1 = cp.BubbleClock.Generation;
             cp.DebugSay("Second line, replacing the first.");
@@ -1110,7 +1110,7 @@ namespace FlowCheck
             {
                 cp.DebugSay(line);
                 Check(!text.text.EndsWith("…") && text.text == line,
-                    "SB: the longest real line (" + line.Length + " chars) is shown in full — nothing is cut off");
+                    "SB: the longest real line (" + line.Length + " chars) is shown in full - nothing is cut off");
                 Check(panel.sizeDelta.y > 56f && panel.sizeDelta.y <= L.SpeechBubble.H + 0.01f,
                     "SB: the panel grows to the wrapped line count (h=" + panel.sizeDelta.y + ")");
             }
@@ -1166,14 +1166,14 @@ namespace FlowCheck
             var slipArt = slipT.Find("slipart").GetComponent<RectTransform>();
             var soRt = FindDeep(cp.transform, "stampoverlay").GetComponent<RectTransform>();
             Check(FindDeep(cp.transform, "stampbox") == null,
-                "SP: no printed target box — the drop point decides where the mark lands");
+                "SP: no printed target box - the drop point decides where the mark lands");
 
             // ---- case 1: a drop at the centre of a ZOOMED slip lands at the drop point ----
             cp.DebugTakeDocuments();
             TakeSlip(root);                       // slip centred at (760,500): top-left (660,440)
             var slipDrag0 = slipT.GetComponent<DragPaper>();
             Check(!slipDrag0.Inspectable && Mathf.Abs(slipT.localScale.x - 1f) < 0.01f,
-                "SP: the slip is not inspectable — it rests at 1x and is only ever dragged");
+                "SP: the slip is not inspectable - it rests at 1x and is only ever dragged");
             // scaffolding only: scale the rect directly so the drop maths still proves it maps
             // through ANY scale chain (nothing in the game scales the slip any more)
             slipT.localScale = new Vector3(1.5f, 1.5f, 1f);
@@ -1188,12 +1188,12 @@ namespace FlowCheck
                 "SP: the mark shows the EXISTING stamp art for the verdict (types preserved)");
             Check(Mathf.Abs(soRt.sizeDelta.x - CheckpointView.StampMarkSize) < 0.01f &&
                   Mathf.Abs(soRt.sizeDelta.y - CheckpointView.StampMarkSize) < 0.01f,
-                $"SP: the mark draws at {soRt.sizeDelta.x:F0}x{soRt.sizeDelta.y:F0} reference px — square, so no stretching");
+                $"SP: the mark draws at {soRt.sizeDelta.x:F0}x{soRt.sizeDelta.y:F0} reference px - square, so no stretching");
             float grow = soRt.sizeDelta.x / 45f - 1f;           // 45px = the previous size
             Check(grow > 0.30f && grow < 0.40f,
                 $"SP: the mark is {grow:P1} LARGER than the 45px baseline (target 30-40%)");
             Check(soRt.sizeDelta.x <= slipArt.rect.width * 0.33f,
-                $"SP: the mark covers {soRt.sizeDelta.x / slipArt.rect.width:P0} of the slip's width — ink over paper, never a panel");
+                $"SP: the mark covers {soRt.sizeDelta.x / slipArt.rect.width:P0} of the slip's width - ink over paper, never a panel");
             var top = new Vector2(slipT.anchoredPosition.x, -slipT.anchoredPosition.y);
             float slipScale = slipT.localScale.x * slipArt.localScale.x;   // zoom * printed scale
             var local = StampPlacement.DeskToLocal(797.5f, 522.5f, top.x, top.y,
@@ -1241,7 +1241,7 @@ namespace FlowCheck
             Check(Vector2.Distance(deskBefore, deskAfter) > 50f,
                 $"SP: ...and on the desk the mark moved WITH the slip ({Vector2.Distance(deskBefore, deskAfter):F0}px)");
             // commit the stamped slip (the corner-clamp and keyboard-default cases run on
-            // IssueOneProofs' own fresh shift — night 1's roster is only four deep), then
+            // IssueOneProofs' own fresh shift - night 1's roster is only four deep), then
             // read the verdict record: no face-check data anywhere
             HandBack(root, true, true);
             FindDeep(desk, "records").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
@@ -1254,7 +1254,7 @@ namespace FlowCheck
             // the next visitor (night 1's last) is left untouched for the desk loop
 
             // the reduced mark's art ships as a real asset override (Resources/Art/stamp_allow.png),
-            // which the headless Resources stub cannot load — so prove the FILE and its alpha
+            // which the headless Resources stub cannot load - so prove the FILE and its alpha
             // stream are in place, exactly as ProceduralArt.Get would find them in the editor.
             string rootDir = RepoRoot();
             string png = rootDir == null ? null :
@@ -1288,7 +1288,7 @@ namespace FlowCheck
             bool cone = FindDeep(rig.transform, "beam").gameObject.activeSelf;
             bool mask = FindDeep(rig.transform, "FlashlightMask").gameObject.activeSelf;
             Check(cone == want && mask == want,
-                $"{tag}: cone + mask agree with the beam state ({(want ? "ON" : "OFF")}) — the only two light layers");
+                $"{tag}: cone + mask agree with the beam state ({(want ? "ON" : "OFF")}) - the only two light layers");
             string hud = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
             // while peeking, the handheld readout is replaced by the peek flashlight's own line
             bool peeking = root.State == AppViewState.RoomPeek;
@@ -1319,7 +1319,7 @@ namespace FlowCheck
         // --------------------------- the retired ID-photo / face matching mechanic
         // The click-the-photo-then-click-the-face comparison is GONE: no click targets, no
         // selection state, no cue, no prompts, no code left that could resurrect it. What must
-        // SURVIVE is everything the faces themselves are for — the window portrait and the ID
+        // SURVIVE is everything the faces themselves are for - the window portrait and the ID
         // photo still render the right sprites, still centred in their slots, because the
         // anomaly system (PhotoMismatch / PhotoSubtleMismatch) is an EYE-CHECK: the player
         // compares them with no help from the desk.
@@ -1344,7 +1344,7 @@ namespace FlowCheck
             var photoImg = FindDeep(cp.transform, "idphoto").GetComponent<UnityEngine.UI.Image>();
             var portraitImg = FindDeep(cp.transform, "visitor").GetComponent<UnityEngine.UI.Image>();
             Check(!photoImg.raycastTarget && !portraitImg.raycastTarget,
-                "FM: the ID photo and the face at the window take NO clicks — they are printed ink and scenery");
+                "FM: the ID photo and the face at the window take NO clicks - they are printed ink and scenery");
             Check(FindDeep(cp.transform, "idphoto").GetComponent<UnityEngine.UI.Button>() == null &&
                   FindDeep(cp.transform, "visitor").GetComponent<UnityEngine.UI.Button>() == null,
                 "FM: neither face is a button, so neither can be a matching target");
@@ -1374,7 +1374,7 @@ namespace FlowCheck
             Check(!desk.Contains("green frame") && !desk.Contains("second-opinion"),
                 "FM: no comparison-result wording survives (green/amber cue language is gone)");
 
-            // 4) the faces themselves still work — the eye-check the anomaly system relies on
+            // 4) the faces themselves still work - the eye-check the anomaly system relies on
             var v = cp.CurrentVisitor;
             Check(photoImg.sprite != null && portraitImg.sprite != null &&
                   photoImg.sprite.name != "face_placeholder" && portraitImg.sprite.name != "face_placeholder",
@@ -1382,7 +1382,7 @@ namespace FlowCheck
             var offeredImg = FindDeep(cp.transform, "photo").GetComponent<UnityEngine.UI.Image>();
             Check(offeredImg.sprite != null && offeredImg.sprite.name != "face_placeholder" &&
                   !offeredImg.raycastTarget,
-                "FM: the counter card's photo renders the same face — and is not clickable either");
+                "FM: the counter card's photo renders the same face - and is not clickable either");
 
             var vWant = Hollowbrook.UI.UIFactory.Letterbox(L.Portrait.W, L.Portrait.H,
                 portraitImg.sprite.rect.width, portraitImg.sprite.rect.height);
@@ -1482,7 +1482,7 @@ namespace FlowCheck
             var title = map.Title;
             Check(title != null && title.text == FloorPlan.Title &&
                   title.text.Contains("HOLLOWBROOK COLLEGE") && title.text.Contains("GROUND FLOOR"),
-                "MAP: the sheet carries the HOLLOWBROOK COLLEGE — GROUND FLOOR title");
+                "MAP: the sheet carries the HOLLOWBROOK COLLEGE - GROUND FLOOR title");
             Check(title.font == UIFactory.HandFont, "MAP: the title is set in the handwritten plan face");
             var closeRow = map.CloseRow;
             Check(closeRow != null && Mathf.Abs(closeRow.anchoredPosition.x) < 0.01f,
@@ -1523,7 +1523,7 @@ namespace FlowCheck
                   hallNode.GetComponent<RectTransform>().anchoredPosition.x,
                 "MAP: the security checkpoint is on the LEFT");
             // inside the plan container (centre anchor, centre pivot) anchoredPosition.y IS the
-            // offset from the plan's centre, y down — directly comparable between rooms
+            // offset from the plan's centre, y down - directly comparable between rooms
             // Design y is DOWN, and Design() maps it to anchoredPosition.y = -y * scale, so a
             // room drawn ABOVE the hallway has the LARGER anchored y inside the plan container.
             float hallY = hallNode.GetComponent<RectTransform>().anchoredPosition.y;
@@ -1566,10 +1566,10 @@ namespace FlowCheck
                   !crN.Overlaps(c1.Value) && !crS.Overlaps(c2.Value),
                 "MAP: the comfort rooms obstruct neither the hallway nor the classrooms");
             Check(!crN.Room.HasValue && !crS.Room.HasValue && !crN.Sealed && !crS.Sealed,
-                "MAP: the comfort rooms are map-only — they are not patrol destinations");
+                "MAP: the comfort rooms are map-only - they are not patrol destinations");
 
             // every drawn room sits inside the drawn plan, at its design-space size, and at the
-            // position the table asks for — the check that catches a mirrored or hand-nudged plan
+            // position the table asks for - the check that catches a mirrored or hand-nudged plan
             bool inside = true, scaled = true, faithful = true;
             foreach (var def in FloorPlan.Rooms)
             {
@@ -1592,7 +1592,7 @@ namespace FlowCheck
             Check(MapSheetLayout.ToAnchoredY(c1.Value.Y, 1f) > MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f) &&
                   MapSheetLayout.ToAnchoredY(c2.Value.Y, 1f) > MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f) &&
                   MapSheetLayout.ToAnchoredY(sec.Value.Y, 1f) < MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f),
-                "MAP: the design-y flip is right way up — both classrooms above the corridor on screen, the checkpoint below");
+                "MAP: the design-y flip is right way up - both classrooms above the corridor on screen, the checkpoint below");
 
             // ---- the sealed room stays sealed ----
             Check(serverNode.GetComponent<UnityEngine.UI.Button>() == null &&
@@ -1621,7 +1621,7 @@ namespace FlowCheck
                     node.GetComponent<Hollowbrook.UI.HoverCursor>() != null) anyClickable = true;
             }
             Check(!anyClickable,
-                "MAP: no room — patrol, comfort or sealed — has a button, a raycast or a hover cursor");
+                "MAP: no room - patrol, comfort or sealed - has a button, a raycast or a hover cursor");
             Check(crNorth.GetComponent<UnityEngine.UI.Button>() == null &&
                   crSouth.GetComponent<UnityEngine.UI.Button>() == null,
                 "MAP: the comfort rooms are drawn on the plan but take no click either");
@@ -1675,7 +1675,7 @@ namespace FlowCheck
                 "MAP: closing returns exactly where the player was");
         }
 
-        // drag a stamp from its tray and release it with its centre on a desk point —
+        // drag a stamp from its tray and release it with its centre on a desk point -
         // exactly what the pointer does; OnDropped then carries that point to the slip
         private static void StampAtPoint(GameRoot root, Verdict v, Vector2 deskPoint)
         {
@@ -1768,7 +1768,7 @@ namespace FlowCheck
             Check(cp.SlipStamped && cp.PendingVerdict == Verdict.Reject,
                   "the stamp on the slip is pending: wordless, unscored");
             Check(root.Queue.ProcessedCount == procBeforeStamp,
-                  "nothing is scored at the stamp drop — the decision waits for hand-back");
+                  "nothing is scored at the stamp drop - the decision waits for hand-back");
             HandBack(root, false, true);     // the slip dropped at the window is NOT a hand-back
             Check(root.Queue.ProcessedCount == procBeforeStamp &&
                   cp.CurrentVisitor != null && cp.CurrentVisitor.ClaimedName == beforeYes &&
@@ -1778,7 +1778,7 @@ namespace FlowCheck
             Check(root.Queue.ProcessedCount == procBeforeStamp + 1,
                   "handing back the ID (slip stamped, left on the desk) commits the verdict");
             Check(!FindDeep(desk, "speechbubble").gameObject.activeSelf,
-                  "the speech bubble leaves with the student — no line lingers over an empty window");
+                  "the speech bubble leaves with the student - no line lingers over an empty window");
             // the stub runs the commit coroutine synchronously: the walked-off visitor is proof
             Check(cp.CurrentVisitor == null || cp.CurrentVisitor.ClaimedName != beforeYes,
                 "verdict registered: " + beforeYes + " was processed and left the window");
@@ -1807,7 +1807,7 @@ namespace FlowCheck
                 ses.Stacks.Clear(); ses.RefillPending = 0f; ses.Sanity = 60f;
                 root.SanityCtl.Tick(true);
                 Check(Mathf.Abs((ses.Sanity - 60f) - SanityModel.SecurityRoomRecoveryPerSecond * 0.5f) < 1e-3f,
-                    "SANITY: with the window empty sanity recovers (1.2/s) — resting means clearing the line");
+                    "SANITY: with the window empty sanity recovers (1.2/s) - resting means clearing the line");
                 ses.Sanity = 100f;
                 Time.deltaTime = dtSave;
             }
@@ -2007,7 +2007,7 @@ namespace FlowCheck
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));   // resolve #0 -> anomaly steps up
             Check(cp.CurrentVisitor == mRoster[2], "Q5: the anomaly itself steps up to the window");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-            cp.Stamp(Verdict.Allow);                    // let the anomaly in — the loss must stand
+            cp.Stamp(Verdict.Allow);                    // let the anomaly in - the loss must stand
             Check(root.Queue.MissingIncidents == 1 && root.Queue.EffectiveTotal == mRoster.Count - 1,
                   "Q5: allowing the anomaly never restores the vanished student");
             var arrivedNames = new List<string>();
@@ -2346,7 +2346,7 @@ namespace FlowCheck
         // ------------------------------------------------- patrol world loop
         // Headless exploration frames for the flashlight/anomaly systems. Stub MonoBehaviours
         // never receive Update() calls, so ViewManager.TickWorld steps light, player, beam,
-        // anomalies and spawner in a deterministic order — the real components, the real
+        // anomalies and spawner in a deterministic order - the real components, the real
         // config, the real event traffic. Mirrors the manual test sequence from the task.
         private static void StudentsProof(GameRoot root)
         {
@@ -2422,7 +2422,7 @@ namespace FlowCheck
             var cp = root.Checkpoint;
 
             // corner drop (fresh run, visitor #1): a drop near the slip's top-left stamps
-            // NEAR THE TOP-LEFT — clamped so the whole tilted mark stays on the paper
+            // NEAR THE TOP-LEFT - clamped so the whole tilted mark stays on the paper
             cp.DebugTakeDocuments();
             TakeSlip(root);
             var cornerWant = InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null);
@@ -2459,7 +2459,7 @@ namespace FlowCheck
             UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.D);
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
-            Check(!cp.SlipStamped, "issue #5: unpaused, A and D do NOT stamp — a verdict is only ever a dragged stamp");
+            Check(!cp.SlipStamped, "issue #5: unpaused, A and D do NOT stamp - a verdict is only ever a dragged stamp");
             Check(FindDeep(cp.transform, "slblA") == null && FindDeep(cp.transform, "slblD") == null,
                 "issue #5: no APPROVE (A) / DECLINE (D) caption bars sit under the stamps");
             StampSlip(root, Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
@@ -2468,7 +2468,7 @@ namespace FlowCheck
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
             Check(FindDeep(cp.transform, "idcard").GetComponent<UnityEngine.UI.Image>().color.a > 0.9f,
-                "issue #5: H does nothing — the ID only goes back by being dragged to the window");
+                "issue #5: H does nothing - the ID only goes back by being dragged to the window");
 
             root.TogglePause(true);
             root.OpenSettings();
@@ -2502,7 +2502,7 @@ namespace FlowCheck
         {
             Console.WriteLine("== PATROL world loop (flashlight + roaming anomaly), headless frames ==");
 
-            // a fresh normal run, then patrol — through the real scene handoffs the game uses.
+            // a fresh normal run, then patrol - through the real scene handoffs the game uses.
             // the booth demo is an explicit opt-in now (issue #2): shipping default is the story
             root.Config.exhibitionMode = true;
             root.StartNewGame(GameMode.Normal);
@@ -2560,7 +2560,7 @@ namespace FlowCheck
             var stateLog = new List<string>();
             root.Bus.Subscribe(EventIds.CaptionRequested, e =>
             {
-                // captions are published via Of(id, data, value, text) — the string rides in Data
+                // captions are published via Of(id, data, value, text) - the string rides in Data
                 string t = e.Text ?? e.Data as string ?? "";
                 if (t.Contains("dies")) deathCaptions++;
                 else if (t.Contains("coughs")) rebootCaptions++;
@@ -2571,12 +2571,12 @@ namespace FlowCheck
             root.Bus.Subscribe(EventIds.AnomalyRevealed, e => { if (e.Data is AnomalyBehaviorKind) revealedReal++; });
             root.Bus.Subscribe(EventIds.AnomalyCaught, e => caughtEvents++);
 
-            // ---- W1: input arbitration — keyboard toggles ONLY, F is the on/off toggle
+            // ---- W1: input arbitration - keyboard toggles ONLY, F is the on/off toggle
             Console.WriteLine("== W1 flashlight input arbitration ==");
             var coneGoW1 = FindDeep(rig.transform, "beam").gameObject;
             var maskGoW1 = FindDeep(rig.transform, "FlashlightMask").gameObject;
             Check(rig.Beam == LightMode.Off && !coneGoW1.activeSelf && !maskGoW1.activeSelf,
-                "W1: the flashlight is OFF by default — cone sprite and light mask really hidden");
+                "W1: the flashlight is OFF by default - cone sprite and light mask really hidden");
             Input.MouseHeld.Add(0);
             WorldFrames(root, 5);
             Check(rig.Beam == LightMode.Off, "W1: a held LMB never lights the beam (mouse is not beam input)");
@@ -2607,14 +2607,14 @@ namespace FlowCheck
             PressKey(root, KeyCode.F);
             Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep, "W1: F again toggles it OFF");
             Check(!coneGoW1.activeSelf && !maskGoW1.activeSelf,
-                "W1: OFF hides the cone + mask completely — no visible beam, no illumination");
+                "W1: OFF hides the cone + mask completely - no visible beam, no illumination");
             Check(!rig.ConeCovers(new Vector3(3f, 0f, 0f)), "W1: an OFF beam illuminates nothing (cone test covers no point)");
             beamInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
             Check(beamInfo.Contains("FLASHLIGHT: OFF"),
                 "W1: the HUD reads FLASHLIGHT: OFF in sync with the hidden beam (got '" + beamInfo + "')");
             PressKey(root, KeyCode.Q);
             Check(rig.Beam == LightMode.Focus && !rig.Latches.Sweep && rig.Latches.Focus,
-                "W1: Q takes over with Focus — the keyboard toggles are mutually exclusive");
+                "W1: Q takes over with Focus - the keyboard toggles are mutually exclusive");
             PressKey(root, KeyCode.F);
             Check(rig.Beam == LightMode.Sweep && rig.Latches.Sweep && !rig.Latches.Focus,
                 "W1: F while Focus-latched switches back to Sweep (no dead toggle)");
@@ -2634,14 +2634,14 @@ namespace FlowCheck
                 foreach (var it in r.Interactables)
                     if (it.Prompt != null && it.Prompt.ToLowerInvariant().Contains("switch")) anySwitch = true;
             }
-            Check(!anySwitch, "W2: no room has a light switch — the flashlight is the only light");
+            Check(!anySwitch, "W2: no room has a light switch - the flashlight is the only light");
             Check(FindDeep(views.Room(RoomId.Classroom1).Root.transform, "door_security_office") == null,
-                "W2: Classroom 1 has no Security Office door — the real one is the first door in the hallway");
+                "W2: Classroom 1 has no Security Office door - the real one is the first door in the hallway");
             Check(root.State == AppViewState.Exploration, "W2: patrol is live for the map proof");
             PressKey(root, KeyCode.M);
             root.OpenMap();
             Check(root.State == AppViewState.Exploration,
-                "W2: the map cannot be opened on patrol (M and OpenMap both refuse) — it is pinned up at the desk only");
+                "W2: the map cannot be opened on patrol (M and OpenMap both refuse) - it is pinned up at the desk only");
             Check(hall.Light != null && !hall.Light.Lit, "W2: rooms are entered DARK (lights start OFF)");
             var roomInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
             Check(roomInfo.Contains("MAIN HALLWAY") && roomInfo.Contains("FLASHLIGHT: OFF") &&
@@ -2658,18 +2658,18 @@ namespace FlowCheck
             hall.Light.ForceDarkOnEntry();   // what ViewManager calls on every room entry
             Check(!hall.Light.Lit, "W2: entering the room forces the lights back off (spawn in darkness)");
             hall.Light.SetLit(true);   // later sections (battery recovery) play lit
-            Check(hall.Light.Lit, "W2: the room can be lit again by script — the player is never locked in the dark");
+            Check(hall.Light.Lit, "W2: the room can be lit again by script - the player is never locked in the dark");
             PressKey(root, KeyCode.L);
             Check(rig.Beam == LightMode.Off && hall.Light.Lit, "W2: beam Off leaves no stale state on the room light");
 
-            // beam entry reset: arriving in ANY room means arriving dark — the handheld
+            // beam entry reset: arriving in ANY room means arriving dark - the handheld
             // beam goes out with the room lights and only a deliberate F/Q relights it
             PressKey(root, KeyCode.F);
             Check(rig.Beam == LightMode.Sweep, "W2: beam lit before the transition");
             views.EnterRoom(RoomId.Classroom1);
             Check(views.Current.Id == RoomId.Classroom1 && !views.Transitioning, "W2: walked into the classroom");
             Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep && !rig.Latches.Focus,
-                "W2: entering a room forces the beam OFF — a transition never carries a lit beam over");
+                "W2: entering a room forces the beam OFF - a transition never carries a lit beam over");
             Check(!FindDeep(rig.transform, "beam").gameObject.activeSelf,
                 "W2: the beam sprite is really hidden after the entry (the room is dark and stays dark)");
             string entryInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
@@ -2683,7 +2683,7 @@ namespace FlowCheck
             if (!hall.Light.Lit) hall.Light.SetLit(true);   // later sections (battery) play lit
             Check(hall.Light.Lit, "W2: the hallway is relit for the battery proofs");
 
-            // ---- W2b: limited hallway visibility — deeper ambient + a pool around the player
+            // ---- W2b: limited hallway visibility - deeper ambient + a pool around the player
             Console.WriteLine("== W2b hallway limited visibility (dark corridor, manual beam) ==");
             if (hall.Light.Lit) hall.Light.SetLit(false);
             Check(!hall.Light.Lit, "W2b: the corridor is dark for the depth proofs");
@@ -2729,7 +2729,7 @@ namespace FlowCheck
 
             // environmental illumination, not a brighter graphic: a graded penumbra sheet puts
             // ONE authoritative pair: stencil mask + cone tint. The stacked-sheet approach is
-            // fully rolled back — nothing left that could double-dark or desynchronise.
+            // fully rolled back - nothing left that could double-dark or desynchronise.
             Check(FindDeep(rig.transform, "BeamPenumbra") == null &&
                   FindDeep(rig.transform, "BeamAreaMask") == null,
                 "W2b: no stacked light layers remain (penumbra/area approach rolled back)");
@@ -2738,7 +2738,7 @@ namespace FlowCheck
             var maskC = maskGo.GetComponent<SpriteMask>();
             SetBeam(root, rig, LightMode.Sweep);
             Check(maskC.alphaCutoff <= 0.1f,
-                $"W2b: the mask cutoff sits in the cone art's faintest feather ({maskC.alphaCutoff:F2}) — soft single-layer reveal");
+                $"W2b: the mask cutoff sits in the cone art's faintest feather ({maskC.alphaCutoff:F2}) - soft single-layer reveal");
             Check(Mathf.Abs(maskGo.localScale.x - coneT.localScale.x * 1.06f) < 0.01f,
                 "W2b: the hole rides just outside the visible cone (no dark rim inside the beam)");
             SetBeam(root, rig, LightMode.Focus);
@@ -2751,7 +2751,7 @@ namespace FlowCheck
                 "W2b: leaving focus restores the broad sweep wash");
             SetBeam(root, rig, LightMode.Off);
             Check(!coneT.gameObject.activeSelf && !maskGo.gameObject.activeSelf,
-                "W2b: beam OFF removes cone AND mask — no stale light layer survives");
+                "W2b: beam OFF removes cone AND mask - no stale light layer survives");
 
             // a scripted lights-on still means a fully visible corridor, then darkness returns
             hall.Light.SetLit(true);
@@ -2793,7 +2793,7 @@ namespace FlowCheck
             Check(Mathf.Abs(maskGo.localScale.x - coneT.localScale.x * 1.06f) < 0.01f,
                 "W2c: the stencil hole matches that geometry on the same frame (no rim, no desync)");
             // "follows the flashlight's current direction and position": the rendered cone must
-            // be exactly the logical aim's mid-point and angle — derived from the rig itself,
+            // be exactly the logical aim's mid-point and angle - derived from the rig itself,
             // so the proof holds wherever the player is standing
             var expectedMid = rig.Origin + rig.Dir * (cfg.sweepRange * 0.5f);
             float expectedAngle = Mathf.Atan2(rig.Dir.y, rig.Dir.x) * Mathf.Rad2Deg;
@@ -2803,7 +2803,7 @@ namespace FlowCheck
                   coneT.localEulerAngles == maskGo.localEulerAngles,
                 $"W2c: cone and mask are both parked on the aim's mid-point and angle ({coneT.localPosition} @ {coneT.localEulerAngles.z:F1}°)");
             Check(Mathf.Abs(coneT.GetComponent<SpriteRenderer>().color.a - 0.30f) < 1e-3f,
-                "W2c: full brightness on the activation frame — no fade-in to wait through");
+                "W2c: full brightness on the activation frame - no fade-in to wait through");
             // repeated activation/deactivation must behave identically every time, and a new
             // activation must never inherit the previous aim
             bool stable = true;
@@ -2847,7 +2847,7 @@ namespace FlowCheck
             Check(!rig.ConeCovers(new Vector3(rig.Params.Range + 1.5f, -0.5f, 0f)), "W3: beyond the Sweep range is dark");
             Check(rig.ConeCovers(new Vector3(4f, 2.0f, 0f)), "W3: the wide cone covers 2.5u off-axis at 4u");
             PressKey(root, KeyCode.Q);           // same aim, Focus now
-            Check(!rig.ConeCovers(new Vector3(4f, 2.0f, 0f)), "W3: Focus does NOT cover the same off-axis point — the modes really differ");
+            Check(!rig.ConeCovers(new Vector3(4f, 2.0f, 0f)), "W3: Focus does NOT cover the same off-axis point - the modes really differ");
             Check(rig.ConeCovers(new Vector3(4f, 0f, 0f)), "W3: Focus still covers the axis");
             Check(rig.ConeCovers(new Vector3(rig.Params.Range - 0.2f, -0.5f, 0f)), "W3: Focus reaches its full (longer) range");
             Check(rig.Params.HalfAngleDeg < BeamGeometry.DefaultSweepHalfAngleDeg + 0.01f &&
@@ -2874,7 +2874,7 @@ namespace FlowCheck
                 "W3: the beam origin stays anchored to the player (no drift)");
             PressKey(root, KeyCode.L);
 
-            // ---- W4: battery — drain, death, deliberate reboot, room-aware recovery
+            // ---- W4: battery - drain, death, deliberate reboot, room-aware recovery
             Console.WriteLine("== W4 battery ==");
             TopUpBattery(root, rig);
             Check(hall.Light.Lit, "W4: top-up left the room lit");
@@ -2898,7 +2898,7 @@ namespace FlowCheck
             WorldFrames(root, 60);
             Check(deathCaptions == 1 && rig.Beam == LightMode.Off, "W4: a dead battery does not repeat callbacks or auto-relight");
             Input.MouseHeld.Add(1); WorldFrames(root, 30); Input.MouseHeld.Remove(1);
-            Check(rig.Beam == LightMode.Off, "W4: mouse buttons are not beam input — a dead battery stays dark");
+            Check(rig.Beam == LightMode.Off, "W4: mouse buttons are not beam input - a dead battery stays dark");
             float r0 = rig.Battery;
             WorldFrames(root, 60);
             float litGain = rig.Battery - r0;
@@ -2907,7 +2907,7 @@ namespace FlowCheck
             g = 0;
             while (rig.BatteryDead && g++ < 60 * 15) WorldFrame(root);
             Check(!rig.BatteryDead && rebootCaptions == 1, "W4: it revives at the reboot fraction, announced exactly once");
-            Check(rig.Beam == LightMode.Off, "W4: revival does NOT auto-reactivate the beam — deliberate input required");
+            Check(rig.Beam == LightMode.Off, "W4: revival does NOT auto-reactivate the beam - deliberate input required");
             PressKey(root, KeyCode.F);
             Check(rig.BeamOn && rig.Beam == LightMode.Sweep, "W4: deliberate input relights the beam after revival");
             SetBeam(root, rig, LightMode.Off);
@@ -2927,7 +2927,7 @@ namespace FlowCheck
             var an = views.SpawnAnomalyOfKind(targetKind);
             Check(an != null, "W5: a real anomaly spawns on demand (" + targetKind + ")");
             if (an == null) return;
-            Check(an.State == AnomalyState.Roaming, "W5: it starts Roaming — existing is not attacking");
+            Check(an.State == AnomalyState.Roaming, "W5: it starts Roaming - existing is not attacking");
             Check(views.Anomalies.Count == 1 && views.Spawner.Live == an, "W5: one live anomaly, held in the single slot");
             Check(views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Blink) == null && views.Anomalies.Count == 1,
                 "W5: the live slot blocks duplicate real anomalies");
@@ -2952,7 +2952,7 @@ namespace FlowCheck
             var face = FindDeep(an.transform, "ExposedFace");
             Check(face != null && face.gameObject.activeSelf, "W5: the distorted face is shown while Exposed");
 
-            // losing Focus is recoverable — no free repel: step 8u to the far side (the clamp
+            // losing Focus is recoverable - no free repel: step 8u to the far side (the clamp
             // can never push the player back next to it) and point the beam the other way
             float farX = an.Pos.x >= 0f ? an.Pos.x - 8f : an.Pos.x + 8f;
             views.Player.PlaceInRoom(hall, new Vector3(farX, 0f, 0f));
@@ -2962,7 +2962,7 @@ namespace FlowCheck
             float mLoss0 = an.Meter;
             WorldFrames(root, 60);
             Check(an.Meter < mLoss0, $"W5: the meter decays once the grace window runs out ({mLoss0:F2} → {an.Meter:F2})");
-            Check(an.State != AnomalyState.Exposed, "W5: Exposed is recoverable — it fell back when Focus was lost");
+            Check(an.State != AnomalyState.Exposed, "W5: Exposed is recoverable - it fell back when Focus was lost");
             Check(face != null && !face.gameObject.activeSelf, "W5: the exposed face hides again");
 
             // hold accurate Focus to a real repel
@@ -3007,7 +3007,7 @@ namespace FlowCheck
             {
                 var ret = views.Spawner.Live;
                 Check(!ReferenceEquals(ret, an), "W5: the return is a fresh entity, not a stale reference");
-                Check(ret.Kind == targetKind, "W5: the SAME behavior returns — not a re-peeked pool kind");
+                Check(ret.Kind == targetKind, "W5: the SAME behavior returns - not a re-peeked pool kind");
                 Check(ret.Room != hall, $"W5: it repositioned to another room ({(ret.Room != null ? ret.Room.Id.ToString() : "?")}), never on top of the player");
                 Check(g > 60 * (cfg.anomalyRecoverySeconds - 2f), "W5: it stayed away for (about) the full recovery period");
             }
@@ -3030,7 +3030,7 @@ namespace FlowCheck
             TopUpBattery(root, rig);
             hall.Light.SetLit(false);   // dark for behavior reads
 
-            // Blink: creeps unseen, frozen by ANY beam, pinned by room light — never auto-solved
+            // Blink: creeps unseen, frozen by ANY beam, pinned by room light - never auto-solved
             var blink = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Blink);
             Check(blink != null, "W6: Blink spawns");
             if (blink != null)
@@ -3043,7 +3043,7 @@ namespace FlowCheck
                 SetBeam(root, rig, LightMode.Sweep);
                 g = 0;
                 while (!rig.ConeCovers(blink.Pos) && g++ < 10) { AimAt(blink.Pos.x, blink.Pos.y); WorldFrame(root); }
-                Check(rig.ConeCovers(blink.Pos), "W6: setup — the Sweep beam covers the Blink");
+                Check(rig.ConeCovers(blink.Pos), "W6: setup - the Sweep beam covers the Blink");
                 float bx1 = blink.Pos.x;
                 for (int i = 0; i < 90; i++) { AimAt(blink.Pos.x, blink.Pos.y); WorldFrame(root); }
                 Check(Mathf.Abs(blink.Pos.x - bx1) < 1e-4f, "W6: any beam freezes a Blink mid-stalk (restraint, not resolution)");
@@ -3068,7 +3068,7 @@ namespace FlowCheck
                 float sx0 = sprint.Pos.x;
                 WorldFrames(root, 30);                     // halfway through the 1.1s windup
                 Check(tensesCaptions == tenses0 + 1, "W6: Sprint's windup is announced exactly once, BEFORE the burst");
-                Check(Mathf.Abs(sprint.Pos.x - sx0) < 0.05f, "W6: Sprint holds position during the telegraph — the reaction window is real");
+                Check(Mathf.Abs(sprint.Pos.x - sx0) < 0.05f, "W6: Sprint holds position during the telegraph - the reaction window is real");
                 Check(Mathf.Abs(sprint.Pos.x - views.Player.transform.localPosition.x) > 3f,
                     "W6: it has not reached the player during the telegraph (no instant catch on spawn)");
                 SetBeam(root, rig, LightMode.Sweep);       // sweep on it: interrupts the windup
@@ -3097,7 +3097,7 @@ namespace FlowCheck
                 float sanity0 = root.Session.Sanity;
                 g = 0;
                 while (!sprint.Gone && g++ < 60 * 8) WorldFrame(root);   // stand still and eat the consequence
-                Check(sprint.WasCaught, "W6: standing next to a dashing Sprint gets you caught — after its grace, not instantly");
+                Check(sprint.WasCaught, "W6: standing next to a dashing Sprint gets you caught - after its grace, not instantly");
                 Check(caughtEvents == caught0 + 1, "W6: the catch event fires exactly once");
                 Check(root.Session.Sanity < sanity0 - 10f, "W6: a catch costs real sanity");
                 Check(Mathf.Abs(views.Player.transform.localPosition.x - hall.PlayerSpawn.x) < 0.01f,
@@ -3115,7 +3115,7 @@ namespace FlowCheck
                     $"W6: CoverHug spawns inside its ceiling band (y={hug.Pos.y:F2})");
                 WorldFrames(root, 150);
                 Check(!hug.Gone && hug.Pos.y >= floorY + 3.6f - 1e-3f && hug.Pos.y <= floorY + 4.6f + 1e-3f,
-                    $"W6: CoverHug stays on the ceiling — no contradictory clamp drags it down (y={hug.Pos.y:F2})");
+                    $"W6: CoverHug stays on the ceiling - no contradictory clamp drags it down (y={hug.Pos.y:F2})");
                 views.Player.PlaceInRoom(hall, new Vector3(Mathf.Clamp(hug.Pos.x - 3f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), 0f, 0f));
                 SetBeam(root, rig, LightMode.Sweep);
                 for (int i = 0; i < 15; i++) { AimAt(hug.Pos.x, hug.Pos.y); WorldFrame(root); }
@@ -3124,12 +3124,12 @@ namespace FlowCheck
                 for (int i = 0; i < 15; i++) { AimAt(hug.Pos.x, hug.Pos.y); WorldFrame(root); }
                 float focusAlpha = hug.Renderer.color.a;
                 Check(sweepAlpha <= 0.45f, $"W6: Sweep leaves the ceiling lurker murky (alpha {sweepAlpha:F2})");
-                Check(focusAlpha >= 0.9f, $"W6: Focus turns it clear (alpha {focusAlpha:F2}) — identification costs the tight beam");
+                Check(focusAlpha >= 0.9f, $"W6: Focus turns it clear (alpha {focusAlpha:F2}) - identification costs the tight beam");
                 SetBeam(root, rig, LightMode.Off);
             }
             views.Spawner.DiscardLive();
 
-            // Slide: readable glide — never a teleport
+            // Slide: readable glide - never a teleport
             var slide = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Slide);
             Check(slide != null, "W6: Slide spawns");
             if (slide != null)
@@ -3168,7 +3168,7 @@ namespace FlowCheck
                 }
                 Check(stateLog.Count(s => s == "Repelled") > repelsBefore,
                     $"W7: from inside its threat range, Focus still wins the race to Repelled (frames={g})");
-                Check(caughtEvents == caughtBefore, "W7: a successful repel cancels the catch — no attack lands afterwards");
+                Check(caughtEvents == caughtBefore, "W7: a successful repel cancels the catch - no attack lands afterwards");
                 g = 0;
                 while (!victim.Gone && g++ < 200) WorldFrame(root);
                 Check(victim.Gone && caughtEvents == caughtBefore, "W7: it retreats and leaves without catching the player");
@@ -3189,7 +3189,7 @@ namespace FlowCheck
                 WorldFrames(root, 180);
                 Check(pauseTest.Meter == meterBefore && pauseTest.Pos == posBefore &&
                       rig.Battery == batBefore && rig.Beam == LightMode.Focus,
-                    "W7: pause freezes meter, movement and battery — the beam holds its state");
+                    "W7: pause freezes meter, movement and battery - the beam holds its state");
                 Check(stateLog.Count == statesBefore, "W7: pause publishes no transitions");
                 root.TogglePause(false);
                 for (int i = 0; i < 30; i++) { AimAt(pauseTest.Pos.x, pauseTest.Pos.y); WorldFrame(root); }
@@ -3233,7 +3233,7 @@ namespace FlowCheck
             Check(rover.Room.Id == RoomId.Hallway && !rover.Gone,
                 $"W8: the off-stage anomaly walks to the player's room through connected doors (frames={g}, crossings={crossings})");
             WorldFrame(root);   // one settling tick: the crossing frame computed visibility pre-ownership-switch
-            Check(crossings == 1, "W8: exactly one doorway crossing — no arbitrary teleporting between rooms");
+            Check(crossings == 1, "W8: exactly one doorway crossing - no arbitrary teleporting between rooms");
             Check(maxStepRoam <= 1.15f * 1.25f / 60f + 1e-4f, $"W8: in-room steps stay within its walk speed (max {maxStepRoam:F4}u/frame)");
             Check(creakCaptions > creaks0, "W8: its arrival through the door is announced");
             Check(rover.Renderer.enabled, "W8: back on stage, it is drawn again");
@@ -3251,7 +3251,7 @@ namespace FlowCheck
                 WorldFrame(root);
                 if (rover.State == AnomalyState.Exposed) exposedRoam = g;
             }
-            Check(exposedRoam > 0, $"W8: the encounter resumes across rooms — Focus exposes it in the hallway (frames={g})");
+            Check(exposedRoam > 0, $"W8: the encounter resumes across rooms - Focus exposes it in the hallway (frames={g})");
             views.Spawner.DiscardLive();
 
             // the player leaving mid-encounter neither freezes nor resets it
@@ -3268,7 +3268,7 @@ namespace FlowCheck
                 views.EnterRoom(RoomId.Classroom1);
                 Check(views.Current.Id == RoomId.Classroom1 && !views.Transitioning, "W8: the player can leave mid-encounter");
                 Check(!stalker.Gone && stalker.Room.Id == RoomId.Hallway, "W8: leaving neither kills nor freezes the anomaly");
-                Check(views.Spawner.Live == stalker, "W8: the live slot still tracks it — no duplicates can spawn meanwhile");
+                Check(views.Spawner.Live == stalker, "W8: the live slot still tracks it - no duplicates can spawn meanwhile");
                 WorldFrames(root, 120);
                 Check(stalker.Meter < meterAtExit, "W8: its meter decays while nobody watches (no free progress)");
                 Check(stalker.State == AnomalyState.Roaming || stalker.State == AnomalyState.Stalking,
@@ -3291,11 +3291,11 @@ namespace FlowCheck
                     if (stalker.State == AnomalyState.Exposed) exposedFollow = g;
                 }
                 Check(exposedFollow > 0 && stalker.State == AnomalyState.Exposed,
-                    $"W8: the SAME anomaly can be engaged again after following (frames={g}) — no arbitrary reset");
+                    $"W8: the SAME anomaly can be engaged again after following (frames={g}) - no arbitrary reset");
             }
             views.Spawner.DiscardLive();
 
-            // ---- W10: the classroom peek — the cursor lamp is manual (F), dark on entry
+            // ---- W10: the classroom peek - the cursor lamp is manual (F), dark on entry
             Console.WriteLine("== W10 classroom peek lamp (manual, dark entries) ==");
             SetBeam(root, rig, LightMode.Off);
             views.EnterRoom(RoomId.Hallway);
@@ -3305,14 +3305,14 @@ namespace FlowCheck
             CheckLightSync(root, "W10 peek entry");
             var lamp = views.PeekLight;
             Check(lamp != null && lamp.Active, "W10: the peek session is live");
-            Check(!lamp.Lit, "W10: entering a classroom starts with the lamp OFF — no F was pressed");
+            Check(!lamp.Lit, "W10: entering a classroom starts with the lamp OFF - no F was pressed");
             Check(rig.Beam == LightMode.Off, "W10: the handheld beam stays OFF through the peek entry");
             var lampMask = FindDeep(lamp.transform, "PeekMask").gameObject;
             var lampGlow = FindDeep(lamp.transform, "Glow").gameObject;
             Check(!lampMask.activeSelf && !lampGlow.activeSelf,
                 "W10: OFF really hides the cursor spotlight (mask + glow), not just a status");
             Check(lamp.gameObject.activeSelf,
-                "W10: the peek session itself stays live while dark — only the LIGHT is off");
+                "W10: the peek session itself stays live while dark - only the LIGHT is off");
             Check(FindDeep(root.HUD.transform, "peekexitband").gameObject.activeSelf,
                 "W10: the step-back band is up during the peek");
             AimAt(0f, 0f);
@@ -3320,7 +3320,7 @@ namespace FlowCheck
             Check(!lamp.Lit && !lampMask.activeSelf && !lampGlow.activeSelf,
                 "W10: mouse movement never lights the lamp (cursor is not lamp input)");
             Check(!views.IsPeekLit(new Vector3(0f, 0f, 0f)),
-                "W10: an OFF lamp illuminates nothing — the coverage query agrees with the visuals");
+                "W10: an OFF lamp illuminates nothing - the coverage query agrees with the visuals");
             // the peek SESSION keeps running dark: the exit prompt is reachable without
             // the lamp, so an OFF light can never lock the player in a classroom
             Doorway exitDoor = null;
@@ -3334,7 +3334,7 @@ namespace FlowCheck
             WorldFrames(root, 2);
             string darkPrompt = FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>().text;
             Check(!lamp.Lit && darkPrompt.Length > 0,
-                "W10: dark is not a trap — the exit prompt answers under the cursor without the lamp (got '" + darkPrompt + "')");
+                "W10: dark is not a trap - the exit prompt answers under the cursor without the lamp (got '" + darkPrompt + "')");
             string peekInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
             Check(peekInfo.Contains("FLASHLIGHT: OFF"),
                 "W10: the HUD reads FLASHLIGHT: OFF in the dark classroom (got '" + peekInfo + "')");
@@ -3345,7 +3345,7 @@ namespace FlowCheck
             AimAt(0f, 0f);
             WorldFrames(root, 5);
             Check(views.IsPeekLit(new Vector3(0f, 0f, 0f)),
-                "W10: the lit lamp illuminates the cursor point — the same state drives light and visual");
+                "W10: the lit lamp illuminates the cursor point - the same state drives light and visual");
             peekInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
             Check(peekInfo.Contains("FLASHLIGHT: ON"),
                 "W10: the HUD reads FLASHLIGHT: ON while the flashlight is lit (got '" + peekInfo + "')");
@@ -3360,7 +3360,7 @@ namespace FlowCheck
             float wideR = lamp.EffectiveRadius;
             PressKey(root, KeyCode.Q);
             Check(lamp.Lit && lamp.Focused,
-                "W10: Q switches the LIT lamp to focus — it does not touch ON/OFF");
+                "W10: Q switches the LIT lamp to focus - it does not touch ON/OFF");
             Check(lamp.EffectiveRadius < wideR && Mathf.Abs(lamp.EffectiveRadius - lamp.FocusRadius) < 0.01f,
                 $"W10: focus narrows the circle ({wideR:F1}u -> {lamp.EffectiveRadius:F1}u)");
             Check(Mathf.Abs(lamp.transform.localScale.x - lamp.EffectiveRadius * 2f) < 0.01f,
@@ -3373,20 +3373,20 @@ namespace FlowCheck
             PressKey(root, KeyCode.F);
             Check(!lamp.Lit && lamp.Focused && !lampMask.activeSelf && !lampGlow.activeSelf &&
                   !views.IsPeekLit(new Vector3(0f, 0f, 0f)),
-                "W10: F puts a FOCUSED lamp fully out — OFF wins over whichever mode was last set");
+                "W10: F puts a FOCUSED lamp fully out - OFF wins over whichever mode was last set");
             PressKey(root, KeyCode.F);
             Check(lamp.Lit && lamp.Focused && views.IsPeekLit(new Vector3(1f, 0f, 0f)),
                 "W10: ...and F brings the focused light back (mode survived the OFF, illumination did not leak)");
             PressKey(root, KeyCode.Q);
             Check(lamp.Lit && !lamp.Focused && views.IsPeekLit(new Vector3(2.2f, 0f, 0f)),
-                "W10: Q again returns the broad wash — the wide/focus toggle is clean both ways");
+                "W10: Q again returns the broad wash - the wide/focus toggle is clean both ways");
             AimAt(3f, 1f);
             WorldFrames(root, 5);
             Check(views.IsPeekLit(new Vector3(3f, 1f, 0f)) && !views.IsPeekLit(new Vector3(-6f, 0f, 0f)),
                 "W10: while ON, the light follows the cursor (covers the new point, not the whole room)");
             PressKey(root, KeyCode.F);
             Check(!lamp.Lit && !lampMask.activeSelf && !lampGlow.activeSelf,
-                "W10: F again turns it OFF completely — spotlight and illumination together");
+                "W10: F again turns it OFF completely - spotlight and illumination together");
             Check(!views.IsPeekLit(new Vector3(3f, 1f, 0f)), "W10: OFF takes the illumination with it");
             root.ExitRoomPeek();
             Check(root.State == AppViewState.Exploration && !views.PeekActive && !lamp.Lit,
@@ -3414,11 +3414,11 @@ namespace FlowCheck
             AimAt(exitDoor2.AnchorX, RoomInstance.FloorY + 1.4f);
             PressKey(root, KeyCode.E);
             Check(!views.PeekActive && root.State == AppViewState.Exploration,
-                "W10: E on the exit doorway steps back to the hallway — even with the lamp OFF");
+                "W10: E on the exit doorway steps back to the hallway - even with the lamp OFF");
             Check(!FindDeep(root.HUD.transform, "peekexitband").gameObject.activeSelf,
                 "W10: the step-back band is gone after leaving the doorway");
             Check(!views.PeekLight.Lit && rig.Beam == LightMode.Off,
-                "W10: exiting leaves everything dark — restarting patrol never re-lights anything");
+                "W10: exiting leaves everything dark - restarting patrol never re-lights anything");
 
             // ---- W9: spawn ownership under ambient pressure + the desk handoff
             Console.WriteLine("== W9 spawn ownership + desk handoff ==");
@@ -3513,7 +3513,7 @@ namespace FlowCheck
                 if (sp == null || sp.name != k) { resolves = false; badKey = k; break; }
             }
             Check(resolves, "AM: every art key paints its own sprite (no fallback squares)" +
-                  (resolves ? "" : " — first broken key: " + badKey));
+                  (resolves ? "" : " - first broken key: " + badKey));
 
             // every audio key resolves to its own clip
             bool audioOk = true;
@@ -3524,7 +3524,7 @@ namespace FlowCheck
                 if (clip == null || clip.name != k) { audioOk = false; badAudio = k; break; }
             }
             Check(audioOk, "AM: every audio key synthesises its own clip (no silent falls-through)" +
-                  (audioOk ? "" : " — first broken key: " + badAudio));
+                  (audioOk ? "" : " - first broken key: " + badAudio));
 
             // rows claiming a shipped file must actually ship it
             bool filesOk = true;
@@ -3559,7 +3559,7 @@ namespace FlowCheck
                 { filesOk = false; missing = rel; break; }
             }
             Check(filesOk, "AM: every row marked shipped (temp or kit) has its file in the repo" +
-                  (filesOk ? "" : " — missing: " + missing));
+                  (filesOk ? "" : " - missing: " + missing));
 
             // the faces the fairness invariant leans on: paired, and the admin pair exists
             Check(Hollowbrook.Logic.FaceAssets.WindowKey(3, true) ==
@@ -3914,9 +3914,9 @@ namespace FlowCheck
                 var im = t.GetComponent<UnityEngine.UI.Image>();
                 if (im != null && im.raycastTarget) clickThrough = false;
             }
-            Check(clickThrough, "KIT: every kit layer is click-through — the audited interactions own the pointer");
+            Check(clickThrough, "KIT: every kit layer is click-through - the audited interactions own the pointer");
 
-            // the booth shutter follows the visitor (open glass / closed blinds) — all three
+            // the booth shutter follows the visitor (open glass / closed blinds) - all three
             // bands swap together: hood and base keep their painted heights, glass stretches
             var win = FindDeep(cp.transform, "sec_window_glass");
             if (win != null)
@@ -3938,7 +3938,7 @@ namespace FlowCheck
 
             // the live sanity meter wears the kit's WHITE pill: track bed retires, inks flip
             // dark, the stage caption hides. Regression cover: the HUD is built AFTER the desk,
-            // so the tint lands lazily on the first RefreshHud — and SetSanity repainting on
+            // so the tint lands lazily on the first RefreshHud - and SetSanity repainting on
             // every sanity event must keep it (a one-shot tint used to be clobbered).
             if (root.HUD != null)
             {
@@ -3998,7 +3998,7 @@ namespace FlowCheck
                   FindDeep(cp.transform, "sec_captionbar_d") == null,
                 "KIT: the APPROVE / DECLINE caption bars are gone from the tray");
 
-            // fonts: kit families first, bundled open-licence faces as fallback — never null
+            // fonts: kit families first, bundled open-licence faces as fallback - never null
             Check(UIFactory.UiFont != null && UIFactory.UiFontBold != null &&
                   UIFactory.TypeFont != null && UIFactory.HandFont != null,
                 "KIT: every text role resolves a font (kit family or bundled fallback)");
@@ -4008,7 +4008,7 @@ namespace FlowCheck
         // The desk view runs its own Update in the editor; headlessly nothing ticks unless the
         // harness does it, exactly like WorldFrame does for the patrol. These drive the same
         // per-frame paths (queue clock, bubble cooldown, drawer motion, hotkeys) so an
-        // animation's real timing is what gets asserted — never a synthetic jump to the end.
+        // animation's real timing is what gets asserted - never a synthetic jump to the end.
         private static void DeskFrame(CheckpointView cp, float dt = 1f / 60f)
         {
             Time.deltaTime = dt;
@@ -4135,7 +4135,7 @@ namespace FlowCheck
                 root.Dialogue.Advance();
             ClickStickyNote(root);
             var cp = root.Checkpoint;
-            if (!cp.gameObject.activeInHierarchy) { Console.WriteLine("desk not live — aborting dump"); return; }
+            if (!cp.gameObject.activeInHierarchy) { Console.WriteLine("desk not live - aborting dump"); return; }
             if (state == "empty")
             {
                 // the booth AFTER a verdict: papers handed back, visitor gone, shutter shut.
@@ -4183,7 +4183,7 @@ namespace FlowCheck
             if (state == "rules" || state == "log")
                 cp.DebugOpenOverlay(state);
             // floor-files dumps: the pulled drawer with a folder open, and the pulled
-            // record sheet over it — the two states a player browsing the registry sees
+            // record sheet over it - the two states a player browsing the registry sees
             if (state == "files" || state == "record")
             {
                 // the occupied setup already pulls the cabinet once (floor 1): asking for
@@ -4210,20 +4210,20 @@ namespace FlowCheck
             if (state == "talk")
             {
                 // the window conversation now runs through the Questions panel; the dump
-                // shows the student's side of it — a long answer in the kit bubble
+                // shows the student's side of it - a long answer in the kit bubble
                 cp.DebugSay("Custodian. I'm the district administrator. I'll be taking " +
                             "control of this facility tonight.");
                 for (int i = 0; i < 2; i++) DeskFrame(cp);
             }
 
             var frame = FindDeep(cp.transform, "DeskFrame");
-            if (frame == null) { Console.WriteLine("no DeskFrame — aborting dump"); return; }
+            if (frame == null) { Console.WriteLine("no DeskFrame - aborting dump"); return; }
             var walkRoot = frame.GetComponent<RectTransform>();
             if (state == "map")
             {
                 root.OpenMap();
                 var mapT = root.MapScreen != null ? root.MapScreen.transform as RectTransform : null;
-                if (mapT == null) { Console.WriteLine("no map view — aborting dump"); return; }
+                if (mapT == null) { Console.WriteLine("no map view - aborting dump"); return; }
                 walkRoot = mapT;
             }
             var sb = new System.Text.StringBuilder();
@@ -4288,7 +4288,7 @@ namespace FlowCheck
             float sx = rt.sizeDelta.x * u + (rt.anchorMax.x - rt.anchorMin.x) * pw;
             float sy = rt.sizeDelta.y * u + (rt.anchorMax.y - rt.anchorMin.y) * ph;
             // a node's OWN localScale squeezes its size and its children, but NOT its own
-            // anchoredPosition — Unity applies the scale around the pivot, after placement
+            // anchoredPosition - Unity applies the scale around the pivot, after placement
             float pivotX = px + ax + rt.anchoredPosition.x * cs;
             float pivotY = py + ayTop - rt.anchoredPosition.y * cs;
             float x = pivotX - rt.pivot.x * sx;
@@ -4406,7 +4406,7 @@ namespace FlowCheck
             root.Config.queueArrivalMaxSeconds = 5f;
             root.Config.queueBusyHurryMultiplier = 1f;
             // the real path: NEW GAME queues BeginShift, THEN the checkpoint scene boots and
-            // runs the queued action — skipping the click leaves the run in MainMenu
+            // runs the queued action - skipping the click leaves the run in MainMenu
             var newGame = root.MainMenu.transform.Find("buttons").Find("NEW GAME");
             newGame.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             CheckpointSceneBootstrap.Build(root);
@@ -4416,7 +4416,7 @@ namespace FlowCheck
             Console.WriteLine("state after intro: " + root.State + " (advanced " + adv + ")");
             ClickStickyNote(root);      // the shift starts; the desk becomes the live screen
             var cp = root.Checkpoint;
-            if (!cp.gameObject.activeInHierarchy) { Console.WriteLine("desk not live — aborting dump"); return; }
+            if (!cp.gameObject.activeInHierarchy) { Console.WriteLine("desk not live - aborting dump"); return; }
             int guard = 0;
             while (cp.CurrentVisitor == null && guard++ < 8) cp.AdvanceQueue(6f);
 
@@ -4524,7 +4524,7 @@ namespace FlowCheck
         private static void AimAt(float x, float y) => Input.mousePosition = new Vector3(x, y, 0f);
 
         // idempotent beam selection through the real toggles (pressing Q while Focus is
-        // latched would switch it OFF — scenarios need the mode, not the keypress count)
+        // latched would switch it OFF - scenarios need the mode, not the keypress count)
         private static void SetBeam(GameRoot root, FlashlightRig rig, LightMode want)
         {
             if (want == LightMode.Off)

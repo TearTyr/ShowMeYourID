@@ -14,7 +14,7 @@ namespace Hollowbrook.Logic
 
     /// <summary>True cone coverage for the flashlight. One coordinate space (the world/room
     /// plane); every caller passes world x/y. Pure so the geometry is unit-testable without
-    /// an engine — the rendered cone sprite is only a visual echo of this math.</summary>
+    /// an engine - the rendered cone sprite is only a visual echo of this math.</summary>
     public static class BeamGeometry
     {
         public const float DefaultSweepRange = 6.2f;

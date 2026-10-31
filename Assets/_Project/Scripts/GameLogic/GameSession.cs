@@ -53,7 +53,7 @@ namespace Hollowbrook.Logic
         public HuntState Hunt = HuntState.None;
         // The Shift-5 conversation: where it stands, which one-shots were spent, the tactic
         // counters. Encoded into the save as one invariant string (see SaveFormat "adminTalk").
-        // It carries no mechanical power — no clues, no budget, no verdict — so resuming it
+        // It carries no mechanical power - no clues, no budget, no verdict - so resuming it
         // can never be exploited; it only keeps the administrator's memory consistent.
         public AdminTalkState AdminTalk = new AdminTalkState();
         public float Sanity = SanityModel.Max;
@@ -108,7 +108,7 @@ namespace Hollowbrook.Logic
             else
             {
                 Streak = 0;
-                Stacks.Add();   // a wrong call costs no sanity itself — it speeds up the drain for a while
+                Stacks.Add();   // a wrong call costs no sanity itself - it speeds up the drain for a while
                 Warnings++;
                 if (Warnings % 3 == 0) { Fines++; Score = System.Math.Max(0, Score - 100); }
             }
@@ -155,7 +155,7 @@ namespace Hollowbrook.Logic
         /// <summary>Anomalies let in during the shift being played (resets each night). Clocking out with
         /// any of them in is a failed night.</summary>
         public int ShiftBreaches;
-        /// <summary>How the night just played failed (None when it did not) — read by the results screen.</summary>
+        /// <summary>How the night just played failed (None when it did not) - read by the results screen.</summary>
         public ShiftFailure LastShiftFailure = ShiftFailure.None;
         /// <summary>Severity of the failed night the NEXT night pays for (0 = nothing to pay), and which
         /// night it was (the penalty grows with the night). Saved: a quit at the results screen keeps it.</summary>
@@ -230,7 +230,7 @@ namespace Hollowbrook.Logic
         public EndingRules.Evaluation EvaluateEnding()
         {
             // the night's books close: anomalies still outstanding count as breaches, so
-            // patrol feeds the ending. Folded EXACTLY ONCE per run — the
+            // patrol feeds the ending. Folded EXACTLY ONCE per run - the
             // pool is closed with the books, so a repeated evaluation (ending screen, summary,
             // a resumed save) can never count the same outstanding anomalies twice.
             if (CompletedShifts >= ShiftPlan.TotalShifts && !PoolFolded)

@@ -27,7 +27,7 @@ namespace Hollowbrook.Checkpoint
         private float _lightPhase;
 
         // One pass at the end of Init: the desk is fully built by then, so the skin is a flat
-        // list of "find node, restyle it" steps — no build-order coupling, no duplicated references.
+        // list of "find node, restyle it" steps - no build-order coupling, no duplicated references.
         private void ApplyKitSkin()
         {
             // ---- the booth: base, lamp, shutter, then the header boards ----
@@ -42,7 +42,7 @@ namespace Hollowbrook.Checkpoint
                 new L.Region(0, -10, 1280, 207), 2);
             _windowGlass = KitRect(_desk, "sec_window_glass", "sec_window_close_glass",
                 new L.Region(0, 185, 1280, 265), 2);   // full-frame width: the blinds art is the
-                                                      // centred 36% of the export — stretching it
+                                                      // centred 36% of the export - stretching it
                                                       // into L.Glass squeezed it to a third
             _windowBase = KitRect(_desk, "sec_window_base", "sec_window_close_base",
                 new L.Region(0, 447, 1280, 272), 2);
@@ -340,7 +340,7 @@ namespace Hollowbrook.Checkpoint
         private static Text ChildText(Button b) => ButtonLabel(b);
 
         // The label by name, not by search: skinned buttons are often born inactive (the
-        // question row waits for a visitor) and GetComponentInChildren skips hidden nodes —
+        // question row waits for a visitor) and GetComponentInChildren skips hidden nodes -
         // so the fallback searches inactive children too.
         private static Text ButtonLabel(Button b)
         {

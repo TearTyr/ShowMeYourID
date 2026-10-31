@@ -21,5 +21,5 @@
 <rect x="60" y="257" width="760" height="30" fill="none" stroke="#b8333a" stroke-width="1"/>
 <text x="470" y="250" font-size="14" fill="#e0565c" text-anchor="start" font-weight="normal">overlap: tagline under column</text>
 <text x="60" y="706" font-size="13" fill="#6b6b6b" text-anchor="start" font-weight="normal">Twin Studio · v1.0.5</text>
-<text x="640" y="20" font-size="16" fill="#8a8a88" text-anchor="middle" font-weight="normal">MENU — BEFORE (v1.0.5): tagline + locked entries, column collides with tagline</text>
+<text x="640" y="20" font-size="16" fill="#8a8a88" text-anchor="middle" font-weight="normal">MENU - BEFORE (v1.0.5): tagline + locked entries, column collides with tagline</text>
 </svg>

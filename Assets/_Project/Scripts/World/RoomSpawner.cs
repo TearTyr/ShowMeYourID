@@ -10,7 +10,7 @@ namespace Hollowbrook.World
     // single live-anomaly slot, the spawn cooldown and the breach counter.
     //
     // Lifecycle contract (one authoritative active threat):
-    //  - a real anomaly occupies the live slot from spawn until OnAnomalyGone clears it —
+    //  - a real anomaly occupies the live slot from spawn until OnAnomalyGone clears it -
     //    no second real anomaly can spawn while the slot is held, so overlapping routines
     //    can never duplicate it;
     //  - a repelled anomaly schedules its own kind's return here; the countdown is a plain
@@ -66,7 +66,7 @@ namespace Hollowbrook.World
             if (_root.Dialogue != null && _root.Dialogue.IsActive) { _spawnCooldown = Mathf.Max(_spawnCooldown, 2f); return; }
 
             // a scheduled recovery is the continuation of an EXISTING threat, not ambient
-            // spawning — it runs regardless of the shift gate below.
+            // spawning - it runs regardless of the shift gate below.
             TickReturn(dt);
 
             // a failed night's penalty: an anomaly is already roaming when this night's patrol starts

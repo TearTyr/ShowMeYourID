@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Hollowbrook.World
 {
     // One admitted visitor inside the classroom placeholder: steps in through the door and
-    // walks to the seat SeatPlanner assigned, then sits. Presentation only — the sprite and
+    // walks to the seat SeatPlanner assigned, then sits. Presentation only - the sprite and
     // tint are identical for every student, anomalies included (fairness invariant).
     public class Student : MonoBehaviour
     {

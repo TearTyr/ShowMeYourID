@@ -89,7 +89,7 @@ namespace Hollowbrook.Logic
         // and the file. On legitimate visitors it always agrees (fairness invariant).
         public string SlipName;
         public string SlipIdNumber;
-        public string SlipReason = "NIGHT CLASS — LATE LIST";
+        public string SlipReason = "NIGHT CLASS - LATE LIST";
         // What the visitor answers to "Which classroom are you going to?". It matches the
         // file (RecordFirstClassroom) unless the visitor carries the ClassroomMismatch defect.
         public string ClassroomAnswer = "…";
@@ -104,7 +104,7 @@ namespace Hollowbrook.Logic
 
         public bool PhotoMatches => WindowPortrait == IdPhoto;
 
-        /// <summary>Do the two faces AS DISPLAYED agree — portrait features AND the anomaly
+        /// <summary>Do the two faces AS DISPLAYED agree - portrait features AND the anomaly
         /// distortion overlay (the administrator's glitched window face is his photo tell, and
         /// Portrait equality ignores Distorted on purpose for the scoring rules). This is the
         /// truth the desk's face-comparison cue shows; it never contradicts the rendered sprites.
@@ -133,7 +133,7 @@ namespace Hollowbrook.Logic
                     case DefectType.SlipMismatch: lines.Add("The paper slip (" + SlipName + " / " + SlipIdNumber + ") does not match the ID card."); break;
                 }
             }
-            if (lines.Count == 0) lines.Add("No discrepancies — documents were consistent.");
+            if (lines.Count == 0) lines.Add("No discrepancies - documents were consistent.");
             return lines;
         }
     }
@@ -203,7 +203,7 @@ namespace Hollowbrook.Logic
     {
         public const int TotalStudents = 14;          // 8 core + 6 variations (approved asset plan)
 
-        /// <summary>"Room 101" / "Room 202" — the two classrooms of the school.</summary>
+        /// <summary>"Room 101" / "Room 202" - the two classrooms of the school.</summary>
         public static string RoomName(RoomId room) => room == RoomId.Classroom1 ? "Room 101" : "Room 202";
 
         /// <summary>How a student says where they are going: "Room 101, Data Structures."</summary>

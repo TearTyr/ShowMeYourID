@@ -19,7 +19,7 @@ namespace Hollowbrook.Logic
         public static string StudentKey(int faceIndex) =>
             "student_face_" + Pad(Mod(faceIndex, StudentFaceCount) + 1);
 
-        /// <summary>The anomaly variant OF ONE STUDENT: "student_face_03_anomaly" — the same
+        /// <summary>The anomaly variant OF ONE STUDENT: "student_face_03_anomaly" - the same
         /// person as StudentKey(index), visibly altered. Paired assets keep the reference photo
         /// and the in-world face tied to one identity.</summary>
         public static string AnomalyKey(int faceIndex) =>

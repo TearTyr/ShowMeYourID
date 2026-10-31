@@ -4,17 +4,17 @@ namespace Hollowbrook.Logic
 {
     /// <summary>The ONE authoritative progression path for a real-anomaly encounter.
     /// Documented transition rules (a tick may change at most one state):
-    ///   Roaming   — dark and untracked: ordinary behavior movement, no attack intent.
-    ///   Stalking  — meter > 0.05 without light: it presses in; movement/cues communicate it.
-    ///   Detected  — any light covers it (beam or lit room): readable silhouette, NOT victory.
-    ///   Exposed   — accurate Focus + meter > ExposeMeter: corrupted identity visible, repel
-    ///               meter advancing. Losing Focus (or battery) falls back to Detected — the
+    ///   Roaming   - dark and untracked: ordinary behavior movement, no attack intent.
+    ///   Stalking  - meter > 0.05 without light: it presses in; movement/cues communicate it.
+    ///   Detected  - any light covers it (beam or lit room): readable silhouette, NOT victory.
+    ///   Exposed   - accurate Focus + meter > ExposeMeter: corrupted identity visible, repel
+    ///               meter advancing. Losing Focus (or battery) falls back to Detected - the
     ///               state is recoverable; the meter then decays per TrackingPolicy after the
     ///               grace window, it is not wiped.
-    ///   Repelled  — meter >= RepelMeter: threat behavior and catch timers STOP (Threatening is
+    ///   Repelled  - meter >= RepelMeter: threat behavior and catch timers STOP (Threatening is
     ///               judged on the new state); the entity physically retreats for
     ///               ExposedBeatSeconds, then leaves the stage.
-    ///   Recovering— off-stage: the spawner's return timer owns the RecoverSeconds countdown
+    ///   Recovering- off-stage: the spawner's return timer owns the RecoverSeconds countdown
     ///               and re-enters the world as Roaming through a plausible location.
     /// Hallucinations never enter this machine; they use the Focus-seconds truth-check.</summary>
     public enum AnomalyState

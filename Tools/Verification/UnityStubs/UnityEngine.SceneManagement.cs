@@ -1,4 +1,4 @@
-// Unity API stubs (scene management) — see UnityEngine.Core.cs header.
+// Unity API stubs (scene management) - see UnityEngine.Core.cs header.
 using System;
 
 namespace UnityEngine.SceneManagement

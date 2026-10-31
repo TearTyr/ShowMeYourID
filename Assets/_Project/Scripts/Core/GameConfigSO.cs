@@ -16,7 +16,7 @@ namespace Hollowbrook.Core
         public float queueArrivalMinSeconds = 25f;
         [Tooltip("Upper bound of the randomized visitor arrival interval (Normal mode, night 1).")][Range(0.5f, 120f)]
         public float queueArrivalMaxSeconds = 30f;
-        [Tooltip("Endless/Challenge arrival interval bounds — those modes are score races and keep the fast clock.")][Range(0.5f, 60f)]
+        [Tooltip("Endless/Challenge arrival interval bounds - those modes are score races and keep the fast clock.")][Range(0.5f, 60f)]
         public float queueRunMinSeconds = 3f;
         [Range(0.5f, 120f)]
         public float queueRunMaxSeconds = 5f;
@@ -28,7 +28,7 @@ namespace Hollowbrook.Core
         // 5 / 7 to bring the feature back). The waiting line itself is hidden in the view.
         [Tooltip("Waiting visitors (window excluded) at which the queue-pressure warning fires once.")][Range(1, 9999)]
         public int queuePressureWarnAt = 9999;
-        [Tooltip("Waiting visitors at which the line overruns the checkpoint — a one-shot run failure.")][Range(2, 9999)]
+        [Tooltip("Waiting visitors at which the line overruns the checkpoint - a one-shot run failure.")][Range(2, 9999)]
         public int queueOverwhelmedAt = 9999;
         [Tooltip("Chance that an arriving anomaly (not the administrator) makes one legitimate student vanish. Normal mode only.")][Range(0f, 1f)]
         public float missingStudentChance = 0.25f;
@@ -70,7 +70,7 @@ namespace Hollowbrook.Core
         public float hallwayDarkAlpha = HallwayDarkness.BaseAlpha;
         [Tooltip("Extra darkness the corridor's depth layer adds beyond the pool around the custodian, while the lights are off. 0 = the whole corridor is equally visible.")][Range(0f, 1f)]
         public float hallwayDepthAlpha = HallwayDarkness.DepthAlpha;
-        // NOTE: the pool's radii are NOT here on purpose — they are baked into the painted
+        // NOTE: the pool's radii are NOT here on purpose - they are baked into the painted
         // hall_depth sprite, so they live with the rest of that geometry in HallwayDarkness
         // (ClearRadius / DepthRadius). Only the two alphas are runtime-mutable.
 
@@ -82,7 +82,7 @@ namespace Hollowbrook.Core
         public float focusRange = BeamGeometry.DefaultFocusRange;
         [Tooltip("Half-angle of the Focus cone, degrees. Narrow = precise tracking tool.")][Range(1f, 30f)]
         public float focusHalfAngleDeg = BeamGeometry.DefaultFocusHalfAngleDeg;
-        [Tooltip("Target body radius added to the cone test — grazing a silhouette still counts.")][Range(0f, 2f)]
+        [Tooltip("Target body radius added to the cone test - grazing a silhouette still counts.")][Range(0f, 2f)]
         public float beamTargetRadius = BeamGeometry.DefaultTargetRadius;
 
         [Header("Administrator hunt (night 5, after the DENY stamp)")]
@@ -107,7 +107,7 @@ namespace Hollowbrook.Core
         [Tooltip("Sanity lost when he reaches you in the hallway.")][Range(0f, 40f)]
         public float huntCaughtSanity = 15f;
 
-        [Header("Encounter — repel meter")]
+        [Header("Encounter - repel meter")]
         [Tooltip("Meter per second while Focus holds the anomaly's body (the only way to progress).")][Range(0.05f, 2f)]
         public float focusProgressPerSecond = TrackingPolicy.FocusRatePerSecond;
         [Tooltip("Meter lost per second in darkness, once the grace window has run out.")][Range(0.05f, 2f)]
@@ -148,7 +148,7 @@ namespace Hollowbrook.Core
         public float catchGraceBlink = 2.2f;
         [Range(0.5f, 6f)] public float catchGraceSlide = 2.4f;
         [Range(0.5f, 6f)] public float catchGraceSprint = 1.8f;
-        [Tooltip("CoverHug's own catch windup — this grace is CoverHug-specific by name and by use.")][Range(0.5f, 6f)]
+        [Tooltip("CoverHug's own catch windup - this grace is CoverHug-specific by name and by use.")][Range(0.5f, 6f)]
         public float coverHugCatchSeconds = 2.6f;
 
         [Header("Horror pacing")]
@@ -186,7 +186,7 @@ namespace Hollowbrook.Core
             if (loaded == null)
             {
                 loaded = CreateDefault();
-                Debug.Log("[GameConfig] No asset found — using procedural defaults.");
+                Debug.Log("[GameConfig] No asset found - using procedural defaults.");
             }
             return loaded;
         }

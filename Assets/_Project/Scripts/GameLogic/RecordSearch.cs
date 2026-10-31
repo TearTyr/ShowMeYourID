@@ -5,7 +5,7 @@ namespace Hollowbrook.Logic
     /// <summary>Registry access for the records station. The desk UI is the FLOOR FILES
     /// cabinet: canon students are filed by the floor of their first classroom (Room 101 =
     /// 1st floor, Room 202 = 2nd floor) and the player browses folders instead of typing.
-    /// A presented card whose number matches no filed record is itself a clue — ghost IDs
+    /// A presented card whose number matches no filed record is itself a clue - ghost IDs
     /// are not in the registry.
     /// Pure and deterministic: same canon = same folders and same answers, always.</summary>
     public static class RecordSearch
@@ -23,7 +23,7 @@ namespace Hollowbrook.Logic
         public static int FloorOf(RoomId room) => room == RoomId.Classroom1 ? 1 : 2;
 
         /// <summary>Display label of a floor folder. Room numbers follow the building:
-        /// floor N is Room N0N (101, 202 — the rooms StudentIdentity.ClassroomString names).</summary>
+        /// floor N is Room N0N (101, 202 - the rooms StudentIdentity.ClassroomString names).</summary>
         public static string FloorLabel(int floor)
         {
             string ord = floor == 1 ? "1ST" : floor == 2 ? "2ND" : floor == 3 ? "3RD" : floor + "TH";

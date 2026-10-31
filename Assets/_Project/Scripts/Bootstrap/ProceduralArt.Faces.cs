@@ -175,7 +175,7 @@ namespace Hollowbrook.Bootstrap
                     c.FillEllipse(cx + 18, h * 0.125f, 2.2f, 3.0f, eye);
                     c.FillEllipse(cx + 24, h * 0.13f, 2.2f, 3.0f, eye);
                     break;
-                default: // CoverHug — crouched, arms spread wide (ceiling lurker)
+                default: // CoverHug - crouched, arms spread wide (ceiling lurker)
                     c.FillEllipse(cx, h * 0.30f, 22, 26, body);
                     c.FillRect((int)(cx - 84), (int)(h * 0.24f), 76, 12, body);      // spread arms
                     c.FillRect((int)(cx + 8), (int)(h * 0.24f), 76, 12, body);

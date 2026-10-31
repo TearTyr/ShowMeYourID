@@ -1,6 +1,6 @@
-# Show Me Your ID! — Twin Studio
+# Show Me Your ID! - Twin Studio
 
-**2D psychological horror · deduction · exploration** — PC (Windows), mouse + keyboard.
+**2D psychological horror · deduction · exploration** - PC (Windows), mouse + keyboard.
 
 You are the newest temporary night custodian of **Hollowbrook College**, a school shut down
 mid-year without an official explanation, yet still open at night so its students can finish the
@@ -31,17 +31,17 @@ it automatically. The naming list is [docs/ASSET-MANIFEST.md](docs/ASSET-MANIFES
 
 ## How a night plays
 
-1. **Sticky note** — click it to start the night.
-2. **The window** — a student steps up. Their ID and slip are already on your desk.
-3. **Ask** — press the question button (or `1`): *Which classroom are you going to?* It is free.
+1. **Sticky note** - click it to start the night.
+2. **The window** - a student steps up. Their ID and slip are already on your desk.
+3. **Ask** - press the question button (or `1`): *Which classroom are you going to?* It is free.
    The answer stays in the questions panel.
-4. **Check** — compare the ID, the slip, the face and the answer with the student's **file**: click
+4. **Check** - compare the ID, the slip, the face and the answer with the student's **file**: click
    the cabinet (or `Tab`), pick the room folder, click the name. A wrong room, a room that does not
    exist, or the wrong class is a lie.
-5. **Stamp** — drag a stamp onto the slip. Changed your mind? Stamp again before the next step.
-6. **Hand back** — drag the ID back to the window. The decision counts now and is permanent.
-7. **Patrol** (between visitors) — walk the hallway, peek into classrooms, find the ten findings.
-8. **Night 5** — the administrator arrives. Talk to him (`T`), refuse him (**REFUSE ENTRY** or a
+5. **Stamp** - drag a stamp onto the slip. Changed your mind? Stamp again before the next step.
+6. **Hand back** - drag the ID back to the window. The decision counts now and is permanent.
+7. **Patrol** (between visitors) - walk the hallway, peek into classrooms, find the ten findings.
+8. **Night 5** - the administrator arrives. Talk to him (`T`), refuse him (**REFUSE ENTRY** or a
    DENY stamp), and he forces his way in. Hunt him through the classrooms (see below).
 
 ### The administrator hunt
@@ -66,10 +66,10 @@ The numbers (stuns, seconds, head size…) are in `GameConfig.asset` under “Ad
 
 ## Endings
 
-- **Surviving Hollowbrook** — five nights, the administrator driven off.
-- **Another Custodian** — 3 anomalies let in, 3 students wrongly turned away, the line overruns
+- **Surviving Hollowbrook** - five nights, the administrator driven off.
+- **Another Custodian** - 3 anomalies let in, 3 students wrongly turned away, the line overruns
   the checkpoint, the administrator let in, or he reaches the server door.
-- **The Truth Behind Hollowbrook** — all ten findings, found in order.
+- **The Truth Behind Hollowbrook** - all ten findings, found in order.
 
 ## Repository layout
 

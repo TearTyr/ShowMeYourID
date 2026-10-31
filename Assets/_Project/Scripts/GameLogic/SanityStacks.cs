@@ -3,7 +3,7 @@ namespace Hollowbrook.Logic
     /// <summary>The drain "stacks" a wrong decision puts on the player's sanity. Every wrong call
     /// adds a stack (up to <see cref="MaxStacks"/>) and every stack level has its own timer; while
     /// any stacks are up, every sanity LOSS is scaled by the level's multiplier. The timer is
-    /// refreshed by each new stack, and when it runs out the stacks clear together — so a
+    /// refreshed by each new stack, and when it runs out the stacks clear together - so a
     /// mistake is never permanent, but piling them up keeps the drain high for longer.
     /// Pure: unit-tested, the session owns one instance.</summary>
     public sealed class SanityStacks

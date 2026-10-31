@@ -10,7 +10,7 @@ LIBS_ALL="${UNITY_LIBS_ALL:-/tmp/unitylibs}"
 LIBS_MIN="${UNITY_LIBS_MIN:-/tmp/unitylibs_min}"
 
 echo "======================================================================"
-echo " Show Me Your ID! — verification harness"
+echo " Show Me Your ID! - verification harness"
 echo "   project : $REPO"
 echo "   sources : $GAME_SRC"
 echo "======================================================================"
@@ -21,7 +21,7 @@ if [ -z "$DOTNET" ]; then
   cat <<'MSG'
 [1/4] .NET SDK not found.
 
-    The harness needs Roslyn (any .NET 6/8/9 SDK works — it is only a compiler,
+    The harness needs Roslyn (any .NET 6/8/9 SDK works - it is only a compiler,
     it does NOT replace Unity). Install it once:
 
       # Linux/macOS

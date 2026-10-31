@@ -21,13 +21,13 @@ namespace Hollowbrook.UI
             var sheet = UIFactory.LeftSheet(transform, "CREDITS", "A Twin Studio game.", out _);
 
             string body =
-                "Project Director · Narrative — Jessie Mariel De Mesa\n" +
-                "Project Assistants — Elijah Japeth Ramos · Clarence Manalo\n" +
-                "Programming — Elijah Japeth Ramos · John Perilla\n" +
-                "Art — Daniel Steven Solitaria · Jessie Mariel De Mesa\n" +
-                "Audio — Clarence Manalo\n" +
-                "Marketing & Branding — Diosdado Fabelico II · Daniella Garing\n" +
-                "Storyboard — All members\n\n" +
+                "Project Director · Narrative - Jessie Mariel De Mesa\n" +
+                "Project Assistants - Elijah Japeth Ramos · Clarence Manalo\n" +
+                "Programming - Elijah Japeth Ramos · John Perilla\n" +
+                "Art - Daniel Steven Solitaria · Jessie Mariel De Mesa\n" +
+                "Audio - Clarence Manalo\n" +
+                "Marketing & Branding - Diosdado Fabelico II · Daniella Garing\n" +
+                "Storyboard - All members\n\n" +
                 "This build generates all art and audio procedurally at runtime\n" +
                 "(monochrome silhouettes, documents, and an E♭-minor score).\n" +
                 "Drop real assets into Resources/Art and Resources/Audio to replace any of them.";

@@ -12,7 +12,7 @@ Destination: Assets/_Project/Resources/Art/MainMenu/<key>.png  (+ .meta via gene
 The same crops are mirrored back into Art/MainMenu/{logos,icons}/ so the source tree shows
 exactly what the runtime kit was cut from.
 
-Geometry: the UI master composites into the reference 1:1 at offset (109, 96) — measured by
+Geometry: the UI master composites into the reference 1:1 at offset (109, 96) - measured by
 matching the master's frame/box alpha bounding boxes against the reference composite. The
 crop rects below are the master-local alpha bboxes of each element (measured, not guessed).
 

@@ -77,7 +77,7 @@ namespace Hollowbrook.Checkpoint
                 () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, L.UtilityRecords, L.TiltLog);
             Reg("records", _recordsBtn, L.UtilityRecords);
             // the mockup's inline college map: a panel-button (click still opens the full
-            // overlay) whose chalk list mirrors the ground-floor plan the overlay draws —
+            // overlay) whose chalk list mirrors the ground-floor plan the overlay draws -
             // same rooms, same order, same wording, so the two can never disagree
             _mapBtn = GridButton(_desk, "map", "", () => _gameRoot.OpenMap(), L.UtilityMap, 16);
             Reg("map", _mapBtn, L.UtilityMap);
@@ -96,7 +96,7 @@ namespace Hollowbrook.Checkpoint
             L.Place(mf.rectTransform, new L.Region(14, 42, 90, 14));
             mf.font = UIFactory.UiFont;
             // hand-drawn room boxes (map-local): the reference plan's composition in
-            // miniature — both classrooms along the north wall, the hall between them and
+            // miniature - both classrooms along the north wall, the hall between them and
             // the security room, the checkpoint south-west, the comfort rooms north and
             // south of the sealed server room at the east end. Same rooms, same order as
             // the full plan, so the two can never disagree.
@@ -108,7 +108,7 @@ namespace Hollowbrook.Checkpoint
                 new float[] { 214, 84, 52, 26 },
             };
             string[] tags = { "ROOM 101", "ROOM 202", "MAIN HALL", "SECURITY",
-                              "CR-1", "CR-2", "SERVER — SEALED" };
+                              "CR-1", "CR-2", "SERVER - SEALED" };
             for (int i = 0; i < boxes.Length; i++)
             {
                 bool sealedRoom = i == boxes.Length - 1;
@@ -122,7 +122,7 @@ namespace Hollowbrook.Checkpoint
                 UIFactory.AnchorsFull(bl.rectTransform);
                 bl.font = UIFactory.UiFont;
             }
-            var mh = UIFactory.Label(_mapBtn.transform, "mhint", "CLICK — OPEN THE FULL PLAN", 9,
+            var mh = UIFactory.Label(_mapBtn.transform, "mhint", "CLICK - OPEN THE FULL PLAN", 9,
                 UIFactory.NsMid, TextAnchor.MiddleRight);
             L.Place(mh.rectTransform, new L.Region(90, 150, 190, 12));
             mh.font = UIFactory.UiFont;
@@ -140,7 +140,7 @@ namespace Hollowbrook.Checkpoint
             Reg("notes", _notesBtn, L.UtilityNotes);
 
             // verdicts are physical: drag a stamp onto the slip to commit.
-            // No confirm buttons anywhere — the stamp act IS the confirmation.
+            // No confirm buttons anywhere - the stamp act IS the confirmation.
         }
 
         // A paper prop: kit sheet art on the desk, tilted like the concept art paints it,
@@ -203,8 +203,8 @@ namespace Hollowbrook.Checkpoint
         }
 
         // Papers, Please stamping: the mark lands WHERE the player released the stamp on
-        // the slip. The drop centre (desk space) is converted into the slip's own space —
-        // position, scale and resting tilt included — then clamped so the whole
+        // the slip. The drop centre (desk space) is converted into the slip's own space -
+        // position, scale and resting tilt included - then clamped so the whole
         // tilted mark stays inside the printable area: a drop near a corner stamps near
         // that corner, a drop in the middle stamps the middle, nothing ever hangs off the
         // paper. It records a PENDING verdict: nothing is scored until hand-back.
@@ -246,13 +246,13 @@ namespace Hollowbrook.Checkpoint
         // inspection; the clamp budget (StampMaxTilt) covers the tilt's corners.
         //
         // 60px on the 200x120 slip, big enough to read at a glance
-        // and 30% of the slip's width — the same footprint class as the original 56px art, with
+        // and 30% of the slip's width - the same footprint class as the original 56px art, with
         // the temp ink asset's tighter margins keeping the NAME / ID lines readable around it.
         // Square sizeDelta + preserveAspect keep the ink undistorted; the printable clamp
         // (margin 39.8px) still holds the whole tilted mark on the paper. internal so the
         // headless proofs clamp and measure with the SAME numbers the view renders with.
         internal const float StampMarkSize = 60f;
-        internal const float StampMaxTilt = 18f;   // |−12 + [−6..+6]| — the seeded tilt span
+        internal const float StampMaxTilt = 18f;   // |−12 + [−6..+6]| - the seeded tilt span
         internal const float StampEdgePad = 2f;    // breathing room between mark and edge
 
         private void PlaceStampMark(Verdict v, Vector2 localCentre)
@@ -327,8 +327,8 @@ namespace Hollowbrook.Checkpoint
         public void Stamp(Verdict verdict)
         {
             if (_current == null || _verdictLocked || !_documentsTaken) return;
-            if (Queue != null && Queue.Collapsed) return;   // the line overran the checkpoint — verdicts are dead
-            _verdictLocked = true; // §2.4 — decisions are permanent
+            if (Queue != null && Queue.Collapsed) return;   // the line overran the checkpoint - verdicts are dead
+            _verdictLocked = true; // §2.4 - decisions are permanent
             var mutation = _gameRoot.Session.Mode == GameMode.Challenge ? _gameRoot.Session.ActiveMutation : null;
             var outcome = InspectionRules.Apply(_current, verdict, mutation);
 
@@ -338,12 +338,12 @@ namespace Hollowbrook.Checkpoint
             // silent verdict: the log records the call, never whether it was right
             _tonightsLog.Append("  ").Append(_current.IsAdministrator ? "ADMINISTRATOR" : _current.ClaimedName)
                 .Append(" (").Append(_current.IdNumber).Append(")")
-                .Append(" — ").Append(verdict == Verdict.Allow ? "ALLOWED" : "REJECTED").Append("\n");
+                .Append(" - ").Append(verdict == Verdict.Allow ? "ALLOWED" : "REJECTED").Append("\n");
 
             var resolved = _current;
             _gameRoot.OnVerdictResolved(resolved, outcome);           // counters update BEFORE the banner reads them
             if (_gameRoot.State == AppViewState.Ending) { Hide(); return; } // ending took over (C3/C4)
-            if (Queue != null) Queue.CommitActiveResolution();                // the queue books it NOW — a
+            if (Queue != null) Queue.CommitActiveResolution();                // the queue books it NOW - a
                                                                       // quit mid-banner can never make
                                                                       // this visitor stampable again
             RefreshHud();
@@ -351,7 +351,7 @@ namespace Hollowbrook.Checkpoint
             StartCoroutine(AfterStamp(resolved));
         }
 
-        // Silent verdict: the banner states the decision and nothing else — never whether
+        // Silent verdict: the banner states the decision and nothing else - never whether
         // the call was correct. The thrill lives in not knowing until the night judges you.
 
         private IEnumerator StampPunch(Verdict verdict)
@@ -376,7 +376,7 @@ namespace Hollowbrook.Checkpoint
         }
 
         // The post-stamp beat: the mark lands, the subject leaves, the next steps up.
-        // Deliberately wordless — feedback is the stamp, the sound, the walking figure.
+        // Deliberately wordless - feedback is the stamp, the sound, the walking figure.
         private IEnumerator AfterStamp(VisitorData resolved)
         {
             yield return WaitUnpaused(BannerSeconds);

@@ -1,4 +1,4 @@
-# Phase 0 — baseline record (before Task 1 / Task 2 edits)
+# Phase 0 - baseline record (before Task 1 / Task 2 edits)
 
 Repo: `github.com/TearTyr/ShowMeYourID` @ `1ac4c79` ("JP Patch"), cloned 2026-10-24.
 
@@ -20,7 +20,7 @@ Darkness is a **black overlay quad per room** + **SpriteMask holes** (no light o
   front 60 / back 70) + cone `SpriteRenderer` "beam" (order 71, colour `(1, 0.96, 0.85, 0.30)`),
   pure cone test in `GameLogic/BeamGeometry`, arbitration in `GameLogic/FlashlightInput`,
   `GameLogic/BatteryModel`.
-- `PeekLight` — the classroom peek's cursor lamp (mask range 60..80 + a glow sprite at order 72).
+- `PeekLight` - the classroom peek's cursor lamp (mask range 60..80 + a glow sprite at order 72).
 - Sorting map: room art 0–10, anomalies 40, beam mask range 60–70, darkness 70, cone 71,
   player 73, light-switch plate 75. HUD is a Screen-Space-Overlay canvas (never masked).
 
@@ -35,7 +35,7 @@ Transitions: `ViewManager.EnterRoom → TransitionRoutine (fade) → EnterRoomIm
 `room.Light.ForceDarkOnEntry()` + `Flashlight.ForceBeamOffOnEntry()`; patrol start
 (`ShowWorld → EnterRoomImmediate(Hallway, null)`) and peek returns take the same path.
 
-## Flashlight state (baseline — already manual)
+## Flashlight state (baseline - already manual)
 - State lives on `FlashlightRig.Beam` (`LightMode Off/Sweep/Focus`) + `FlashlightLatches`
   (`internal Latches`), battery in `BatteryModel`/`BatteryState`.
 - Input: **F** = Sweep toggle, **Q** = Focus toggle, **L** = off; mouse buttons are deliberately
@@ -44,14 +44,14 @@ Transitions: `ViewManager.EnterRoom → TransitionRoutine (fade) → EnterRoomIm
 - `ForceBeamOffOnEntry()` clears latches + forces Off on **every** room entry (no auto-activate).
 - `AimBeam()` follows the cursor on the z=0 plane every frame (even while Off, but cone+mask
   GameObjects are inactive then → nothing renders).
-- HUD: `HUDView` room line = `MAIN HALLWAY · LIGHTS: OFF — wall switch [E] · BEAM: OFF`,
+- HUD: `HUDView` room line = `MAIN HALLWAY · LIGHTS: OFF - wall switch [E] · BEAM: OFF`,
   refreshed on `LightModeChanged` / `RoomEntered` / `BatteryChanged`.
 
 ## BASELINE VALUES to compare against at the end
 **Hallway ambient (identical to every other room today):**
 - lit alpha `0.12` (88 % brightness), dark alpha `0.62` (38 % brightness)
 - → hallway is currently **0 % darker than a dark classroom** and only 57 % darker than a lit room
-- visibility with the beam OFF: **unlimited** — the whole 22.8-unit corridor (and all 3 doors,
+- visibility with the beam OFF: **unlimited** - the whole 22.8-unit corridor (and all 3 doors,
   lockers, clues) sits at a uniform 38 % brightness. No near-field pool exists.
 
 **Stamp mark (the verdict mark stamped onto the slip):**
@@ -64,7 +64,7 @@ Transitions: `ViewManager.EnterRoom → TransitionRoutine (fade) → EnterRoomIm
   double ring (r 74/64/62) + 12 px check or cross + 90 worn-ink gaps; allow ink = grey
   `(0.2,0.2,0.2,0.9)`, reject ink = `(0.72,0.12,0.16,0.92)`
 - tray (the draggable tools, NOT the mark): `L.StampAllow (968,296,152,150)`,
-  `L.StampDeny (1128,296,152,150)` — frozen wireframe grid, audited by FlowCheck
+  `L.StampDeny (1128,296,152,150)` - frozen wireframe grid, audited by FlowCheck
 - no files in `Assets/_Project/Resources/Art/` (directory does not exist) → the procedural
   painter is the only stamp art today
 

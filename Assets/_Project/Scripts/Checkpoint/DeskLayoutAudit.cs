@@ -72,7 +72,7 @@ namespace Hollowbrook.Checkpoint
             foreach (var line in bad) Debug.LogWarning("[LayoutAudit] " + line);
             Debug.Log("[LayoutAudit] " + gameObject.name + ": " + (_entries.Count - bad.Count) + "/" +
                       _entries.Count + " elements match the approved grid" +
-                      (bad.Count == 0 ? " — zero warnings" : " — " + bad.Count + " WARNING(S)"));
+                      (bad.Count == 0 ? " - zero warnings" : " - " + bad.Count + " WARNING(S)"));
 #endif
         }
     }

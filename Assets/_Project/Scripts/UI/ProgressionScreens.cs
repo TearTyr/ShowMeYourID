@@ -8,20 +8,20 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    // HOLLOWBROOK COLLEGE — GROUND FLOOR: the hand-drawn plan the custodian keeps at the desk.
+    // HOLLOWBROOK COLLEGE - GROUND FLOOR: the hand-drawn plan the custodian keeps at the desk.
     //
     // Layout rule (and the fix for the old off-centre sheet): the plan is authored ONCE in
     // FloorPlan's fixed design space, and this view fits that space to whatever the screen can
-    // actually show (UIFactory.VisibleReferenceSize — AspectMatchGuard widens the visible
+    // actually show (UIFactory.VisibleReferenceSize - AspectMatchGuard widens the visible
     // reference on wide windows and heightens it on tall ones). One uniform scale, one centred
     // stack (title / plan / controls), so the sheet is centred horizontally AND vertically at
-    // any resolution and can never clip — there are no hand-tuned pixel offsets left to drift.
+    // any resolution and can never clip - there are no hand-tuned pixel offsets left to drift.
     //
     // Rooms come from the same FloorPlan table the proofs read: the security checkpoint on the
     // left, the long central hallway, Classroom 1 above it, Classroom 2 below it, the sealed
     // server / identification room on the right, and the two comfort rooms off the corridor's
     // east end. The plan is a REFERENCE only: no room takes a click, so the map can never move
-    // the player — you get into a room by walking the hallway and peeking in from its door.
+    // the player - you get into a room by walking the hallway and peeking in from its door.
     public class MapView : MonoBehaviour, IScreenView
     {
         // The sheet's composition, sizes and type scales all live in MapSheetLayout (pure,
@@ -124,7 +124,7 @@ namespace Hollowbrook.UI
             // plan, and it follows the sheet's own fit so it cannot drift off-screen
             _closeRt = UIFactory.NewUI(transform, "close");
             // raycast ON: this child Image is what the pointer actually hits, and the click then
-            // walks up to the Button on the row — with it off the CLOSE row would take no clicks
+            // walks up to the Button on the row - with it off the CLOSE row would take no clicks
             var closeInk = UIFactory.Img(_closeRt, "bg", null, new Color(0.055f, 0.055f, 0.06f, 0.94f), true);
             UIFactory.AnchorsFull(closeInk.rectTransform);
             var closeLbl = UIFactory.Label(_closeRt, "label", "CLOSE  [M]", 14, UIFactory.Ink,
@@ -185,7 +185,7 @@ namespace Hollowbrook.UI
 
         // Doorway gaps, drawn from the same table as the rooms and oriented by the wall they sit
         // on: a door in the corridor's long wall is a horizontal leaf, one in its end wall is
-        // vertical. The sealed room's is tinted red and turned — a barred plate, not a way in.
+        // vertical. The sealed room's is tinted red and turned - a barred plate, not a way in.
         private void BuildDoors()
         {
             int i = 0;
@@ -216,7 +216,7 @@ namespace Hollowbrook.UI
 
         // The chalk runs that connect a room to the corridor (FloorPlan.Corridors), plus
         // the reference's stair hatch under the east-centre long wall and the custodian's
-        // "2ND FLOOR??" scratch beside it — decoration, exactly like the reference's.
+        // "2ND FLOOR??" scratch beside it - decoration, exactly like the reference's.
         private Text _stairsNote;
         private void BuildCorridors()
         {
@@ -344,7 +344,7 @@ namespace Hollowbrook.UI
 
         /// <summary>Design-space point -> the plan container's anchored space, origin at the
         /// container's centre. FloorPlan's y axis points DOWN (like a drawing) while a
-        /// RectTransform's points UP, so the y is negated HERE and nowhere else — every
+        /// RectTransform's points UP, so the y is negated HERE and nowhere else - every
         /// coordinate on the sheet goes through this one function, which is why the plan can
         /// never come out mirrored and why one scale factor keeps the whole sheet coherent.</summary>
         private Vector2 Design(float x, float y) => new Vector2(
@@ -384,7 +384,7 @@ namespace Hollowbrook.UI
             PlaceHereMarker();
             RebuildClueDots();
 
-            _hint.text = "From the checkpoint the map is reference only — use PATROL HALLWAY to investigate.";
+            _hint.text = "From the checkpoint the map is reference only - use PATROL HALLWAY to investigate.";
             _hint.fontSize = ScaledSize(HintSize, _chromeTextScale);
         }
 
@@ -473,7 +473,7 @@ namespace Hollowbrook.UI
         public void Populate(GameSession session, ShiftDef justFinished)
         {
             bool failed = session.LastShiftFailure != ShiftFailure.None;
-            _title.text = "SHIFT " + justFinished.Number + (failed ? " FAILED — " : " COMPLETE — ") + justFinished.DateLabel;
+            _title.text = "SHIFT " + justFinished.Number + (failed ? " FAILED - " : " COMPLETE - ") + justFinished.DateLabel;
             int shiftVisitors = justFinished.VisitorCount + (justFinished.HasAdministrator ? 1 : 0);
             var sb = new StringBuilder();
             sb.Append("Visitors processed tonight:  ").Append(shiftVisitors).Append('\n');
@@ -494,7 +494,7 @@ namespace Hollowbrook.UI
                   .Append(" sanity, with the drain already up and something already walking the halls.\n");
             }
             if (justFinished.Number == 5)
-                sb.Append("District administrator:        ").Append(session.AdminRejected ? "REJECTED — identified as an impostor\n" : "—\n");
+                sb.Append("District administrator:        ").Append(session.AdminRejected ? "REJECTED - identified as an impostor\n" : "-\n");
             _body.text = sb.ToString();
 
             int mistakes = session.FalseRejections + session.Breaches;
@@ -586,7 +586,7 @@ namespace Hollowbrook.UI
             sb.Append("Anomalies rejected:         ").Append(session.AnomaliesRejected).Append('\n');
             sb.Append("False rejections:           ").Append(session.FalseRejections).Append(" / 3\n");
             sb.Append("Anomaly breaches:           ").Append(session.Breaches).Append(" / 3\n");
-            sb.Append("Administrator:              ").Append(session.AdminAllowed ? "ALLOWED IN (fatal mistake)" : session.Hunt == HuntState.Lost ? "REJECTED — but he reached the server door" : session.AdminRejected ? "REJECTED — impostor driven off" : "never arrived").Append('\n');
+            sb.Append("Administrator:              ").Append(session.AdminAllowed ? "ALLOWED IN (fatal mistake)" : session.Hunt == HuntState.Lost ? "REJECTED - but he reached the server door" : session.AdminRejected ? "REJECTED - impostor driven off" : "never arrived").Append('\n');
             sb.Append("Findings:                   ").Append(session.Clues.FoundCount).Append(" / 10  (").Append(session.Clues.OrderIntact ? "intended sequence intact" : "sequence broken").Append(")\n");
             sb.Append("Final sanity:               ").Append((int)session.Sanity).Append("  (").Append(session.SanityStage).Append(")\n");
             sb.Append("Score:                      ").Append(session.Score).Append("    Best streak: ").Append(session.BestStreak);

@@ -52,7 +52,7 @@ namespace Hollowbrook.World
         }
 
         // One flat placeholder quad. The solid_white sprite is exactly 1x1 world unit, so
-        // `size` is in world units and equals the localScale — every placeholder in the patrol
+        // `size` is in world units and equals the localScale - every placeholder in the patrol
         // scene (wall/floor bands, doors, darkness overlay, markers) is this one
         // call, which keeps the convention in a single place.
         public static GameObject Quad(Transform parent, string name, Vector3 pos, int order,
@@ -114,7 +114,7 @@ namespace Hollowbrook.World
                     room.AnomalySpawnPoints.Add(new Vector3(1.5f, 0, 0));
                     break;
                 }
-                default: // Classroom2 — the server room adjoins it (every room now starts dark)
+                default: // Classroom2 - the server room adjoins it (every room now starts dark)
                 {
                     room.DisplayName = "CLASSROOM 2";
                     room.HalfWidth = 8.2f;
@@ -197,7 +197,7 @@ namespace Hollowbrook.World
         // The clue anchor (chest height, what the interact test uses) stays where it was; the
         // optional sprite hangs off it as a child so each GDD interaction object is actually
         // SEEN in the room. A dropped-in Resources/Art/<key>.png replaces the placeholder and
-        // resizes itself from its own pixels-per-unit — no call-site changes.
+        // resizes itself from its own pixels-per-unit - no call-site changes.
         private void AddClue(RoomInstance room, string clueKey, float x, float floorY, string label,
             string spriteKey = null, float mountY = 0.8f)
         {

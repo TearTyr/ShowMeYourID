@@ -31,7 +31,7 @@ namespace Hollowbrook.Bootstrap
         // 9-slice borders in TEXTURE PIXELS for kit sprites that must stretch without dragging
         // their detail: the dialogue bubble keeps its left tail and its rough edge intact.
         // Measured on the TRIMMED master (2879x1031): the tail+left edge run to x=480, the
-        // torn top/bottom/right edges to ~140. (x=left, y=bottom, z=right, w=top —
+        // torn top/bottom/right edges to ~140. (x=left, y=bottom, z=right, w=top -
         // UnityEngine's Sprite.border order.)
         private static readonly Dictionary<string, Vector4> FileBorders =
             new Dictionary<string, Vector4> { { "sec_bubble", new Vector4(480f, 140f, 140f, 140f) } };
@@ -43,7 +43,7 @@ namespace Hollowbrook.Bootstrap
         private static readonly Dictionary<string, float> FilePpus =
             new Dictionary<string, float> { { "sec_bubble", 10f } };
 
-        /// <summary>True when a real file (or a cached sprite) exists for the key — callers that
+        /// <summary>True when a real file (or a cached sprite) exists for the key - callers that
         /// have their own painter use this to fall back instead of showing a broken image.</summary>
         // The owner's layered UI kit ships under its own folder; a key resolves from the flat
         // Art folder first (long-standing convention), then from the kit folder, then from the
@@ -60,7 +60,7 @@ namespace Hollowbrook.Bootstrap
             return tex;
         }
 
-        /// <summary>Every cached sprite key — the headless sprite export walks this.</summary>
+        /// <summary>Every cached sprite key - the headless sprite export walks this.</summary>
         public static System.Collections.Generic.IEnumerable<string> CachedKeys => Cache.Keys;
 
         public static bool TryGet(string key, out Sprite sprite)
@@ -97,7 +97,7 @@ namespace Hollowbrook.Bootstrap
                     return spr;
                 }
             }
-            catch (Exception) { /* no resources — fall through to procedural */ }
+            catch (Exception) { /* no resources - fall through to procedural */ }
 
             var built = Build(key);
             if (built != null) Cache[built.name] = built;
@@ -223,7 +223,7 @@ namespace Hollowbrook.Bootstrap
 
         private static Color G(float v, float a = 1f) => new Color(v, v, v, a);
 
-        /// <summary>Every sprite key the procedural painter knows — the exact list an asset
+        /// <summary>Every sprite key the procedural painter knows - the exact list an asset
         /// drop-in can replace (Resources/Art/&lt;key&gt;.png wins over the painter) and the list
         /// the asset manifest and the headless proofs cross-check against. Kept next to Build so
         /// a new case and a new name land in the same edit.</summary>
@@ -248,8 +248,8 @@ namespace Hollowbrook.Bootstrap
         };
 
         /// <summary>The Main Menu art kit (Assets/_Project/Resources/Art/MainMenu/&lt;key&gt;.png,
-        /// cut from Art/MainMenu by Tools/prep_mainmenu_art.py). Kit keys live OUTSIDE AllKeys —
-        /// they have no procedural painter, exactly like the SecurityRoom kit — but they resolve
+        /// cut from Art/MainMenu by Tools/prep_mainmenu_art.py). Kit keys live OUTSIDE AllKeys -
+        /// they have no procedural painter, exactly like the SecurityRoom kit - but they resolve
         /// through the same Get()/LoadFileTexture() path and the same manifest rows. FlowCheck
         /// proves the folder ships whole (`== Main Menu art kit ==`).</summary>
         public static readonly string[] MainMenuKitKeys =
@@ -323,7 +323,7 @@ namespace Hollowbrook.Bootstrap
                 case "map_sealed": return MakeMapSealed(160, 120);
                 case "map_door": return MakeMapDoor(24, 20);
                 default:
-                    Debug.LogWarning("[ProceduralArt] unknown sprite key '" + key + "' — returning solid.");
+                    Debug.LogWarning("[ProceduralArt] unknown sprite key '" + key + "' - returning solid.");
                     return MakeSolid(G(1f, 0f));
             }
         }
@@ -459,13 +459,13 @@ namespace Hollowbrook.Bootstrap
                 if (spr == null) continue;
                 if (FileBacked.Contains(kv.Key))
                 {
-                    // kit/drop-in sprite: the texture belongs to the imported asset — releasing
+                    // kit/drop-in sprite: the texture belongs to the imported asset - releasing
                     // it is forbidden (and wrong: the next session reloads the same asset).
                     // Only the Sprite.Create wrapper is ours, so only that gets destroyed.
                     UnityEngine.Object.Destroy(spr);
                     continue;
                 }
-                // procedural sprite: texture and wrapper were both allocated here — free both.
+                // procedural sprite: texture and wrapper were both allocated here - free both.
                 if (spr.texture != null) UnityEngine.Object.Destroy(spr.texture);
                 UnityEngine.Object.Destroy(spr);
             }

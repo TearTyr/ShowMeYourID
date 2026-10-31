@@ -9,7 +9,7 @@ namespace Hollowbrook.World
     // Fills the classroom placeholder with the students the player admitted this shift.
     // Driven by PatrolStarted / PatrolEnded on the EventBus; the seating itself comes from
     // the pure SeatPlanner, so the same seed and the same admitted list always produce the
-    // same room — including after save -> resume. Students step in one by one through the
+    // same room - including after save -> resume. Students step in one by one through the
     // door; pausing the game pauses both entry and walking.
     public class StudentSpawner : MonoBehaviour
     {
@@ -72,7 +72,7 @@ namespace Hollowbrook.World
             {
                 if (plan[i] < 0)
                 {
-                    Debug.LogWarning("[Students] no seat left for " + (ids[i] ?? "?") + " — skipped");
+                    Debug.LogWarning("[Students] no seat left for " + (ids[i] ?? "?") + " - skipped");
                     continue;
                 }
                 var go = new GameObject("student_" + i);

@@ -51,7 +51,7 @@ namespace Hollowbrook.Checkpoint
             _gameRoot.Audio.PlaySfx("sfx_ui_open", 0.7f);
             _stickyRoot.SetActive(false);
             Queue.MarkStarted();
-            Debug.Log("[Flow] sticky note clicked — shift started, first visitor arriving");
+            Debug.Log("[Flow] sticky note clicked - shift started, first visitor arriving");
             ApplyTickResult(Queue.ForceNextArrival(), false);
             RefreshHud();
         }

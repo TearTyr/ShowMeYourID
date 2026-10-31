@@ -14,7 +14,7 @@ TextureImporter:
   spriteMode: 1
   textureType: 8
   # deliberate additions to generate_meta.py's stock block (see docs/HALLWAY-STAMP-PASS.md):
-  # this is a transparency-critical UI mark rendered at ~39 px — dilate the alpha edges and keep
+  # this is a transparency-critical UI mark rendered at ~39 px - dilate the alpha edges and keep
   # it uncompressed so the thin worn rings never pick up fringing or DXT blockiness.
   alphaIsTransparency: 1
   textureCompression: 0

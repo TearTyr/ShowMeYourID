@@ -12,8 +12,8 @@ namespace Hollowbrook.Bootstrap
     public static class SceneRouter
     {
         public const string Menu = "MainMenu";
-        public const string Checkpoint = "Hollowbrook";   // Scene A — "That's Not My Neighbor" desk loop
-        public const string School = "School";           // Scene B — side-scroller + security room
+        public const string Checkpoint = "Hollowbrook";   // Scene A - "That's Not My Neighbor" desk loop
+        public const string School = "School";           // Scene B - side-scroller + security room
 
         public static bool IsRegistered(string sceneName) =>
             sceneName == Menu || sceneName == Checkpoint || sceneName == School;
@@ -112,7 +112,7 @@ namespace Hollowbrook.Bootstrap
         private static void EnsureBootstrappedScene()
         {
             if (GameRoot.Instance != null) return;
-            Debug.LogWarning("[CoreBootstrap] no bootstrap in active scene — loading MainMenu.");
+            Debug.LogWarning("[CoreBootstrap] no bootstrap in active scene - loading MainMenu.");
             SceneManager.LoadScene(SceneRouter.Menu);
         }
 

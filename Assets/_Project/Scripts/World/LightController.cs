@@ -6,14 +6,14 @@ using UnityEngine;
 namespace Hollowbrook.World
 {
     // Per-room ambient lighting ONLY: the lit state, darkness alpha and flicker.
-    // The handheld beam is FlashlightRig's business — this class never sees a beam mode and
+    // The handheld beam is FlashlightRig's business - this class never sees a beam mode and
     // the rig never writes here. Battery recovery, sanity drain and spawn odds all read the
     // real ambient state (Lit) from this class. Created by RoomBuilder.
     //
     // The corridor additionally owns a DEPTH layer (RoomBuilder builds it for the hallway only):
     // a second black sheet whose alpha is a radial falloff around the custodian, so with the
     // lights and the beam both out he sees a small pool and the rest of the hallway stays black.
-    // It is ambient darkness, not a light — nothing glows, it only grades how much is hidden —
+    // It is ambient darkness, not a light - nothing glows, it only grades how much is hidden -
     // and it follows the player every frame. HallwayDarkness owns the geometry.
     public class LightController : MonoBehaviour
     {
@@ -68,7 +68,7 @@ namespace Hollowbrook.World
                 ? 1f - (1f - _darkAlpha) * (1f - _depthAlpha)
                 : _darkAlpha);
 
-        /// <summary>Scripted events (the hallucination flicker) are the only ways room light changes —
+        /// <summary>Scripted events (the hallucination flicker) are the only ways room light changes -
         /// there are no wall switches; the flashlight is the player's only light.</summary>
         public void SetLit(bool on)
         {
@@ -81,7 +81,7 @@ namespace Hollowbrook.World
                 on ? "Lights on." : "Lights off. Something prefers it that way."));
         }
 
-        /// <summary>Room-entry reset: EVERY room is entered in darkness — the handheld
+        /// <summary>Room-entry reset: EVERY room is entered in darkness - the handheld
         /// flashlight is the only light. Called by ViewManager on each entry
         /// (peeks included). Silent by design: no toast, no "Lights off" line; the HUD
         /// refreshes on RoomEntered. A peek override still owns the visual while it is on.</summary>
@@ -116,7 +116,7 @@ namespace Hollowbrook.World
             FollowPlayer();   // re-centre at once: the pool is never a frame behind the room entry
         }
 
-        // Keeps the pool centred on the custodian. Struct maths only — no allocations, so the
+        // Keeps the pool centred on the custodian. Struct maths only - no allocations, so the
         // lighting loop stays inside the frame budget. Room-local == world here (the world root
         // and every room root are at identity), the same space the darkness quad is built in.
         private void FollowPlayer()
@@ -133,7 +133,7 @@ namespace Hollowbrook.World
         internal void Tick(float dt)
         {
             if (_gameRoot == null || _gameRoot.Paused || _room == null) return;
-            FollowPlayer();         // the pool tracks him in the dark too — no flicker gate
+            FollowPlayer();         // the pool tracks him in the dark too - no flicker gate
             if (_peekOverride) return;   // no flicker while the player only peeks in
             if (!Lit) return;
             _flickerTimer -= dt;

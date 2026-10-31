@@ -5,12 +5,12 @@ namespace Hollowbrook.Logic
     /// <summary>The flashlight's light distribution in beam space: t = distance along the aim
     /// (0 at the lamp, 1 at the mode's range), uNorm = offset from the axis as a fraction of the
     /// wedge half-width at that distance (0 on axis, 1 at the wedge edge). ONE profile feeds every
-    /// layer — the cone sprite's painted light, the stencil reveal and the penumbra sheet — so the
+    /// layer - the cone sprite's painted light, the stencil reveal and the penumbra sheet - so the
     /// visible beam, the hole it cuts and the graded falloff can never disagree. Pure so the
     /// curves are unit-testable; ProceduralArt bakes them, FlashlightRig scales them.</summary>
     public static class BeamProfile
     {
-        // Cross-section: full on axis, feathered to nothing just OUTSIDE the wedge edge — a soft
+        // Cross-section: full on axis, feathered to nothing just OUTSIDE the wedge edge - a soft
         // tapered shoulder instead of a hard triangle side.
         public static float Side(float uNorm) => 1f - Smooth(0.55f, 1.15f, Math.Abs(uNorm));
 

@@ -66,7 +66,7 @@ namespace Hollowbrook.UI
                 if (_font != null) return _font;
                 try { _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); } catch (Exception) { }
                 if (_font == null) { try { _font = Resources.GetBuiltinResource<Font>("Arial.ttf"); } catch (Exception) { } }
-                if (_font == null) Debug.LogError("[UIFactory] No built-in font available — text will not render.");
+                if (_font == null) Debug.LogError("[UIFactory] No built-in font available - text will not render.");
                 return _font;
             }
         }
@@ -121,7 +121,7 @@ namespace Hollowbrook.UI
         }
 
         // Stretch an existing GameObject across its parent (adding the RectTransform when
-        // the GO does not carry one yet) — for full-screen layers built outside the factory.
+        // the GO does not carry one yet) - for full-screen layers built outside the factory.
         public static RectTransform NewRect(GameObject go)
         {
             var rt = go.GetComponent<RectTransform>();
@@ -149,7 +149,7 @@ namespace Hollowbrook.UI
 
         // The one placement rule for the desk grid: top-left anchor, pivot (0,1), y down.
         // Every desk/HUD element is placed only through this, so (x,y,w,h) IS the on-screen
-        // rect inside the fixed frame — no anchor/pivot maths left to drift.
+        // rect inside the fixed frame - no anchor/pivot maths left to drift.
         public static void PlaceTL(RectTransform rt, float x, float y, float w, float h)
         {
             var tl = new Vector2(0f, 1f);

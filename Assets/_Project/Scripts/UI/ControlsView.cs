@@ -22,33 +22,33 @@ namespace Hollowbrook.UI
 
             string body =
                 "CHECKPOINT (mouse)\n" +
-                "   The ID + slip are ON YOUR DESK when the student steps up — drag to arrange,\n" +
+                "   The ID + slip are ON YOUR DESK when the student steps up - drag to arrange,\n" +
                 "   papers KEEP their size while you scroll. CLICK the ID to inspect it up close,\n" +
                 "   then click anywhere off it to put it back. The slip only drags.\n" +
                 "   Flip the ID: click its BLACK SPINE (the card body only drags) or press F.\n" +
                 "   Floor files: click the cabinet front (or TAB) to PULL THE DRAWER OUT, pick a floor\n" +
-                "   folder, then click a file to pull it onto the desk — mismatches are clues.\n" +
+                "   folder, then click a file to pull it onto the desk - mismatches are clues.\n" +
                 "   The face at the window vs the ID photo is YOUR eye-check: this desk has no\n" +
                 "   face-match widget, nothing to click and nothing that scores it for you.\n" +
                 "   Ask WHICH CLASSROOM ARE YOU GOING TO? (button, or key 1) - it is free. The answer\n" +
                 "   shows in the speech bubble and stays in the questions panel. Find the student's\n" +
                 "   file in the matching room folder: a wrong room, a room that does not exist, or the\n" +
                 "   wrong class means something is off.\n" +
-                "   Stamp the slip (drag a stamp onto it) — the mark lands WHERE you drop the stamp, always\n" +
-                "   fully on the paper — then drag the ID back to the window. TAB pulls the file drawer.\n" +
+                "   Stamp the slip (drag a stamp onto it) - the mark lands WHERE you drop the stamp, always\n" +
+                "   fully on the paper - then drag the ID back to the window. TAB pulls the file drawer.\n" +
                 "   Decisions are permanent.\n" +
                 "   NIGHT 5: when the district administrator arrives, T (or the bar beside the\n" +
-                "   stamps) opens THE CONVERSATION — challenge, comply, raise what you have\n" +
+                "   stamps) opens THE CONVERSATION - challenge, comply, raise what you have\n" +
                 "   found, or say nothing. Words are evidence only: the stamp still decides.\n\n" +
                 "EXPLORATION\n" +
-                "   Rooms are entered DARK and your flashlight starts OFF — every door you go\n" +
+                "   Rooms are entered DARK and your flashlight starts OFF - every door you go\n" +
                 "   through puts it out again. The flashlight is your only light. Classroom peeks\n" +
                 "   start dark too: the flashlight is OFF until you press F (mouse never lights it).\n" +
                 "   A / D  or  ← / →     walk left / right\n" +
                 "   SHIFT                run\n" +
                 "   E                    interact (doors, clues)\n" +
-                "   F                    flashlight on / off — sweep beam on patrol, the cursor light on peeks\n" +
-                "   Q                    focus beam (toggle — tight, exposes & repels; on peeks it\n" +
+                "   F                    flashlight on / off - sweep beam on patrol, the cursor light on peeks\n" +
+                "   Q                    focus beam (toggle - tight, exposes & repels; on peeks it\n" +
                 "                        tightens the flashlight without turning it on)\n" +
                 "   L                    beam off\n" +
                 "   M                    map (at the security desk only)     ESC   pause\n" +

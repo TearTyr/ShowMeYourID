@@ -30,7 +30,7 @@ namespace Hollowbrook.Checkpoint
             L.Place(_topLeft.rectTransform, L.Inner.BannerTop);
             // the reference board line is a CONDENSED bold: "NIGHT 1 - MONDAY - NOVEMBER 2"
             // on one 375px line. The shipped face is wide, so the line is squeezed ~72%
-            // horizontally — tall glyphs, narrow advance, exactly the reference read.
+            // horizontally - tall glyphs, narrow advance, exactly the reference read.
             _topLeft.rectTransform.localScale = new Vector3(0.72f, 1f, 1f);
             // (the waiting / to-go counter is built below, under the banner)
 
@@ -75,7 +75,7 @@ namespace Hollowbrook.Checkpoint
             if (!active) return;
             _mutationStrip.text = BulletinShort;         // full rule text: toast + RULES NOTE
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                "DISTRICT BULLETIN — " + mutation.RuleText));
+                "DISTRICT BULLETIN - " + mutation.RuleText));
         }
 
         // Night/clock line in Normal mode; mode/score line in endless and challenge.
@@ -122,7 +122,7 @@ namespace Hollowbrook.Checkpoint
         // The shift clock model ticks every frame in GameRoot.Update; the label that shows
         // it must tick with it. RefreshHud() (visitor arrivals, verdicts, dialogue) used to
         // be the ONLY writer of _topClock.text, so between events the header kept showing a
-        // stale time — the clock looked frozen even though the model ran. One cached string
+        // stale time - the clock looked frozen even though the model ran. One cached string
         // compare per frame keeps this allocation-free.
         private void TickClockText()
         {

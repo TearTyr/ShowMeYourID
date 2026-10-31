@@ -1,7 +1,7 @@
 namespace Hollowbrook.Logic
 {
     /// <summary>Per-behavior movement/threat numbers. Timing differences between the four
-    /// anomalies are explicit here — no variable named after one behavior is shared by all.</summary>
+    /// anomalies are explicit here - no variable named after one behavior is shared by all.</summary>
     public struct BehaviorTuning
     {
         public float BlinkSpeed;          // world units/second while creeping
@@ -90,7 +90,7 @@ namespace Hollowbrook.Logic
                     p.DashRecoverSeconds = t.SprintRecoverSeconds;
                     p.BeamInterruptsBurst = true;
                     break;
-                default: // CoverHug — ceiling lurker; spawn inside its own band, never clamped out
+                default: // CoverHug - ceiling lurker; spawn inside its own band, never clamped out
                     p.MoveSpeed = t.CoverHugSpeed;
                     p.SpawnY = 4.4f; p.MinY = 3.6f; p.MaxY = 4.6f;
                     p.CatchGraceSeconds = t.CatchGraceCoverHug;
