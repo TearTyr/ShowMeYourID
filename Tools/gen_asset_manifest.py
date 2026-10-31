@@ -230,7 +230,7 @@ def main():
                      "CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults", ""])
     for key, cat, prio, spec in MENU:
         rows.append([key, "art", cat, prio, "shipped-kit", "PNG", spec,
-                     "MainMenuView (main menu composite per Art/MainMenu/reference)", ""])
+                     "MainMenuView (main menu composite per Art/Old/MainMenu/reference)", ""])
     for key, typ, prio, status, spec, used, notes in FONTS:
         rows.append([key, typ, "type", prio, status, "TTF", spec, used, notes])
 
