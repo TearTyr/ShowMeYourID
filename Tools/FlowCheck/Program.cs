@@ -1464,6 +1464,14 @@ namespace FlowCheck
             Check(FindArt(rootDir, "char_guard_idle") != null && FindArt(rootDir, "char_guard_walk_a") != null &&
                   FindArt(rootDir, "char_guard_walk_b") != null,
                 "FM: the guard's idle pose and both walking poses ship under Resources/Art");
+            string[] envKeys = { "bg_hallway_lit", "bg_hallway_unlit", "bg_classroom_1", "bg_classroom_2", "bg_comfort_room",
+                "prop_door_classroom_1", "prop_door_classroom_2", "prop_door_comfort", "prop_door_security", "prop_server_door",
+                "prop_clock", "token", "inspect_noticeboard", "inspect_photoframe", "inspect_clock", "inspect_light_bulb",
+                "inspect_light_switch", "inspect_clipboard", "inspect_server_door", "inspect_lockers" };
+            string envMissing = "";
+            foreach (var k in envKeys) if (FindArt(rootDir, k) == null) envMissing += k + " ";
+            Check(envMissing.Length == 0, "FM: the hallway, room, prop and close up art ships under Resources/Art/Environment" +
+                (envMissing.Length > 0 ? " (missing: " + envMissing + ")" : ""));
             Check(cp.CurrentVisitor.FaceAssetIndex >= 0 || cp.CurrentVisitor.IsAdministrator,
                 "FM: visitors still carry a stable face-asset index (admin excepted)");
             int fidx = cp.CurrentVisitor.FaceAssetIndex;
@@ -3375,7 +3383,7 @@ namespace FlowCheck
                 if (d != null && d.Target == RoomId.Hallway) exitDoor = d;
             }
             Check(exitDoor != null, "W10: the peeked classroom has its exit doorway");
-            AimAt(exitDoor.AnchorX, RoomInstance.FloorY + 1.4f);
+            AimAt(exitDoor.AnchorX, exitDoor.AnchorY);
             WorldFrames(root, 2);
             string darkPrompt = FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>().text;
             Check(!lamp.Lit && darkPrompt.Length > 0,
@@ -3456,7 +3464,7 @@ namespace FlowCheck
                 var d = it as Doorway;
                 if (d != null && d.Target == RoomId.Hallway) exitDoor2 = d;
             }
-            AimAt(exitDoor2.AnchorX, RoomInstance.FloorY + 1.4f);
+            AimAt(exitDoor2.AnchorX, exitDoor2.AnchorY);
             PressKey(root, KeyCode.E);
             Check(!views.PeekActive && root.State == AppViewState.Exploration,
                 "W10: E on the exit doorway steps back to the hallway - even with the lamp OFF");

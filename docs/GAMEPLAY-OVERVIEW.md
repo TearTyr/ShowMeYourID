@@ -40,7 +40,9 @@ desk), the **rules note** and **tonight's log** (with ID numbers), and the **que
   either ends the run on the last night.
 - The prompt line at the top always names the next step.
 
-**Patrol (A/D or arrows, Shift run, E interact):** every room is entered **dark**. Each has a wall
+**Patrol (A/D or arrows, Shift run, E interact):** the corridor, both classrooms and the comfort room
+are painted (the hallway art changes with the lights), and inspecting a clue shows its close up
+beside the text. every room is entered **dark**. Each has a wall
 switch (E). The handheld **flashlight** is separate: `F` sweep on/off, `Q` focus, `L` off. Rooms
 1 and 2 are inspected by **peeking** from the doorway with a cursor lamp (`F` on/off, `Q` wide/tight);
 the exit is the bottom edge or `E` on the doorway. The hallway's east end has a door to the

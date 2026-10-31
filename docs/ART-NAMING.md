@@ -11,7 +11,8 @@ so a file can move between folders without any code change.
 | `Characters/` | Student busts, anomaly busts, the administrator, the guard, hooded figure |
 | `Environment/Hallway/` | Hallway backgrounds and doors |
 | `Environment/Rooms/` | Classroom and comfort room backgrounds |
-| `Environment/Props/` | Clocks, boards, lockers, switches and other set dressing |
+| `Environment/Props/` | Doors, the clock, the token (cut to the visible art) |
+| `Environment/Inspect/` | `inspect_*` close ups shown beside the text when a clue is inspected |
 | `UI/SecurityDesk/` | Everything on the security desk screen |
 | `UI/MainMenu/` | Everything on the main menu |
 
@@ -28,6 +29,7 @@ Lowercase, `snake_case`, and `<category>_<subject>_<detail>`:
 - `char_guard_idle`, `char_guard_walk_a`, `char_guard_walk_b`: the player
 - `bg_hallway_lit`, `bg_hallway_dark`, `bg_classroom_1`, `bg_comfort_room`: backgrounds
 - `prop_clock`, `prop_door_classroom_1`: set dressing
+- `inspect_noticeboard`, `inspect_clock`: close ups for clue inspection
 - `sec_*` for the security desk and `menu_*` for the main menu
 
 Do not use spaces, capitals or words like `final`, `new` or `temp` in a file name. Every `.png` needs its

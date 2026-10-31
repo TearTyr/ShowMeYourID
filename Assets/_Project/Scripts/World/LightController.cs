@@ -100,6 +100,11 @@ namespace Hollowbrook.World
             {
                 var c = _darkness.color; c.a = Lit ? LitAlpha : _darkAlpha; _darkness.color = c;
             }
+            if (_room != null && _room.Backdrop != null)
+            {
+                var lit = Lit ? _room.BackdropLit : _room.BackdropDark;
+                if (lit != null) _room.Backdrop.sprite = lit;   // lights on or off in the painted corridor
+            }
             ApplyDepth();
         }
 

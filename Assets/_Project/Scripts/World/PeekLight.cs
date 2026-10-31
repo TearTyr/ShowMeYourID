@@ -266,12 +266,11 @@ namespace Hollowbrook.World
             if (_room == null) return null;
             Interactable nearest = null;
             float bestSq = CursorHitRadius * CursorHitRadius;
-            float anchorY = RoomInstance.FloorY + 1.4f;
             foreach (var it in _room.Interactables)
             {
                 if (it == null || !it.Enabled) continue;
                 float dx = cursor.x - it.AnchorX;
-                float dy = cursor.y - anchorY;
+                float dy = cursor.y - it.AnchorY;
                 float sq = dx * dx + dy * dy;
                 if (sq <= bestSq) { bestSq = sq; nearest = it; }
             }

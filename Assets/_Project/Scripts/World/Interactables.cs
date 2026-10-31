@@ -13,6 +13,9 @@ namespace Hollowbrook.World
         protected RoomInstance Room;
         public string Prompt = "Inspect";
         public float AnchorX;
+        // Where the peek lamp has to point to find this (world y). Most things sit at chest height;
+        // the classroom art has its own heights (chalkboard high, desk low).
+        public float AnchorY = RoomInstance.FloorY + 1.4f;
         public bool Enabled = true;
         public SpriteRenderer Art;
 
@@ -49,7 +52,9 @@ namespace Hollowbrook.World
         public void Init(GameRoot root, RoomInstance room, string label, RoomId target, float x)
         {
             _gameRoot = root; Room = room; Target = target; AnchorX = x;
-            Prompt = target == RoomId.Security ? "Return to Security [E]" : "Enter " + label + " [E]";
+            Prompt = target == RoomId.Security ? "Return to Security [E]"
+                   : target == RoomId.Hallway ? "Back to the hallway [E]"
+                   : "Enter " + label + " [E]";
             Art = GetComponent<SpriteRenderer>();
         }
 
@@ -100,7 +105,8 @@ namespace Hollowbrook.World
 
             var lines = new System.Collections.Generic.List<DialogueLine>
             {
-                new DialogueLine { Speaker = _def.Display.ToUpperInvariant(), Text = _def.InspectText },
+                new DialogueLine { Speaker = _def.Display.ToUpperInvariant(), Text = _def.InspectText,
+                                   PortraitSpriteKey = InspectArt(_clueKey) },
             };
             if (res.FirstTime)
             {
@@ -113,6 +119,21 @@ namespace Hollowbrook.World
                     _gameRoot.Scares.Stinger("clue_" + _clueKey, 0f); // sanity already applied by DiscoverClue
             }
             if (_gameRoot.Dialogue != null) _gameRoot.Dialogue.Play(lines, null);
+        }
+
+        // The close up shown beside the text when the clue is inspected (null = no picture).
+        private static string InspectArt(string clueKey)
+        {
+            switch (clueKey)
+            {
+                case "light": return "inspect_light_bulb";
+                case "door": return "inspect_server_door";
+                case "board": return "inspect_noticeboard";
+                case "photo": return "inspect_photoframe";
+                case "clock": return "inspect_clock";
+                case "lostid": return "inspect_clipboard";
+                default: return null;
+            }
         }
 
         private void AddMarker()

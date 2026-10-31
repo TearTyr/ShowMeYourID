@@ -82,22 +82,30 @@ namespace Hollowbrook.World
                 {
                     room.DisplayName = "MAIN HALLWAY";
                     room.HalfWidth = HallwayDarkness.HallwayHalfWidth;   // pure module owns it: the
-                    PlaceholderBg(root.transform, floorY);               // depth shroud is sized from it
+                    // the painted corridor already holds the classroom doors, lockers, notice board and
+                    // flyer, so those are not drawn a second time (the doors stay as invisible anchors)
+                    bool painted = AddHallwayBackdrop(room, root.transform);
+                    if (!painted) PlaceholderBg(root.transform, floorY);     // depth shroud is sized from it
                     AddDoor(room, "Security Door", -10.6f, floorY, RoomId.Security, "prop_door_security");
-                    AddDoor(room, "Classroom 1", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), floorY, RoomId.Classroom1, "prop_door");
-                    AddDoor(room, "Classroom 2", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), floorY, RoomId.Classroom2, "prop_door");
-                    AddDoor(room, "Comfort Room", RoomGraph.ComfortDoorX, floorY, RoomId.ComfortRoom, "prop_door");
+                    AddDoor(room, "Classroom 1", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), floorY, RoomId.Classroom1, "prop_door", !painted);
+                    AddDoor(room, "Classroom 2", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), floorY, RoomId.Classroom2, "prop_door", !painted);
+                    AddDoor(room, "Comfort Room", RoomGraph.ComfortDoorX, floorY, RoomId.ComfortRoom, "prop_door_comfort");
                     var serverSprite = ProceduralArt.Get("prop_server_door");
                     float serverH = serverSprite.rect.height / Mathf.Max(1f, serverSprite.pixelsPerUnit);
                     SpriteGO(root.transform, "server_door_art", serverSprite,
                         new Vector3(10.4f, floorY + serverH / 2f, 0), 10);
-                    AddClue(room, "light", -7.0f, floorY, "Flickering Light (ceiling fixture)", "prop_lightfixture", 1.5f);
+                    // clue anchors sit on the painted things (fixture, notice board, flyer); the wall clock
+                    // is not in the painting, so it hangs between the notice board and the second door
+                    AddClue(room, "light", -9.7f, floorY, "Flickering Light (ceiling fixture)", painted ? null : "prop_lightfixture", 1.5f);
                     AddClue(room, "door", 10.0f, floorY, "Sealed Door");
-                    AddClue(room, "board", 0.6f, floorY, "Notice Board", "prop_noticeboard", 1.0f);
-                    AddClue(room, "photo", 7.2f, floorY, "Old School Photo", "prop_photoframe", 1.1f);
-                    AddClue(room, "clock", 2.6f, floorY, "Wall Clock", "prop_clock", 1.6f);
-                    SpriteGO(root.transform, "lockers", ProceduralArt.Get("prop_lockers"), new Vector3(-1.4f, floorY + 2.5f, 0), 8);
-                    SpriteGO(root.transform, "lockers2", ProceduralArt.Get("prop_lockers"), new Vector3(7.8f, floorY + 2.5f, 0), 8);
+                    AddClue(room, "board", -1.3f, floorY, "Notice Board", painted ? null : "prop_noticeboard", 1.0f);
+                    AddClue(room, "photo", 6.2f, floorY, "Old School Photo", painted ? null : "prop_photoframe", 1.1f);
+                    AddClue(room, "clock", 1.4f, floorY, "Wall Clock", "prop_clock", 1.9f);
+                    if (!painted)
+                    {
+                        SpriteGO(root.transform, "lockers", ProceduralArt.Get("prop_lockers"), new Vector3(-1.4f, floorY + 2.5f, 0), 8);
+                        SpriteGO(root.transform, "lockers2", ProceduralArt.Get("prop_lockers"), new Vector3(7.8f, floorY + 2.5f, 0), 8);
+                    }
                     room.PlayerSpawn = new Vector3(-9.4f, 0, 0);
                     room.AnomalySpawnPoints.Add(new Vector3(9.5f, 0, 0));
                     room.AnomalySpawnPoints.Add(new Vector3(-2f, 0, 0));
@@ -108,12 +116,16 @@ namespace Hollowbrook.World
                 {
                     room.DisplayName = "CLASSROOM 1";
                     room.HalfWidth = 8.2f;
-                    PlaceholderBg(root.transform, floorY);
-                    AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.Classroom1, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door");
-                    AddClue(room, "chalkboard", -6.2f, floorY, "Chalkboard", "prop_chalkboard", 1.2f);
-                    AddClue(room, "desk", -7.6f, floorY, "Front Desk");
-                    AddClue(room, "lostid", -5.0f, floorY, "Lost-and-Found Shelf", "prop_lostid", 0.2f);
-                    SpriteGO(root.transform, "deskprop", ProceduralArt.Get("prop_desk"), new Vector3(-7.6f, floorY + 1f, 0), 9);
+                    bool painted = AddRoomBackdrop(root.transform, "bg_classroom_1");
+                    if (!painted) PlaceholderBg(root.transform, floorY);
+                    // the painted room has its own door, chalkboard, desk and notice board: the
+                    // anchors sit on them (x, then the height the lamp has to point at)
+                    AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.Classroom1, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door", !painted, 1.8f);
+                    AddClue(room, "chalkboard", 1.5f, floorY, "Chalkboard", painted ? null : "prop_chalkboard", 1.2f, 2.2f);
+                    AddClue(room, "desk", 1.7f, floorY, "Front Desk", null, 0.8f, -0.6f);
+                    AddClue(room, "lostid", 6.0f, floorY, "Lost-and-Found Shelf", painted ? null : "prop_lostid", 0.2f, 2.1f);
+                    if (!painted)
+                        SpriteGO(root.transform, "deskprop", ProceduralArt.Get("prop_desk"), new Vector3(-7.6f, floorY + 1f, 0), 9);
                     room.PlayerSpawn = new Vector3(4.0f, 0, 0);
                     room.AnomalySpawnPoints.Add(new Vector3(-6.5f, 0, 0));
                     room.AnomalySpawnPoints.Add(new Vector3(1.5f, 0, 0));
@@ -123,11 +135,10 @@ namespace Hollowbrook.World
                 {
                     room.DisplayName = "COMFORT ROOM";
                     room.HalfWidth = 8.2f;
-                    var backdrop = ProceduralArt.Get("bg_comfort_room");
-                    if (backdrop != null && backdrop.rect.width > 8f)
-                        SpriteGO(root.transform, "bg_comfort_room", backdrop, Vector3.zero, 0);
-                    else PlaceholderBg(root.transform, floorY);
-                    AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.ComfortRoom, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door");
+                    bool painted = AddRoomBackdrop(root.transform, "bg_comfort_room");
+                    if (!painted) PlaceholderBg(root.transform, floorY);
+                    // the bathroom picture has no door of its own: the way out is an invisible anchor
+                    AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.ComfortRoom, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door", false);
                     room.PlayerSpawn = new Vector3(-4.9f, 0, 0);
                     darkAlpha = ComfortRoomDarkAlpha;   // dimmed a lot: only the flashlight shows anything
                     break;
@@ -136,11 +147,13 @@ namespace Hollowbrook.World
                 {
                     room.DisplayName = "CLASSROOM 2";
                     room.HalfWidth = 8.2f;
-                    PlaceholderBg(root.transform, floorY);
-                    AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.Classroom2, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door");
-                    AddClue(room, "window", -6.6f, floorY, "Classroom Window", "prop_window", 1.2f);
-                    AddClue(room, "cabinet", 7.4f, floorY, "Filing Cabinet");
-                    SpriteGO(root.transform, "cabinetprop", ProceduralArt.Get("prop_cabinet"), new Vector3(7.6f, floorY + 2.1f, 0), 9);
+                    bool painted = AddRoomBackdrop(root.transform, "bg_classroom_2");
+                    if (!painted) PlaceholderBg(root.transform, floorY);
+                    AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.Classroom2, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door", !painted, 1.8f);
+                    AddClue(room, "window", -6.8f, floorY, "Classroom Window", painted ? null : "prop_window", 1.2f, 2.3f);
+                    AddClue(room, "cabinet", -3.1f, floorY, "Filing Cabinet", null, 0.8f, 0.4f);
+                    if (!painted)
+                        SpriteGO(root.transform, "cabinetprop", ProceduralArt.Get("prop_cabinet"), new Vector3(7.6f, floorY + 2.1f, 0), 9);
                     room.PlayerSpawn = new Vector3(4.0f, 0, 0);
                     room.AnomalySpawnPoints.Add(new Vector3(-5.5f, 0, 0));
                     room.AnomalySpawnPoints.Add(new Vector3(2.5f, 0, 0));
@@ -187,15 +200,49 @@ namespace Hollowbrook.World
             return room;
         }
 
-        private void AddDoor(RoomInstance room, string label, float x, float floorY, RoomId target, string spriteKey)
+        // The painted hallway: two screen sized images (lights on, lights off) drawn as one sprite
+        // that swaps with the room light. PanoramaLeft is where its left edge sits so the painted
+        // doors land on the door anchors in RoomGraph. False when the art is missing.
+        private const float PanoramaLeft = -11.84f, PanoramaWidth = 30f, PanoramaCentreY = 0.1f;
+
+        private bool AddHallwayBackdrop(RoomInstance room, Transform parent)
+        {
+            var dark = ProceduralArt.Get("bg_hallway_unlit");
+            if (dark == null || dark.rect.width <= 8f) return false;
+            var lit = ProceduralArt.Get("bg_hallway_lit");
+            var go = SpriteGO(parent, "bg_hallway", dark,
+                new Vector3(PanoramaLeft + PanoramaWidth / 2f, PanoramaCentreY, 0f), 0);
+            room.Backdrop = go.GetComponent<SpriteRenderer>();
+            room.BackdropDark = dark;
+            room.BackdropLit = lit != null && lit.rect.width > 8f ? lit : dark;
+            return true;
+        }
+
+        // A room backdrop centred on the camera's frame (rooms are looked at from x = 0).
+        private bool AddRoomBackdrop(Transform parent, string key)
+        {
+            var sprite = ProceduralArt.Get(key);
+            if (sprite == null || sprite.rect.width <= 8f) return false;
+            SpriteGO(parent, key, sprite, Vector3.zero, 0);
+            return true;
+        }
+
+        private void AddDoor(RoomInstance room, string label, float x, float floorY, RoomId target, string spriteKey,
+            bool drawn = true, float? anchorY = null)
         {
             // The door's art key always stood in the signature; the flat slab was only there
             // until art existed. Draw the sprite standing ON the floor band, sized from its own
             // pixels-per-unit, so dropping a real door PNG at Resources/Art/<key>.png resizes
             // and replaces it with no code change. (Null sprite keeps the old slab.)
-            var sprite = ProceduralArt.Get(spriteKey);
+            var sprite = drawn ? ProceduralArt.Get(spriteKey) : null;
             GameObject go;
-            if (sprite != null)
+            if (!drawn)
+            {
+                // painted into the background: an invisible anchor keeps the doorway interactive
+                go = Quad(room.Root.transform, "door_" + target, new Vector3(x, floorY + 1.7f, 0), 10,
+                    new Vector2(1.7f, 3.4f), new Color(0f, 0f, 0f, 0f));
+            }
+            else if (sprite != null)
             {
                 float h = sprite.rect.height / Mathf.Max(1f, sprite.pixelsPerUnit);
                 go = SpriteGO(room.Root.transform, "door_" + target, sprite,
@@ -208,6 +255,7 @@ namespace Hollowbrook.World
             }
             var d = go.AddComponent<Doorway>();
             d.Init(_root, room, label, target, x);
+            if (anchorY.HasValue) d.AnchorY = anchorY.Value;
             room.Interactables.Add(d);
         }
 
@@ -216,7 +264,7 @@ namespace Hollowbrook.World
         // SEEN in the room. A dropped-in Resources/Art/<key>.png replaces the placeholder and
         // resizes itself from its own pixels-per-unit - no call-site changes.
         private void AddClue(RoomInstance room, string clueKey, float x, float floorY, string label,
-            string spriteKey = null, float mountY = 0.8f)
+            string spriteKey = null, float mountY = 0.8f, float? anchorY = null)
         {
             var go = new GameObject("clue_" + clueKey);
             go.transform.SetParent(room.Root.transform, false);
@@ -229,6 +277,7 @@ namespace Hollowbrook.World
             }
             var co = go.AddComponent<ClueObject>();
             co.Init(_root, room, clueKey, label, x);
+            if (anchorY.HasValue) co.AnchorY = anchorY.Value;
             room.Interactables.Add(co);
         }
     }

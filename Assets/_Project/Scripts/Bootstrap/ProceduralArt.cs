@@ -42,8 +42,14 @@ namespace Hollowbrook.Bootstrap
                 // the guard's frames are 452 px tall and the old drawn guard stood 3.5 world units
                 // high, so 129 px per unit keeps him the same size
                 { "char_guard_idle", 129f }, { "char_guard_walk_a", 129f }, { "char_guard_walk_b", 129f },
-                // the 1920 x 1080 bathroom backdrop covers a room 17.1 units wide
-                { "bg_comfort_room", 112f },
+                // backdrops: the three screen wide hallway covers 30 units, a room 17.8 (the camera's
+                // 16:9 view), the bathroom 17.1
+                { "bg_hallway_lit", 128f }, { "bg_hallway_unlit", 128f },
+                { "bg_classroom_1", 108f }, { "bg_classroom_2", 108f }, { "bg_comfort_room", 112f },
+                // props drawn about 3.4 units tall (doors), a 1.5 unit wall clock, a half unit token
+                { "prop_door_classroom_1", 308f }, { "prop_door_classroom_2", 299f },
+                { "prop_door_comfort", 225f }, { "prop_door_security", 215f }, { "prop_server_door", 219f },
+                { "prop_clock", 524f }, { "token", 1154f },
             };
 
         /// <summary>True when a real file (or a cached sprite) exists for the key - callers that
@@ -61,6 +67,7 @@ namespace Hollowbrook.Bootstrap
             "Art/Environment/Hallway/",
             "Art/Environment/Rooms/",
             "Art/Environment/Props/",
+            "Art/Environment/Inspect/",
         };
 
         private static Texture2D LoadFileTexture(string key)

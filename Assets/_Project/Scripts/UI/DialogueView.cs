@@ -52,6 +52,7 @@ namespace Hollowbrook.UI
             bar.raycastTarget = false;
 
             _portrait = UIFactory.Img(panelRt, "portrait", ProceduralArt.Get("face_placeholder"));
+            _portrait.preserveAspect = true;   // close ups of any shape keep their proportions
             UIFactory.Anchor(_portrait.rectTransform, new Vector2(0, 0.5f), new Vector2(104, 128), new Vector2(-430, 0));
             _portrait.gameObject.SetActive(false);
 

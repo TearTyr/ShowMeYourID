@@ -20,10 +20,10 @@ namespace Hollowbrook.Logic
         /// door is an exit, not a patrol route, so it is intentionally absent.</summary>
         public static float DoorX(RoomId from, RoomId to)
         {
-            if (from == RoomId.Hallway && to == RoomId.Classroom1) return -4.0f;
-            if (from == RoomId.Hallway && to == RoomId.Classroom2) return 4.6f;
-            if (from == RoomId.Classroom1 && to == RoomId.Hallway) return 4.9f;
-            if (from == RoomId.Classroom2 && to == RoomId.Hallway) return 4.9f;
+            if (from == RoomId.Hallway && to == RoomId.Classroom1) return -5.6f;   // the painted doors in the corridor art
+            if (from == RoomId.Hallway && to == RoomId.Classroom2) return 3.6f;
+            if (from == RoomId.Classroom1 && to == RoomId.Hallway) return 7.6f;   // the painted door at the right edge of the room (inside the roaming limit)
+            if (from == RoomId.Classroom2 && to == RoomId.Hallway) return 7.6f;
             // the comfort room: its door is at the hallway's east end, beside the sealed server
             // door. It is a place to walk into, not a patrol route, so roamers never use it.
             if (from == RoomId.Hallway && to == RoomId.ComfortRoom) return ComfortDoorX;
