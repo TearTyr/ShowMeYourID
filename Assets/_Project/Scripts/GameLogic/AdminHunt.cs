@@ -2,79 +2,79 @@ using System;
 
 namespace Hollowbrook.Logic
 {
-    // The rejected administrator's hunt (pure rules, no UnityEngine).
+    // Night 5 after the administrator is refused (pure rules, no UnityEngine).
     //
-    // After the DENY stamp he forces his way in and hides in the classrooms. You find him by
-    // peeking into a room and holding the lamp on his head while his picture shakes and circles.
-    // A full hold is a STUN: the lamp flickers out and he vanishes, then either hides in the
-    // other classroom or charges down the hallway (flash him with your beam to stun him again).
-    // Stun him StunsToWin times and he is driven off. If the SERVER DOOR meter runs out first,
-    // he reaches the server room and you lose.
+    // It plays like Nightmare Fredbear's night in Five Nights at Freddy's 4: he is the only
+    // thing in the building, you listen for where his footsteps stop, and you survive until
+    // dawn. Each time he stops, he is in one of three kinds of place:
+    //   - AT A CLASSROOM DOOR (the game's left and right halls): stand at that door and hold E
+    //     until he gives up.
+    //   - IN THE COMFORT ROOM (the closet): peek in and keep the lamp on his head.
+    //   - BEHIND YOU in the hallway (the bed): flash his face with the beam.
+    // Too slow and he catches you. CatchesToLose catches and he walks to the server door.
     //
-    // The hard rule: nobody can ever get stuck. Every phase has a time limit, a held lamp only
-    // pauses the server meter while he is actually being tracked (and tracking itself times out),
-    // so the hunt ends in a win or a loss no matter what the player does or does not do.
+    // The hard rule: nobody can ever get stuck. The dawn clock always runs and every phase has
+    // a time limit, so the hunt ends in a win or a loss whatever the player does or does not do.
     // AdminHuntTests runs random and idle input to prove it.
 
     public enum HuntPhase
     {
-        Hiding,     // somewhere in a classroom, not seen yet (waiting for the player to peek in)
-        Tracking,   // the player peeks into his room: hold the lamp on his head
-        Flicker,    // the lamp died, he is gone for a moment
-        Charging,   // he runs down the hallway at the player: flash his face
-        Recoil,     // driven back, harmless for a moment
-        Won,        // stunned enough times: driven off
-        Lost,       // the server door meter ran out
+        Stalking,   // walking the halls: footsteps, no danger yet
+        AtDoor,     // behind a classroom door: hold it shut
+        Closet,     // in the comfort room: find him with the lamp
+        Behind,     // right behind the player in the hallway: flash him
+        Retreat,    // driven back or done catching you: harmless for a moment
+        Won,        // dawn came
+        Lost,       // caught too many times
     }
-
-    public enum HuntOutcome { OtherRoom, HallwayCharge }
 
     /// <summary>Tunable numbers. Defaults are the shipped feel; GameConfigSO overrides them.</summary>
     public struct HuntTuning
     {
-        public int StunsToWin;           // stuns needed to drive him off
-        public float ServerSeconds;      // the server door meter: time until he reaches the server room
-        public float HideMinSeconds;     // shortest wait before he moves on his own
-        public float HideMaxSeconds;     // longest wait before he moves on his own
-        public float TrackMaxSeconds;    // longest a single tracking phase can last
-        public float HoldSeconds;        // seconds of lamp on his head for one stun
-        public float HoldDecayPerSecond; // how fast the hold drains when the lamp slips off him
+        public int CatchesToLose;        // catches until he reaches the server door
+        public float SurviveSeconds;     // the dawn clock
+        public float StalkMinSeconds;    // shortest walk between stops
+        public float StalkMaxSeconds;    // longest walk between stops (halves by dawn)
+        public float DoorSeconds;        // time to reach the door he stopped at and hold it
+        public float DoorHoldSeconds;    // seconds of holding the door that send him away
+        public float ClosetSeconds;      // time to find him in the comfort room
+        public float ClosetHoldSeconds;  // seconds of lamp on his head that send him away
+        public float HoldDecayPerSecond; // how fast a hold drains when you let go
         public float HeadRadius;         // world units: how close the cursor must be to his head
-        public float FlickerSeconds;     // lamp dead time after a stun
-        public float ChargeSeconds;      // seconds for him to run down the hallway
-        public float ChargeHitSeconds;   // seconds of beam on his face that count as a hit
-        public float ChargeWaitSeconds;  // longest we wait for the player to be in the hallway
-        public float RecoilSeconds;      // harmless time after a charge
+        public float BehindSeconds;      // time to flash him when he is behind you
+        public float BeamHitSeconds;     // seconds of beam on his face that count as a hit
+        public float RetreatSeconds;     // harmless time after he leaves
 
         public static HuntTuning Default => new HuntTuning
         {
-            StunsToWin = 4, ServerSeconds = 180f, HideMinSeconds = 6f, HideMaxSeconds = 14f,
-            TrackMaxSeconds = 12f, HoldSeconds = 3.2f, HoldDecayPerSecond = 0.5f, HeadRadius = 1.0f,
-            FlickerSeconds = 0.9f, ChargeSeconds = 2.6f, ChargeHitSeconds = 0.35f,
-            ChargeWaitSeconds = 3f, RecoilSeconds = 1.2f,
+            CatchesToLose = 3, SurviveSeconds = 210f, StalkMinSeconds = 5f, StalkMaxSeconds = 10f,
+            DoorSeconds = 10f, DoorHoldSeconds = 2f, ClosetSeconds = 12f, ClosetHoldSeconds = 1.8f,
+            HoldDecayPerSecond = 0.5f, HeadRadius = 1.0f, BehindSeconds = 2.6f, BeamHitSeconds = 0.35f,
+            RetreatSeconds = 1.5f,
         };
     }
 
     /// <summary>What the player is doing this frame (filled in by the director from the world).</summary>
     public struct HuntInput
     {
-        public bool Peeking;        // the classroom peek view is open
-        public RoomId PlayerRoom;   // the room on screen (the peeked classroom, or the hallway)
+        public bool Peeking;        // a peek view is open
+        public RoomId PlayerRoom;   // the room on screen (the peeked room, or the hallway)
         public bool OnTarget;       // peeking, lamp lit, cursor on his head
         public bool InHallway;      // walking the hallway (not peeking, not mid-transition)
         public bool BeamOnFace;     // the hallway beam covers his face
+        public bool HoldingDoor;    // standing at the door he is behind, holding E
     }
 
     [Flags]
     public enum HuntEvent
     {
         None = 0,
-        Hid = 1,            // he is hiding in (a new) room: drop the door-rattle hint
-        TrackStart = 2,     // the player found him
-        Stun = 4,           // a stun landed (lamp hold or hallway flash)
-        BrokeFree = 8,      // tracking timed out without a stun
-        FlickerStart = 16,  // the lamp dies now
-        ChargeStart = 32,   // he starts running down the hallway
+        StalkStart = 1,     // footsteps begin
+        ReachedDoor = 2,    // the footsteps stopped at a classroom door
+        EnteredCloset = 4,  // he went into the comfort room
+        Spotted = 8,        // the player's lamp view found him in the comfort room
+        AppearedBehind = 16,// he is right behind the player
+        Repelled = 32,      // the player sent him away
         Caught = 64,        // he reached the player
         Won = 128,
         Lost = 256,
@@ -82,42 +82,44 @@ namespace Hollowbrook.Logic
 
     public class AdminHunt
     {
+        private enum Spot { Classroom1, Classroom2, Closet, Behind }
+
         private readonly GameRng _rng;
-        private HuntOutcome _lastOutcome = HuntOutcome.OtherRoom;
-        private int _sameOutcomeRun;
-        private float _hideLeft;
-        private float _chargeLeft;
-        private float _chargeWait;
+        private float _stalkLeft;
+        private bool _spotted;
+        private int _lastSpot = -1;
 
         public HuntTuning Tuning { get; }
-        public HuntPhase Phase { get; private set; } = HuntPhase.Hiding;
-        /// <summary>Where he is: a classroom while hiding/tracking, the hallway while charging.</summary>
-        public RoomId Room { get; private set; } = RoomId.Classroom1;
-        public int Stuns { get; private set; }
-        public float ServerLeft { get; private set; }
-        /// <summary>0..1 progress of the current lamp hold (1 = stun).</summary>
+        public HuntPhase Phase { get; private set; } = HuntPhase.Stalking;
+        /// <summary>Where he stopped: a classroom, the comfort room, or the hallway when behind you.</summary>
+        public RoomId Room { get; private set; } = RoomId.Hallway;
+        public int Repels { get; private set; }
+        public int Catches { get; private set; }
+        public float SurviveLeft { get; private set; }
+        /// <summary>0..1 progress of the current hold (door or lamp).</summary>
         public float Hold { get; private set; }
         public float PhaseTimer { get; private set; }
-        public float ChargeHit { get; private set; }
-        public HuntOutcome PendingOutcome { get; private set; }
+        public float BeamHit { get; private set; }
         public bool Finished => Phase == HuntPhase.Won || Phase == HuntPhase.Lost;
-        public float ServerFraction => Tuning.ServerSeconds <= 0f ? 0f : ServerLeft / Tuning.ServerSeconds;
-        /// <summary>0..1 how far down the hallway he has run.</summary>
-        public float ChargeProgress => Tuning.ChargeSeconds <= 0f ? 1f : 1f - _chargeLeft / Tuning.ChargeSeconds;
+        /// <summary>0 at the start of the night, 1 at dawn.</summary>
+        public float DawnProgress => Tuning.SurviveSeconds <= 0f ? 1f : 1f - SurviveLeft / Tuning.SurviveSeconds;
+        /// <summary>0..1 how close he has come while behind the player.</summary>
+        public float BehindProgress => Tuning.BehindSeconds <= 0f ? 1f : Math.Min(1f, PhaseTimer / Tuning.BehindSeconds);
 
         public AdminHunt(HuntTuning tuning, int seed)
         {
             Tuning = tuning;
             _rng = new GameRng(seed);
-            ServerLeft = tuning.ServerSeconds;
+            SurviveLeft = tuning.SurviveSeconds;
         }
 
-        /// <summary>Start hiding in a random classroom, with the shortest wait.</summary>
+        /// <summary>He starts walking.</summary>
         public HuntEvent Start()
         {
-            Stuns = 0;
-            ServerLeft = Tuning.ServerSeconds;
-            return BeginHiding(RandomClassroom(), Tuning.HideMinSeconds);
+            Repels = 0;
+            Catches = 0;
+            SurviveLeft = Tuning.SurviveSeconds;
+            return BeginStalking();
         }
 
         /// <summary>One frame. Returns what happened so the director can react.</summary>
@@ -126,163 +128,136 @@ namespace Hollowbrook.Logic
             if (Finished || dt <= 0f) return HuntEvent.None;
             PhaseTimer += dt;
 
-            // the server door clock runs all the time, except while he is held under the lamp
-            bool held = Phase == HuntPhase.Tracking && input.OnTarget && input.Peeking;
-            if (!held) ServerLeft -= dt;
-            if (ServerLeft <= 0f)
+            SurviveLeft -= dt;
+            if (SurviveLeft <= 0f)
             {
-                ServerLeft = 0f;
-                Phase = HuntPhase.Lost;
-                return HuntEvent.Lost;
+                SurviveLeft = 0f;
+                Phase = HuntPhase.Won;
+                return HuntEvent.Won;
             }
 
             switch (Phase)
             {
-                case HuntPhase.Hiding: return TickHiding(dt, input);
-                case HuntPhase.Tracking: return TickTracking(dt, input);
-                case HuntPhase.Flicker: return TickFlicker();
-                case HuntPhase.Charging: return TickCharging(dt, input);
-                default: return TickRecoil();
+                case HuntPhase.Stalking: return TickStalking(dt, input);
+                case HuntPhase.AtDoor: return TickAtDoor(dt, input);
+                case HuntPhase.Closet: return TickCloset(dt, input);
+                case HuntPhase.Behind: return TickBehind(dt, input);
+                default: return PhaseTimer >= Tuning.RetreatSeconds ? BeginStalking() : HuntEvent.None;
             }
         }
 
         // ------------------------------------------------------------ phases
-        private HuntEvent TickHiding(float dt, HuntInput input)
+        private HuntEvent TickStalking(float dt, HuntInput input)
         {
-            _hideLeft -= dt;
-            if (input.Peeking && input.PlayerRoom == Room)
-            {
-                Phase = HuntPhase.Tracking;
-                PhaseTimer = 0f;
-                Hold = 0f;
-                return HuntEvent.TrackStart;
-            }
-            if (_hideLeft <= 0f) return BeginHiding(OtherClassroom(Room), RandomHideSeconds());
-            return HuntEvent.None;
+            _stalkLeft -= dt;
+            return _stalkLeft > 0f ? HuntEvent.None : Stop(PickSpot(input));
         }
 
-        private HuntEvent TickTracking(float dt, HuntInput input)
+        private HuntEvent TickAtDoor(float dt, HuntInput input)
         {
-            if (!input.Peeking || input.PlayerRoom != Room)
-            {
-                // the player stepped back: he stays where he is and goes quiet again
-                Hold = 0f;
-                Phase = HuntPhase.Hiding;
-                PhaseTimer = 0f;
-                _hideLeft = Tuning.HideMinSeconds;
-                return HuntEvent.None;
-            }
-            if (input.OnTarget) Hold += dt / Tuning.HoldSeconds;
+            UpdateHold(dt, input.HoldingDoor, Tuning.DoorHoldSeconds);
+            if (Hold >= 1f) return Repel();
+            return PhaseTimer >= Tuning.DoorSeconds ? Catch() : HuntEvent.None;
+        }
+
+        private HuntEvent TickCloset(float dt, HuntInput input)
+        {
+            bool looking = input.Peeking && input.PlayerRoom == RoomId.ComfortRoom;
+            var seen = HuntEvent.None;
+            if (looking && !_spotted) { _spotted = true; seen = HuntEvent.Spotted; }
+            UpdateHold(dt, looking && input.OnTarget, Tuning.ClosetHoldSeconds);
+            if (Hold >= 1f) return seen | Repel();
+            return PhaseTimer >= Tuning.ClosetSeconds ? seen | Catch() : seen;
+        }
+
+        private HuntEvent TickBehind(float dt, HuntInput input)
+        {
+            if (input.BeamOnFace) BeamHit += dt;
+            if (BeamHit >= Tuning.BeamHitSeconds) return Repel();
+            return PhaseTimer >= Tuning.BehindSeconds ? Catch() : HuntEvent.None;
+        }
+
+        private void UpdateHold(float dt, bool holding, float seconds)
+        {
+            if (holding) Hold += dt / seconds;
             else Hold = Math.Max(0f, Hold - dt * Tuning.HoldDecayPerSecond);
-
-            if (Hold >= 1f) return LandStun(HuntEvent.None);
-            if (PhaseTimer >= Tuning.TrackMaxSeconds)
-            {
-                // he slips away without a stun, so nobody can be pinned in front of him forever
-                StartFlicker();
-                return HuntEvent.BrokeFree | HuntEvent.FlickerStart;
-            }
-            return HuntEvent.None;
-        }
-
-        private HuntEvent TickFlicker()
-        {
-            if (PhaseTimer < Tuning.FlickerSeconds) return HuntEvent.None;
-            if (PendingOutcome == HuntOutcome.OtherRoom)
-                return BeginHiding(OtherClassroom(Room), RandomHideSeconds());
-            Phase = HuntPhase.Charging;
-            PhaseTimer = 0f;
-            Room = RoomId.Hallway;
-            _chargeLeft = Tuning.ChargeSeconds;
-            _chargeWait = 0f;
-            ChargeHit = 0f;
-            return HuntEvent.ChargeStart;
-        }
-
-        private HuntEvent TickCharging(float dt, HuntInput input)
-        {
-            if (!input.InHallway)
-            {
-                // the charge waits for the player to be in the hallway, but not forever
-                _chargeWait += dt;
-                if (_chargeWait >= Tuning.ChargeWaitSeconds)
-                    return BeginHiding(RandomClassroom(), RandomHideSeconds());
-                return HuntEvent.None;
-            }
-            _chargeLeft -= dt;
-            if (input.BeamOnFace) ChargeHit += dt;
-            if (ChargeHit >= Tuning.ChargeHitSeconds) return LandStun(HuntEvent.None);
-            if (_chargeLeft > 0f) return HuntEvent.None;
-            StartRecoil();
-            return HuntEvent.Caught;
-        }
-
-        private HuntEvent TickRecoil()
-        {
-            if (PhaseTimer < Tuning.RecoilSeconds) return HuntEvent.None;
-            return BeginHiding(RandomClassroom(), RandomHideSeconds());
         }
 
         // ------------------------------------------------------------ transitions
-        private HuntEvent LandStun(HuntEvent extra)
+        private HuntEvent BeginStalking()
         {
-            Stuns++;
-            Hold = 0f;
-            if (Stuns >= Tuning.StunsToWin)
+            Enter(HuntPhase.Stalking);
+            Room = RoomId.Hallway;
+            // he walks for less time as dawn gets closer
+            float longest = Tuning.StalkMaxSeconds * (1f - 0.5f * DawnProgress);
+            float top = Math.Max(Tuning.StalkMinSeconds, longest);
+            _stalkLeft = Tuning.StalkMinSeconds + _rng.NextFloat() * (top - Tuning.StalkMinSeconds);
+            return HuntEvent.StalkStart;
+        }
+
+        private HuntEvent Stop(Spot spot)
+        {
+            _lastSpot = (int)spot;
+            switch (spot)
             {
-                Phase = HuntPhase.Won;
-                return extra | HuntEvent.Stun | HuntEvent.Won;
+                case Spot.Classroom1:
+                case Spot.Classroom2:
+                    Enter(HuntPhase.AtDoor);
+                    Room = spot == Spot.Classroom1 ? RoomId.Classroom1 : RoomId.Classroom2;
+                    return HuntEvent.ReachedDoor;
+                case Spot.Closet:
+                    Enter(HuntPhase.Closet);
+                    Room = RoomId.ComfortRoom;
+                    _spotted = false;
+                    return HuntEvent.EnteredCloset;
+                default:
+                    Enter(HuntPhase.Behind);
+                    Room = RoomId.Hallway;
+                    return HuntEvent.AppearedBehind;
             }
-            if (Phase == HuntPhase.Charging) { StartRecoil(); return extra | HuntEvent.Stun; }
-            StartFlicker();
-            return extra | HuntEvent.Stun | HuntEvent.FlickerStart;
         }
 
-        private void StartFlicker()
+        private HuntEvent Repel()
         {
-            Phase = HuntPhase.Flicker;
-            PhaseTimer = 0f;
-            PendingOutcome = PickOutcome();
+            Repels++;
+            Enter(HuntPhase.Retreat);
+            return HuntEvent.Repelled;
         }
 
-        private void StartRecoil()
+        private HuntEvent Catch()
         {
-            Phase = HuntPhase.Recoil;
-            PhaseTimer = 0f;
+            Catches++;
+            if (Catches >= Tuning.CatchesToLose)
+            {
+                Phase = HuntPhase.Lost;
+                return HuntEvent.Caught | HuntEvent.Lost;
+            }
+            Enter(HuntPhase.Retreat);
+            return HuntEvent.Caught;
         }
 
-        private HuntEvent BeginHiding(RoomId room, float hideSeconds)
+        private void Enter(HuntPhase phase)
         {
-            Phase = HuntPhase.Hiding;
+            Phase = phase;
             PhaseTimer = 0f;
             Hold = 0f;
-            Room = room;
-            _hideLeft = hideSeconds;
-            return HuntEvent.Hid;
+            BeamHit = 0f;
         }
 
-        // Random, but never the same outcome three times in a row.
-        private HuntOutcome PickOutcome()
+        // Half the stops are at the two doors, the rest split between the comfort room and right
+        // behind you. Never the same place twice in a row, and never behind you during a peek.
+        private Spot PickSpot(HuntInput input)
         {
-            var pick = _rng.Chance(0.45f) ? HuntOutcome.HallwayCharge : HuntOutcome.OtherRoom;
-            if (pick == _lastOutcome && _sameOutcomeRun >= 2)
-                pick = pick == HuntOutcome.OtherRoom ? HuntOutcome.HallwayCharge : HuntOutcome.OtherRoom;
-            _sameOutcomeRun = pick == _lastOutcome ? _sameOutcomeRun + 1 : 1;
-            _lastOutcome = pick;
-            return pick;
+            float roll = _rng.NextFloat();
+            int pick = roll < 0.25f ? 0 : roll < 0.5f ? 1 : roll < 0.75f ? 2 : 3;
+            if (pick == 3 && !input.InHallway) pick = _rng.Chance(0.5f) ? 0 : 1;
+            if (pick == _lastSpot) pick = (pick + 1) % 3;
+            return (Spot)pick;
         }
-
-        private float RandomHideSeconds() => Tuning.HideMinSeconds +
-            _rng.NextFloat() * (Tuning.HideMaxSeconds - Tuning.HideMinSeconds);
-
-        private RoomId RandomClassroom() => _rng.Chance(0.5f) ? RoomId.Classroom1 : RoomId.Classroom2;
-
-        private static RoomId OtherClassroom(RoomId room) =>
-            room == RoomId.Classroom1 ? RoomId.Classroom2 : RoomId.Classroom1;
     }
 
-    /// <summary>How his picture moves while you track him: the head circles an anchor point
-    /// while the whole image jitters. Faster and wider after every stun.</summary>
+    /// <summary>How his picture moves in the comfort room: the head circles an anchor point while
+    /// the whole image jitters. Faster and wider each time he has been sent away.</summary>
     public static class AdminHuntMotion
     {
         public static void HeadOffset(float t, int stuns, int seed, out float x, out float y)

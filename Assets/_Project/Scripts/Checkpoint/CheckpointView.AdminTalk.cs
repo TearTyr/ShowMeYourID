@@ -20,8 +20,8 @@ namespace Hollowbrook.Checkpoint
     //    the same option twice;
     //  * talking never stamps, never gives clues and never changes the score. The one
     //    exception is REFUSE ENTRY, which is exactly the DENY stamp (RefuseAdminEntry);
-    //  * while it is open the questions panel and the small map step aside and come back
-    //    when it closes. The classroom question still works with the 1 key meanwhile.
+    //  * he gets none of the student questions: the questions panel stays hidden while he is
+    //    at the window, and the small map steps aside while the conversation is open.
     public partial class CheckpointView
     {
         private const int MaxTalkOptions = 8;
@@ -93,7 +93,6 @@ namespace Hollowbrook.Checkpoint
                 AnswerClassroom = v != null ? v.ClassroomAnswer : "",
                 CluePhoto = ClueFound("photo"),
                 ClueCabinet = ClueFound("cabinet"),
-                AskedClassroom = _classroomAsked,
             };
         }
 
@@ -132,17 +131,23 @@ namespace Hollowbrook.Checkpoint
             RefreshHud();
         }
 
-        // The conversation borrows the right column: the questions panel and the small map
-        // step aside while it is open and come back exactly as they were.
+        // The conversation borrows the right column: the small map steps aside while it is open.
         private void SetTalkColumn(bool talking)
+        {
+            ShowQuestionsPanel(!talking);
+            if (_mapBtn != null) _mapBtn.gameObject.SetActive(!talking);
+        }
+
+        // The student questions never show for the administrator.
+        private void ShowQuestionsPanel(bool show)
         {
             if (_qPanelGo == null)
             {
                 var q = FindChild(transform, "qpanel_border");
                 _qPanelGo = q != null ? q.gameObject : null;
             }
-            if (_qPanelGo != null) _qPanelGo.SetActive(!talking);
-            if (_mapBtn != null) _mapBtn.gameObject.SetActive(!talking);
+            bool admin = _current != null && _current.IsAdministrator;
+            if (_qPanelGo != null) _qPanelGo.SetActive(show && !admin);
         }
 
         private static Transform FindChild(Transform t, string name)
@@ -166,7 +171,7 @@ namespace Hollowbrook.Checkpoint
             if (st == null) return;
             var ctx = BuildTalkContext();
             var options = AdminTalk.OptionsFor(st, ctx);
-            _talkSub.text = "Pick what to say. The stamp is still yours alone.";
+            _talkSub.text = "LIES EXPOSED: " + AdminTalk.LiesExposed(Talk) + ". Each one shortens the night to come.";
             for (int i = 0; i < options.Count && i < MaxTalkOptions; i++)
                 _talkOptButtons.Add(BuildOptionRow(options[i], i, ctx));
             _talkPanel.SetActive(true);

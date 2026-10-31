@@ -66,6 +66,7 @@ def font_obj(name, px):
     cand = {
         'kit_bahnschrift_regular': 'Fonts/kit_bahnschrift_regular.otf',
         'kit_bahnschrift_bold': 'Fonts/kit_bahnschrift_bold.otf',
+        'kit_bahnschrift_bold_condensed': 'Fonts/kit_bahnschrift_bold_condensed.otf',
         'kit_bahnschrift_semibold_condensed': 'Fonts/kit_bahnschrift_semibold_condensed.otf',
         'kit_chiller': 'Fonts/kit_chiller.ttf',
         'BarlowCondensed-Regular': 'Fonts/BarlowCondensed-Regular.ttf',

@@ -5,10 +5,10 @@
 You are the newest temporary night custodian of **Hollowbrook College**, a school shut down
 mid-year without an official explanation, yet still open at night so its students can finish the
 term. Students come to the window of your security booth. Check their ID and paper slip, ask
-which classroom they are going to, check the answer against their file in the cabinet, and stamp
+up to two questions, check the answers against their file in the cabinet, and stamp
 **ACCEPT** or **DECLINE**. Not everyone at the window is a student. Between visitors you patrol
-the hallway and peek into the classrooms with a flashlight. On the last night a district
-administrator arrives, and turning him away is only the start.
+the hallway and peek into the classrooms and the comfort room. On the last night nobody comes but
+a district administrator, and turning him away is only the start.
 
 > “Everyone has an ID. Not everyone is a student.”
 
@@ -45,36 +45,45 @@ Folder rules and naming are in [docs/ART-NAMING.md](docs/ART-NAMING.md), the ful
 5. **Stamp** - drag a stamp onto the slip. Changed your mind? Stamp again before the next step.
 6. **Hand back** - drag the ID back to the window. The decision counts now and is permanent.
 7. **Patrol** (between visitors) - walk the hallway, peek into classrooms, find the ten findings.
-   The comfort room is the door at the east end of the hallway (`E`), and it is very dark.
-8. **Night 5** - the administrator arrives. Talk to him (`T`), refuse him (**REFUSE ENTRY** or a
-   DENY stamp), and he forces his way in. Hunt him through the classrooms (see below).
+   The comfort room is the door at the east end of the hallway: peek in with `E`, like a classroom.
+8. **Night 5** - no students, only the administrator. The student questions do not apply to him:
+   interrogate him (`T`), catch his lies, refuse him (**REFUSE ENTRY** or a DENY stamp), and he
+   forces his way in. Survive until dawn (see below).
 
-### The administrator hunt
+### Night 5: surviving the administrator
 
-After the DENY, he hides in Classroom 1 or 2. A knock and a caption tell you which door. Peek in
-(`E` at the door): his picture shakes and circles in the dark, and only your lamp shows it. Keep
-the cursor on his **head** to fill the hold; a full hold is a **stun**. The lamp flickers out, he
-vanishes, then he either hides in the other room or **charges down the hallway**: flash his face
-with your beam (`F` / `Q`). **Four stuns** drive him off. If the **SERVER DOOR** meter reaches zero
-first, he reaches the server room and you lose. The security door is locked while he is inside.
-The numbers (stuns, seconds, head size…) are in `GameConfig.asset` under “Administrator hunt”.
+Night 5 plays like Nightmare Fredbear's night in *Five Nights at Freddy's 4*: he is the only thing
+in the building. Listen for where his footsteps stop:
+
+- **At a classroom door:** stand at that door and hold `E` until he gives up.
+- **In the comfort room:** peek in and keep the lamp on his head.
+- **Right behind you:** flash his face with the beam (`F` / `Q`).
+
+Too slow and he catches you. **Three catches** and he reaches the server door: you lose. Survive
+until **dawn** to win. Every lie you exposed at the window makes the night shorter. The security
+door is locked while he is inside. The numbers are in `GameConfig.asset` under "Administrator hunt".
 
 ## Controls
 
 | Where | Keys |
 |---|---|
 | Desk | mouse to drag papers and stamps · `1` to `4` ask the questions · `Tab` file drawer · `F` flip the ID (or click its black spine) · `T` talk to the administrator · `X` or `Esc` close the rules/log sheet · `M` map · `Esc` pause |
-| Patrol | `A`/`D` or arrows walk · `Shift` run · `E` interact (doors, clues, switches) · `F` flashlight on/off · `Q` focus beam · `L` beam off · `Esc` pause |
+| Patrol | `A`/`D` or arrows walk · `Shift` run · `E` interact (doors, clues, switches) · `F` flashlight on/off · `Q` focus beam · `L` beam off · `Esc` pause · night 5: hold `E` at the door he is behind |
 | Peeking | mouse moves the lamp · `F` lamp on/off · `Q` wide/tight · `E` at the doorway or click the bottom edge to step back |
 | Dialogue | click / `Space` / `Enter` / `E` |
 | Menu | `F2` ×3 erases save data (then confirm) |
 
+## Tokens
+
+Repelled anomalies drop tokens on patrol. They are kept between runs and shown on the main menu.
+Three tokens open Endless and Challenge from the TOKENS button.
+
 ## Endings
 
-- **Surviving Hollowbrook** - five nights, the administrator driven off.
+- **Surviving Hollowbrook** - five nights, and dawn reached on the last one.
 - **Another Custodian** - 3 anomalies let in, 3 students wrongly turned away, the line overruns
-  the checkpoint, the administrator let in, or he reaches the server door.
-- **The Truth Behind Hollowbrook** - all ten findings, found in order.
+  the checkpoint, the administrator let in, or he catches you three times on night 5.
+- **The Truth Behind Hollowbrook** - all ten findings, found in order, and dawn reached.
 
 ## Repository layout
 

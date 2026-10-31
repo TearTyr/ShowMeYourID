@@ -23,7 +23,7 @@ you change a script (or `GameConfig.asset`), not a scene.
 4. `Checkpoint/CheckpointView.cs` - the desk. It is one class split into files by area
    (`.Window`, `.Papers`, `.FileDrawer`, `.Decision` = questions and stamps, `.AdminTalk`...).
 5. `World/ViewManager.cs` - rooms, doors, the peek view.
-6. `GameLogic/AdminHunt.cs` + `World/AdminHuntDirector.cs` - the final fight.
+6. `GameLogic/AdminHunt.cs` + `World/AdminHuntDirector.cs` - night 5, surviving him until dawn.
 
 **The folder rule:** `GameLogic/` is plain C# with no Unity inside. That is why it can be tested
 without opening Unity. Rules go there. Anything that touches the screen goes elsewhere.
@@ -38,7 +38,7 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | Change which tricks appear on which night | `GameLogic/ShiftPlan.cs` (`...Allowed` flags, counts, the rule note text) |
 | Add a new kind of trick (defect) | `Enums.cs` (`DefectType`), `RosterFactory.cs` (`ApplyDefect`, `BuildDefectPool`), `IdRules.cs` if it shows on the papers |
 | Change what the administrator says | `GameLogic/AdminTalk.cs` > `BuildScript` (plain text, copy a `Topic(...)` line) |
-| Tune the hunt (stuns, seconds, head size, charge time) | `Resources/GameConfig.asset`, group **Administrator hunt** |
+| Tune night 5 (catches, seconds to dawn, door and lamp holds, seconds per lie) | `Resources/GameConfig.asset`, group **Administrator hunt** |
 | Change how his picture shakes | `GameLogic/AdminHunt.cs` > `AdminHuntMotion` |
 | Give him a real picture | `char_admin.png` / `char_admin_glitch.png` come from the Director art (`Tools/prep_characters.py`); drop `char_admin_hunt.png` in `Resources/Art/` for a special hunt picture |
 | Add or change a student picture | put the busts in `Art/UI and Design Assets/Characters`, edit the list in `Tools/prep_characters.py`, run it, then raise `FaceAssets.StudentFaceCount` |

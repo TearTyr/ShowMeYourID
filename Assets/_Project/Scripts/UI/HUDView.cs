@@ -123,7 +123,8 @@ namespace Hollowbrook.UI
             _objective = UIFactory.Label(_frame, "objective", "", 14, UIFactory.InkDim);
             Reg(audit, "hint", _objective.rectTransform, L.Hint);
 
-            _prompt = UIFactory.Label(_frame, "prompt", "", 15, UIFactory.AccentBright, TextAnchor.MiddleCenter);
+            _prompt = UIFactory.Label(_frame, "prompt", "", 16, UIFactory.AccentBright, TextAnchor.MiddleCenter);
+            _prompt.font = UIFactory.UiFontBold;
             Reg(audit, "prompt", _prompt.rectTransform, L.Prompt);
 
             _toast = UIFactory.Label(_frame, "toast", "", 16, UIFactory.Ink, TextAnchor.MiddleCenter);
@@ -208,6 +209,7 @@ namespace Hollowbrook.UI
             bool peeking = s == AppViewState.RoomPeek;
             bool atDesk = s == AppViewState.Checkpoint;
             _prompt.gameObject.SetActive(true);
+            L.Place(_prompt.rectTransform, peeking ? L.PromptPeek : L.Prompt);
             _roomInfo.gameObject.SetActive(exploring || peeking);
             // the desk keeps only night/clock/pause/sanity: battery and track are patrol tools
             if (_batteryBar != null) _batteryBar.SetActive(exploring || peeking);

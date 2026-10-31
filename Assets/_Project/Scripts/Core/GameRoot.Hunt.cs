@@ -5,13 +5,13 @@ using UnityEngine;
 
 namespace Hollowbrook.Core
 {
-    // Night 5, after the administrator is turned away: he does not leave, he hunts through the
-    // school (rules in GameLogic/AdminHunt, scene driver in World/AdminHuntDirector). This file
+    // Night 5, after the administrator is turned away: he does not leave, he stalks the school
+    // until dawn (rules in GameLogic/AdminHunt, scene driver in World/AdminHuntDirector). This file
     // is the flow around it: starting the hunt from the desk, ending it in a win or a loss, and
     // resuming it after Continue. One part of GameRoot, split out so each file stays readable.
     public partial class GameRoot
     {
-        /// <summary>True from the DENY stamp until he is driven off or reaches the server door.</summary>
+        /// <summary>True from the DENY stamp until dawn or until he reaches the server door.</summary>
         public bool HuntActive => Session != null && Session.Hunt == HuntState.Active;
 
         /// <summary>Change the HUD objective line (and remember it for HUDs built later).</summary>
@@ -26,15 +26,20 @@ namespace Hollowbrook.Core
         {
             var t = HuntTuning.Default;
             if (Config == null) return t;
-            t.StunsToWin = Config.huntStunsToWin;
-            t.ServerSeconds = Config.huntServerSeconds;
-            t.HideMinSeconds = Config.huntHideMinSeconds;
-            t.HideMaxSeconds = Mathf.Max(Config.huntHideMinSeconds, Config.huntHideMaxSeconds);
-            t.TrackMaxSeconds = Config.huntTrackMaxSeconds;
-            t.HoldSeconds = Config.huntHoldSeconds;
+            t.CatchesToLose = Config.huntCatchesToLose;
+            // every lie exposed at the window makes the night shorter
+            float lies = AdminTalk.LiesExposed(Session.AdminTalk);
+            t.SurviveSeconds = Mathf.Max(Config.huntMinSurviveSeconds,
+                Config.huntSurviveSeconds - lies * Config.huntSecondsPerLie);
+            t.StalkMinSeconds = Config.huntStalkMinSeconds;
+            t.StalkMaxSeconds = Mathf.Max(Config.huntStalkMinSeconds, Config.huntStalkMaxSeconds);
+            t.DoorSeconds = Config.huntDoorSeconds;
+            t.DoorHoldSeconds = Config.huntDoorHoldSeconds;
+            t.ClosetSeconds = Config.huntClosetSeconds;
+            t.ClosetHoldSeconds = Config.huntClosetHoldSeconds;
             t.HeadRadius = Config.huntHeadRadius;
-            t.ChargeSeconds = Config.huntChargeSeconds;
-            t.ChargeHitSeconds = Config.huntChargeHitSeconds;
+            t.BehindSeconds = Config.huntBehindSeconds;
+            t.BeamHitSeconds = Config.huntBeamHitSeconds;
             return t;
         }
 
@@ -50,7 +55,7 @@ namespace Hollowbrook.Core
             {
                 new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = "Then I will let myself in." },
                 new DialogueLine { Speaker = "RADIO", Text = "The gate! He is through the gate - he is inside the school!" },
-                new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "The server room. That is where he is going. Find him in the classrooms and stop him - the lamp, and the beam." },
+                new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "Footsteps. Listen for where they stop. Hold the doors, watch the comfort room, watch your back. Dawn is the only way out." },
             };
             if (Dialogue != null) Dialogue.Play(lines, () => EnterExploration(RoomId.Hallway));
             else EnterExploration(RoomId.Hallway);
@@ -63,7 +68,7 @@ namespace Hollowbrook.Core
             EnterExploration(RoomId.Hallway);
         }
 
-        /// <summary>He was stunned enough times and is driven off: the night closes normally.</summary>
+        /// <summary>Dawn came and he is gone: the night closes normally.</summary>
         public void WinAdminHunt()
         {
             if (!HuntActive) return;
@@ -86,7 +91,7 @@ namespace Hollowbrook.Core
             Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
         }
 
-        /// <summary>The server door meter ran out: he reached the server room.</summary>
+        /// <summary>He caught the player too many times and reached the server room.</summary>
         public void LoseAdminHunt()
         {
             if (!HuntActive) return;

@@ -104,10 +104,10 @@ namespace FlowCheck
             var sticky = FindDeep(cp0.transform, "StickyNoteOverlay");
             Check(sticky != null && sticky.gameObject.activeSelf, "a fresh shift opens behind the sticky note");
             var noteText = NoteTextOf(sticky);
-            Check(noteText.Contains("NIGHT SHIFT BEGINS.") &&
-                  noteText.Contains("Rules: Check IDs, ask questions, stamp. Don't let the wrong faces in.") &&
+            Check(noteText.Contains("HOW TO PLAY") &&
+                  noteText.Contains("2. ASK up to 2 of the 4 questions") && noteText.Contains("5. HAND BACK") &&
                   noteText.Contains("[CLICK TO BEGIN]"),
-                  "the note carries the exact briefing text");
+                  "night 1: the note is the how to play card");
             Check(cp0.CurrentVisitor == null && root.Queue.ArrivalCount == 0 && !root.Queue.Started,
                 "no visitor, no arrivals, clock not started while the note is up");
             cp0.AdvanceQueue(6f); cp0.AdvanceQueue(6f);   // >6s of ignored waiting (step 11.1.4)
@@ -403,14 +403,15 @@ namespace FlowCheck
             ExpectRegion("MAP", L.UtilityMap, 955, 330, 290, 170);
             ExpectRegion("RN", L.UtilityNotes, 240, 570, 160, 150);
             ExpectRegion("sticky note", L.StickyNote, 390, 200, 500, 320);
-            // the question button and the answer note sit inside the kit panel's painted frame
-            // (local y 9..198 on the 305x215 rect), one under the other, never overlapping
-            Check(Math.Abs(L.Inner.QBtnX - 16) < 0.01f && Math.Abs(L.Inner.QBtnW - 266) < 0.01f &&
-                  L.Inner.QContentY0 >= 40f &&
-                  L.Inner.QContentY0 + L.Inner.QBtnH < L.Inner.QAnswerHead.Y &&
-                  L.Inner.QAnswerHead.Bottom <= L.Inner.QAnswer.Y &&
-                  L.Inner.QAnswer.Bottom <= 195f,
-                "question button and answer note stack inside the panel, clear of the painted frame");
+            // the four question strips sit inside the kit panel's painted frame (local x 32..274,
+            // y 9..198 on the 305x215 rect), under the heading, one under the other, never overlapping
+            float lastStripBottom = L.Inner.QContentY0 + 3 * L.Inner.QBtnStep + L.Inner.QBtnH;
+            Check(L.Inner.QBtnX >= 30f && L.Inner.QBtnX + L.Inner.QBtnW <= 276f &&
+                  L.Inner.QHead.Bottom <= L.Inner.QContentY0 &&
+                  L.Inner.QKeyHint.Bottom <= L.Inner.QContentY0 &&
+                  L.Inner.QBtnStep > L.Inner.QBtnH &&
+                  lastStripBottom <= 195f,
+                "four question strips stack inside the panel under the heading, clear of the painted frame");
             // folder tabs: station-local grid; file rows: drawer-body grid, starting under the
             // 52px front lip and the 18px header - a whole floor folder (7 files) fits
             Check(Math.Abs(L.Inner.FolderTabX - (L.Station.W - L.Inner.FolderTabW) / 2f) < 0.01f &&
@@ -1464,7 +1465,7 @@ namespace FlowCheck
             Check(FindArt(rootDir, "char_guard_idle") != null && FindArt(rootDir, "char_guard_walk_a") != null &&
                   FindArt(rootDir, "char_guard_walk_b") != null,
                 "FM: the guard's idle pose and both walking poses ship under Resources/Art");
-            string[] envKeys = { "bg_hallway_lit", "bg_hallway_unlit", "bg_classroom_1", "bg_classroom_2", "bg_comfort_room",
+            string[] envKeys = { "bg_hallway_unlit", "bg_classroom_1", "bg_classroom_2", "bg_comfort_room",
                 "prop_door_classroom_1", "prop_door_classroom_2", "prop_door_comfort", "prop_door_security", "prop_server_door",
                 "prop_clock", "token", "inspect_noticeboard", "inspect_photoframe", "inspect_clock", "inspect_light_bulb",
                 "inspect_light_switch", "inspect_clipboard", "inspect_server_door", "inspect_lockers" };
@@ -1759,8 +1760,8 @@ namespace FlowCheck
                 var loadSub = FindDeep(root.Loading.transform, "sub").GetComponent<UnityEngine.UI.Text>();
                 Check(titleDone == 1, "NIGHT: the title hands over to the dialogue exactly once when it ends");
                 Check(loadLabel.text == "NIGHT 9" && loadSub.text == "SOME DATE" &&
-                      loadLabel.color.a > 0.99f && loadSub.color.a > 0.99f,
-                    "NIGHT: the title and its date finish fully faded in");
+                      loadLabel.color.a < 0.01f && loadSub.color.a < 0.01f,
+                    "NIGHT: the title and its date fade back out before the dialogue box opens");
                 Check(FindDeep(root.Loading.transform, "bg").gameObject.activeSelf,
                     "NIGHT: the black card stays up under the dialogue that follows");
                 root.Loading.Hide();
@@ -2178,9 +2179,9 @@ namespace FlowCheck
                   "Q10: night 2 starts cleanly behind its own note");
 
             // ---- Q11 the district administrator's special encounter survives the queue
-            var night5 = new RosterFactory(3).GenerateShift(ShiftPlan.Build()[4]);   // 8 + admin
-            Check(night5.Count == 9 && night5[8].IsAdministrator,
-                  "Q11: night 5 roster ends with the administrator");
+            var night5 = new RosterFactory(3).GenerateShift(ShiftPlan.Build()[4]);   // only the administrator
+            Check(night5.Count == 1 && night5[0].IsAdministrator,
+                  "Q11: night 5 is only the administrator");
             FreshGame(root);
             IsolateMissingStudent(root);
             root.Queue.AttachRoster(night5, new QueueTuning
@@ -2205,7 +2206,7 @@ namespace FlowCheck
                 cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
                 cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             }
-            Check(root.Queue.ProcessedCount == 9, "Q11: all nine visitors resolved through the queue (" +
+            Check(root.Queue.ProcessedCount == 1, "Q11: the administrator resolved through the queue (" +
                   root.Queue.ProcessedCount + ")");
             Check(root.Session.AdminRejected && !root.Session.AdminAllowed,
                   "Q11: the administrator was rejected through the queue flow");
@@ -2666,8 +2667,8 @@ namespace FlowCheck
                 var r = views.Room(rid);
                 if (r == null) continue;
                 if (FindDeep(r.Root.transform, "lightswitch") != null) anySwitch = true;
-                foreach (var it in r.Interactables)
-                    if (it.Prompt != null && it.Prompt.ToLowerInvariant().Contains("switch")) anySwitch = true;
+                foreach (var it in r.Interactables)   // a dead switch to inspect lights nothing
+                    if (!(it is ExamineSpot) && it.Prompt != null && it.Prompt.ToLowerInvariant().Contains("switch")) anySwitch = true;
             }
             Check(!anySwitch, "W2: no room has a light switch - the flashlight is the only light");
             Check(FindDeep(views.Room(RoomId.Classroom1).Root.transform, "door_security_office") == null,
@@ -2718,22 +2719,53 @@ namespace FlowCheck
             if (!hall.Light.Lit) hall.Light.SetLit(true);   // later sections (battery) play lit
             Check(hall.Light.Lit, "W2: the hallway is relit for the battery proofs");
 
-            // ---- the comfort room: a door in the hallway's east end, E to go in, dimmed a lot ----
+            // ---- the comfort room: a door at the hallway's east end, peeked into like the classrooms ----
             {
-                Doorway crDoor = null, crBack = null;
+                Doorway crDoor = null;
                 foreach (var it in hall.Interactables) { var d = it as Doorway; if (d != null && d.Target == RoomId.ComfortRoom) crDoor = d; }
                 Check(crDoor != null && crDoor.AnchorX > 7f && crDoor.AnchorX <= hall.HalfWidth - 0.6f,
-                      "CR: the hallway has a comfort room door the player can actually walk to (x " + (crDoor != null ? crDoor.AnchorX.ToString("F1") : "none") + ")");
-                Check(crDoor != null && crDoor.Prompt == "Enter Comfort Room [E]", "CR: the door says what it is");
+                      "CR: the hallway has a comfort room door the player can actually walk to");
+                Check(crDoor != null && crDoor.Prompt == "Peek into Comfort Room [E]", "CR: the door says what it is");
                 crDoor.Interact();
-                Check(views.Current.Id == RoomId.ComfortRoom && !views.Transitioning, "CR: E at the door walks into the comfort room");
-                Check(views.Current.Darkness.color.a >= 0.85f && !views.Current.Light.Lit,
-                      "CR: the comfort room is dimmed a lot (alpha " + views.Current.Darkness.color.a.ToString("F2") + ")");
-                foreach (var it in views.Current.Interactables) { var d = it as Doorway; if (d != null && d.Target == RoomId.Hallway) crBack = d; }
-                Check(crBack != null, "CR: the comfort room has a door back to the hallway");
-                crBack.Interact();
-                Check(views.Current.Id == RoomId.Hallway && !views.Transitioning, "CR: the same door leads back out to the hallway");
+                Check(views.PeekActive && views.Current.Id == RoomId.ComfortRoom && root.State == AppViewState.RoomPeek,
+                      "CR: E at the door peeks into the comfort room, nobody walks in");
+                int crSpots = 0, crExits = 0;
+                foreach (var it in views.Current.Interactables)
+                {
+                    if (it is ExamineSpot) crSpots++;
+                    var d = it as Doorway;
+                    if (d != null && d.Target == RoomId.Hallway) crExits++;
+                }
+                Check(crSpots == 3 && crExits == 1, "CR: the peek has things to inspect and a way back");
+                root.ExitRoomPeek();
+                Check(!views.PeekActive && views.Current.Id == RoomId.Hallway && root.State == AppViewState.Exploration,
+                      "CR: stepping back returns to the hallway");
                 if (!hall.Light.Lit) hall.Light.SetLit(true);
+            }
+
+            // ---- tokens: picked up on patrol, banked in the records, spent on the main menu ----
+            {
+                int before = root.Records.TokensBanked;
+                var tokenGo = new GameObject("proof_token");
+                var pickup = tokenGo.AddComponent<TokenPickup>();
+                pickup.Init(root, hall, 0f);
+                pickup.Interact();
+                Check(root.Records.TokensBanked == before + 1, "TOKEN: a picked up token is banked in the records");
+                var round = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = root.Session, Records = root.Records }));
+                Check(round != null && round.Records.TokensBanked == before + 1, "TOKEN: banked tokens survive the save file");
+                var rec = new RecordsData { TokensBanked = RecordsData.TokensToUnlockModes - 1 };
+                Check(!rec.ModesUnlocked, "TOKEN: the other modes stay locked below the price");
+                rec.TokensBanked++;
+                Check(rec.ModesUnlocked, "TOKEN: enough tokens open Endless and Challenge on the menu");
+            }
+
+            // ---- the hallway art fits the frame and the walkers stand on the painted floor ----
+            {
+                int spots = 0;
+                foreach (var it in hall.Interactables) if (it is ExamineSpot) spots++;
+                Check(spots == 4, "HALL: clipboard, switch and both lockers can be inspected");
+                Check(Mathf.Abs(RoomInstance.FloorY - HallwayDarkness.FloorY) < 0.001f && RoomInstance.FloorY <= -3f,
+                      "HALL: the floor line matches the painted floor");
             }
 
             // ---- W2b: limited hallway visibility - deeper ambient + a pool around the player
@@ -2893,13 +2925,13 @@ namespace FlowCheck
             // ---- W3: cursor aiming + true cone coverage in one world space
             Console.WriteLine("== W3 aiming and cone coverage ==");
             views.Player.PlaceInRoom(hall, new Vector3(0f, 0f, 0f));
-            AimAt(5f, -0.5f);
+            AimAt(5f, -1.2f);
             PressKey(root, KeyCode.F);           // sweep, aiming right
             Check(rig.Dir.x > 0.99f && Mathf.Abs(rig.Dir.y) < 0.01f, "W3: aiming right gives a right-pointing beam");
             Check(rig.ConeCovers(new Vector3(4f, 0f, 0f)), "W3: Sweep covers a point 4u ahead");
             Check(!rig.ConeCovers(new Vector3(-4f, 0f, 0f)), "W3: nothing behind the player is covered");
             Check(!rig.ConeCovers(new Vector3(rig.Params.Range + 1.5f, -0.5f, 0f)), "W3: beyond the Sweep range is dark");
-            Check(rig.ConeCovers(new Vector3(4f, 2.0f, 0f)), "W3: the wide cone covers 2.5u off-axis at 4u");
+            Check(rig.ConeCovers(new Vector3(4f, 1.3f, 0f)), "W3: the wide cone covers 2.5u off-axis at 4u");
             PressKey(root, KeyCode.Q);           // same aim, Focus now
             Check(!rig.ConeCovers(new Vector3(4f, 2.0f, 0f)), "W3: Focus does NOT cover the same off-axis point - the modes really differ");
             Check(rig.ConeCovers(new Vector3(4f, 0f, 0f)), "W3: Focus still covers the axis");
@@ -2915,7 +2947,7 @@ namespace FlowCheck
                 Check(cone.localPosition == mask.localPosition, "W3: the mask rides exactly on the cone (no aim desync)");
                 AimAt(0f, 4f); WorldFrames(root, 30);   // let the damped aim settle
                 Check(Mathf.Abs(cone.localEulerAngles.z - 90f) < 0.5f, $"W3: aiming up rotates the cone to ~90° (got {cone.localEulerAngles.z:F1})");
-                AimAt(-5f, -0.5f); WorldFrames(root, 30);
+                AimAt(-5f, -1.2f); WorldFrames(root, 30);
                 Check(rig.Dir.x < -0.99f, "W3: aiming left flips the direction");
                 Check(rig.ConeCovers(new Vector3(-4f, 0f, 0f)) && !rig.ConeCovers(new Vector3(4f, 0f, 0f)),
                     "W3: a left aim covers left, not right");
@@ -3689,8 +3721,8 @@ namespace FlowCheck
                   FindDeep(cp.transform, "opt_end") != null,
                 "AT: the hub offers the three badge questions, REFUSE ENTRY and the exit");
             Check(FindDeep(cp.transform, "opt_ask_photo") == null && FindDeep(cp.transform, "opt_ask_cabinet") == null &&
-                  FindDeep(cp.transform, "opt_ask_server") == null,
-                "AT: evidence and the server-room question stay shut until earned");
+                  FindDeep(cp.transform, "opt_ask_server") != null,
+                "AT: evidence stays shut until earned; his first stop can always be asked");
             var refuseLabel = FindDeep(cp.transform, "opt_refuse").Find("label").GetComponent<UnityEngine.UI.Text>();
             Check(refuseLabel.horizontalOverflow == UnityEngine.HorizontalWrapMode.Wrap,
                 "AT: option labels wrap to two lines instead of being cut off");
@@ -3716,23 +3748,26 @@ namespace FlowCheck
             Check(root.Session.AdminTalk.Node == AdminTalk.HubId && FindDeep(cp.transform, "opt_ask_name") == null,
                 "AT: back at the hub; a question already asked is not offered again");
 
-            // the classroom question still works mid-conversation, and unlocks the follow-up
+            // he never gets the student questions, in or out of the conversation
             cp.AskClassroom();
-            Check(root.Queue.ActiveQuestionAsked, "AT: the classroom question still works mid-conversation");
-            FindDeep(cp.transform, "opt_ask_num").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(!root.Queue.ActiveQuestionAsked && !FindDeep(cp.transform, "qpanel_border").gameObject.activeSelf,
+                "AT: the default questions are gone while he is at the window");
+            FindDeep(cp.transform, "opt_ask_server").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             guard = 0;
             while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+            FindDeep(cp.transform, "opt_press_server").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            guard = 0;
+            while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+            Check(AdminTalk.LiesExposed(root.Session.AdminTalk) >= 1, "AT: a follow-up taken counts as a lie exposed");
             FindDeep(cp.transform, "opt_back").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             guard = 0;
             while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
-            Check(FindDeep(cp.transform, "opt_ask_server") != null,
-                "AT: after the classroom question, the server-room follow-up appears");
 
             // T steps out and back in without losing the thread
             PressDeskKey(cp, KeyCode.T);
             Check(!cp.AdminTalkOpen && FindDeep(cp.transform, "admintalkbar").gameObject.activeSelf &&
-                  FindDeep(cp.transform, "qpanel_border").gameObject.activeSelf,
-                "AT: stepping back restores the inspection column and leaves the re-open bar");
+                  !FindDeep(cp.transform, "qpanel_border").gameObject.activeSelf,
+                "AT: stepping back leaves the re-open bar, and the student questions stay away");
             PressDeskKey(cp, KeyCode.T);
             Check(cp.AdminTalkOpen && FindDeep(cp.transform, "opt_end") != null && !root.Dialogue.IsActive,
                 "AT: re-opening resumes the same node, options straight away, no replayed lines");
@@ -3784,7 +3819,7 @@ namespace FlowCheck
             Check(root.State == AppViewState.Exploration && views.Hunt != null && views.Hunt.Running,
                 "HUNT: the radio call ends in the school and the hunt is running");
             var hunt = views.Hunt.Model;
-            Check(hunt.Phase == HuntPhase.Hiding && hunt.Stuns == 0, "HUNT: he starts hidden, with no stuns");
+            Check(hunt.Phase == HuntPhase.Stalking && hunt.Catches == 0, "HUNT: he starts walking the halls");
             Check(views.Spawner.Live == null, "HUNT: nothing else is roaming the school");
 
             // the security door is locked while he is inside
@@ -3799,48 +3834,63 @@ namespace FlowCheck
             Check(root.State == AppViewState.Exploration && !views.Transitioning,
                 "HUNT: the security door is locked, you cannot run back to the desk");
 
-            // time passes: the server door meter runs and the HUD says so
-            float before = hunt.ServerLeft;
+            // time passes: the dawn clock runs and the HUD says so
+            float before = hunt.SurviveLeft;
             WorldFrames(root, 30, 0.1f);
-            Check(hunt.ServerLeft < before, "HUNT: the server door meter runs while you wait");
-            Check(root.ObjectiveText.Contains("SERVER DOOR"), "HUNT: the HUD line shows the SERVER DOOR meter (got '" + root.ObjectiveText + "')");
+            Check(hunt.SurviveLeft < before, "HUNT: the dawn clock runs while you wait");
+            Check(root.ObjectiveText.Contains("DAWN"), "HUNT: the HUD line shows the way to dawn (got '" + root.ObjectiveText + "')");
 
-            // a perfect player: peek where he is, hold the lamp on his head, flash him in the hallway
+            // a perfect player: hold the door he stopped at, light him in the comfort room, flash him at your back
             var rig = views.Flashlight;
-            bool sawTracking = false, sawFlicker = false, sawCharge = false, litOnEntry = false;
+            var hallRoom = views.Room(RoomId.Hallway);
+            bool sawDoor = false, sawCloset = false, sawBehind = false, litOnEntry = false, doorBlocked = false;
             for (int frame = 0; frame < 12000 && !hunt.Finished; frame++)
             {
                 var fig = views.Hunt.Figure;
                 bool figUp = fig != null && fig.activeSelf;
-                if (hunt.Phase == HuntPhase.Tracking && figUp)
+                bool walking = !views.PeekActive && !views.Transitioning && root.State == AppViewState.Exploration;
+                views.Hunt.ForceHoldKey = hunt.Phase == HuntPhase.AtDoor;
+                if (hunt.Phase == HuntPhase.AtDoor)
                 {
-                    sawTracking = true;
-                    AimAt(fig.transform.position.x, fig.transform.position.y);
-                }
-                else if (hunt.Phase == HuntPhase.Hiding)
-                {
-                    if (views.PeekActive && views.Current.Id != hunt.Room) root.ExitRoomPeek();
-                    else if (!views.PeekActive && !views.Transitioning && root.State == AppViewState.Exploration)
+                    if (views.PeekActive) root.ExitRoomPeek();
+                    else if (walking)
                     {
-                        root.EnterRoomPeek(hunt.Room);
-                        litOnEntry = litOnEntry || (views.PeekLight != null && views.PeekLight.Lit);
+                        sawDoor = true;
+                        Doorway held = null;
+                        foreach (var it in hallRoom.Interactables)
+                        { var d = it as Doorway; if (d != null && d.Target == hunt.Room) held = d; }
+                        if (held != null)
+                        {
+                            held.Interact();
+                            doorBlocked = doorBlocked || (!views.PeekActive && held.Prompt.Contains("HOLD E"));
+                            views.Player.PlaceInRoom(hallRoom, new Vector3(held.AnchorX, 0f, 0f));
+                        }
                     }
                 }
-                else if (hunt.Phase == HuntPhase.Flicker && views.PeekLight != null && views.PeekLight.Flickering) sawFlicker = true;
-                else if (hunt.Phase == HuntPhase.Charging && !views.PeekActive && root.State == AppViewState.Exploration)
+                else if (hunt.Phase == HuntPhase.Closet)
                 {
-                    sawCharge = true;
+                    if (walking)
+                    {
+                        root.EnterRoomPeek(RoomId.ComfortRoom);
+                        litOnEntry = litOnEntry || (views.PeekLight != null && views.PeekLight.Lit);
+                    }
+                    if (figUp) { sawCloset = true; AimAt(fig.transform.position.x, fig.transform.position.y); }
+                }
+                else if (hunt.Phase == HuntPhase.Behind && walking)
+                {
+                    sawBehind = true;
                     SetBeam(root, rig, LightMode.Sweep);
                     if (figUp) AimAt(fig.transform.position.x, fig.transform.position.y);
                 }
+                else if (views.PeekActive && hunt.Phase == HuntPhase.Stalking) root.ExitRoomPeek();
                 WorldFrame(root, 0.05f);
             }
-            Check(sawTracking, "HUNT: he was found by peeking into his room (a shaking picture under the lamp)");
+            views.Hunt.ForceHoldKey = false;
+            Check(sawDoor && doorBlocked, "HUNT: he stops at a door; it cannot be opened and asks to be held");
+            Check(sawCloset, "HUNT: he was found in the comfort room, a shaking picture under the lamp");
             Check(litOnEntry, "HUNT: during the hunt a peek starts with the lamp ON");
-            Check(sawFlicker, "HUNT: a stun makes the lamp flicker out");
-            Check(sawCharge, "HUNT: at least once he charged down the hallway and the beam was needed");
-            Check(hunt.Phase == HuntPhase.Won && hunt.Stuns == root.Config.huntStunsToWin,
-                $"HUNT: a perfect player drives him off after exactly {root.Config.huntStunsToWin} stuns (phase={hunt.Phase} stuns={hunt.Stuns})");
+            Check(sawBehind, "HUNT: he came up behind the player and the beam was needed");
+            Check(hunt.Phase == HuntPhase.Won, $"HUNT: a perfect player reaches dawn (phase={hunt.Phase} caught={hunt.Catches})");
             Check(root.Session.Hunt == HuntState.Won && !root.HuntActive,
                 "HUNT: the session records the win");
             Check(EndingRules.Evaluate(root.Session).ReasonKey != "server_door",
@@ -3851,15 +3901,15 @@ namespace FlowCheck
             while (root.Dialogue != null && root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
             root.ClearQueuedSceneAction();
 
-            // a second hunt where the player does nothing: the server door meter ends it
+            // a second hunt where the player does nothing: he catches them until it is over
             root.Session.Hunt = HuntState.Active;
             root.Views.StopAdminHunt();
             if (views.PeekActive) { root.ExitRoomPeek(); WorldFrames(root, 40, 0.05f); }
             views.StartAdminHunt(root.BuildHuntTuning(), 99);
             var idle = views.Hunt.Model;
             for (int frame = 0; frame < 4000 && !idle.Finished; frame++) WorldFrame(root, 0.1f);
-            Check(idle.Phase == HuntPhase.Lost && idle.ServerLeft <= 0f,
-                "HUNT: doing nothing loses when the SERVER DOOR meter runs out (never stuck)");
+            Check(idle.Phase == HuntPhase.Lost && idle.Catches == idle.Tuning.CatchesToLose,
+                "HUNT: doing nothing loses to his catches (never stuck)");
             Check(root.Session.Hunt == HuntState.Lost, "HUNT: the session records the loss");
             root.Session.CurrentShift = ShiftPlan.TotalShifts;   // the hunt only ever happens on the final night
             var verdict = EndingRules.Evaluate(root.Session);
@@ -3924,7 +3974,7 @@ namespace FlowCheck
                 var im = t.GetComponent<UnityEngine.UI.Image>();
                 if (im != null && im.raycastTarget) clickThrough = false;
             }
-            foreach (var b in new[] { "NEW GAME", "CONTINUE", "SETTINGS", "EXIT", "CREDITS" })
+            foreach (var b in new[] { "NEW GAME", "CONTINUE", "SETTINGS", "EXIT", "CREDITS", "TOKENS" })
             {
                 var t = menu.Find("buttons/" + b);
                 Check(t != null && t.GetComponent<UnityEngine.UI.Button>() != null,

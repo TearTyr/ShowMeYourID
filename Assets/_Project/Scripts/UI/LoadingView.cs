@@ -20,18 +20,13 @@ namespace Hollowbrook.UI
         private Coroutine _routine;
         private Action _onTitleDone;          // fires exactly once when the night title ends or is skipped
         private const int FadeSteps = 40;     // stepped waits (not a frame loop) so any frame rate paces it
-        private const float FadeInSeconds = 1.8f, HoldSeconds = 1.3f;
+        private const float FadeInSeconds = 1.8f, HoldSeconds = 1.3f, FadeOutSeconds = 1f;
+        private const float RevealSeconds = 1.4f;   // black lifting off the shut booth
 
         public void Init(GameRoot root)
         {
             _bg = UIFactory.Panel(transform, "bg", Color.black).gameObject;
             UIFactory.AnchorsFull(_bg.GetComponent<RectTransform>());
-            // the shut booth behind the NIGHT card: the kit's closed-shutter composite, dimmed
-            var kitBg = UIFactory.Img(_bg.transform, "kitbg", ProceduralArt.Get("sec_background_close"),
-                new Color(1f, 1f, 1f, 0.35f));
-            UIFactory.AnchorsFull(kitBg.rectTransform);
-            kitBg.raycastTarget = false;
-            kitBg.rectTransform.SetAsFirstSibling();
             _label = UIFactory.Label(_bg.transform, "label", "", 40, UIFactory.Ink, TextAnchor.MiddleCenter);
             UIFactory.Anchor(_label.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(900, 80), new Vector2(0, 30));
             _sub = UIFactory.Label(_bg.transform, "sub", "HOLLOWBROOK COLLEGE - NIGHT CUSTODIAN PROGRAM", 15, UIFactory.InkFaint, TextAnchor.MiddleCenter);
@@ -59,9 +54,9 @@ namespace Hollowbrook.UI
             _routine = null;
         }
 
-        /// <summary>The night title: the black card fades "NIGHT 1" and its date in slowly, holds
-        /// them, then calls <paramref name="onDone"/> exactly once so the dialogue box can open
-        /// over the card. A click skips ahead. A new call replaces any title still playing.</summary>
+        /// <summary>The night title: on a black card "NIGHT 1" and its date fade in slowly, hold,
+        /// and fade out again, then <paramref name="onDone"/> runs exactly once so the dialogue box
+        /// can open on the black. A click skips ahead. A new call replaces any title still playing.</summary>
         public void PlayNightTitle(string title, string sub, Action onDone)
         {
             if (_routine != null) { StopCoroutine(_routine); _routine = null; }
@@ -81,6 +76,11 @@ namespace Hollowbrook.UI
                 yield return new WaitForSecondsRealtime(FadeInSeconds / FadeSteps);
             }
             yield return new WaitForSecondsRealtime(HoldSeconds);
+            for (int i = FadeSteps - 1; i >= 0; i--)
+            {
+                SetTitleAlpha(i / (float)FadeSteps);
+                yield return new WaitForSecondsRealtime(FadeOutSeconds / FadeSteps);
+            }
             _routine = null;
             FinishTitle();
         }
@@ -89,8 +89,34 @@ namespace Hollowbrook.UI
         {
             if (_onTitleDone == null) return;       // nothing is playing: the card is just a backdrop
             if (_routine != null) { StopCoroutine(_routine); _routine = null; }
-            SetTitleAlpha(1f);
+            SetTitleAlpha(0f);
             FinishTitle();
+        }
+
+        /// <summary>The black card fades away, showing what is behind it (the shut booth).</summary>
+        public void RevealDesk()
+        {
+            if (_routine != null) { StopCoroutine(_routine); _routine = null; }
+            _onTitleDone = null;
+            SetTitleAlpha(0f);
+            _bg.SetActive(true);
+            _routine = StartCoroutine(RevealRoutine());
+        }
+
+        private IEnumerator RevealRoutine()
+        {
+            for (int i = FadeSteps - 1; i >= 0; i--)
+            {
+                SetCardAlpha(i / (float)FadeSteps);
+                yield return new WaitForSecondsRealtime(RevealSeconds / FadeSteps);
+            }
+            Hide();
+        }
+
+        private void SetCardAlpha(float a)
+        {
+            var img = _bg.GetComponent<Image>();
+            var c = img.color; c.a = a; img.color = c;
         }
 
         private void FinishTitle()
@@ -119,6 +145,7 @@ namespace Hollowbrook.UI
         {
             if (_routine != null) { StopCoroutine(_routine); _routine = null; }
             _onTitleDone = null;                     // a hidden card never fires a late "title done"
+            SetCardAlpha(1f);
             _bg.SetActive(false);
         }
     }

@@ -2,7 +2,7 @@
 """Generates deterministic .meta files for every asset/folder under Assets/.
 GUIDs are derived from sha256(path) so they are stable across regenerations;
 the two GUIDs referenced by scene/build settings are pinned constants."""
-import hashlib, os, sys
+import hashlib, os, struct, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
 ASSETS = os.path.join(ROOT, "Assets")
@@ -20,6 +20,43 @@ def guid_for(rel):
     if rel.replace("\\", "/") in PINNED:
         return PINNED[rel.replace("\\", "/")]
     return hashlib.sha256(rel.replace("\\", "/").encode("utf-8")).hexdigest()[:32]
+
+# Unity shrinks any texture larger than 2048 px unless the importer allows more. The desk, the
+# menu and the painted hallway are bigger than that, so they get a 4096 limit (a 1920 x 1080
+# screen then shows them sharp instead of upscaled from a 2048 copy).
+BIG_TEXTURE = 2048
+PLATFORM_BLOCK = """  platformSettings:
+  - serializedVersion: 3
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 4096
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+"""
+
+SPRITE_LINE = "  spriteMode: 1" + chr(10)
+PNG_SIGNATURE = bytes([137, 80, 78, 71, 13, 10, 26, 10])
+
+def png_size(path):
+    """Width and height from the PNG header (no imaging library needed)."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(24)
+        if head[:8] == PNG_SIGNATURE:
+            return struct.unpack(">II", head[16:24])
+    except OSError:
+        pass
+    return (0, 0)
+
+def is_big_png(path):
+    return path.lower().endswith(".png") and max(png_size(path)) > BIG_TEXTURE
 
 def meta_for(rel, is_dir):
     g = guid_for(rel)
@@ -78,6 +115,8 @@ DefaultImporter:
   assetBundleName: 
   assetBundleVariant: 
 """
+        if is_big_png(os.path.join(ROOT, rel)):
+            importer = importer.replace(SPRITE_LINE, PLATFORM_BLOCK + SPRITE_LINE, 1)
     elif ext in (".wav", ".ogg", ".mp3"):
         importer = """AudioImporter:
   serializedVersion: 6
@@ -99,8 +138,19 @@ DefaultImporter:
 """
     return f"fileFormatVersion: 2\nguid: {g}\n{importer}"
 
+def fix_big_texture_meta(meta_path):
+    """Add the 4096 limit to an existing texture meta that does not have it. 1 if changed."""
+    text = open(meta_path, encoding="utf-8").read()
+    if "platformSettings" in text or SPRITE_LINE not in text:
+        return 0
+    text = text.replace(SPRITE_LINE, PLATFORM_BLOCK + SPRITE_LINE, 1)
+    with open(meta_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+    return 1
+
 def main():
     created = 0
+    patched = 0
     # folder metas (Assets itself too)
     for dirpath, dirnames, filenames in os.walk(ASSETS):
         rel = os.path.relpath(dirpath, ROOT)
@@ -121,7 +171,9 @@ def main():
                 with open(meta_path, "w") as f:
                     f.write(meta_for(rel, False))
                 created += 1
-    print(f"meta files created: {created}")
+            elif is_big_png(fpath):
+                patched += fix_big_texture_meta(meta_path)
+    print(f"meta files created: {created}, big texture metas updated: {patched}")
     # sanity: pinned guids present
     for rel, g in PINNED.items():
         mp = os.path.join(ROOT, rel + ".meta")

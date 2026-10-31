@@ -170,7 +170,7 @@ namespace Hollowbrook.Logic
                     ? (DateLabel ?? "") : Content.ShiftDatesLong[i];
             }
         }
-        public int VisitorCount;     // 4/6/7/8/8 per the approved progression
+        public int VisitorCount;     // 4/6/7/8/0, night 5 is only the administrator
         public int AnomalyCount;     // 0/2/3/4/4
         public bool HasAdministrator;
         public string Title;

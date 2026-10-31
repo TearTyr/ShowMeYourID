@@ -313,5 +313,10 @@ namespace Hollowbrook.Logic
         public int EndlessBest = 0;
         public int ChallengeBest = 0;
         public List<string> EndingsSeen = new List<string>(); // "win", "lose", "secret"
+        public int TokensBanked = 0;   // every token ever picked up, kept between runs
+
+        /// <summary>Tokens that open Endless and Challenge on the main menu.</summary>
+        public const int TokensToUnlockModes = 3;
+        public bool ModesUnlocked => TokensBanked >= TokensToUnlockModes;
     }
 }
