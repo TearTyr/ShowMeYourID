@@ -23,9 +23,12 @@ administrator arrives, and turning him away is only the start.
    scenes holds one bootstrap object that builds everything in code.
 4. Windows build: `File > Build Settings > Windows > Build` (the three scenes are already listed).
 
-All sprites and sounds are generated at runtime. To replace one with real art or audio, drop a
-file at `Assets/_Project/Resources/Art/<key>.png` or `Resources/Audio/<key>.wav`; the game prefers
-it automatically. The naming list is [docs/ASSET-MANIFEST.md](docs/ASSET-MANIFEST.md).
+The game ships painted art for the desk, the menu, the hallway, the classrooms, the comfort room
+and the seven students. Anything without a picture is drawn in code, and sounds are generated at
+runtime. To replace a picture or a sound, drop a file with the same name in the matching folder
+under `Assets/_Project/Resources/Art/` or `Resources/Audio/`; the game prefers it automatically.
+Folder rules and naming are in [docs/ART-NAMING.md](docs/ART-NAMING.md), the full list is
+[docs/ASSET-MANIFEST.md](docs/ASSET-MANIFEST.md).
 
 **New to the code?** Read [docs/GUIDE.md](docs/GUIDE.md) first.
 
@@ -42,6 +45,7 @@ it automatically. The naming list is [docs/ASSET-MANIFEST.md](docs/ASSET-MANIFES
 5. **Stamp** - drag a stamp onto the slip. Changed your mind? Stamp again before the next step.
 6. **Hand back** - drag the ID back to the window. The decision counts now and is permanent.
 7. **Patrol** (between visitors) - walk the hallway, peek into classrooms, find the ten findings.
+   The comfort room is the door at the east end of the hallway (`E`), and it is very dark.
 8. **Night 5** - the administrator arrives. Talk to him (`T`), refuse him (**REFUSE ENTRY** or a
    DENY stamp), and he forces his way in. Hunt him through the classrooms (see below).
 
@@ -77,7 +81,9 @@ The numbers (stuns, seconds, head size…) are in `GameConfig.asset` under “Ad
 ```
 Assets/_Project/
   Scenes/                 MainMenu, Hollowbrook (the desk), School (patrol) - one bootstrap each
-  Resources/              GameConfig.asset (tuning), Art/ and Audio/ drop-in files
+  Resources/              GameConfig.asset (tuning), Audio/ drop-in files
+    Art/                  Characters/, UI/ (SecurityDesk, MainMenu) and Environment/ (Hallway, Rooms,
+                          Props, Inspect), named in snake_case
   Scripts/
     GameLogic/            PURE C# rules, no UnityEngine (rosters, questions, queue, endings, hunt...)
     Core/                 GameRoot (split in parts), EventBus, saves, settings, config
@@ -87,8 +93,9 @@ Assets/_Project/
     UI/                   menus, HUD, dialogue, map, results, endings
     Bootstrap/            one script per scene that builds it, plus procedural art and audio
     Audio/                music and effects
-Tools/                    test and check tools (not part of the game build)
-docs/                     GUIDE.md, GAMEPLAY-OVERVIEW.md, ASSET-MANIFEST.md, archive/ (old reports)
+Art/                      source art for the prep scripts (the current kit is "UI and Design Assets")
+Tools/                    test, check and art prep tools (not part of the game build)
+docs/                     GUIDE.md, GAMEPLAY-OVERVIEW.md, ART-NAMING.md, ASSET-MANIFEST.md, archive/
 ```
 
 ## Checking your changes (no Unity needed)
@@ -103,15 +110,26 @@ the **real Unity assemblies** (`Tools/Verify`, downloads them once). Each prints
 
 What these cannot tell you: how it **looks**, **sounds** and **feels**. That needs the editor.
 
-## The owner's art kit (`Art/SecurityRoom`)
+## Source art and the prep scripts
 
-The layered SecurityRoom UI kit ships in `Art/UI/SecurityDesk/`. Run
-`python Tools/prep_securityroom_art.py` after changing it; it slices the export into
-`Resources/Art/UI/SecurityDesk/` (`sec_*` keys). The desk wears the kit as a skin over the layout
-grid (`CheckpointView.KitSkin.cs`); if a file is missing the procedural look is used instead.
+The top level `Art/UI and Design Assets/` folder holds the artists' original files (Characters,
+Comfort Room, Hallway, ID, Main Menu, Rooms, Security). The game never reads it. The scripts in
+`Tools/` cut it into the small game-ready pictures under `Resources/Art/`:
+
+| Script | Makes |
+|---|---|
+| `Tools/prep_securityroom_art.py` | the desk kit, `UI/SecurityDesk/` (`sec_*`) |
+| `Tools/prep_id_card.py` | the ID card template (needs `pip install psd-tools aggdraw pillow`) |
+| `Tools/prep_characters.py` | students, administrator and guard, `Characters/` |
+| `Tools/prep_environment_art.py` | hallway, classrooms, comfort room, props and clue close ups, `Environment/` |
+| `Tools/prep_mainmenu_art.py` | the main menu, `UI/MainMenu/` (reads the old kit in `Art/Old/`, already cut) |
+
+After a script adds new files, run `python Tools/generate_meta.py` for their Unity `.meta` files and
+`python Tools/gen_asset_manifest.py` to refresh the asset list. `Art/Old/` is the replaced art kit.
+It is ignored by git and still available in the history.
 
 ## Saves
 
 `hollowbrook_save.txt` in `Application.persistentDataPath` (versioned, checksum-guarded; a bad
-file counts as “no save”). Settings live in PlayerPrefs. **Save version 2** changed the questions:
-old saves are ignored, start a New Game.
+file counts as “no save”). Settings live in PlayerPrefs. **Save version 3** changed the student
+registry and the questions: old saves are ignored, start a New Game.

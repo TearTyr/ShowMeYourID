@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Prep the owner-supplied Main Menu art kit into game-ready sprites.
 
-Source of truth: <repo>/Art/MainMenu
+Source of truth: <repo>/Art/Old/MainMenu (the first menu kit; the folder is ignored by git)
     reference/main-menu-reference.png   the approved 2880x1620 menu composite (design spec)
     masters/main-menu-ui-layer.png      RGBA layer: logo, button frames, icons, label art
     backgrounds/main-menu-background.png  RGBA-free corridor backdrop (2880x1620)
@@ -22,7 +22,7 @@ import os
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, "Art", "MainMenu")
+SRC = os.path.join(ROOT, "Art", "Old", "MainMenu")
 DST = os.path.join(ROOT, "Assets", "_Project", "Resources", "Art", "UI", "MainMenu")
 
 # element -> alpha bbox inside masters/main-menu-ui-layer.png (2669x1397)
