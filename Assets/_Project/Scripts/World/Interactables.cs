@@ -54,7 +54,7 @@ namespace Hollowbrook.World
             _gameRoot = root; Room = room; Target = target; AnchorX = x;
             Prompt = target == RoomId.Security ? "Return to Security [E]"
                    : target == RoomId.Hallway ? "Back to the hallway [E]"
-                   : "Enter " + label + " [E]";
+                   : "Peek into " + label + " [E]";
             Art = GetComponent<SpriteRenderer>();
         }
 
@@ -67,9 +67,30 @@ namespace Hollowbrook.World
                 return;
             }
             if (Target == RoomId.Security) _gameRoot.Views.ReturnToSecurity();
-            // classrooms are peek-only: the player looks inside from the doorway, never enters
-            else if (Target == RoomId.Classroom1 || Target == RoomId.Classroom2) _gameRoot.EnterRoomPeek(Target);
-            else _gameRoot.Views.EnterRoom(Target);   // hallway door from inside a room
+            // every room is peek only: the player looks inside from the doorway, never enters
+            else _gameRoot.EnterRoomPeek(Target);
+        }
+    }
+
+    // Something to look at that is not one of the ten findings: a line of text and, when it
+    // has one, a close up picture. Add one with RoomBuilder.AddExamine.
+    public class ExamineSpot : Interactable
+    {
+        private string _label, _text, _closeUp;
+
+        public void Init(GameRoot root, RoomInstance room, string label, string text, float x, string closeUp)
+        {
+            _gameRoot = root; Room = room; AnchorX = x;
+            _label = label; _text = text; _closeUp = closeUp;
+            Prompt = "Inspect " + label + " [E]";
+        }
+
+        public override void Interact()
+        {
+            _gameRoot.Audio.PlaySfx("sfx_paper", 0.8f);
+            var line = new DialogueLine { Speaker = _label.ToUpperInvariant(), Text = _text, PortraitSpriteKey = _closeUp };
+            if (_gameRoot.Dialogue != null)
+                _gameRoot.Dialogue.Play(new System.Collections.Generic.List<DialogueLine> { line }, null);
         }
     }
 

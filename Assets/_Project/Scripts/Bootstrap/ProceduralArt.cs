@@ -44,11 +44,12 @@ namespace Hollowbrook.Bootstrap
                 { "char_guard_idle", 129f }, { "char_guard_walk_a", 129f }, { "char_guard_walk_b", 129f },
                 // backdrops: the three screen wide hallway covers 30 units, a room 17.8 (the camera's
                 // 16:9 view), the bathroom 17.1
-                { "bg_hallway_lit", 108f }, { "bg_hallway_unlit", 108f },
+                { "bg_hallway_unlit", 108f },
                 { "bg_classroom_1", 108f }, { "bg_classroom_2", 108f }, { "bg_comfort_room", 112f },
                 // props drawn about 3.4 units tall (doors), a 1.5 unit wall clock, a half unit token
                 { "prop_door_classroom_1", 308f }, { "prop_door_classroom_2", 299f },
-                { "prop_door_comfort", 225f }, { "prop_door_security", 215f }, { "prop_server_door", 219f },
+                { "prop_door_comfort", 196f }, { "prop_door_security", 188f }, { "prop_server_door", 191f },
+                { "prop_light_switch", 950f }, { "prop_clipboard", 918f },
                 { "prop_clock", 524f }, { "token", 1154f },
             };
 

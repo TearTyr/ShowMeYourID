@@ -37,14 +37,14 @@ namespace Hollowbrook.Logic
         public const float RoomDarkHalfHeight = 5.5f;   // ...and 11 tall, centred on y = 0
         public const float PlayerClampInset = 0.6f;     // PlayerController clamps x to ±(HalfWidth-0.6)
         public const float PlayerBodyLift = 1.7f;       // the player stands at FloorY + 1.7
-        public const float FloorY = -2.4f;              // RoomInstance.FloorY (one shared floor line)
+        public const float FloorY = -3.1f;              // RoomInstance.FloorY (one shared floor line)
         public const float CoverMargin = 1f;            // slack so the shroud edge is never on screen
 
         /// <summary>How far the custodian can walk from the room's centre line.</summary>
         public const float PlayerTravel = HallwayHalfWidth - PlayerClampInset;          // 14.0
         /// <summary>The player's fixed height on the shared plane (the pool is centred on him).</summary>
-        public const float PlayerY = FloorY + PlayerBodyLift;                           // -0.7
-        public const float PlayerYOffset = -PlayerY;                                    // 0.7 (const maths)
+        public const float PlayerY = FloorY + PlayerBodyLift;                           // -1.4
+        public const float PlayerYOffset = -PlayerY;                                    // 1.4 (const maths)
 
         /// <summary>World size of the player-following depth quad: room half-extent + how far the
         /// player can be from the centre + margin, per axis. 63.2 x 14.4 for the hallway.</summary>

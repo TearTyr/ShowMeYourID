@@ -14,7 +14,7 @@ namespace Hollowbrook.World
     public class RoomInstance
     {
         // Shared floor line for every room (backgrounds, player, anomaly bands all use it).
-        public const float FloorY = -2.4f;
+        public const float FloorY = -3.1f;
 
         public RoomId Id;
         public GameObject Root;
@@ -26,7 +26,6 @@ namespace Hollowbrook.World
         public SpriteRenderer Depth;
         // Backdrop that changes with the ambient light (the hallway: lights on or off). Null elsewhere.
         public SpriteRenderer Backdrop;
-        public Sprite BackdropLit, BackdropDark;
         public List<Interactable> Interactables = new List<Interactable>();
         public List<Vector3> AnomalySpawnPoints = new List<Vector3>();
         public Vector3 PlayerSpawn;

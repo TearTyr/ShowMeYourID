@@ -1465,7 +1465,7 @@ namespace FlowCheck
             Check(FindArt(rootDir, "char_guard_idle") != null && FindArt(rootDir, "char_guard_walk_a") != null &&
                   FindArt(rootDir, "char_guard_walk_b") != null,
                 "FM: the guard's idle pose and both walking poses ship under Resources/Art");
-            string[] envKeys = { "bg_hallway_lit", "bg_hallway_unlit", "bg_classroom_1", "bg_classroom_2", "bg_comfort_room",
+            string[] envKeys = { "bg_hallway_unlit", "bg_classroom_1", "bg_classroom_2", "bg_comfort_room",
                 "prop_door_classroom_1", "prop_door_classroom_2", "prop_door_comfort", "prop_door_security", "prop_server_door",
                 "prop_clock", "token", "inspect_noticeboard", "inspect_photoframe", "inspect_clock", "inspect_light_bulb",
                 "inspect_light_switch", "inspect_clipboard", "inspect_server_door", "inspect_lockers" };
@@ -2667,8 +2667,8 @@ namespace FlowCheck
                 var r = views.Room(rid);
                 if (r == null) continue;
                 if (FindDeep(r.Root.transform, "lightswitch") != null) anySwitch = true;
-                foreach (var it in r.Interactables)
-                    if (it.Prompt != null && it.Prompt.ToLowerInvariant().Contains("switch")) anySwitch = true;
+                foreach (var it in r.Interactables)   // a dead switch to inspect lights nothing
+                    if (!(it is ExamineSpot) && it.Prompt != null && it.Prompt.ToLowerInvariant().Contains("switch")) anySwitch = true;
             }
             Check(!anySwitch, "W2: no room has a light switch - the flashlight is the only light");
             Check(FindDeep(views.Room(RoomId.Classroom1).Root.transform, "door_security_office") == null,
@@ -2719,22 +2719,37 @@ namespace FlowCheck
             if (!hall.Light.Lit) hall.Light.SetLit(true);   // later sections (battery) play lit
             Check(hall.Light.Lit, "W2: the hallway is relit for the battery proofs");
 
-            // ---- the comfort room: a door in the hallway's east end, E to go in, dimmed a lot ----
+            // ---- the comfort room: a door at the hallway's east end, peeked into like the classrooms ----
             {
-                Doorway crDoor = null, crBack = null;
+                Doorway crDoor = null;
                 foreach (var it in hall.Interactables) { var d = it as Doorway; if (d != null && d.Target == RoomId.ComfortRoom) crDoor = d; }
                 Check(crDoor != null && crDoor.AnchorX > 7f && crDoor.AnchorX <= hall.HalfWidth - 0.6f,
-                      "CR: the hallway has a comfort room door the player can actually walk to (x " + (crDoor != null ? crDoor.AnchorX.ToString("F1") : "none") + ")");
-                Check(crDoor != null && crDoor.Prompt == "Enter Comfort Room [E]", "CR: the door says what it is");
+                      "CR: the hallway has a comfort room door the player can actually walk to");
+                Check(crDoor != null && crDoor.Prompt == "Peek into Comfort Room [E]", "CR: the door says what it is");
                 crDoor.Interact();
-                Check(views.Current.Id == RoomId.ComfortRoom && !views.Transitioning, "CR: E at the door walks into the comfort room");
-                Check(views.Current.Darkness.color.a >= 0.85f && !views.Current.Light.Lit,
-                      "CR: the comfort room is dimmed a lot (alpha " + views.Current.Darkness.color.a.ToString("F2") + ")");
-                foreach (var it in views.Current.Interactables) { var d = it as Doorway; if (d != null && d.Target == RoomId.Hallway) crBack = d; }
-                Check(crBack != null, "CR: the comfort room has a door back to the hallway");
-                crBack.Interact();
-                Check(views.Current.Id == RoomId.Hallway && !views.Transitioning, "CR: the same door leads back out to the hallway");
+                Check(views.PeekActive && views.Current.Id == RoomId.ComfortRoom && root.State == AppViewState.RoomPeek,
+                      "CR: E at the door peeks into the comfort room, nobody walks in");
+                int crSpots = 0, crExits = 0;
+                foreach (var it in views.Current.Interactables)
+                {
+                    if (it is ExamineSpot) crSpots++;
+                    var d = it as Doorway;
+                    if (d != null && d.Target == RoomId.Hallway) crExits++;
+                }
+                Check(crSpots == 3 && crExits == 1, "CR: the peek has things to inspect and a way back");
+                root.ExitRoomPeek();
+                Check(!views.PeekActive && views.Current.Id == RoomId.Hallway && root.State == AppViewState.Exploration,
+                      "CR: stepping back returns to the hallway");
                 if (!hall.Light.Lit) hall.Light.SetLit(true);
+            }
+
+            // ---- the hallway art fits the frame and the walkers stand on the painted floor ----
+            {
+                int spots = 0;
+                foreach (var it in hall.Interactables) if (it is ExamineSpot) spots++;
+                Check(spots == 4, "HALL: clipboard, switch and both lockers can be inspected");
+                Check(Mathf.Abs(RoomInstance.FloorY - HallwayDarkness.FloorY) < 0.001f && RoomInstance.FloorY <= -3f,
+                      "HALL: the floor line matches the painted floor");
             }
 
             // ---- W2b: limited hallway visibility - deeper ambient + a pool around the player
@@ -2894,7 +2909,7 @@ namespace FlowCheck
             // ---- W3: cursor aiming + true cone coverage in one world space
             Console.WriteLine("== W3 aiming and cone coverage ==");
             views.Player.PlaceInRoom(hall, new Vector3(0f, 0f, 0f));
-            AimAt(5f, -0.5f);
+            AimAt(5f, -1.2f);
             PressKey(root, KeyCode.F);           // sweep, aiming right
             Check(rig.Dir.x > 0.99f && Mathf.Abs(rig.Dir.y) < 0.01f, "W3: aiming right gives a right-pointing beam");
             Check(rig.ConeCovers(new Vector3(4f, 0f, 0f)), "W3: Sweep covers a point 4u ahead");
@@ -2916,7 +2931,7 @@ namespace FlowCheck
                 Check(cone.localPosition == mask.localPosition, "W3: the mask rides exactly on the cone (no aim desync)");
                 AimAt(0f, 4f); WorldFrames(root, 30);   // let the damped aim settle
                 Check(Mathf.Abs(cone.localEulerAngles.z - 90f) < 0.5f, $"W3: aiming up rotates the cone to ~90° (got {cone.localEulerAngles.z:F1})");
-                AimAt(-5f, -0.5f); WorldFrames(root, 30);
+                AimAt(-5f, -1.2f); WorldFrames(root, 30);
                 Check(rig.Dir.x < -0.99f, "W3: aiming left flips the direction");
                 Check(rig.ConeCovers(new Vector3(-4f, 0f, 0f)) && !rig.ConeCovers(new Vector3(4f, 0f, 0f)),
                     "W3: a left aim covers left, not right");

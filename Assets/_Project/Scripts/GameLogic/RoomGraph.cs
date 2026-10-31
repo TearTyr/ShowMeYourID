@@ -25,9 +25,9 @@ namespace Hollowbrook.Logic
             if (from == RoomId.Classroom1 && to == RoomId.Hallway) return 7.6f;   // the painted door at the right edge of the room (inside the roaming limit)
             if (from == RoomId.Classroom2 && to == RoomId.Hallway) return 7.6f;
             // the comfort room: its door is at the hallway's east end, beside the sealed server
-            // door. It is a place to walk into, not a patrol route, so roamers never use it.
+            // door. It is peeked into like the classrooms, and it is not a patrol route.
             if (from == RoomId.Hallway && to == RoomId.ComfortRoom) return ComfortDoorX;
-            if (from == RoomId.ComfortRoom && to == RoomId.Hallway) return -6.0f;
+            if (from == RoomId.ComfortRoom && to == RoomId.Hallway) return -1.5f;   // the dark wall at the end of the picture
             return float.NaN;
         }
 

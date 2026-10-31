@@ -2,7 +2,7 @@
 """Prepare the hallway, room and prop art for the game.
 
 Source: Art/UI and Design Assets   Destination: Assets/_Project/Resources/Art/Environment
-  Hallway/  bg_hallway_lit, bg_hallway_unlit   the painted corridor, 30 units wide, exported 3240 x 1080 (1:1 on a 1080p screen, 108 px per unit)
+  Hallway/  bg_hallway_unlit   the painted corridor, 30 units wide, exported 3240 x 1080 (1:1 on a 1080p screen, 108 px per unit)
   Rooms/    bg_classroom_1, bg_classroom_2, bg_comfort_room   1920 x 1080 backdrops
   Props/    doors, the clock and the token, cut to the visible art (names are the game's keys)
   Inspect/  inspect_*   close ups shown beside the text when a clue is inspected
@@ -25,6 +25,8 @@ PROPS = [
     ("Hallway/PROP_SERVER DOOR.png", "prop_server_door"),
     ("Hallway/PROP CLOCK.png", "prop_clock"),
     ("Hallway/TOKEN.png", "token"),
+    ("Hallway/PROP_LIGHT SWITCH.png", "prop_light_switch"),
+    ("Hallway/CLIPBOARD_RESERVED.png", "prop_clipboard"),
 ]
 INSPECT = [
     ("Hallway/PROP NOTICE BOARD.png", "inspect_noticeboard"),
@@ -35,6 +37,7 @@ INSPECT = [
     ("Hallway/CLIPBOARD_RESERVED.png", "inspect_clipboard"),
     ("Hallway/PROP_SERVER DOOR.png", "inspect_server_door"),
     ("Hallway/HALLWAY LOCKER_1.png", "inspect_lockers"),
+    ("Hallway/HALLWAY LOCKER_2.png", "inspect_lockers_open"),
 ]
 INSPECT_MAX = 512   # close ups are small pictures beside the text
 
@@ -51,10 +54,8 @@ def cut(rel):
 
 
 def main():
-    for rel, key in (("Hallway/HALLWAY W_ LIGHTS.png", "bg_hallway_lit"),
-                     ("Hallway/HALLWAY W_O LIGHTS.png", "bg_hallway_unlit")):
-        im = Image.open(os.path.join(SRC, rel)).convert("RGB").resize((3240, 1080), Image.LANCZOS)
-        im.save(out("Hallway", key), optimize=True)
+    im = Image.open(os.path.join(SRC, "Hallway/HALLWAY W_O LIGHTS.png")).convert("RGB")
+    im.resize((3240, 1080), Image.LANCZOS).save(out("Hallway", "bg_hallway_unlit"), optimize=True)
     for rel, key in (("Rooms/Classroom_BG1.jpg", "bg_classroom_1"), ("Rooms/Classroom_BG2.jpg", "bg_classroom_2"),
                      ("Comfort Room/Bathroom_dimmed.jpg", "bg_comfort_room")):
         Image.open(os.path.join(SRC, rel)).convert("RGB").save(out("Rooms", key), optimize=True)

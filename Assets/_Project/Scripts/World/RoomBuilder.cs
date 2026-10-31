@@ -65,7 +65,6 @@ namespace Hollowbrook.World
         }
 
         // The comfort room is dimmed far more than the other rooms: only the flashlight shows anything.
-        private const float ComfortRoomDarkAlpha = 0.9f;
 
         public RoomInstance BuildRoom(RoomId id)
         {
@@ -100,7 +99,11 @@ namespace Hollowbrook.World
                     AddClue(room, "door", 13.0f, floorY, "Sealed Door");
                     AddClue(room, "board", -4.5f, floorY, "Notice Board", painted ? null : "prop_noticeboard", 1.0f);
                     AddClue(room, "photo", 3.0f, floorY, "Old School Photo", painted ? null : "prop_photoframe", 1.1f);
-                    AddClue(room, "clock", -1.8f, floorY, "Wall Clock", "prop_clock", 1.9f);
+                    AddClue(room, "clock", -1.8f, floorY, "Wall Clock", "prop_clock", 2.6f);
+                    AddExamine(room, "Patrol Clipboard", -11.0f, floorY, "Tonight's round sheet. Every line above yours is signed by a custodian the school has no record of.", "inspect_clipboard", "prop_clipboard", 2.4f);
+                    AddExamine(room, "Light Switch", -6.9f, floorY, "You flip it twice. Nothing. Someone has cut the power to this hallway.", "inspect_light_switch", "prop_light_switch", 2.0f);
+                    AddExamine(room, "Lockers", 5.6f, floorY, "Deep scratches around the handles. They were made from the inside.", "inspect_lockers");
+                    AddExamine(room, "Open Locker", 8.4f, floorY, "This one is empty except for a school ID with the photo cut out.", "inspect_lockers_open");
                     if (!painted)
                     {
                         SpriteGO(root.transform, "lockers", ProceduralArt.Get("prop_lockers"), new Vector3(-1.4f, floorY + 2.5f, 0), 8);
@@ -137,10 +140,12 @@ namespace Hollowbrook.World
                     room.HalfWidth = 8.2f;
                     bool painted = AddRoomBackdrop(root.transform, "bg_comfort_room");
                     if (!painted) PlaceholderBg(root.transform, floorY);
-                    // the bathroom picture has no door of its own: the way out is an invisible anchor
-                    AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.ComfortRoom, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door", false);
-                    room.PlayerSpawn = new Vector3(-4.9f, 0, 0);
-                    darkAlpha = ComfortRoomDarkAlpha;   // dimmed a lot: only the flashlight shows anything
+                    // peeked into like the classrooms; the picture has no door, so the way back is an invisible anchor
+                    AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.ComfortRoom, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door", false, -0.3f);
+                    AddExamine(room, "Mirror", 5.9f, floorY, "It shows the row of stalls behind you. One of the doors is open. You did not hear it open.", null, null, 0f, 1.5f);
+                    AddExamine(room, "Sinks", 4.4f, floorY, "All four taps are dry, but the basins are wet.", null, null, 0f, -2.4f);
+                    AddExamine(room, "Stalls", -7.0f, floorY, "Every door is latched from the inside. Nobody answers when you knock.", null, null, 0f, -0.2f);
+                    room.PlayerSpawn = new Vector3(0f, 0, 0);
                     break;
                 }
                 default: // Classroom2 - the server room adjoins it (every room now starts dark)
@@ -200,21 +205,17 @@ namespace Hollowbrook.World
             return room;
         }
 
-        // The painted hallway: two 30 unit wide images (lights on, lights off) drawn as one sprite
-        // that swaps with the room light. PanoramaLeft is where its left edge sits (the walkable hallway spans the whole image) so the painted
-        // doors land on the door anchors in RoomGraph. False when the art is missing.
-        private const float PanoramaLeft = -15f, PanoramaWidth = 30f, PanoramaCentreY = 0.1f;
+        // The painted hallway: one 30 unit wide image, exactly as tall as the camera. PanoramaLeft is
+        // where its left edge sits (the walkable hallway spans the whole image) so the painted doors
+        // land on the door anchors in RoomGraph. False when the art is missing.
+        private const float PanoramaLeft = -15f, PanoramaWidth = 30f, PanoramaCentreY = 0f;
 
         private bool AddHallwayBackdrop(RoomInstance room, Transform parent)
         {
             var dark = ProceduralArt.Get("bg_hallway_unlit");
             if (dark == null || dark.rect.width <= 8f) return false;
-            var lit = ProceduralArt.Get("bg_hallway_lit");
-            var go = SpriteGO(parent, "bg_hallway", dark,
+            SpriteGO(parent, "bg_hallway", dark,
                 new Vector3(PanoramaLeft + PanoramaWidth / 2f, PanoramaCentreY, 0f), 0);
-            room.Backdrop = go.GetComponent<SpriteRenderer>();
-            room.BackdropDark = dark;
-            room.BackdropLit = lit != null && lit.rect.width > 8f ? lit : dark;
             return true;
         }
 
@@ -257,6 +258,26 @@ namespace Hollowbrook.World
             d.Init(_root, room, label, target, x);
             if (anchorY.HasValue) d.AnchorY = anchorY.Value;
             room.Interactables.Add(d);
+        }
+
+        // Something to inspect that is not a finding. closeUp is the picture beside the text,
+        // spriteKey an optional small prop drawn on the wall at mountY above the anchor.
+        private void AddExamine(RoomInstance room, string label, float x, float floorY, string text,
+            string closeUp = null, string spriteKey = null, float mountY = 0f, float? anchorY = null)
+        {
+            var go = new GameObject("examine_" + label);
+            go.transform.SetParent(room.Root.transform, false);
+            go.transform.localPosition = new Vector3(x, floorY + 1.4f, 0);
+            if (spriteKey != null)
+            {
+                var sprite = ProceduralArt.Get(spriteKey);
+                if (sprite != null)
+                    SpriteGO(go.transform, "art_" + spriteKey, sprite, new Vector3(0f, mountY, 0f), 9);
+            }
+            var spot = go.AddComponent<ExamineSpot>();
+            spot.Init(_root, room, label, text, x, closeUp);
+            if (anchorY.HasValue) spot.AnchorY = anchorY.Value;
+            room.Interactables.Add(spot);
         }
 
         // The clue anchor (chest height, what the interact test uses) stays where it was; the
