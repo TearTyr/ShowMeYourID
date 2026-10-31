@@ -1500,8 +1500,8 @@ namespace FlowCheck
             Check(!crN.Overlaps(hall.Value) && !crS.Overlaps(hall.Value) &&
                   !crN.Overlaps(c1.Value) && !crS.Overlaps(c2.Value),
                 "MAP: the comfort rooms obstruct neither the hallway nor the classrooms");
-            Check(!crN.Room.HasValue && !crS.Room.HasValue && !crN.Sealed && !crS.Sealed,
-                "MAP: the comfort rooms are map-only — they are not patrol destinations");
+            Check(crN.Room == RoomId.Comfort1 && crS.Room == RoomId.Comfort2 && !crN.Sealed && !crS.Sealed,
+                "MAP: the comfort rooms are the CR-1 / CR-2 peek rooms of the patrol");
 
             // every drawn room sits inside the drawn plan, at its design-space size, and at the
             // position the table asks for — the check that catches a mirrored or hand-nudged plan
@@ -2483,7 +2483,7 @@ namespace FlowCheck
                 var d = it as Doorway;
                 if (d != null && d.Art != null) { doors++; if (QuadH(d.Art) < 3f) doorsFullHeight = false; }
             }
-            Check(doors == 3 && doorsFullHeight,
+            Check(doors == 4 && doorsFullHeight,
                   "P: all " + doors + " hallway doors draw as full-height slabs at their anchors");
             Check(FindDeep(hall.Root.transform, "lightswitch") == null,
                   "P: the hallway has no wall switch plate any more");
@@ -2551,14 +2551,44 @@ namespace FlowCheck
             Check(beamInfo.Contains("FLASHLIGHT: OFF"),
                 "W1: the HUD reads FLASHLIGHT: OFF in sync with the hidden beam (got '" + beamInfo + "')");
             PressKey(root, KeyCode.Q);
-            Check(rig.Beam == LightMode.Focus && !rig.Latches.Sweep && rig.Latches.Focus,
-                "W1: Q takes over with Focus — the keyboard toggles are mutually exclusive");
+            Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep && !rig.Latches.Focus,
+                "W1: Q while the flashlight is OFF does nothing — the narrow beam never turns it on");
             PressKey(root, KeyCode.F);
+            PressKey(root, KeyCode.Q);
+            Check(rig.Beam == LightMode.Focus && !rig.Latches.Sweep && rig.Latches.Focus,
+                "W1: Q while it is ON switches to the narrow Focus — the two modes are mutually exclusive");
+            PressKey(root, KeyCode.Q);
             Check(rig.Beam == LightMode.Sweep && rig.Latches.Sweep && !rig.Latches.Focus,
-                "W1: F while Focus-latched switches back to Sweep (no dead toggle)");
+                "W1: Q again goes back to the wide Sweep — it never turns the light off");
+            PressKey(root, KeyCode.Q);
+            PressKey(root, KeyCode.F);
+            Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep && !rig.Latches.Focus,
+                "W1: F turns a narrow beam OFF too (on/off is always F)");
+            PressKey(root, KeyCode.F);
             PressKey(root, KeyCode.L);
             Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep && !rig.Latches.Focus,
                 "W1: L switches off and clears conflicting latches");
+
+            // the same controls on the mouse: left click = on / off, right click = narrow beam
+            ClickMouse(root, 1);
+            Check(rig.Beam == LightMode.Off, "W1: a right click while OFF does nothing");
+            ClickMouse(root, 0);
+            Check(rig.Beam == LightMode.Sweep, "W1: a left click turns the flashlight ON (wide)");
+            ClickMouse(root, 1);
+            Check(rig.Beam == LightMode.Focus, "W1: a right click while ON switches to the narrow beam");
+            ClickMouse(root, 1);
+            Check(rig.Beam == LightMode.Sweep, "W1: a right click again returns the wide sweep");
+            UnityEngine.EventSystems.EventSystem.PointerOverUi = true;      // pause button, a sheet...
+            ClickMouse(root, 0);
+            ClickMouse(root, 1);
+            UnityEngine.EventSystems.EventSystem.PointerOverUi = false;
+            Check(rig.Beam == LightMode.Sweep, "W1: clicks that land on UI never drive the flashlight");
+            ClickMouse(root, 0);
+            Check(rig.Beam == LightMode.Off, "W1: a left click turns it OFF");
+            Input.MouseHeld.Add(0);
+            WorldFrames(root, 5);
+            Input.MouseHeld.Clear();
+            Check(rig.Beam == LightMode.Off, "W1: HOLDING a mouse button never lights it — only the press toggles");
             CheckLightSync(root, "W1 after L");
 
             // ---- W2: room lighting and the beam are independent systems
@@ -2585,7 +2615,7 @@ namespace FlowCheck
             Check(roomInfo.Contains("MAIN HALLWAY") && roomInfo.Contains("FLASHLIGHT: OFF") &&
                   !roomInfo.Contains("LIGHTS:") && !roomInfo.ToLowerInvariant().Contains("switch"),
                   "W2: the HUD names the room and the flashlight and points at no switch (got '" + roomInfo + "')");
-            PressKey(root, KeyCode.Q);
+            SetBeam(root, rig, LightMode.Focus);
             Check(!hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: the beam is the portable light: Focus does NOT touch the room lights");
             hall.Light.SetLit(true);   // only a scripted event (the hallucination flicker) can light a room
             Check(hall.Light.Lit && rig.Beam == LightMode.Focus, "W2: a scripted light change lights the room, beam stays Focus");
@@ -3259,20 +3289,25 @@ namespace FlowCheck
                 "W10: mouse movement never lights the lamp (cursor is not lamp input)");
             Check(!views.IsPeekLit(new Vector3(0f, 0f, 0f)),
                 "W10: an OFF lamp illuminates nothing — the coverage query agrees with the visuals");
-            // the peek SESSION keeps running dark: the exit prompt is reachable without
-            // the lamp, so an OFF light can never lock the player in a classroom
+            // the peek SESSION keeps running dark: the bottom step-back strip is always there, so an
+            // OFF light can never lock the player in a classroom. It is the ONLY way back: the
+            // room's doorway is scenery while peeking (no prompt, E does nothing).
             Doorway exitDoor = null;
             foreach (var it in views.Current.Interactables)
             {
                 var d = it as Doorway;
                 if (d != null && d.Target == RoomId.Hallway) exitDoor = d;
             }
-            Check(exitDoor != null, "W10: the peeked classroom has its exit doorway");
+            Check(exitDoor != null, "W10: the peeked classroom still has its door (scenery)");
             AimAt(exitDoor.AnchorX, RoomInstance.FloorY + 1.4f);
             WorldFrames(root, 2);
             string darkPrompt = FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>().text;
-            Check(!lamp.Lit && darkPrompt.Length > 0,
-                "W10: dark is not a trap — the exit prompt answers under the cursor without the lamp (got '" + darkPrompt + "')");
+            Check(darkPrompt.Length == 0, "W10: aiming at the doorway shows no prompt (got '" + darkPrompt + "')");
+            PressKey(root, KeyCode.E);
+            Check(views.PeekActive && root.State == AppViewState.RoomPeek,
+                "W10: E at the doorway does nothing — the peek stays up");
+            Check(FindDeep(root.HUD.transform, "peekexitband").gameObject.activeSelf,
+                "W10: the bottom step-back strip is up while peeking, lamp on or off");
             string peekInfo = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
             Check(peekInfo.Contains("FLASHLIGHT: OFF"),
                 "W10: the HUD reads FLASHLIGHT: OFF in the dark classroom (got '" + peekInfo + "')");
@@ -3318,6 +3353,20 @@ namespace FlowCheck
             PressKey(root, KeyCode.Q);
             Check(lamp.Lit && !lamp.Focused && views.IsPeekLit(new Vector3(2.2f, 0f, 0f)),
                 "W10: Q again returns the broad wash — the wide/focus toggle is clean both ways");
+            ClickMouse(root, 1);
+            Check(lamp.Lit && lamp.Focused, "W10: a right click narrows the lit flashlight");
+            ClickMouse(root, 1);
+            Check(lamp.Lit && !lamp.Focused, "W10: ...and a second right click widens it again");
+            UnityEngine.EventSystems.EventSystem.PointerOverUi = true;      // the bottom step-back strip
+            ClickMouse(root, 0);
+            UnityEngine.EventSystems.EventSystem.PointerOverUi = false;
+            Check(lamp.Lit, "W10: a click on the bottom strip (UI) never switches the flashlight — it steps back");
+            ClickMouse(root, 0);
+            Check(!lamp.Lit, "W10: a left click anywhere else turns the flashlight OFF");
+            ClickMouse(root, 1);
+            Check(!lamp.Lit && !lamp.Focused, "W10: a right click while OFF does nothing");
+            ClickMouse(root, 0);
+            Check(lamp.Lit && !lamp.Focused, "W10: a left click turns it back ON, wide");
             AimAt(3f, 1f);
             WorldFrames(root, 5);
             Check(views.IsPeekLit(new Vector3(3f, 1f, 0f)) && !views.IsPeekLit(new Vector3(-6f, 0f, 0f)),
@@ -3342,21 +3391,76 @@ namespace FlowCheck
             Check(views.PeekLight.Lit, "W10: one F press lights the second classroom too");
             PressKey(root, KeyCode.F);
             Check(!views.PeekLight.Lit, "W10: ...and one F press puts it out again (a clean toggle)");
-            // the dark exit: E on the doorway works with the lamp OFF
-            Doorway exitDoor2 = null;
+            // the dark exit: clicking the bottom strip steps back with the lamp OFF
+            FindDeep(root.HUD.transform, "peekexitband").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(!views.PeekActive && root.State == AppViewState.Exploration,
+                "W10: clicking the bottom strip steps back to the hallway — even with the lamp OFF");
+            Check(!FindDeep(root.HUD.transform, "peekexitband").gameObject.activeSelf,
+                "W10: the step-back strip is gone after leaving");
+            Check(!views.PeekLight.Lit && rig.Beam == LightMode.Off,
+                "W10: exiting leaves everything dark — restarting patrol never re-lights anything");
+
+            // ---- W11: the comfort rooms — a corridor off the hallway's east end, two peek rooms behind it
+            Console.WriteLine("== W11 comfort rooms ==");
+            Doorway toComfort = null;
+            foreach (var it in hall.Interactables)
+            {
+                var d = it as Doorway;
+                if (d != null && d.Target == RoomId.ComfortHall) toComfort = d;
+            }
+            Check(toComfort != null && toComfort.AnchorX > 8f &&
+                  Mathf.Abs(toComfort.AnchorX - RoomGraph.DoorX(RoomId.Hallway, RoomId.ComfortHall)) < 0.01f &&
+                  toComfort.Prompt.Contains("Comfort Rooms") && toComfort.Prompt.Contains("[E]"),
+                "W11: the east end of the hallway has a doorway to the comfort rooms, used with E");
+            toComfort.Interact();
+            Check(views.Current.Id == RoomId.ComfortHall && root.State == AppViewState.Exploration &&
+                  !views.PeekActive && views.Current.DisplayName == "COMFORT ROOMS",
+                "W11: E walks into the comfort hallway — a walkable room, not a peek");
+            Doorway cr1 = null, cr2 = null, backDoor = null;
             foreach (var it in views.Current.Interactables)
             {
                 var d = it as Doorway;
-                if (d != null && d.Target == RoomId.Hallway) exitDoor2 = d;
+                if (d == null) continue;
+                if (d.Target == RoomId.Comfort1) cr1 = d;
+                else if (d.Target == RoomId.Comfort2) cr2 = d;
+                else if (d.Target == RoomId.Hallway) backDoor = d;
             }
-            AimAt(exitDoor2.AnchorX, RoomInstance.FloorY + 1.4f);
+            Check(cr1 != null && cr2 != null && backDoor != null &&
+                  cr1.Prompt.Contains("CR-1") && cr2.Prompt.Contains("CR-2"),
+                "W11: the comfort hallway has a door to CR-1, a door to CR-2 and a way back to the hallway");
+            cr1.Interact();
+            Check(root.State == AppViewState.RoomPeek && views.PeekActive &&
+                  views.Current.Id == RoomId.Comfort1 && root.PeekRoom == RoomId.Comfort1,
+                "W11: a comfort-room door peeks in like a classroom — you never walk inside");
+            Check(!views.PeekLight.Lit, "W11: CR-1 starts dark like every other room");
+            PressKey(root, KeyCode.F);
+            Check(views.PeekLight.Lit, "W11: the flashlight works in the comfort room");
+            PressKey(root, KeyCode.F);
+            Doorway crExit = null;
+            foreach (var it in views.Current.Interactables)
+            {
+                var d = it as Doorway;
+                if (d != null && d.Target == RoomId.ComfortHall) crExit = d;
+            }
+            Check(crExit != null, "W11: CR-1 has its door back to the comfort hallway (scenery while peeking)");
+            AimAt(crExit.AnchorX, RoomInstance.FloorY + 1.4f);
             PressKey(root, KeyCode.E);
-            Check(!views.PeekActive && root.State == AppViewState.Exploration,
-                "W10: E on the exit doorway steps back to the hallway — even with the lamp OFF");
-            Check(!FindDeep(root.HUD.transform, "peekexitband").gameObject.activeSelf,
-                "W10: the step-back band is gone after leaving the doorway");
-            Check(!views.PeekLight.Lit && rig.Beam == LightMode.Off,
-                "W10: exiting leaves everything dark — restarting patrol never re-lights anything");
+            Check(views.PeekActive, "W11: E at CR-1's door does nothing — only the bottom strip leads back");
+            FindDeep(root.HUD.transform, "peekexitband").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(!views.PeekActive && root.State == AppViewState.Exploration &&
+                  views.Current.Id == RoomId.ComfortHall,
+                "W11: the bottom strip steps back from CR-1 to the COMFORT hallway, not the main hallway");
+            cr2.Interact();
+            Check(views.PeekActive && views.Current.Id == RoomId.Comfort2 && root.PeekRoom == RoomId.Comfort2,
+                "W11: CR-2 peeks the same way");
+            root.ExitRoomPeek();
+            Check(!views.PeekActive && views.Current.Id == RoomId.ComfortHall && root.State == AppViewState.Exploration,
+                "W11: the step-back strip also returns from CR-2 to the comfort hallway");
+            backDoor.Interact();
+            Check(views.Current.Id == RoomId.Hallway && root.State == AppViewState.Exploration,
+                "W11: the comfort hallway's door walks back out to the main hallway");
+            Check(rig.Beam == LightMode.Off && !views.PeekLight.Lit,
+                "W11: the whole trip left everything dark");
 
             // ---- W9: spawn ownership under ambient pressure + the desk handoff
             Console.WriteLine("== W9 spawn ownership + desk handoff ==");
@@ -4267,6 +4371,7 @@ namespace FlowCheck
             Time.unscaledDeltaTime = dt;
             root.Views.TickWorld(dt);
             Input.KeysDown.Clear();     // edge-triggered keys last exactly one frame
+            Input.MouseDown.Clear();    // ...and so do mouse presses
         }
 
         private static void WorldFrames(GameRoot root, int n, float dt = 1f / 60f)
@@ -4280,10 +4385,18 @@ namespace FlowCheck
             WorldFrame(root);
         }
 
+        // one mouse press (0 = left, 1 = right) for one patrol / peek frame, like PressKey
+        private static void ClickMouse(GameRoot root, int button)
+        {
+            Input.MouseDown.Add(button);
+            WorldFrame(root);
+        }
+
         private static void AimAt(float x, float y) => Input.mousePosition = new Vector3(x, y, 0f);
 
-        // idempotent beam selection through the real toggles (pressing Q while Focus is
-        // latched would switch it OFF — scenarios need the mode, not the keypress count)
+        // idempotent beam selection through the real toggles (F turns it on / off, Q switches
+        // the wide sweep to the narrow focus and only works while it is on — scenarios need
+        // the mode, not the keypress count)
         private static void SetBeam(GameRoot root, FlashlightRig rig, LightMode want)
         {
             if (want == LightMode.Off)
@@ -4292,9 +4405,14 @@ namespace FlowCheck
             }
             else if (want == LightMode.Sweep)
             {
-                if (!rig.Latches.Sweep) PressKey(root, KeyCode.F);
+                if (rig.Latches.Focus) PressKey(root, KeyCode.Q);       // narrow -> wide
+                else if (!rig.Latches.Sweep) PressKey(root, KeyCode.F);
             }
-            else if (!rig.Latches.Focus) PressKey(root, KeyCode.Q);
+            else if (!rig.Latches.Focus)
+            {
+                if (!rig.Latches.Sweep) PressKey(root, KeyCode.F);      // the narrow beam needs the light on
+                PressKey(root, KeyCode.Q);
+            }
         }
 
         private static T FindInteractable<T>(RoomInstance room) where T : Interactable

@@ -1316,30 +1316,33 @@ namespace Hollowbrook.LogicTests
             Eq(p.Range, 9f, "ParamsFor picks the Focus numbers");
             Eq(p.HalfAngleDeg, 6f, "ParamsFor picks the Focus angle");
 
-            Group("FlashlightInput — latch/hold arbitration (F/Q/L + mouse holds)");
+            Group("FlashlightInput — on/off + narrow toggles (F/Q/L and left/right click)");
             FlashlightLatches l;
             var none = new FlashlightLatches();
-            Eq(FlashlightInput.Resolve(none, false, false, false, false, false, false, out l), LightMode.Off, "no input => Off");
-            Eq(FlashlightInput.Resolve(none, true, false, false, false, false, false, out l), LightMode.Sweep, "F latches Sweep");
-            Check(l.Sweep && !l.Focus, "F sets only the sweep latch");
+            Eq(FlashlightInput.Resolve(none, false, false, false, false, out l), LightMode.Off, "no input => Off");
+            Eq(FlashlightInput.Resolve(none, true, false, false, false, out l), LightMode.Sweep, "on/off toggle: Off -> wide Sweep");
+            Check(l.Sweep && !l.Focus, "...and sets only the sweep latch");
             var sweepLatched = new FlashlightLatches { Sweep = true };
-            Eq(FlashlightInput.Resolve(sweepLatched, false, true, false, false, false, false, out l), LightMode.Focus, "Q switches to Focus");
-            Check(l.Focus && !l.Sweep, "keyboard toggles are mutually exclusive — Q clears the sweep latch");
+            Eq(FlashlightInput.Resolve(sweepLatched, true, false, false, false, out l), LightMode.Off, "on/off toggle: Sweep -> Off");
+            Check(!l.Sweep && !l.Focus, "...clearing the latches");
             var focusLatched = new FlashlightLatches { Focus = true };
-            Eq(FlashlightInput.Resolve(focusLatched, false, true, false, false, false, false, out l), LightMode.Off, "Q again toggles Focus off");
-            Eq(FlashlightInput.Resolve(sweepLatched, false, false, true, false, false, false, out l), LightMode.Off, "L switches the beam off");
-            Check(!l.Sweep && !l.Focus, "L clears conflicting latches");
-            Eq(FlashlightInput.Resolve(sweepLatched, false, false, false, false, true, false, out l), LightMode.Focus, "held RMB overrides a latched mode");
-            Check(l.Sweep && !l.Focus, "a mouse hold never changes the latches");
-            Eq(FlashlightInput.Resolve(sweepLatched, false, false, false, false, false, false, out l), LightMode.Sweep, "releasing the mouse returns to the latched mode");
-            Eq(FlashlightInput.Resolve(focusLatched, false, false, false, true, false, false, out l), LightMode.Sweep, "held LMB temporarily beats a Focus latch");
-            Eq(FlashlightInput.Resolve(none, false, false, false, true, true, false, out l), LightMode.Focus, "both buttons held: Focus wins");
-            Eq(FlashlightInput.Resolve(sweepLatched, false, false, false, false, false, true, out l), LightMode.Off, "a dead battery forces Off");
+            Eq(FlashlightInput.Resolve(focusLatched, true, false, false, false, out l), LightMode.Off, "on/off toggle turns a Focus beam off too");
+            Eq(FlashlightInput.Resolve(sweepLatched, false, true, false, false, out l), LightMode.Focus, "narrow toggle while on: Sweep -> Focus");
+            Check(l.Focus && !l.Sweep, "...the two modes are mutually exclusive");
+            Eq(FlashlightInput.Resolve(focusLatched, false, true, false, false, out l), LightMode.Sweep, "narrow toggle again: Focus -> back to the wide Sweep");
+            Check(l.Sweep && !l.Focus, "...it never turns the light off");
+            Eq(FlashlightInput.Resolve(none, false, true, false, false, out l), LightMode.Off, "narrow toggle while OFF does nothing — it never turns the light on");
+            Check(!l.Sweep && !l.Focus, "...and latches nothing");
+            Eq(FlashlightInput.Resolve(sweepLatched, true, true, false, false, out l), LightMode.Off, "both toggles in one frame: on/off wins");
+            Eq(FlashlightInput.Resolve(sweepLatched, false, false, true, false, out l), LightMode.Off, "L switches the beam off");
+            Check(!l.Sweep && !l.Focus, "L clears the latches");
+            Eq(FlashlightInput.Resolve(focusLatched, false, false, true, false, out l), LightMode.Off, "L switches a Focus beam off too");
+            Eq(FlashlightInput.Resolve(sweepLatched, false, false, false, false, out l), LightMode.Sweep, "no input holds the latched mode");
+            Eq(FlashlightInput.Resolve(sweepLatched, false, false, false, true, out l), LightMode.Off, "a dead battery forces Off");
             Check(!l.Sweep && !l.Focus, "a dead battery clears the latches — revival needs deliberate input");
-            Eq(FlashlightInput.Resolve(sweepLatched, true, false, false, false, false, true, out l), LightMode.Off, "toggling F while dead does nothing");
-            Check(!l.Sweep, "toggling F while dead does not re-latch");
-            Eq(FlashlightInput.Resolve(sweepLatched, false, false, true, true, false, false, out l), LightMode.Sweep, "L+hold same frame: the hold still shows a beam this frame");
-            Eq(FlashlightInput.Resolve(l, false, false, false, false, false, false, out l), LightMode.Off, "...and L's clear sticks after the hold is released");
+            Eq(FlashlightInput.Resolve(sweepLatched, true, false, false, true, out l), LightMode.Off, "toggling on/off while dead does nothing");
+            Check(!l.Sweep, "toggling while dead does not re-latch");
+            Eq(FlashlightInput.Resolve(none, true, false, false, false, out l), LightMode.Sweep, "after a death the next deliberate press relights it");
 
             Group("BatteryModel — drain, recover, death and deliberate reboot");
             var bp = new BatteryParams { DrainSweepPerSecond = 2.5f, DrainFocusPerSecond = 6f, RecoverDarkPerSecond = 4f, RecoverLitPerSecond = 8f, RebootFraction = 0.2f };
@@ -1429,6 +1432,32 @@ namespace Hollowbrook.LogicTests
             Eq(RoomGraph.NextHop(RoomId.Hallway, RoomId.Classroom2), RoomId.Classroom2, "hallway→classroom is one hop");
             Eq(RoomGraph.NextHop(RoomId.Classroom1, RoomId.Classroom1), RoomId.Classroom1, "already there: no hop");
             Eq(RoomGraph.NextHop(RoomId.Security, RoomId.Hallway), RoomId.Security, "off-graph origins do not route");
+
+            Group("RoomGraph — the comfort hallway and the two comfort rooms");
+            Check(RoomGraph.IsPeekRoom(RoomId.Classroom1) && RoomGraph.IsPeekRoom(RoomId.Classroom2) &&
+                  RoomGraph.IsPeekRoom(RoomId.Comfort1) && RoomGraph.IsPeekRoom(RoomId.Comfort2),
+                  "the classrooms and the comfort rooms are peek-only");
+            Check(!RoomGraph.IsPeekRoom(RoomId.Hallway) && !RoomGraph.IsPeekRoom(RoomId.ComfortHall) &&
+                  !RoomGraph.IsPeekRoom(RoomId.Security),
+                  "the hallway, the comfort hallway and the security room are walked, not peeked");
+            Eq(RoomGraph.ParentOf(RoomId.Classroom1), RoomId.Hallway, "a classroom hangs off the hallway");
+            Eq(RoomGraph.ParentOf(RoomId.ComfortHall), RoomId.Hallway, "the comfort hallway hangs off the hallway");
+            Eq(RoomGraph.ParentOf(RoomId.Comfort1), RoomId.ComfortHall, "CR-1 hangs off the comfort hallway");
+            Eq(RoomGraph.ParentOf(RoomId.Comfort2), RoomId.ComfortHall, "CR-2 hangs off the comfort hallway");
+            Eq(RoomGraph.ParentOf(RoomId.Hallway), RoomId.Hallway, "the hallway is the root");
+            Check(RoomGraph.Connected(RoomId.Hallway, RoomId.ComfortHall) && RoomGraph.Connected(RoomId.ComfortHall, RoomId.Hallway),
+                  "hallway <-> comfort hallway are connected both ways");
+            Check(RoomGraph.Connected(RoomId.ComfortHall, RoomId.Comfort1) && RoomGraph.Connected(RoomId.Comfort1, RoomId.ComfortHall) &&
+                  RoomGraph.Connected(RoomId.ComfortHall, RoomId.Comfort2) && RoomGraph.Connected(RoomId.Comfort2, RoomId.ComfortHall),
+                  "the comfort hallway <-> each comfort room are connected both ways");
+            Check(!RoomGraph.Connected(RoomId.Hallway, RoomId.Comfort1) && !RoomGraph.Connected(RoomId.Comfort1, RoomId.Comfort2),
+                  "the comfort rooms are only reachable through the comfort hallway");
+            Check(RoomGraph.DoorX(RoomId.Hallway, RoomId.ComfortHall) > 8f,
+                  "the comfort hallway's entrance is at the hallway's east end");
+            Eq(RoomGraph.Roamable.Length, 3, "roaming anomalies still walk only the hallway and the two classrooms");
+            Check(!RoomGraph.IsRoamable(RoomId.Comfort1) && !RoomGraph.IsRoamable(RoomId.ComfortHall),
+                  "the comfort rooms are not roam routes (an anomaly there stays where it spawned)");
+            Eq(RoomGraph.NextHop(RoomId.Comfort1, RoomId.Hallway), RoomId.Comfort1, "an anomaly in a comfort room does not roam out");
 
             Group("Tokens — collection persists with the run");
             var ses = new GameSession();
@@ -1608,8 +1637,8 @@ namespace Hollowbrook.LogicTests
             Eq(comfort.Count, 2, "the plan carries two comfort rooms");
             foreach (var cr in comfort)
             {
-                Check(cr.Comfort && !cr.Room.HasValue && !cr.Sealed,
-                      "'" + cr.Key + "' is a comfort room, not a patrol room and not sealed");
+                Check(cr.Comfort && cr.Room.HasValue && RoomGraph.IsPeekRoom(cr.Room.Value) && !cr.Sealed,
+                      "'" + cr.Key + "' is a comfort room: a peek room of the patrol, not sealed");
                 Check(cr.Label.ToUpperInvariant().Contains("COMFORT ROOM"),
                       "'" + cr.Key + "' is labelled as a comfort room");
                 Check(!cr.Overlaps(hall.Value) && !cr.Overlaps(c1.Value) && !cr.Overlaps(c2.Value) &&

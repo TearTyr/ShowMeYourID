@@ -82,6 +82,7 @@ namespace Hollowbrook.World
                     AddDoor(room, "Security Door", -10.6f, floorY, RoomId.Security, "prop_door_security");
                     AddDoor(room, "Classroom 1", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), floorY, RoomId.Classroom1, "prop_door");
                     AddDoor(room, "Classroom 2", RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), floorY, RoomId.Classroom2, "prop_door");
+                    AddDoor(room, "Comfort Rooms", RoomGraph.DoorX(RoomId.Hallway, RoomId.ComfortHall), floorY, RoomId.ComfortHall, "prop_door");
                     var serverSprite = ProceduralArt.Get("prop_server_door");
                     float serverH = serverSprite.rect.height / Mathf.Max(1f, serverSprite.pixelsPerUnit);
                     SpriteGO(root.transform, "server_door_art", serverSprite,
@@ -111,6 +112,33 @@ namespace Hollowbrook.World
                     SpriteGO(root.transform, "deskprop", ProceduralArt.Get("prop_desk"), new Vector3(-7.6f, floorY + 1f, 0), 9);
                     room.PlayerSpawn = new Vector3(4.0f, 0, 0);
                     room.AnomalySpawnPoints.Add(new Vector3(-6.5f, 0, 0));
+                    room.AnomalySpawnPoints.Add(new Vector3(1.5f, 0, 0));
+                    break;
+                }
+                case RoomId.ComfortHall:
+                {
+                    // the corridor behind the hallway's east door: walk it, then peek into CR-1 / CR-2
+                    room.DisplayName = "COMFORT ROOMS";
+                    room.HalfWidth = 7.0f;
+                    PlaceholderBg(root.transform, floorY);
+                    AddDoor(room, "Hallway", RoomGraph.DoorX(RoomId.ComfortHall, RoomId.Hallway), floorY, RoomId.Hallway, "prop_door");
+                    AddDoor(room, "CR-1", RoomGraph.DoorX(RoomId.ComfortHall, RoomId.Comfort1), floorY, RoomId.Comfort1, "prop_door");
+                    AddDoor(room, "CR-2", RoomGraph.DoorX(RoomId.ComfortHall, RoomId.Comfort2), floorY, RoomId.Comfort2, "prop_door");
+                    room.PlayerSpawn = new Vector3(4.0f, 0, 0);
+                    room.AnomalySpawnPoints.Add(new Vector3(-5.5f, 0, 0));
+                    room.AnomalySpawnPoints.Add(new Vector3(-1.2f, 0, 0));
+                    break;
+                }
+                case RoomId.Comfort1:
+                case RoomId.Comfort2:
+                {
+                    // peek-only, like a classroom: the player looks in from the doorway
+                    room.DisplayName = id == RoomId.Comfort1 ? "COMFORT ROOM CR-1" : "COMFORT ROOM CR-2";
+                    room.HalfWidth = 8.2f;
+                    PlaceholderBg(root.transform, floorY);
+                    AddDoor(room, "Comfort Rooms", RoomGraph.DoorX(id, RoomId.ComfortHall), floorY, RoomId.ComfortHall, "prop_door");
+                    room.PlayerSpawn = new Vector3(4.0f, 0, 0);
+                    room.AnomalySpawnPoints.Add(new Vector3(-5.5f, 0, 0));
                     room.AnomalySpawnPoints.Add(new Vector3(1.5f, 0, 0));
                     break;
                 }

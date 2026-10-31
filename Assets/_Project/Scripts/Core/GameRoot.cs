@@ -637,6 +637,8 @@ namespace Hollowbrook.Core
             {
                 case RoomId.Classroom1: return "classroom";
                 case RoomId.Classroom2: return "darkroom";
+                case RoomId.Comfort1: return "classroom";
+                case RoomId.Comfort2: return "darkroom";
                 default: return "hallway";
             }
         }
