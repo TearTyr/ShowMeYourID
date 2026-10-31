@@ -2340,7 +2340,7 @@ namespace Hollowbrook.LogicTests
                   FaceAssets.StudentKey(FaceAssets.StudentFaceCount) == "student_face_01",
                 "student keys wrap stably over the shipped set");
             Check(FaceAssets.AnomalyKey(0) == "student_face_01_anomaly" &&
-                  FaceAssets.AnomalyKey(5) == "student_face_06_anomaly",
+                  FaceAssets.AnomalyKey(6) == "student_face_07_anomaly",
                 "anomaly keys are PAIRED with their student: student_face_NN_anomaly");
             Check(FaceAssets.WindowKey(-1, false) == null && FaceAssets.IdKey(-1) == null,
                 "no asset index (old saves, administrator) -> the procedural painter, never a broken image");

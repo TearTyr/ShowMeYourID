@@ -43,7 +43,6 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region LightMeter = new Region(348, 96, 200, 40);   // patrol only, under the board
         public static readonly Region TrackMeter = new Region(568, 96, 110, 40);   // chase only
         public static readonly Region Clock = new Region(1000, 25, 85, 30);
-        public static readonly Region NightCounter = new Region(885, 25, 110, 30);   // "NIGHT 1/5", right beside the clock
         public static readonly Region Pause = new Region(1119, 22, 125, 38);        // kit pill, concept-measured
 
         // ---- row under the top bar (wireframe text baseline y=72) -----------
@@ -81,7 +80,7 @@ namespace Hollowbrook.Checkpoint
         // ---- centre column --------------------------------------------------
         public static readonly Region Window = new Region(375, 160, 520, 330);
         public static readonly Region Glass = new Region(430, 200, 415, 235);        // portrait wrap
-        public static readonly Region Portrait = new Region(530, 205, 200, 230);     // the bust column, centred in the wrap
+        public static readonly Region Portrait = new Region(520, 195, 220, 255);     // the bust column, centred in the wrap
         public static readonly Region Glitch = new Region(425, 195, 425, 245);       // transient flash
         public static readonly Region Sill = new Region(375, 450, 520, 18);          // under-frame glow strip
         // the speech bubble: a transient overlay box beside the visitor's head (the
@@ -204,6 +203,8 @@ namespace Hollowbrook.Checkpoint
             // id card (sprite is printed 1:1 at 320x220)
             public static readonly Region IdHeader = new Region(0, 2, 320, 24);
             public static readonly Region IdPhoto = new Region(10, 46, 90, 118);
+            // the photo frame printed on the student card template (id_card_template.png)
+            public static readonly Region IdPhotoTemplate = new Region(18, 85, 80, 94);
             public const float IdRowX = 112f, IdRowW = 200f, IdRowH = 16f;
             public static readonly float[] IdRules = { 52f, 75f, 99f, 123f, 146f, 179f };
 

@@ -290,7 +290,7 @@ namespace FlowCheck
             string[] deskNames =
             {
                 "DeskFrame", "topbar", "daybanner_border", "clock", "pause", "runstats", "mutationbg",
-                "record", "station", "folder1", "folder2", "filedrawer_border", "closefile", "idcard", "nightcounter",
+                "record", "station", "folder1", "folder2", "filedrawer_border", "closefile", "idcard",
                 "drawerbody", "drawerfront", "drawercavity", "drawerhead", "cabfront",
                 "windowframe", "glass", "facade", "visitor", "glitch", "sill",
                 "speechbubble", "bubble_border", "bubble", "bubbletext", "bubbletail",
@@ -387,17 +387,13 @@ namespace FlowCheck
             ExpectRegion("light", L.LightMeter, 348, 96, 200, 40);
             ExpectRegion("track", L.TrackMeter, 568, 96, 110, 40);
             ExpectRegion("clock", L.Clock, 1000, 25, 85, 30);
-            ExpectRegion("night counter", L.NightCounter, 885, 25, 110, 30);
-            Check(L.NightCounter.Right <= L.Clock.X && L.NightCounter.X >= L.SanityMeter.Right &&
-                  L.NightCounter.Y == L.Clock.Y && L.NightCounter.H == L.Clock.H,
-                "the night counter sits right beside the clock, on its line, clear of the sanity meter");
             ExpectRegion("pause", L.Pause, 1119, 22, 125, 38);
             ExpectRegion("records station", L.Station, 40, 85, 305, 160);
             ExpectRegion("file drawer", L.FileDrawer, 55, 255, 275, 290);
             ExpectRegion("id card", L.IdCard, 450, 500, 220, 151.25f);
             ExpectRegion("window frame", L.Window, 375, 160, 520, 330);
             ExpectRegion("glass", L.Glass, 430, 200, 415, 235);
-            ExpectRegion("portrait", L.Portrait, 530, 205, 200, 230);
+            ExpectRegion("portrait", L.Portrait, 520, 195, 220, 255);
             ExpectRegion("sill", L.Sill, 375, 450, 520, 18);
             ExpectRegion("speech bubble", L.SpeechBubble, 737, 297, 182, 132);
             ExpectRegion("patrol button", L.PatrolBtn, 450, 655, 180, 40);
@@ -464,7 +460,6 @@ namespace FlowCheck
             Add("light meter", L.LightMeter, "E");
             Add("track meter", L.TrackMeter, "E");
             Add("clock", L.Clock, "B");
-            Add("night counter", L.NightCounter, "B");
             Add("pause", L.Pause, "B");
             Add("run stats", L.RunStats, "B");
             Add("mutation strip", L.Mutation, "B");
@@ -1395,7 +1390,7 @@ namespace FlowCheck
             Check(Mathf.Abs(vRt.sizeDelta.x - vWant.W) < 0.5f && Mathf.Abs(vRt.sizeDelta.y - vWant.H) < 0.5f &&
                   Mathf.Abs(vRt.anchoredPosition.x - vWant.X) < 0.5f,
                 $"FM: the portrait rect IS the letterbox of its sprite, centred in the window ({vWant.W:F0}x{vWant.H:F0})");
-            var pWant = Hollowbrook.UI.UIFactory.Letterbox(L.Inner.IdPhoto.W, L.Inner.IdPhoto.H,
+            var pWant = Hollowbrook.UI.UIFactory.Letterbox(L.Inner.IdPhotoTemplate.W, L.Inner.IdPhotoTemplate.H,
                 photoImg.sprite.rect.width, photoImg.sprite.rect.height);
             var pRt = photoImg.GetComponent<RectTransform>();
             Check(Mathf.Abs(pRt.sizeDelta.x - pWant.W) < 0.5f && Mathf.Abs(pRt.sizeDelta.y - pWant.H) < 0.5f,
@@ -1723,11 +1718,6 @@ namespace FlowCheck
 
             // ---- the night counter, and the night title that opens each night ----
             {
-                var nc = FindDeep(desk, "nightcounter");
-                Check(nc != null && nc.gameObject.activeSelf &&
-                      nc.GetComponent<UnityEngine.UI.Text>().text == "NIGHT " + root.Session.CurrentShift + "/" + ShiftPlan.TotalShifts,
-                    "NIGHT: the desk header shows the night counter beside the clock (got '" +
-                    (nc != null ? nc.GetComponent<UnityEngine.UI.Text>().text : "missing") + "')");
                 int titleDone = 0;
                 root.Loading.PlayNightTitle("NIGHT 9", "SOME DATE", () => titleDone++);
                 var loadLabel = FindDeep(root.Loading.transform, "label").GetComponent<UnityEngine.UI.Text>();
@@ -1756,7 +1746,7 @@ namespace FlowCheck
                   "AUTO-DOCS: the prompt starts with the classroom question (got '" + PromptText(root) + "')");
             var cardPos = FindDeep(desk, "idcard").GetComponent<RectTransform>().anchoredPosition;
             var slipPos = FindDeep(desk, "slip").GetComponent<RectTransform>().anchoredPosition;
-            Check(cardPos.y < 0 && slipPos.y < 0 && Mathf.Abs(slipPos.x - (740f - L.CounterSlip.W * 0.5f)) < 1f,
+            Check(cardPos.y < 0 && slipPos.y < 0 && Mathf.Abs(slipPos.x - (765f - L.CounterSlip.W * 0.5f)) < 1f,
                 $"AUTO-DOCS: both rest in their desk slots (card {cardPos.x:F0},{cardPos.y:F0}; slip {slipPos.x:F0},{slipPos.y:F0})");
             Check(FindDeep(desk, "sname") != null &&
                   FindDeep(desk, "sname").GetComponent<UnityEngine.UI.Text>().text.Length > 4,
@@ -3962,8 +3952,8 @@ namespace FlowCheck
                       valTxt != null && capTxt != null && stageTxt != null,
                     "KIT: the HUD sanity widget is reachable for the pill proof");
                 if (trackImg != null)
-                    Check(trackImg.color.a > 0.9f && trackImg.color.r < 0.2f,
-                        "KIT: the sanity track is a dark recessed bed inside the kit pill");
+                    Check(trackImg.color.a > 0.9f && trackImg.color.r > 0.8f,
+                        "KIT: the sanity track is a white bed inside the kit pill (the black fill rides on it)");
                 if (valTxt != null && capTxt != null)
                     Check(valTxt.color == UIFactory.NsInk && capTxt.color == UIFactory.NsInk,
                         "KIT: sanity caption + value flipped to dark ink on the white pill");
@@ -3976,8 +3966,8 @@ namespace FlowCheck
                     bool fillOk = alarm
                         ? fillImg.color == (st == SanityStage.Breaking
                             ? UIFactory.AccentBright : new Color(0.75f, 0.45f, 0.2f))
-                        : fillImg.color.r > 0.8f && fillImg.color.g > 0.8f && fillImg.color.b > 0.7f;
-                    Check(fillOk, $"KIT: the sanity fill reads paper-white on the dark bed for stage {st} (alarm colors kept)");
+                        : fillImg.color.r < 0.35f && fillImg.color.g < 0.35f && fillImg.color.b < 0.35f;
+                    Check(fillOk, $"KIT: the sanity fill reads black on the white bed for stage {st} (alarm colors kept)");
                 }
             }
 

@@ -59,10 +59,10 @@ namespace Hollowbrook.Checkpoint
             // the principal note left the desk surface: its addendum lives in the RULES NOTE
             // overlay (RefreshNotes), which keeps the centre column calm
 
-            _patrolBtn = GridButton(_desk, "patrol", "PATROL HALLWAY  ▸", GoPatrol, L.PatrolBtn, 12);
+            _patrolBtn = GridButton(_desk, "patrol", "PATROL HALLWAY", GoPatrol, L.PatrolBtn, 15);
             Reg("patrol", _patrolBtn, L.PatrolBtn);
-            _endShiftBtn = GridButton(_desk, "endshift", "END SHIFT — CLOCK OUT",
-                () => _gameRoot.RequestEndShift(), L.EndShiftBtn, 11);
+            _endShiftBtn = GridButton(_desk, "endshift", "END SHIFT",
+                () => _gameRoot.RequestEndShift(), L.EndShiftBtn, 15);
             Reg("endshift", _endShiftBtn, L.EndShiftBtn);
             UIFactory.SetButtonEnabled(_patrolBtn, false);
             UIFactory.SetButtonEnabled(_endShiftBtn, false);

@@ -40,9 +40,9 @@ namespace Hollowbrook.UI
             var track = _sanityFill != null ? _sanityFill.rectTransform.parent.GetComponent<UnityEngine.UI.Image>() : null;
             if (track != null)
             {
-                // the kit pill carries a DARK recessed bed (the concept art's bar); the live
-                // fill is paper-white inside it, so full reads full and empty reads empty
-                track.color = kit ? UIFactory.NsInk : UIFactory.PanelAlt;
+                // like the concept art: a black bar inside the white pill. The bed is paper
+                // white, the healthy fill is black ink, so full reads black and empty reads white
+                track.color = kit ? UIFactory.NsChalk : UIFactory.PanelAlt;
             }
             if (_sanityFill != null)
             {
@@ -77,13 +77,16 @@ namespace Hollowbrook.UI
             foreach (var kitImg in barBg.gameObject.GetComponentsInChildren<Image>(true))
             { var kc = kitImg.color; kc.a = 0f; kitImg.color = kc; }
             Reg(audit, "sanity", barBg, L.SanityMeter);
-            _sanityCapLabel = UIFactory.Label(barBg, "cap", "SANITY", 12, UIFactory.InkDim, TextAnchor.MiddleLeft);
+            _sanityCapLabel = UIFactory.Label(barBg, "cap", "SANITY", 15, UIFactory.InkDim, TextAnchor.MiddleLeft);
+            _sanityCapLabel.font = UIFactory.UiFontBold;
+            _sanityCapLabel.horizontalOverflow = HorizontalWrapMode.Overflow;   // one line, never wrapped
             L.Place(_sanityCapLabel.rectTransform, L.Inner.SanityCap);
             var track = UIFactory.Panel(barBg, "track", UIFactory.PanelAlt).rectTransform;
             L.Place(track, L.Inner.SanityTrack);
             _sanityFill = UIFactory.Img(track, "fill", ProceduralArt.Get("solid_white"), UIFactory.Ink);
             StretchFill(_sanityFill.rectTransform);
-            _sanityLabel = UIFactory.Label(barBg, "val", "100", 12, UIFactory.Ink, TextAnchor.MiddleRight);
+            _sanityLabel = UIFactory.Label(barBg, "val", "100", 15, UIFactory.Ink, TextAnchor.MiddleRight);
+            _sanityLabel.font = UIFactory.UiFontBold;
             L.Place(_sanityLabel.rectTransform, L.Inner.SanityVal);
             _stageLabel = UIFactory.Label(barBg, "stage", "STABLE", 10, UIFactory.InkFaint, TextAnchor.MiddleCenter);
             L.Place(_stageLabel.rectTransform, L.Inner.SanityStage);
@@ -221,6 +224,7 @@ namespace Hollowbrook.UI
             if (exploring) _objective.text = _gameRoot.ObjectiveText;   // restore after a peek overwrote the hint
             if (_peekExitBand != null) _peekExitBand.SetActive(peeking);
             RefreshFindings();
+            _findings.gameObject.SetActive(s != AppViewState.Checkpoint);   // the desk art has no findings line
             SetSanity(_gameRoot.Session != null ? _gameRoot.Session.Sanity : 100f);
         }
 
@@ -249,9 +253,8 @@ namespace Hollowbrook.UI
             if (stage == SanityStage.Breaking) return UIFactory.AccentBright;
             if (stage == SanityStage.Shaken) return new Color(0.75f, 0.45f, 0.2f);
             if (stage == SanityStage.Uneasy)
-                return _kitSanity ? new Color(0.93f, 0.86f, 0.72f) : UIFactory.InkDim;
-            // kit bed is dark ink: the healthy fill is the paper white of the pill family
-            return _kitSanity ? new Color(0.93f, 0.92f, 0.89f) : UIFactory.Ink;
+                return _kitSanity ? new Color(0.30f, 0.30f, 0.30f) : UIFactory.InkDim;
+            return _kitSanity ? UIFactory.NsInk : UIFactory.Ink;
         }
 
         private void SetBattery(float v)

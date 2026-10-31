@@ -84,7 +84,12 @@ namespace Hollowbrook.Checkpoint
             if (_gameRoot != null && _gameRoot.HUD != null) _gameRoot.HUD.ApplyKitSanity(true);
             SkinButton(FindButton(_desk, "pause"), null);   // kit pause block shows through
             var pauseLbl = ChildText(FindButton(_desk, "pause"));
-            if (pauseLbl != null) pauseLbl.color = UIFactory.NsInk;
+            if (pauseLbl != null)
+            {
+                pauseLbl.color = UIFactory.NsInk;
+                pauseLbl.font = UIFactory.UiFontBold;
+                UIFactory.SetBaseFontSize(pauseLbl, 17);
+            }
 
             // ---- questions: kit panel + the pill button with the arrow as its bullet ----
             var qOuter = FindImage(_desk, "qpanel_border");
@@ -312,7 +317,18 @@ namespace Hollowbrook.Checkpoint
             SkinButton(b, pillKey);
             if (b == null) return;
             var t = ChildText(b);
-            if (t != null) t.color = labelInk;
+            if (t != null)
+            {
+                t.color = labelInk;
+                t.font = UIFactory.UiFontBold;   // bold like the concept
+                t.horizontalOverflow = HorizontalWrapMode.Overflow;   // one line, never wrapped
+                // leave the left 40 units to the icon (stretch first: the label is born on a point anchor)
+                var lrt = t.rectTransform;
+                lrt.anchorMin = Vector2.zero;
+                lrt.anchorMax = Vector2.one;
+                lrt.offsetMin = new Vector2(38f, 0f);
+                lrt.offsetMax = new Vector2(-4f, 0f);
+            }
             var sp = ProceduralArt.Get(iconKey);
             if (sp == null) return;
             var icon = UIFactory.Img(b.transform, "kiticon", sp, labelInk);
@@ -385,14 +401,34 @@ namespace Hollowbrook.Checkpoint
                 var lt = lbl.GetComponent<Text>();
                 if (lt != null) lt.color = UIFactory.NsInk;   // dark word on the white handle
             }
-            var sp = ProceduralArt.Get(iconKey);
-            if (sp == null) return;
-            // badge on the HEAD knob (26px), not a 46px disc over the whole silhouette:
-            // the check/cross stays crisp and the stamp art stays readable
-            var icon = UIFactory.Img(t, "kiticon", sp);
-            icon.raycastTarget = false;
-            UIFactory.Anchor(icon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(26f, 26f),
-                new Vector2(0f, 40f));
+            AddStampCaption(stampName == "stamp_allow" ? L.StampAllow : L.StampDeny,
+                stampName == "stamp_allow" ? "APPROVE" : "DECLINE", iconKey);
+        }
+
+        // The white caption pill under a stamp box: icon on the left, bold word beside it
+        // (the concept's "APPROVE" / "DECLINE" strips). It is just paper, not a button.
+        private void AddStampCaption(L.Region box, string word, string iconKey)
+        {
+            var pillArt = ProceduralArt.Get("sec_wide_pill");
+            if (pillArt == null) return;
+            var pill = UIFactory.Img(_desk, "stampcaption_" + word, pillArt);
+            pill.raycastTarget = false;
+            L.Place(pill.rectTransform, new L.Region(box.X + 2f, box.Bottom + 8f, box.W - 4f, 28f));
+            var iconArt = ProceduralArt.Get(iconKey);
+            if (iconArt != null)
+            {
+                var icon = UIFactory.Img(pill.transform, "icon", iconArt, UIFactory.NsInk);
+                icon.raycastTarget = false;
+                UIFactory.Anchor(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(18f, 18f),
+                    new Vector2(14f, 0f));
+            }
+            var text = UIFactory.Label(pill.transform, "word", word, 14, UIFactory.NsInk,
+                TextAnchor.MiddleCenter);
+            text.font = UIFactory.UiFontBold;
+            text.rectTransform.anchorMin = Vector2.zero;
+            text.rectTransform.anchorMax = Vector2.one;
+            text.rectTransform.offsetMin = new Vector2(28f, 0f);
+            text.rectTransform.offsetMax = Vector2.zero;
         }
 
         private static Image FindImage(Transform root, string name)
