@@ -37,15 +37,6 @@ namespace Hollowbrook.Logic
 
     public enum ToneTag { Normal, Hesitant, Flat, TooSmooth, Echoing }
 
-    public enum AnomalyBehavior
-    {
-        Idle,
-        ApproachingWindow,
-        WaitingOutside,
-        InsideWandering,
-        ReachedServerRoom,
-    }
-
     public enum AppViewState
     {
         Boot, Loading, MainMenu, ModeSelect, Settings, Controls, Credits,

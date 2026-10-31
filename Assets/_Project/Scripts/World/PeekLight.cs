@@ -167,8 +167,8 @@ namespace Hollowbrook.World
         /// beam uses. One press on, one press off; no latch can survive an entry reset.</summary>
         internal void ToggleLamp() => SetLit(!Lit, false);
 
-        // Esc follows the hallway rule (pause first; peek only exits through the bottom band
-        // or the exit doorway), and pause/dialogue/overlays freeze the cursor entirely.
+        // Esc follows the hallway rule (pause first; a peek exits with S or the bottom band), and
+        // pause, dialogue and overlays freeze the cursor entirely.
         private void Update()
         {
             if (_gameRoot == null || !Active) return;
@@ -191,12 +191,9 @@ namespace Hollowbrook.World
             else if (_gameRoot.Dialogue == null || !_gameRoot.Dialogue.IsActive) _gameRoot.TogglePause(true);
         }
 
-        // One frame of peek light: the F toggle, then follow the cursor on the z=0 plane,
-        // publish the prompt for whatever sits under the circle, and act on E. Tracking and
-        // prompts run while the lamp is OFF too - the exit stays reachable in the dark (the
-        // bottom band and the doorway) - but with mask + glow hidden nothing is visible and
-        // Covers() reports no illumination. internal so the headless harness can step
-        // frames deterministically (stub MonoBehaviours never get Update calls).
+        // One frame of peek light: the F toggle, then follow the cursor on the z=0 plane, publish
+        // the prompt for what the lit lamp is on, and act on E or S. internal so the headless
+        // harness can step frames deterministically (stub MonoBehaviours never get Update calls).
         internal void Tick(float dt)
         {
             if (_gameRoot == null || _cam == null || !Active) return;
@@ -226,6 +223,7 @@ namespace Hollowbrook.World
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.InteractionPrompt, prompt));
             }
 
+            if (_gameRoot.Views != null && _gameRoot.Views.Transitioning) return;   // no input mid fade
             if (Input.GetKeyDown(KeyCode.E) && nearest != null) nearest.Interact();
             if (Input.GetKeyDown(KeyCode.S)) _gameRoot.ExitRoomPeek();
         }

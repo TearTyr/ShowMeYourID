@@ -41,7 +41,6 @@ namespace Hollowbrook.Checkpoint
         private VisitorData _current;
         private int _questionMask;      // which questions were asked of the current visitor (InterviewRules.Bit)
         private bool _idFlipped, _fileOpened;   // this visit: unlocks the year and status questions
-        private bool _classroomAsked => InterviewRules.Asked(_questionMask, QuestionId.Classroom);
         private bool _verdictLocked = true;
         private bool _flowActive;
 
@@ -360,7 +359,6 @@ namespace Hollowbrook.Checkpoint
             PlayArrivalVoices(v, admin);
             ResetHandover(v);          // slip + ID slide to the counter edge, unasked
             RefreshHud();              // tray/prompt state always matches the new visitor
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VisitorArrived, v));
         }
 
         private float BannerSeconds => _gameRoot.Config.exhibitionMode ? _gameRoot.Config.exhibitionBannerSeconds : _gameRoot.Config.verdictBannerSeconds;

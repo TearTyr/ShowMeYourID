@@ -82,48 +82,6 @@ namespace Hollowbrook.Bootstrap
             return c.ToSprite("menu_bg", UiPpu);
         }
 
-        private static Sprite MakeHallway(int w, int h)
-        {
-            var c = new Canvas2D(w, h);
-            c.GradientV(G(0.10f), G(0.16f));                       // upper wall
-            int floorY = (int)(h * 0.74f);
-            c.FillRect(0, floorY, w, h - floorY, G(0.07f));        // floor
-            c.FillRect(0, floorY, w, 3, G(0.22f));                 // baseboard line
-            var r = new System.Random(21);
-            for (int x = 24; x < w - 100; x += 180)
-            {
-                bool isDoor = r.Next(3) == 0;
-                if (isDoor)
-                {
-                    c.FillRect(x, floorY - 300, 120, 300, G(0.13f));
-                    c.FillRect(x + 6, floorY - 294, 108, 288, G(0.09f));
-                    c.FillEllipse(x + 100, floorY - 150, 5, 5, G(0.5f));     // handle
-                    c.FillRect(x + 30, floorY - 268, 60, 18, G(0.35f));      // room plate
-                }
-                else
-                {
-                    for (int lx = 0; lx < 3; lx++)
-                    {
-                        c.FillRect(x + lx * 44, floorY - 260, 40, 260, G(0.115f));
-                        c.FillRect(x + lx * 44 + 4, floorY - 256, 32, 252, G(0.085f));
-                        c.FillRect(x + lx * 44 + 14, floorY - 220, 12, 3, G(0.3f));   // vent slits
-                        c.FillRect(x + lx * 44 + 14, floorY - 214, 12, 3, G(0.3f));
-                        c.FillEllipse(x + lx * 44 + 34, floorY - 130, 2.5f, 2.5f, G(0.4f));
-                    }
-                }
-            }
-            for (int x = 60; x < w; x += 240)
-            {
-                bool lit = r.Next(4) != 0;
-                c.FillRect(x, 18, 150, 12, G(lit ? 0.72f : 0.10f));
-                if (lit) c.BlendRect(x - 60, 30, 270, 200, G(0.5f, 0.05f));  // light pool
-            }
-            for (int x = 0; x < w; x += 96) c.FillRect(x, floorY, 2, h - floorY, G(0.09f));
-            c.Noise(0.045f, 5);
-            c.Vignette(0.55f);
-            return c.ToSprite("hallway_bg", WorldPpu);
-        }
-
         // The corridor's depth shroud: pure BLACK whose ALPHA is the radial falloff baked in
         // WORLD units (HallwayDarkness.DepthAt), so the pool around the custodian stays circular
         // even though the quad is stretched to cover the whole hallway from either end of it.
@@ -185,59 +143,5 @@ namespace Hollowbrook.Bootstrap
             return c.ToSprite("hall_depth", w / worldW);
         }
 
-        private static Sprite MakeClassroom(int w, int h, bool room2)
-        {
-            var c = new Canvas2D(w, h);
-            c.GradientV(G(0.11f), G(0.15f));
-            int floorY = (int)(h * 0.72f);
-            c.FillRect(0, floorY, w, h - floorY, G(0.075f));
-            int bx = room2 ? (int)(w * 0.52f) : (int)(w * 0.12f);
-            c.FillRect(bx, (int)(h * 0.16f), (int)(w * 0.36f), (int)(h * 0.34f), G(0.16f));     // frame
-            c.FillRect(bx + 8, (int)(h * 0.16f) + 8, (int)(w * 0.36f) - 16, (int)(h * 0.34f) - 16, G(0.055f)); // board
-            var r = new System.Random(room2 ? 77 : 33);
-            for (int i = 0; i < 7; i++)                                                          // chalk scribbles
-            {
-                int sx = bx + 24 + r.Next((int)(w * 0.36f) - 80);
-                int sy = (int)(h * 0.16f) + 30 + r.Next((int)(h * 0.34f) - 70);
-                c.Line(sx, sy, sx + 30 + r.Next(90), sy + r.Next(-6, 7), G(0.5f, 0.5f), 2);
-            }
-            c.FillRect(bx + 8, (int)(h * 0.16f) + (int)(h * 0.34f) - 6, (int)(w * 0.36f) - 16, 6, G(0.25f)); // tray
-            int wx = room2 ? (int)(w * 0.06f) : (int)(w * 0.62f);
-            for (int i = 0; i < 2; i++)
-            {
-                int x = wx + i * 260;
-                c.FillRect(x, (int)(h * 0.18f), 200, (int)(h * 0.36f), G(0.09f));
-                c.FillRect(x + 8, (int)(h * 0.18f) + 8, 184, (int)(h * 0.36f) - 16, G(0.20f));  // night glass
-                c.FillRect(x + 96, (int)(h * 0.18f) + 8, 8, (int)(h * 0.36f) - 16, G(0.09f));   // mullion
-                c.FillRect(x + 8, (int)(h * 0.18f) + (int)(h * 0.18f), 184, 8, G(0.09f));
-                c.FillEllipse(x + 150, (int)(h * 0.18f) + 40, 26, 26, G(0.30f, 0.5f));
-            }
-            for (int row = 0; row < 3; row++)
-                for (int col = 0; col < 5; col++)
-                {
-                    int x = 90 + col * (int)(w * 0.185f);
-                    int y = floorY + 18 + row * 46;
-                    int dw = 130 - row * 8, dh = 26 - row * 3;
-                    c.FillRect(x, y, dw, dh, G(0.13f + row * 0.02f));
-                    c.FillRect(x + 12, y + dh, 6, 30 - row * 4, G(0.10f));
-                    c.FillRect(x + dw - 18, y + dh, 6, 30 - row * 4, G(0.10f));
-                }
-            c.FillRect(30, floorY - 96, 190, 96, G(0.12f));
-            c.FillRect(38, floorY - 88, 174, 84, G(0.09f));
-            c.FillRect(w - 150, floorY - 240, 120, 240, G(0.115f));
-            for (int i = 0; i < 3; i++) c.FillRect(w - 142, floorY - 230 + i * 78, 104, 70, G(0.085f));
-            c.FillEllipse(w / 2, (int)(h * 0.10f), 34, 34, G(0.14f));
-            c.FillEllipse(w / 2, (int)(h * 0.10f), 28, 28, G(0.75f));
-            c.Line(w / 2, (int)(h * 0.10f), w / 2, (int)(h * 0.10f) - 18, G(0.1f), 3);   // hour hand
-            c.Line(w / 2, (int)(h * 0.10f), w / 2 + 12, (int)(h * 0.10f) + 4, G(0.1f), 2); // minute at :47-ish
-            c.FillRect(w - 320, floorY - 300, 120, 300, G(0.13f));
-            c.FillRect(w - 314, floorY - 294, 108, 288, G(0.095f));
-            c.FillEllipse(w - 224, floorY - 150, 5, 5, G(0.5f));
-            c.FillRect(w / 2 - 160, 14, 320, 10, G(0.6f));
-            c.BlendRect(w / 2 - 260, 24, 520, 240, G(0.5f, 0.05f));
-            c.Noise(0.04f, room2 ? 12 : 8);
-            c.Vignette(0.6f);
-            return c.ToSprite(room2 ? "classroom2_bg" : "classroom1_bg", WorldPpu);
-        }
     }
 }

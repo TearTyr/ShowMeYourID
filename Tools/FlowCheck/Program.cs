@@ -3697,7 +3697,7 @@ namespace FlowCheck
                 if (f[4] == "temp-shipped" || f[4] == "shipped") shipped.Add(f[0] + "|" + f[1] + "|flat");
                 if (f[4] == "shipped-kit") shipped.Add(f[0] + "|" + f[1] + "|kit");
             }
-            Check(artRows.Count > 110 && audioRows.Count >= 30 && fontRows.Count == 8,
+            Check(artRows.Count >= 90 && audioRows.Count >= 30 && fontRows.Count == 8,
                 $"AM: the manifest covers the whole pipeline ({artRows.Count} art, {audioRows.Count} audio, {fontRows.Count} font rows)");
 
             // art rows == the painter's keys + the face pairs, exactly
@@ -4040,14 +4040,14 @@ namespace FlowCheck
         // every sprite the SecurityRoom kit ships (proof-shared with the manifest sync)
         internal static readonly string[] SecurityKitKeys =
         {
-            "sec_background", "sec_background_open", "sec_background_close", "sec_light",
+            "sec_background", "sec_background_open", "sec_light",
             "sec_window_open", "sec_window_close", "sec_upper_panel", "sec_upper_panel_bg",
             "sec_sanity_bar", "sec_pause_block", "sec_btn_pill", "sec_wide_pill", "sec_caption_bar",
             "sec_stamp_circle_allow", "sec_stamp_circle_deny", "sec_icon_accept",
-            "sec_icon_decline", "sec_folder_tab1", "sec_folder_tab2", "sec_icon_patrol",
+            "sec_icon_decline", "sec_folder_tab1", "sec_icon_patrol",
             "sec_icon_endshift", "sec_qpanel", "sec_arrow_right", "sec_cabinet1",
-            "sec_cabinet2", "sec_stamp", "sec_rules_paper", "sec_rules_dark",
-            "sec_log_paper", "sec_log_dark", "sec_log_rules", "sec_bubble",
+            "sec_cabinet2", "sec_stamp", "sec_rules_paper",
+            "sec_log_paper", "sec_bubble",
         };
 
         private static int Idx(Transform t) => t != null ? t.GetSiblingIndex() : -1;

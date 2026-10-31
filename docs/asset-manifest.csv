@@ -13,12 +13,9 @@ char_student_06,art,face,P0,shipped,PNG,"PNG RGBA 512x640 (4:5) bust, flat front
 char_student_06_anomaly,art,face,P0,shipped,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 6,FaceAssets.AnomalyKey - window shows this when the run says anomaly/distorted
 char_student_07,art,face,P0,shipped,PNG,"PNG RGBA 512x640 (4:5) bust, flat front light, neutral - same crop for every student; code letterboxes it into the card slot, the window and the counter card",canon student 7 of 7 (Content.TotalStudents),illustrated bust from Tools/prep_characters.py
 char_student_07_anomaly,art,face,P0,shipped,PNG,"PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",anomaly variant of student 7,FaceAssets.AnomalyKey - window shows this when the run says anomaly/distorted
-custodian_0,art,character,P0,procedural,PNG,"PNG RGBA 96x224 px @64 ppu, the guard: walk frame A",PlayerController,2-frame walk is enough; add _2/_3 later without renaming
-custodian_1,art,character,P0,procedural,PNG,"PNG RGBA 96x224 px @64 ppu, walk frame B",PlayerController,
 desk_bg,art,ui-bg,P0,procedural,PNG,"PNG 640x360 px @100 ppu (stretched), radial lamp wash behind the booth",CheckpointView,
 folder_tab,art,desk-doc,P0,procedural,PNG,"PNG RGBA 304x26 px @100 ppu, manila tab with poking-up strip on top",CheckpointView drawer (1ST/2ND floor tabs),
 hall_depth,art,world-bg,P0,procedural,PNG,"PNG RGBA, ALPHA-ONLY black radial falloff (see HallwayDarkness.DepthAt), native px = shroud world size x10",hallway limited visibility,must stay alpha-graded or the pool breaks
-hallway_bg,art,world-bg,P0,procedural,PNG,"PNG 1536x640 px @64 ppu (=24x10 world units), side-view corridor, doors/lockers baked OR as separate props",ViewManager hallway,final art may split baked props into layers; keep the same canvas size
 id_card_frame,art,desk-doc,P0,procedural,PNG,PNG RGBA 320x220 px @100 ppu (prints 1:1 in the desk grid); photo slot + 6 text rows are drawn ON TOP by code - deliver the blank card art only,"CheckpointView (ID card, offered card)",hollow frame with black spine area left dark
 lamp_glow,art,fx,P0,procedural,PNG,"PNG RGBA 128x128 px, radial warm glow (peek lamp + mask)",PeekLight,
 light_cone,art,fx,P0,procedural,PNG,"PNG RGBA 512x288 px @64 ppu, the beam wedge: hot at the lamp, gone at the reach, feathered shoulders (BeamProfile bakes it)",FlashlightRig cone + stencil mask,mask alpha-cutoff 0.05 depends on the feather - keep the falloff
@@ -31,14 +28,11 @@ menu_icon_newgame,art,kit,P0,shipped-kit,PNG,cropped skull icon inside the NEW G
 menu_icon_settings,art,kit,P0,shipped-kit,PNG,cropped gear icon inside the first square,MainMenuView (main menu composite per Art/Old/MainMenu/reference),
 menu_logo,art,kit,P0,shipped-kit,PNG,"cropped logo plate: SHOW ME YOUR ID! lettering + soft halo, top right",MainMenuView (main menu composite per Art/Old/MainMenu/reference),
 paper_flat,art,desk-doc,P0,procedural,PNG,"PNG RGBA 760x480 px @100 ppu, plain aged sheet for the RULES NOTE / TONIGHT'S LOG overlays",CheckpointView overlays,
-prop_door,art,world-prop,P0,procedural,PNG,"PNG RGBA 160x384 px @64 ppu (2.5x6 units), classroom door, stands on the floor line",RoomBuilder doors,drawn standing: centre = floor + h/2
 prop_door_security,art,world-prop,P0,procedural,PNG,"PNG RGBA 160x384 px @64 ppu, booth/security door with plate",RoomBuilder security door + office door,
-prop_lockers,art,world-prop,P0,procedural,PNG,"PNG RGBA 288x336 px @64 ppu, locker bank",hallway,
 prop_server_door,art,world-prop,P0,procedural,PNG,"PNG RGBA 208x384 px @64 ppu, SEALED server/ID room door: chains + padlock baked",hallway east end,the scratch marks are story - keep them
 record_sheet,art,desk-doc,P0,procedural,PNG,"PNG RGBA 320x290 px @100 ppu; FORM 11-C layout, header band + ruled rows left blank for code-drawn text",CheckpointView (student record / admin memo),
 rough_panel_dark,art,functional,P0,code-drawn,PNG,256x192 dark rough panel - the drawer body/front skin,CheckpointView drawer,replaceable if you want a wood-grain drawer: same key
 sec_background,art,kit,P0,shipped-kit,PNG,"full-frame 2880x1620 layer: booth base, lamp cone baked, no window",CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
-sec_background_close,art,kit,P0,shipped-kit,PNG,full-frame layer: booth with the shutter CLOSED (night card backdrop),CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 sec_background_open,art,kit,P0,shipped-kit,PNG,full-frame layer: booth with the shutter OPEN (loading/summary backdrops),CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 sec_btn_pill,art,kit,P0,shipped-kit,PNG,sliced pill: question / overlay-close button skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 sec_bubble,art,kit,P0,shipped-kit,PNG,"speech box, 9-sliced (left tail + rough edge preserved): bubble + dialogue panel skin",CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
@@ -46,7 +40,6 @@ sec_cabinet1,art,kit,P0,shipped-kit,PNG,cropped cabinet face: FLOOR FILES statio
 sec_cabinet2,art,kit,P0,shipped-kit,PNG,cropped drawer unit: file-drawer body skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 sec_caption_bar,art,kit,P0,shipped-kit,PNG,sliced bar: stamp caption furniture,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 sec_folder_tab1,art,kit,P0,shipped-kit,PNG,sliced folder: 1st-floor tab art,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
-sec_folder_tab2,art,kit,P0,shipped-kit,PNG,sliced folder: 2nd-floor tab art,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 sec_icon_accept,art,kit,P0,shipped-kit,PNG,sliced check disc badge for the APPROVE stamp handle,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 sec_icon_decline,art,kit,P0,shipped-kit,PNG,sliced cross disc badge for the DECLINE stamp handle,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 sec_icon_endshift,art,kit,P0,shipped-kit,PNG,sliced moon icon for the end-shift button,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
@@ -67,28 +60,16 @@ stamp_allow,art,desk-doc,P0,temp-shipped,PNG,"PNG RGBA square ~150 px @100 ppu, 
 stamp_reject,art,desk-doc,P0,procedural,PNG,"PNG RGBA square ~150 px @100 ppu, DENY rubber stamp mark",CheckpointView stamp tray + slip mark,"pair of stamp_allow: same weight, same tilt language"
 bubble_tail,art,desk-doc,P1,procedural,PNG,"PNG RGBA 48x40 px @100 ppu, comic-bubble tail pointing left",CheckpointView speech bubble,
 circle_paper,art,functional,P1,code-drawn,PNG,110 px flat paper circle (ID back seal),CheckpointView ID back,
-classroom1_bg,art,world-bg,P1,procedural,PNG,"PNG 1152x640 px @64 ppu, Room 101 side view",ViewManager classroom 1 / peek,
-classroom2_bg,art,world-bg,P1,procedural,PNG,"PNG 1152x640 px @64 ppu, Room 202 side view (night window glow)",ViewManager classroom 2 / peek,
 clipboard,art,desk-doc,P1,procedural,PNG,PNG RGBA 370x490 px @100 ppu,reserve (overlay variant),
 hood_figure,art,character,P1,procedural,PNG,"PNG RGBA 24x48 px @100 ppu, waiting-line silhouette for the queue stands",CheckpointView stands,
 menu_icon_credits,art,kit,P1,shipped-kit,PNG,cropped theatre-masks icon inside the third square,MainMenuView (main menu composite per Art/Old/MainMenu/reference),
 note_paper,art,desk-doc,P1,procedural,PNG,"PNG RGBA 390x300 px @100 ppu, sticky/notice paper",reserve (overlay variant),
-prop_chalkboard,art,world-prop,P1,procedural,PNG,"PNG RGBA 384x224 px @64 ppu, half-erased board (clue #2)",classroom 1 clue 'chalkboard',GDD interaction list
-prop_desk,art,world-prop,P1,procedural,PNG,"PNG RGBA 208x128 px @64 ppu, teacher's desk (clue #3)",classroom 1,
-prop_lightfixture,art,world-prop,P1,procedural,PNG,"PNG RGBA 208x40 px @64 ppu, ceiling light strip (flicker clue #1)",hallway clue 'light',
-prop_window,art,world-prop,P1,procedural,PNG,"PNG RGBA 224x300 px @64 ppu, classroom window with night glass (clue #5)",classroom 2 clue 'window',GDD: Window
 sec_arrow_right,art,kit,P1,shipped-kit,PNG,cropped chevron: the asked-mark on question rows,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 map_paper,art,map,P2,procedural,PNG,"PNG RGBA 940x440 px @100 ppu, aged/stained/folded sheet with red district stamp; ROOM OUTLINES ARE DRAWN BY CODE ON TOP - deliver blank paper only",MapView sheet,owner's hand-drawn reference can replace this file 1:1
 map_room,art,map,P2,procedural,PNG,"PNG RGBA 160x120 px @100 ppu, wobbly double-stroked room outline, transparent centre (stretched per room)",MapView rooms,
 map_sealed,art,map,P2,procedural,PNG,"PNG RGBA 160x120 px @100 ppu, red hatch + chain + padlock outline",MapView sealed room,
-prop_cabinet,art,world-prop,P2,procedural,PNG,"PNG RGBA 160x272 px @64 ppu, filing cabinet (clue #9)",classroom 2 clue 'cabinet',GDD: Cabinet
 prop_clock,art,world-prop,P2,procedural,PNG,"PNG RGBA 112x112 px @64 ppu, wall clock stopped at 1:47 (clue #10)",hallway clue 'clock',GDD: Clock
-prop_lostid,art,world-prop,P2,procedural,PNG,"PNG RGBA 56x36 px @64 ppu, lost student ID on the shelf (clue #7)",classroom 1 clue 'lostid',GDD: Student ID
-prop_noticeboard,art,world-prop,P2,procedural,PNG,"PNG RGBA 208x160 px @64 ppu, notice board with torn corner (clue #6)",hallway clue 'board',GDD: Notice Board
-prop_photoframe,art,world-prop,P2,procedural,PNG,"PNG RGBA 144x108 px @64 ppu, framed old school photo (clue #8)",hallway clue 'photo',GDD: Photo
-sec_log_dark,art,kit,P2,shipped-kit,PNG,cropped dark paper: TL tool-button skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 sec_log_paper,art,kit,P2,shipped-kit,PNG,cropped tilted paper: TONIGHT'S LOG overlay skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
-sec_rules_dark,art,kit,P2,shipped-kit,PNG,cropped dark paper: RN tool-button skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 sec_rules_paper,art,kit,P2,shipped-kit,PNG,cropped tilted paper: RULES NOTE overlay skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 token,art,world-prop,P2,procedural,PNG,"PNG RGBA 28x28 px @64 ppu, pocket-watch token left by a repelled anomaly",anomaly repel reward,
 camera_frame,art,reserve,P3,procedural,PNG,"PNG RGBA 252x150, viewfinder corners",reserve (retired scanner),keep unshipped unless the scanner returns
@@ -106,7 +87,6 @@ noise_overlay,art,fx,P3,procedural,PNG,PNG RGBA 256x256 tileable grain,desk grai
 rough_circle,art,functional,P3,code-drawn,PNG,"110 px rough ink circle (map YOU marker, seals)","MapView, ID back seal",
 rough_panel,art,functional,P3,code-drawn,PNG,256x192 rough paper panel,reserve,
 school_facade,art,ui-bg,P3,procedural,PNG,"PNG RGBA 440x296 px @100 ppu, the college seen through the window glass",CheckpointView window,
-sec_log_rules,art,kit,P3,shipped-kit,PNG,cropped pair of papers: reserve composite,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 solid_white,art,functional,P3,code-drawn,PNG,"4x4 flat quad, 1x1 world unit - every placeholder/meter is built from it","world quads, HUD, map dots",do NOT ship a file for this key
 vignette,art,fx,P3,procedural,PNG,"PNG RGBA 512x384, edge darkening",desk + menu wash,
 window_frame,art,reserve,P3,procedural,PNG,PNG RGBA 470x316 flat frame,reserve,

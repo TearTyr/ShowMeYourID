@@ -41,7 +41,6 @@ namespace Hollowbrook.Checkpoint
             string tone = _current.ClassroomTone == ToneTag.Normal ? "" : "  [" + ToneLabel(_current.ClassroomTone) + "]";
             SayLine("AT THE WINDOW", "“" + answer + "”" + tone);
             _gameRoot.Audio.PlaySfx("sfx_intercom", 0.5f);
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.QuestionAsked, InterviewRules.Spoken(q)));
             RefreshHud();
             return true;
         }

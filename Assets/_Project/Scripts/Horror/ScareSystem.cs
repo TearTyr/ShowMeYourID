@@ -60,7 +60,6 @@ namespace Hollowbrook.Horror
             };
             _face.sprite = ProceduralArt.Portrait("scare", distorted, 280, 320);
             _gameRoot.Audio.PlaySfx("sfx_scare", photoSafe ? 0.45f : 0.9f);
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.ScareTriggered, "capture_" + kind));
             if (!reduce) Shake(0.6f);
             StartCoroutine(CaptureRoutine(photoSafe, reduce));
         }
@@ -141,7 +140,6 @@ namespace Hollowbrook.Horror
             yield return new WaitForSecondsRealtime(0.9f);
             // 3) the jumpscare: it lunges forward with a flash and a sting
             _gameRoot.Audio.PlaySfx("sfx_scare", photoSafe ? 0.45f : 0.9f);
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.ScareTriggered, "failure_" + kind));
             if (!photoSafe)
             {
                 var fc = _flash.color; fc.a = 0.85f; _flash.color = fc;
@@ -171,7 +169,6 @@ namespace Hollowbrook.Horror
             }
             bool photoSafe = _gameRoot.Settings != null && _gameRoot.Settings.PhotosensitivitySafe;
             _gameRoot.Audio.PlaySfx("sfx_stinger", photoSafe ? 0.4f : 0.7f);
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.ScareTriggered, kind));
             StartCoroutine(StaticBurst(photoSafe ? 0.10f : 0.22f));
         }
 

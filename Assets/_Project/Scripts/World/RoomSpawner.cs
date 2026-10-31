@@ -169,7 +169,6 @@ namespace Hollowbrook.World
             an.SeedMovement(_rng.NextInt(1, 1 << 30));   // movement rolls ride the run seed
             if (hallucination) return an;
             _liveAnomaly = an;
-            _root.Bus.Publish(GameEvent.Of(EventIds.AnomalySighted, kind));
             return an;
         }
 

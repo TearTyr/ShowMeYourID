@@ -111,37 +111,6 @@ namespace Hollowbrook.Bootstrap
             return sp;
         }
 
-        private static Sprite MakeCustodian(int w, int h, int frame)
-        {
-            var c = new Canvas2D(w, h);
-            var body = G(0.82f);   // pale silhouette custodian (reads against dark rooms)
-            var dark = G(0.25f);
-            float cx = w / 2f;
-            c.FillEllipse(cx, h * 0.12f, 13, 15, body);                     // head
-            c.FillRect((int)(cx - 16), (int)(h * 0.055f), 32, 6, dark);     // cap brim
-            c.FillEllipse(cx, h * 0.055f, 14, 8, dark);                     // cap
-            c.FillRect((int)(cx - 15), (int)(h * 0.19f), 30, (int)(h * 0.34f), body); // torso (uniform)
-            c.FillRect((int)(cx - 15), (int)(h * 0.24f), 30, 5, dark);      // belt line
-            c.FillRect((int)(cx - 6), (int)(h * 0.21f), 10, 12, G(0.55f));  // ID badge on chest
-            c.FillRect((int)(cx - 22), (int)(h * 0.21f), 7, (int)(h * 0.26f), body);
-            c.FillRect((int)(cx + 15), (int)(h * 0.21f), 7, (int)(h * 0.26f), body);
-            int legTop = (int)(h * 0.53f), legH = (int)(h * 0.44f);
-            if (frame == 0)
-            {
-                c.FillRect((int)(cx - 12), legTop, 9, legH, body);
-                c.FillRect((int)(cx + 3), legTop, 9, legH, body);
-            }
-            else
-            {
-                c.FillRect((int)(cx - 16), legTop, 9, legH - 6, body);
-                c.FillRect((int)(cx + 7), legTop, 9, legH - 6, body);
-                c.FillRect((int)(cx - 16), legTop + legH - 8, 14, 6, body); // forward foot
-            }
-            c.FillRect((int)(cx - 14), h - 6, 12, 6, dark);
-            c.FillRect((int)(cx + 2), h - 6, 12, 6, dark);
-            return c.ToSprite("custodian_" + frame, WorldPpu);
-        }
-
         // Printed 1:1 at the desk panel size (320x220): flat card stock, header band,
         // photo slot, text rules and barcode exactly where CheckpointLayout.Inner expects.
         private static Sprite MakeIdCard()

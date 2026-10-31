@@ -56,8 +56,6 @@ namespace Hollowbrook.Core
             PlayFailure(() =>
             {
                 ShiftFailing = false;
-                if (State == AppViewState.Exploration || State == AppViewState.RoomPeek)
-                    Bus.Publish(GameEvent.Of(EventIds.PatrolEnded));
                 FinishShift();
             });
         }
@@ -70,7 +68,6 @@ namespace Hollowbrook.Core
 
         public void FinishShift()
         {
-            Bus.Publish(GameEvent.Of(EventIds.ShiftEnded, CurrentShiftDef));
             Session.CompleteShift();
             // the finished shift's line must never leak into the next one: the queue
             // resets here, so the save written below resumes as "next shift, not started"
@@ -141,7 +138,6 @@ namespace Hollowbrook.Core
             PersistRun();
             SetState(AppViewState.Ending);
             if (Ending != null) Ending.Populate(eval, Session, Records);
-            Bus.Publish(GameEvent.Of(EventIds.EndingReached, eval));
             Audio.PlayMusic("end_" + key);
             Audio.PlaySfx(eval.Ending == EndingType.Lose ? "sfx_alarm" : "sfx_bell");
         }

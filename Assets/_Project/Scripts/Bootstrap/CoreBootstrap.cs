@@ -40,7 +40,7 @@ namespace Hollowbrook.Bootstrap
             var bus = new EventBus();
             var config = GameConfigSO.LoadOrDefault();
             var settings = new SettingsSystem(bus);
-            var saves = new SaveSystem(bus);
+            var saves = new SaveSystem();
 
             // audio first (DDOL) so music/sfx survive every scene change
             var audioGo = new GameObject("AudioDirector");

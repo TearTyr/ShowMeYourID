@@ -343,7 +343,6 @@ namespace Hollowbrook.Checkpoint
             FillIdCard(_current, admin);
             if (admin) FillAdminMemo(_current);
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.6f);
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.DocumentsShown, _current));
             RefreshHandoverPrompt();
             RefreshHud();
         }

@@ -46,39 +46,41 @@ Folder rules and naming are in [docs/ART-NAMING.md](docs/ART-NAMING.md), the ful
 6. **Hand back** - drag the ID back to the window. The decision counts now and is permanent.
 7. **Patrol** (between visitors) - walk the hallway, peek into classrooms, find the ten findings.
    The hallway passes the rooms in the desk map's order: Security, Room 101, Room 202, CR-1, the
-   sealed server room, CR-2. Every room is a peek (`E` at its door). No anomalies roam the school.
+   sealed server room, CR-2. Every room is a peek (`E` at its door).
+   Each night needs one patrol: peek into Room 101, Room 202 and a CR, then END SHIFT. Anomalies roam
+   the hallway, and one hides in a peek room: hold the lit lamp on it to drive it out.
 8. **Night 5** - no students, only the administrator. The student questions do not apply to him:
    interrogate him (`T`), catch his lies, refuse him (**REFUSE ENTRY** or a DENY stamp), and he
    forces his way in. Survive until dawn (see below).
 
 ### Night 5: surviving the administrator
 
-After you refuse him he says he'll be back and leaves. Then it plays like Nightmare Fredbear's night
-in *Five Nights at Freddy's 4*: he is the only thing in the building. There is no audio yet, so
-captions tell you when he is walking and where he stops:
+There are no students: you question him at the window. When you refuse him the window closes, the
+booth dims and flickers, and he says he'll be back and leaves. The security game is over. When you
+press **Patrol** it plays like Nightmare Fredbear's night in *Five Nights at Freddy's 4*: he is the
+only anomaly, and he can be anywhere. There is no audio yet, so captions say where he stops:
 
-- **At a classroom door:** stand at that door and hold `E` until he gives up.
-- **In CR-1 or CR-2:** peek in and keep the lamp on his head.
+- **In Room 101, Room 202, CR-1 or CR-2:** peek in and keep the lamp on his head.
 - **Right behind you:** aim at him and flash his face (`F` / `Q`).
 
-Too slow and he catches you. **Three catches** and he reaches the server door: you lose. Survive
-until **dawn** to win. Every lie you exposed at the window makes the night shorter. The security
-door is locked while he is inside. The numbers are in `GameConfig.asset` under "Administrator hunt".
+Only the light stops him, and each success gives sanity back. Too slow and he catches you.
+**Three catches** and he reaches the server door: you lose. Survive until **dawn** to win. Every lie
+you exposed at the window makes the night shorter. The security door is locked while he is inside.
+The numbers are in `GameConfig.asset` under "Administrator hunt".
 
 ## Controls
 
 | Where | Keys |
 |---|---|
 | Desk | mouse to drag papers and stamps · `1` to `4` ask the questions · `Tab` file drawer · `F` flip the ID (or click its black spine) · `T` talk to the administrator · `X` or `Esc` close the rules/log sheet · `M` map · `Esc` pause |
-| Patrol | `A`/`D` or arrows walk · mouse aims the flashlight · `Shift` run · `E` interact with what the guard stands at · `F` flashlight on/off · `Q` focus · `L` off · `Esc` pause · night 5: hold `E` at the door he is behind |
+| Patrol | `A`/`D` or arrows walk · mouse aims the flashlight · `Shift` run · `E` interact with what the guard stands at · `F` flashlight on/off · `Q` focus (repels anomalies) · `L` off · `Esc` pause |
 | Peeking | mouse moves the lamp · `F` lamp on/off · `Q` wide/tight · `E` selects what the lit lamp is on · `S` or the bottom edge steps back · `Esc` pause |
 | Dialogue | click / `Space` / `Enter` / `E` |
 | Menu | `F2` ×3 erases save data (then confirm) |
 
 ## Tokens
 
-One token lies somewhere in the hallway on each of nights 1 to 4. They are kept between runs and
-shown on the main menu.
+Repelled anomalies leave tokens behind. They are kept between runs and shown on the main menu.
 Three tokens open Endless and Challenge from the TOKENS button.
 
 ## Endings

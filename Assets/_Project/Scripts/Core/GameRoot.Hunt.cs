@@ -91,7 +91,7 @@ namespace Hollowbrook.Core
         // The results and ending screens live in the desk scene, so load it first.
         private void FinishHuntedNight()
         {
-            QueueSceneAction(() => { Bus.Publish(GameEvent.Of(EventIds.PatrolEnded)); FinishShift(); });
+            QueueSceneAction(FinishShift);
             Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
         }
 

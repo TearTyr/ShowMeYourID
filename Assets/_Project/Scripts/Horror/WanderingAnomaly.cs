@@ -36,7 +36,6 @@ namespace Hollowbrook.Horror
         private bool _tokenDropped;
         private bool _resolved;                  // token + pool resolution, exactly once
         private bool _gone;                      // despawn handoff, exactly once
-        private float _trackThrottle;
         private float _lastX;
 
         private BehaviorProfile _profile;
@@ -224,15 +223,7 @@ namespace Hollowbrook.Horror
                 TrackingPolicy.HoldRatePerSecond,
                 cfg != null ? cfg.trackingDecayPerSecond : TrackingPolicy.DecayPerSecond);
 
-            float before = _meter;
             _meter = TrackingPolicy.Advance(_meter, dt, rate);
-
-            _trackThrottle -= dt;
-            if (sameRoom && Mathf.Abs(_meter - before) > 1e-4f && _trackThrottle <= 0f)
-            {
-                _trackThrottle = 0.1f;
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.TrackingChanged, _meter));
-            }
         }
 
         // ---------------------------------------------------------------- encounter states

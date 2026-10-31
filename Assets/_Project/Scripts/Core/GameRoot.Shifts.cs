@@ -238,7 +238,6 @@ namespace Hollowbrook.Core
         private void PlayIntroThenCheckpoint(List<DialogueLine> intro, ShiftDef shift)
         {
             SetState(AppViewState.ShiftIntro);
-            Bus.Publish(GameEvent.Of(EventIds.ShiftStarted, shift));
             ObjectiveText = shift != null ? shift.Objective :
                 (Session.Mode == GameMode.Endless ? "Survive the clock. Reject every anomaly." : "Survive the clock under shifting district rules.");
             Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));

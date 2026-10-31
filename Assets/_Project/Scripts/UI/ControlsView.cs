@@ -36,10 +36,11 @@ namespace Hollowbrook.UI
                 "   the card and the file. A wrong answer means something is off.\n" +
                 "   Stamp the slip (drag a stamp onto it) - the mark lands WHERE you drop the stamp, always\n" +
                 "   fully on the paper - then drag the ID back to the window. TAB pulls the file drawer.\n" +
-                "   Decisions are permanent.\n" +
-                "   NIGHT 5: when the district administrator arrives, T (or the bar beside the\n" +
-                "   stamps) opens THE CONVERSATION - challenge, comply, raise what you have\n" +
-                "   found, or say nothing. Words are evidence only: the stamp still decides.\n\n" +
+                "   Decisions are permanent. When every student is done the window closes: peek into\n" +
+                "   Room 101, Room 202 and a CR on patrol, then END SHIFT.\n" +
+                "   NIGHT 5: when the district administrator arrives, T (or the bar beside the stamps) opens\n" +
+                "   the conversation. Turn him away and the window closes for good. Press PATROL when you\n" +
+                "   are ready, and stop him with your light until dawn.\n\n" +
                 "EXPLORATION\n" +
                 "   Rooms are entered DARK and your flashlight starts OFF - every door you go\n" +
                 "   through puts it out again. The flashlight is your only light. Classroom peeks\n" +

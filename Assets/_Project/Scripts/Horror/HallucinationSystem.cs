@@ -53,7 +53,6 @@ namespace Hollowbrook.Horror
                     float chance = SanityModel.HallucinationChancePerSecond(stage) * 0.4f;
                     if (Rng.NextFloat() < chance)
                     {
-                        _gameRoot.Bus.Publish(GameEvent.Of(EventIds.HallucinationTriggered, "whisper"));
                         _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, Whispers[Rng.NextInt(0, Whispers.Length)], 3.2f, null));
                         _gameRoot.Audio.PlaySfx("sfx_static", 0.18f);
                     }
@@ -65,7 +64,6 @@ namespace Hollowbrook.Horror
         {
             if (_gameRoot.Views == null || _gameRoot.Views.Current == null) return;
             int roll = Rng.NextInt(0, 3);
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.HallucinationTriggered, "explore_" + roll));
             switch (roll)
             {
                 case 0: // phantom figure - harmless, fades on its own

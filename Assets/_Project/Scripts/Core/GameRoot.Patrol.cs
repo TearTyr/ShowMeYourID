@@ -26,7 +26,6 @@ namespace Hollowbrook.Core
             QueueSceneAction(() =>
             {
                 SetState(AppViewState.Exploration);
-                Bus.Publish(GameEvent.Of(EventIds.PatrolStarted));
                 ObjectiveText = PatrolObjective();
                 Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));
                 if (Views != null) Views.EnterRoom(room);
@@ -92,9 +91,8 @@ namespace Hollowbrook.Core
             }
         }
 
-        /// <summary>Flashlight peek into a classroom: the player never walks inside - the
-        /// camera frames the room and a cursor-locked light circle reveals it. Classrooms
-        /// are reachable ONLY this way; the hallway and office keep their normal paths.</summary>
+        /// <summary>Peek into a room: the player never walks inside. The camera frames the room
+        /// and the lamp's hole in the dark reveals it. Every room is reached only this way.</summary>
         public void EnterRoomPeek(RoomId room)
         {
             if (Views == null) return;
@@ -117,7 +115,6 @@ namespace Hollowbrook.Core
         {
             QueueSceneAction(() =>
             {
-                Bus.Publish(GameEvent.Of(EventIds.PatrolEnded));
                 SetState(AppViewState.Checkpoint);
                 Audio.PlayMusic("checkpoint");
                 if (Checkpoint != null) Checkpoint.ResumeRun();

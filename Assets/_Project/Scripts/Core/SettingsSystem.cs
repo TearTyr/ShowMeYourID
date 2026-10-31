@@ -113,18 +113,6 @@ namespace Hollowbrook.Core
 
         public List<ModeSize> MenuChoices() => DisplayPolicy.MenuChoices(SupportedModes(), CurrentMode());
 
-        public ModeSize SetDisplay(int w, int h, bool fullscreen, bool persist)
-        {
-            Current.Fullscreen = fullscreen;
-            var want = new ModeSize(w, h);
-            if (!DisplayPolicy.IsSupported(SupportedModes(), w, h))
-                want = DisplayPolicy.Fallback(SupportedModes(), want);
-            Current.DisplayWidth = want.W;
-            Current.DisplayHeight = want.H;
-            ApplyCurrentDisplay(persist);
-            return want;
-        }
-
         public void ApplyCurrentDisplay(bool persist)
         {
             try
@@ -155,15 +143,6 @@ namespace Hollowbrook.Core
                 SaveToPrefs();
                 return;
             }
-            ApplyCurrentDisplay(false);
-        }
-
-        public void RestoreDisplaySnapshot(SettingsData snapshot)
-        {
-            if (snapshot == null) return;
-            Current.Fullscreen = snapshot.Fullscreen;
-            Current.DisplayWidth = snapshot.DisplayWidth;
-            Current.DisplayHeight = snapshot.DisplayHeight;
             ApplyCurrentDisplay(false);
         }
 
