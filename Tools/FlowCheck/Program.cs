@@ -1663,9 +1663,8 @@ namespace FlowCheck
                   serverNode.Find("label").GetComponent<UnityEngine.UI.Text>().color == UIFactory.AccentBright,
                 "MAP: the sealed room has its own barred red art and a red label (restricted reads at a glance)");
             var serverDef = FloorPlan.ForKey("room_server").Value;
-            Check(serverDef.Sealed && !serverDef.Room.HasValue &&
-                  System.Array.IndexOf(RoomGraph.Roamable, RoomId.Security) < 0,
-                "MAP: the sealed room is not in the patrol graph, so it cannot be travelled to");
+            Check(serverDef.Sealed && !serverDef.Room.HasValue,
+                "MAP: the sealed room has no room behind it, so it cannot be travelled to");
 
             // ---- the plan is a reference: no room can be clicked, so the map never moves the player ----
             bool anyClickable = false;
@@ -2809,12 +2808,11 @@ namespace FlowCheck
             Check(Mathf.Abs(hall.Darkness.color.a - cfg.hallwayDarkAlpha) < 1e-3f,
                   $"W2b: corridor ambient {hall.Darkness.color.a:F2} vs a classroom's {LightController.DarkAlpha:F2}");
             float vsLit = HallwayDarkness.DarkerThanLitRoom(LightController.LitAlpha);
-            Check(cfg.hallwayDarkAlpha > LightController.DarkAlpha + 0.1f &&
-                  vsLit > 0.70f && vsLit < 0.85f,
-                  $"W2b: the corridor is {vsLit:P0} darker than a normally lit room (target 70-85%)");
+            Check(vsLit > 0.40f && vsLit < 0.60f && HallwayDarkness.AlphaAt(10f) > LightController.DarkAlpha,
+                  $"W2b: the guard's weak light is {vsLit:P0} darker than a lit room, and the far corridor is deeper than a dark classroom");
             float share = HallwayDarkness.PoolShareOfView(5f * 16f / 9f);
-            Check(share > 0.15f && share < 0.25f,
-                  $"W2b: with the beam out he sees {share:P0} of the on-screen width (target 15-25%)");
+            Check(share > 0.10f && share < 0.20f,
+                  $"W2b: with the beam out he sees {share:P0} of the on-screen width (target 10-20%)");
 
             // the pool tracks the custodian, and the beam/hud stay exactly as they were
             views.Player.PlaceInRoom(hall, new Vector3(-6f, 0f, 0f));
@@ -3156,7 +3154,9 @@ namespace FlowCheck
                 var ret = views.Spawner.Live;
                 Check(!ReferenceEquals(ret, an), "W5: the return is a fresh entity, not a stale reference");
                 Check(ret.Kind == targetKind, "W5: the SAME behavior returns - not a re-peeked pool kind");
-                Check(ret.Room != hall, $"W5: it repositioned to another room ({(ret.Room != null ? ret.Room.Id.ToString() : "?")}), never on top of the player");
+                Check(ret.Room == hall, "W5: it comes back in the hallway, where anomalies roam");
+                Check(Mathf.Abs(ret.Pos.x - views.Player.transform.localPosition.x) >= 4f || ret.Pos.x * views.Player.transform.localPosition.x < 0f,
+                      "W5: and not on top of the player");
                 Check(g > 60 * (cfg.anomalyRecoverySeconds - 2f), "W5: it stayed away for (about) the full recovery period");
             }
             views.Spawner.DiscardLive();
@@ -3348,63 +3348,11 @@ namespace FlowCheck
             }
             views.Spawner.DiscardLive();
 
-            // ---- W8: roaming through connected rooms
-            Console.WriteLine("== W8 cross-room roaming ==");
+            // ---- W8: leaving mid-encounter (anomalies roam the hallway only)
+            Console.WriteLine("== W8 leaving mid-encounter ==");
             views.Player.PlaceInRoom(hall, new Vector3(-6.5f, 0f, 0f));
-            var rover = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Blink, RoomId.Classroom1);
-            Check(rover != null && rover.Room != null && rover.Room.Id == RoomId.Classroom1, "W8: an anomaly can own another room");
-            if (rover == null) { cfg.anomalySpawnChancePerSecond = chanceSave; return; }
-            WorldFrame(root);
-            Check(!rover.Renderer.enabled, "W8: an off-stage anomaly is not drawn over the player's room");
-            float sanityWall = root.Session.Sanity;
-            WorldFrames(root, 120);
-            Check(root.Session.Sanity == sanityWall, "W8: an anomaly in another room cannot drain sanity through the wall");
-            float lastRx = rover.Pos.x; float maxStepRoam = 0f; RoomId lastRoom = rover.Room.Id;
-            int crossings = 0, creaks0 = creakCaptions;
-            g = 0;
-            while (rover.Room.Id != RoomId.Hallway && !rover.Gone && g++ < 60 * 40)
-            {
-                WorldFrame(root);
-                if (rover.Room.Id != lastRoom)
-                {
-                    crossings++;
-                    Check(Mathf.Abs(rover.Pos.x - RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1)) < 0.31f,
-                        $"W8: the crossing lands it at the matching doorway (x={rover.Pos.x:F2})");
-                    lastRoom = rover.Room.Id;
-                    lastRx = rover.Pos.x;
-                    continue;
-                }
-                float d = Mathf.Abs(rover.Pos.x - lastRx);
-                maxStepRoam = Math.Max(maxStepRoam, d);
-                lastRx = rover.Pos.x;
-            }
-            Check(rover.Room.Id == RoomId.Hallway && !rover.Gone,
-                $"W8: the off-stage anomaly walks to the player's room through connected doors (frames={g}, crossings={crossings})");
-            WorldFrame(root);   // one settling tick: the crossing frame computed visibility pre-ownership-switch
-            Check(crossings == 1, "W8: exactly one doorway crossing - no arbitrary teleporting between rooms");
-            Check(maxStepRoam <= 1.15f * 1.25f / 60f + 1e-4f, $"W8: in-room steps stay within its walk speed (max {maxStepRoam:F4}u/frame)");
-            Check(creakCaptions > creaks0, "W8: its arrival through the door is announced");
-            Check(rover.Renderer.enabled, "W8: back on stage, it is drawn again");
-
-            // the resumed encounter engages normally in the new room
-            TopUpBattery(root, rig);
-            SetBeam(root, rig, LightMode.Focus);
-            int exposedRoam = -1;
-            g = 0;
-            while (exposedRoam < 0 && !rover.Gone && g++ < 600)
-            {
-                views.Player.transform.localPosition = new Vector3(
-                    Mathf.Clamp(rover.Pos.x - 3f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), RoomInstance.FloorY + 1.7f, 0f);
-                AimAt(rover.Pos.x, rover.Pos.y);
-                WorldFrame(root);
-                if (rover.State == AnomalyState.Exposed) exposedRoam = g;
-            }
-            Check(exposedRoam > 0, $"W8: the encounter resumes across rooms - Focus exposes it in the hallway (frames={g})");
-            views.Spawner.DiscardLive();
-
-            // the player leaving mid-encounter neither freezes nor resets it
             var stalker = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Slide);
-            Check(stalker != null, "W8: a Slide spawns for the mid-encounter exit test");
+            Check(stalker != null && stalker.Room.Id == RoomId.Hallway, "W8: it spawns in the hallway, the only place they roam");
             if (stalker != null)
             {
                 views.Player.PlaceInRoom(hall, new Vector3(Mathf.Clamp(stalker.Pos.x - 3f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), 0f, 0f));
@@ -3417,29 +3365,13 @@ namespace FlowCheck
                 Check(views.Current.Id == RoomId.Classroom1 && !views.Transitioning, "W8: the player can leave mid-encounter");
                 Check(!stalker.Gone && stalker.Room.Id == RoomId.Hallway, "W8: leaving neither kills nor freezes the anomaly");
                 Check(views.Spawner.Live == stalker, "W8: the live slot still tracks it - no duplicates can spawn meanwhile");
+                float stalkerX = stalker.Pos.x;
                 WorldFrames(root, 120);
                 Check(stalker.Meter < meterAtExit, "W8: its meter decays while nobody watches (no free progress)");
                 Check(stalker.State == AnomalyState.Roaming || stalker.State == AnomalyState.Stalking,
                     $"W8: the encounter de-escalates while apart (state={stalker.State})");
-                int creaks1 = creakCaptions;
-                g = 0;
-                while (stalker.Room.Id != RoomId.Classroom1 && !stalker.Gone && g++ < 60 * 45) WorldFrame(root);
-                Check(stalker.Room.Id == RoomId.Classroom1 && !stalker.Gone,
-                    $"W8: the roaming threat follows the player through the doors (frames={g})");
-                Check(creakCaptions > creaks1, "W8: the follow-through is announced on arrival");
-                SetBeam(root, rig, LightMode.Focus);
-                int exposedFollow = -1;
-                g = 0;
-                while (exposedFollow < -0 && !stalker.Gone && g++ < 1200)
-                {
-                    views.Player.transform.localPosition = new Vector3(
-                        Mathf.Clamp(stalker.Pos.x - 2.5f, -7.2f, 7.2f), RoomInstance.FloorY + 1.7f, 0f);
-                    AimAt(stalker.Pos.x, stalker.Pos.y);
-                    WorldFrame(root);
-                    if (stalker.State == AnomalyState.Exposed) exposedFollow = g;
-                }
-                Check(exposedFollow > 0 && stalker.State == AnomalyState.Exposed,
-                    $"W8: the SAME anomaly can be engaged again after following (frames={g}) - no arbitrary reset");
+                Check(stalker.Room.Id == RoomId.Hallway && Mathf.Abs(stalker.Pos.x - stalkerX) < 0.01f,
+                    "W8: it stays where it was in the hallway, it does not follow through the doors");
             }
             views.Spawner.DiscardLive();
 
@@ -3600,42 +3532,70 @@ namespace FlowCheck
             fresh.UpdateSpawner(2f);
             Check(fresh.Live != null, "AN: every patrol meets an anomaly, from night 1, without a dice roll");
             if (fresh.Live != null)
+            {
                 Check(fresh.Live.Renderer.sprite == ProceduralArt.Get("char_anomaly"), "AN: it uses the real creature art");
+                Check(fresh.Live.Room.Id == RoomId.Hallway, "AN: roaming anomalies walk the hallway only");
+            }
             fresh.DiscardLive();
 
-            root.Session.PeekAnomalyGone = false;
+            Check(fresh.Live == null, "AN: (the spawner test anomaly is cleared)");
+            root.Session.PeekAnomaliesGone = 0;
             root.Session.ClearedRooms = 0;
-            int hiding = 0;
-            RoomId hideRoom = RoomId.Classroom1;
-            foreach (var r in new[] { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 })
-                if (root.PeekAnomalyIn(r)) { hiding++; hideRoom = r; }
-            Check(hiding == 1 || hiding == 2, "AN: it hides in one classroom, or in whichever CR is opened");
-            root.EnterRoomPeek(hideRoom);
+            var peekRooms = new[] { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 };
+            int standing = 0;
+            RoomId withOne = RoomId.Classroom1, withNone = RoomId.Classroom1;
+            bool haveNone = false;
+            foreach (var r in peekRooms)
+            {
+                if (root.PeekAnomalyIn(r)) { standing++; withOne = r; }
+                else { haveNone = true; withNone = r; }
+            }
+            Check(standing >= 1, "AN: every night at least one peek room holds a standing anomaly");
+            int bit = PatrolCycle.Bit(withOne);
+            root.EnterRoomPeek(withOne);
             WorldFrames(root, 2);
-            Check(views.PeekedAnomaly != null, "AN: the anomaly is in the room");
+            Check(views.PeekedAnomaly != null, "AN: the anomaly is standing in the room");
             var hider = views.PeekedAnomaly.GetComponent<SpriteRenderer>();
             Check(hider.sortingOrder < WorldLayers.PeekCover, "AN: it sits under the dark, so only the lamp shows it");
-            Check(!PatrolCycle.Done(PatrolCycle.Bit(RoomId.Classroom1) | PatrolCycle.Bit(RoomId.Classroom2) | PatrolCycle.Bit(RoomId.ComfortRoom))
-                  || (root.Session.ClearedRooms & PatrolCycle.Bit(hideRoom)) == 0, "AN: the room does not count while it is still in there");
+            Check((root.Session.ClearedRooms & bit) == 0, "AN: the room does not count while it is still in there");
             var hiderPos = views.PeekedAnomaly.transform.localPosition;
             AimAt(hiderPos.x, hiderPos.y);
             WorldFrames(root, 200);
-            Check(!root.Session.PeekAnomalyGone, "AN: a dark lamp does nothing to it");
+            Check((root.Session.PeekAnomaliesGone & bit) == 0, "AN: a dark lamp does nothing to it");
             int peekTokens = root.Session.TokensCollected;
             views.PeekLight.ToggleLamp();
             WorldFrames(root, 30);
-            Check(!root.Session.PeekAnomalyGone, "AN: it takes a steady light, not a glance");
+            Check((root.Session.PeekAnomaliesGone & bit) == 0, "AN: it takes a steady light, not a glance");
             WorldFrames(root, 90);
-            Check(root.Session.PeekAnomalyGone, "AN: the held lamp drives it out");
-            Check((root.Session.ClearedRooms & PatrolCycle.Bit(hideRoom)) != 0, "AN: and now the room counts");
-            Check(root.Session.TokensCollected == peekTokens + 1, "AN: it leaves one token behind");
+            Check((root.Session.PeekAnomaliesGone & bit) != 0, "AN: the held lamp drives it out");
+            Check((root.Session.ClearedRooms & bit) != 0, "AN: and now the room counts");
+            Check(root.Session.TokensCollected == peekTokens, "AN: a standing anomaly leaves no token, those come from the hallway");
             views.PeekLight.ToggleLamp();
             PressKey(root, KeyCode.S);
-            root.EnterRoomPeek(hideRoom);
+            root.EnterRoomPeek(withOne);
             WorldFrames(root, 2);
             Check(views.PeekedAnomaly == null, "AN: it does not come back tonight");
             PressKey(root, KeyCode.S);
             WorldFrames(root, 2);
+            foreach (var r in peekRooms)
+                if (r != withOne && standing > 1 && root.PeekAnomalyIn(r))
+                {
+                    root.EnterRoomPeek(r);
+                    WorldFrames(root, 2);
+                    Check(views.PeekedAnomaly != null, "AN: another room's anomaly is still standing, driving one out does not clear them all");
+                    PressKey(root, KeyCode.S);
+                    WorldFrames(root, 2);
+                    break;
+                }
+            if (haveNone)
+            {
+                root.EnterRoomPeek(withNone);
+                WorldFrames(root, 2);
+                Check(views.PeekedAnomaly == null && (root.Session.ClearedRooms & PatrolCycle.Bit(withNone)) != 0,
+                      "AN: an empty room has nothing in it and counts at once");
+                PressKey(root, KeyCode.S);
+                WorldFrames(root, 2);
+            }
 
             // ---- W9: spawn ownership under ambient pressure + the desk handoff
             Console.WriteLine("== W9 spawn ownership + desk handoff ==");

@@ -35,27 +35,27 @@ namespace Hollowbrook.Core
             Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.School);
         }
 
-        /// <summary>Is tonight's hiding anomaly in this room? It picks Room 101, Room 202 or a CR,
-        /// and "a CR" means whichever one the player opens, so it can never be walked past. Night 5
-        /// has none: he is the only thing in the building.</summary>
+        /// <summary>Is there a standing anomaly in this peek room right now? Which rooms have one is
+        /// decided by PatrolCycle.StandingIn; it stays until the lamp drives it out. Night 5 has
+        /// none: he is the only thing in the building.</summary>
         public bool PeekAnomalyIn(RoomId room)
         {
-            if (Session.PeekAnomalyGone || HuntActive || (CurrentShiftDef != null && CurrentShiftDef.HasAdministrator)) return false;
-            int spot = new GameRng(Session.Seed ^ (Session.CurrentShift * 6151)).NextInt(0, 3);
-            if (spot == 0) return room == RoomId.Classroom1;
-            if (spot == 1) return room == RoomId.Classroom2;
-            return room == RoomId.ComfortRoom || room == RoomId.ComfortRoom2;
+            if (HuntActive || (CurrentShiftDef != null && CurrentShiftDef.HasAdministrator)) return false;
+            if ((Session.PeekAnomaliesGone & PatrolCycle.Bit(room)) != 0) return false;
+            return PatrolCycle.StandingIn(Session.Seed, Session.CurrentShift, room);
         }
 
-        /// <summary>The lamp drove it out: the room counts now, and it leaves a token behind.</summary>
+        /// <summary>The lamp drove out the anomaly in the room being peeked: it is gone for the night
+        /// and the room counts for the patrol. It leaves no token, those come from the hallway.</summary>
         public void RepelPeekAnomaly()
         {
-            Session.PeekAnomalyGone = true;
-            if (PeekRoom.HasValue) Session.ClearedRooms |= PatrolCycle.Bit(PeekRoom.Value);
+            if (!PeekRoom.HasValue) return;
+            int bit = PatrolCycle.Bit(PeekRoom.Value);
+            Session.PeekAnomaliesGone |= bit;
+            Session.ClearedRooms |= bit;
             ObjectiveText = PatrolObjective();
             Audio.PlaySfx("sfx_glitch", 0.6f);
-            Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it folds into the dark and leaves a token behind*", 3f, null));
-            AwardToken();
+            Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it folds into the dark and is gone*", 3f, null));
         }
 
         /// <summary>A token goes straight to the save: it is kept even if the run is abandoned.</summary>

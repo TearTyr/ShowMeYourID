@@ -47,8 +47,7 @@ Folder rules and naming are in [docs/ART-NAMING.md](docs/ART-NAMING.md), the ful
 7. **Patrol** (between visitors) - walk the hallway, peek into classrooms, find the ten findings.
    The hallway passes the rooms in the desk map's order: Security, Room 101, Room 202, CR-1, the
    sealed server room, CR-2. Every room is a peek (`E` at its door).
-   Each night needs one patrol: peek into Room 101, Room 202 and a CR, then END SHIFT. Anomalies roam
-   the hallway, and one hides in a peek room: hold the lit lamp on it to drive it out.
+   Each night needs one patrol: peek into Room 101, Room 202 and a CR, then END SHIFT. Only the hallway has roaming anomalies. The peek rooms hold standing ones that never move: hold the lit lamp on one to drive it out. In the hallway the guard only has a weak light around him, so sweep the flashlight, up at the ceiling and down at the floor too.
 8. **Night 5** - no students, only the administrator. The student questions do not apply to him:
    interrogate him (`T`), catch his lies, refuse him (**REFUSE ENTRY** or a DENY stamp), and he
    forces his way in. Survive until dawn (see below).

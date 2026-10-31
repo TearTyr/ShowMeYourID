@@ -1575,23 +1575,6 @@ namespace Hollowbrook.LogicTests
             Eq(BehaviorProfile.For(AnomalyBehaviorKind.CoverHug, customB).CatchGraceSeconds, 5f, "CoverHug grace is tunable on its own");
             Eq(BehaviorProfile.For(AnomalyBehaviorKind.Blink, customB).CatchGraceSeconds, bt.CatchGraceBlink, "...without touching the other three");
 
-            Group("RoomGraph - roaming through connected rooms, never teleporting");
-            Eq(RoomGraph.Roamable.Length, 3, "three roamable rooms");
-            Check(!RoomGraph.IsRoamable(RoomId.Security), "the security exit is not a patrol route");
-            Check(RoomGraph.Connected(RoomId.Hallway, RoomId.Classroom1) && RoomGraph.Connected(RoomId.Classroom1, RoomId.Hallway), "hallway ↔ classroom 1");
-            Check(RoomGraph.Connected(RoomId.Hallway, RoomId.Classroom2) && RoomGraph.Connected(RoomId.Classroom2, RoomId.Hallway), "hallway ↔ classroom 2");
-            Check(!RoomGraph.Connected(RoomId.Classroom1, RoomId.Classroom2), "classrooms are NOT directly connected");
-            Check(float.IsNaN(RoomGraph.DoorX(RoomId.Classroom1, RoomId.Classroom2)), "no phantom door between classrooms");
-            Check(float.IsNaN(RoomGraph.DoorX(RoomId.Hallway, RoomId.Hallway)), "no self doors");
-            Eq(RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), -8.8f, "hallway C1 door anchor == RoomBuilder placement");
-            Eq(RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), 0.4f, "hallway C2 door anchor == RoomBuilder placement");
-            Eq(RoomGraph.DoorX(RoomId.Classroom1, RoomId.Hallway), 7.6f, "classroom 1 hallway door anchor == RoomBuilder placement");
-            Eq(RoomGraph.DoorX(RoomId.Classroom2, RoomId.Hallway), 7.6f, "classroom 2 hallway door anchor == RoomBuilder placement");
-            Eq(RoomGraph.NextHop(RoomId.Classroom1, RoomId.Classroom2), RoomId.Hallway, "classroom→classroom routes through the hallway");
-            Eq(RoomGraph.NextHop(RoomId.Hallway, RoomId.Classroom2), RoomId.Classroom2, "hallway→classroom is one hop");
-            Eq(RoomGraph.NextHop(RoomId.Classroom1, RoomId.Classroom1), RoomId.Classroom1, "already there: no hop");
-            Eq(RoomGraph.NextHop(RoomId.Security, RoomId.Hallway), RoomId.Security, "off-graph origins do not route");
-
             Group("Tokens - collection persists with the run");
             var ses = new GameSession();
             Eq(ses.TokensCollected, 0, "a fresh run holds no tokens");
@@ -1629,8 +1612,34 @@ namespace Hollowbrook.LogicTests
 
             var s = new GameSession();
             s.ClearedRooms = c1 | cr2;
-            Eq(SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = s })).Session.ClearedRooms, c1 | cr2,
-               "patrol: progress survives a save");
+            s.PeekAnomaliesGone = c2 | cr1;
+            var rt = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = s })).Session;
+            Eq(rt.ClearedRooms, c1 | cr2, "patrol: progress survives a save");
+            Eq(rt.PeekAnomaliesGone, c2 | cr1, "patrol: the standing anomalies driven out survive a save");
+
+            // standing anomalies: deterministic, only in the four peek rooms, at least one a night
+            var rooms = new[] { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 };
+            bool always = true, steady = true, manyNights = false, someEmpty = false, hallwayNever = true;
+            for (int seed = 1; seed <= 300; seed++)
+                for (int night = 1; night <= 4; night++)
+                {
+                    int here = 0;
+                    foreach (var r in rooms)
+                    {
+                        bool a1 = PatrolCycle.StandingIn(seed, night, r);
+                        steady &= a1 == PatrolCycle.StandingIn(seed, night, r);
+                        if (a1) here++;
+                    }
+                    always &= here >= 1;
+                    manyNights |= here >= 2;
+                    someEmpty |= here < 4;
+                    hallwayNever &= !PatrolCycle.StandingIn(seed, night, RoomId.Hallway) && !PatrolCycle.StandingIn(seed, night, RoomId.Security);
+                }
+            Check(always, "standing: every night at least one peek room holds an anomaly");
+            Check(steady, "standing: the same seed and night always gives the same rooms");
+            Check(manyNights, "standing: some nights have more than one");
+            Check(someEmpty, "standing: some rooms are empty, so the player has to look");
+            Check(hallwayNever, "standing: never in the hallway or the security room");
         }
 
         private static void QueueBusyHurryTests()
@@ -1881,8 +1890,7 @@ namespace Hollowbrook.LogicTests
             Check(doorsOnWalls, "every doorway is drawn on its own room's wall");
 
             // patrol coverage: the map can never lose a room the player can actually walk to
-            foreach (var id in RoomGraph.Roamable)
-                Check(FloorPlan.ForRoom(id).HasValue, "roamable room " + id + " is on the plan");
+            Check(FloorPlan.ForRoom(RoomId.Hallway).HasValue, "the hallway, where anomalies roam, is on the plan");
             float mx, my;
             Check(FloorPlan.TryMarkerPos(RoomId.Hallway, out mx, out my) &&
                   Math.Abs(mx - hall.Value.X) < 1e-4f && Math.Abs(my - hall.Value.Y) < 1e-4f,
@@ -2350,10 +2358,10 @@ namespace Hollowbrook.LogicTests
             Group("HallwayDarkness - corridor ambient + the limited-visibility pool");
 
             float vsLit = HallwayDarkness.DarkerThanLitRoom(0.12f);
-            Check(vsLit > 0.70f && vsLit < 0.85f,
-                $"the corridor ambient is 70-85% darker than a normally lit room ({vsLit:P1})");
-            Check(HallwayDarkness.BaseAlpha > 0.62f,
-                "the corridor's base darkness is deeper than a dark classroom's 0.62");
+            Check(vsLit > 0.40f && vsLit < 0.60f,
+                $"the guard's weak light is 40-60% darker than a normally lit room ({vsLit:P1})");
+            Check(HallwayDarkness.AlphaAt(10f) > 0.62f,
+                "beyond the pool the corridor is deeper than a dark classroom's 0.62");
 
             Eq(HallwayDarkness.DepthAt(0f), 0f, "at the custodian the depth layer adds nothing");
             Eq(HallwayDarkness.DepthAt(HallwayDarkness.ClearRadius), 0f,
@@ -2378,16 +2386,16 @@ namespace Hollowbrook.LogicTests
             Check(monotone, "the falloff never brightens with distance");
             Check(smooth, "no single step of the falloff is a hard circular edge");
 
-            Check(HallwayDarkness.VisibleFractionAt(0f) > 0.10f &&
-                  HallwayDarkness.VisibleFractionAt(0f) < 0.30f,
-                "the near field keeps 10-30% of the art's brightness: navigable, not lit");
+            Check(HallwayDarkness.VisibleFractionAt(0f) > 0.30f &&
+                  HallwayDarkness.VisibleFractionAt(0f) < 0.55f,
+                "the near field keeps 30-55% of the art's brightness: a weak light you can see by");
             Check(HallwayDarkness.VisibleFractionAt(10f) < 0.08f,
                 "beyond the pool the corridor keeps under 8% brightness (darkness dominates)");
 
             float viewHalf = 5f * 16f / 9f;      // ortho size 5 at the 16:9 reference aspect
             float share = HallwayDarkness.PoolShareOfView(viewHalf);
-            Check(share > 0.15f && share < 0.25f,
-                $"the pool spans 15-25% of the on-screen width ({share:P1})");
+            Check(share > 0.10f && share < 0.20f,
+                $"the pool spans 10-20% of the on-screen width ({share:P1})");
 
             Check(HallwayDarkness.ShroudWorldW / 2f >=
                   HallwayDarkness.HallwayHalfWidth + HallwayDarkness.RoomDarkMargin +

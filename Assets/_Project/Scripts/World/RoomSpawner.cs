@@ -16,8 +16,7 @@ namespace Hollowbrook.World
     //  - a repelled anomaly schedules its own kind's return here; the countdown is a plain
     //    timer ticked by UpdateSpawner (no coroutines that could fire mid-resolution), and
     //    it re-arms instead of spawning while the slot is busy;
-    //  - returns reposition through a plausible room (never the player's current one when
-    //    another is available) and never on top of the player;
+    //  - a repelled one comes back in the hallway, away from the player;
     //  - DiscardLive (leaving for the desk) destroys WITHOUT resolving: the pool keeps it
     //    outstanding, and it also cancels any pending return.
     public class RoomSpawner
@@ -120,18 +119,7 @@ namespace Hollowbrook.World
             if (_liveAnomaly != null) { _returnTimer = 4f; return; }  // wait for the stage to clear
             _returnTimer = -1f;
 
-            // plausible new location: another roamable room when one exists, so it never
-            // materializes inside the player's space; it walks in through a door from there.
-            RoomId? room = null;
-            var options = new List<RoomId>();
-            foreach (var r in RoomGraph.Roamable)
-                if (_views.Current == null || r != _views.Current.Id) options.Add(r);
-            if (options.Count > 0)
-            {
-                if (_rng == null) _rng = new GameRng(_root.Session.Seed + 31 + _root.Session.CurrentShift);
-                room = options[_rng.NextInt(0, options.Count)];
-            }
-            SpawnKind(_returnKind, room);
+            SpawnKind(_returnKind, null);   // it comes back in the hallway
             _spawnCooldown = Mathf.Max(_spawnCooldown, 3f);
         }
 

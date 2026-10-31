@@ -46,7 +46,7 @@ namespace Hollowbrook.Logic
         public int AnomaliesRejected = 0;
         public int TokensCollected = 0;
         public int ClearedRooms = 0;   // tonight's patrol, see PatrolCycle
-        public bool PeekAnomalyGone;   // tonight's hiding anomaly was driven out
+        public int PeekAnomaliesGone;  // peek rooms whose standing anomaly was driven out tonight (bits, see PatrolCycle)
         public int VisitorIndexAtSave = 0;   // where a mid-shift continue resumes
         public bool AdminAllowed = false;
         public bool AdminRejected = false;

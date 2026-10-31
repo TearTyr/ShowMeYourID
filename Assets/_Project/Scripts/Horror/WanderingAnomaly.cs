@@ -7,8 +7,8 @@ using UnityEngine;
 namespace Hollowbrook.Horror
 {
     // One roaming anomaly: its behavior pattern plus the light encounter. Spawned by RoomSpawner
-    // under the persistent AnomalyRoot, so it keeps living (and roaming through doors) while its
-    // room is off screen - it never freezes and never blocks the live slot from elsewhere.
+    // under the persistent AnomalyRoot, so it keeps living while the player is
+    // peeking into a room. Anomalies roam the hallway only (the peek rooms have their own, see PeekAnomaly).
     //
     // Authority: AnomalyEncounter is the ONE progression path for real anomalies. The old
     // tracking-threshold reveal that bypassed Repelled/Recovering is gone; TrackingPolicy only
@@ -168,7 +168,7 @@ namespace Hollowbrook.Horror
                 TickStates(dt, views, sameRoom, active);
                 if (_gone) return;   // recovery handoff despawned mid-tick
             }
-            MoveBehavior(dt, views, sameRoom, active, roaming);
+            MoveBehavior(dt, views, sameRoom, active);
             FaceTheWayItMoves();
             TickVisibility(views, sameRoom);
             if (active) ProximityEffects(dt, views);
@@ -323,7 +323,7 @@ namespace Hollowbrook.Horror
 
         // ---------------------------------------------------------------- movement
 
-        private void MoveBehavior(float dt, ViewManager views, bool sameRoom, bool active, bool roaming)
+        private void MoveBehavior(float dt, ViewManager views, bool sameRoom, bool active)
         {
             var p = transform.localPosition;
 
@@ -335,12 +335,7 @@ namespace Hollowbrook.Horror
                 return;
             }
 
-            if (!sameRoom)
-            {
-                if (roaming) PatrolOffStage(dt, views);
-                return;
-            }
-            if (!active) return;   // dialogue/transition: hold position, no hunting
+            if (!sameRoom || !active) return;   // away or mid-dialogue: hold position   // dialogue/transition: hold position, no hunting
 
             var player = PlayerPos();
             bool stalking = _state == AnomalyState.Stalking;
@@ -424,41 +419,6 @@ namespace Hollowbrook.Horror
             p.x = Mathf.MoveTowards(p.x, tx, _profile.MoveSpeed * dt);
             if (!stalking && Mathf.Abs(p.x - _targetX) < 0.2f) PickWanderTarget(player);
             return p;
-        }
-
-        // Off-stage roaming: walk to the door of the next hop toward the player's room, pass
-        // through it (ownership + position update together), announce the arrival. No teleports.
-        private void PatrolOffStage(float dt, ViewManager views)
-        {
-            RoomId playerRoom = views.Current.Id;
-            if (_room == null || _room.Id == playerRoom) return;
-            RoomId from = _room.Id;
-            RoomId hop = RoomGraph.NextHop(from, playerRoom);
-            if (hop == from || !RoomGraph.Connected(from, hop)) return;
-            float doorX = RoomGraph.DoorX(from, hop);
-
-            var p = transform.localPosition;
-            float speed = _profile.MoveSpeed * (_state == AnomalyState.Stalking ? 1.25f : 0.8f);
-            p.x = Mathf.MoveTowards(p.x, doorX, speed * dt);
-            transform.localPosition = ClampToBand(p);
-            if (Mathf.Abs(p.x - doorX) >= 0.3f) return;
-
-            var next = views.Room(hop);
-            if (next == null) return;
-            float arriveX = RoomGraph.DoorX(hop, from);
-            _room = next;
-            var np = transform.localPosition;
-            np.x = float.IsNaN(arriveX) ? np.x : arriveX;
-            transform.localPosition = ClampToBand(np);
-            PickWanderTarget(PlayerPos());
-
-            if (hop == playerRoom)
-            {
-                // walking into the player's room is always announced - never a silent appearance
-                _gameRoot.Audio.PlaySfx("sfx_knock", 0.7f);
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested,
-                    "*a door creaks - something is in here with you*", 2.4f, null));
-            }
         }
 
         private Vector3 ClampToBand(Vector3 p)

@@ -101,8 +101,6 @@ namespace Hollowbrook.World
                     AddClue(room, "desk", 1.8f, floorY, "Front Desk", null, 0.8f, -0.6f, 4.4f, 2.2f);
                     AddClue(room, "lostid", 6.0f, floorY, "Lost-and-Found Board", null, 0.2f, 2.2f, 1.2f, 1.8f);
                     room.PlayerSpawn = new Vector3(4.0f, 0, 0);
-                    room.AnomalySpawnPoints.Add(new Vector3(-6.5f, 0, 0));
-                    room.AnomalySpawnPoints.Add(new Vector3(1.5f, 0, 0));
                     break;
                 }
                 case RoomId.ComfortRoom:
@@ -128,8 +126,6 @@ namespace Hollowbrook.World
                     AddClue(room, "window", 6.7f, floorY, "Classroom Window", null, 1.2f, 2.2f, 4.2f, 4.6f);
                     AddClue(room, "cabinet", 3.1f, floorY, "Filing Cabinet", null, 0.8f, 0.1f, 1.5f, 2.1f);
                     room.PlayerSpawn = new Vector3(4.0f, 0, 0);
-                    room.AnomalySpawnPoints.Add(new Vector3(-5.5f, 0, 0));
-                    room.AnomalySpawnPoints.Add(new Vector3(2.5f, 0, 0));
                     break;
                 }
             }
@@ -174,7 +170,7 @@ namespace Hollowbrook.World
 
         // The painted hallway: one 30 unit wide image, exactly as tall as the camera. PanoramaLeft is
         // where its left edge sits (the walkable hallway spans the whole image) so the painted doors
-        // land on the door anchors in RoomGraph.
+        // land on the door anchors in FloorPlan.
         private const float PanoramaLeft = -15f, PanoramaWidth = 30f, PanoramaCentreY = 0f;
 
         private void AddHallwayBackdrop(Transform parent)

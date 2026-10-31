@@ -1,12 +1,14 @@
 using Hollowbrook.Bootstrap;
 using Hollowbrook.Core;
+using Hollowbrook.Logic;
 using UnityEngine;
 
 namespace Hollowbrook.World
 {
-    // The anomaly hiding in one peek room each night (GameRoot.PeekAnomalyIn says which). It sits
-    // under the peek's black cover, so only the lamp shows it. Hold the lit lamp on it and it
-    // shakes, then flees. It stays until driven out, however often the player steps back.
+    // A standing anomaly in a peek room (GameRoot.PeekAnomalyIn says which rooms have one tonight).
+    // It never moves and sits under the peek's black cover, so only the lamp shows it. Hold the lit
+    // lamp on it and it shakes, then flees. It stays until driven out, however often the player
+    // steps back.
     public class PeekAnomaly : MonoBehaviour
     {
         private const float Size = 0.75f;
@@ -17,6 +19,7 @@ namespace Hollowbrook.World
         private Vector3 _home;
         private float _held;
         private bool _told;
+        private RoomId _room;
 
         public static PeekAnomaly Place(GameRoot root, RoomInstance room, PeekLight lamp, int seed)
         {
@@ -25,6 +28,7 @@ namespace Hollowbrook.World
             var a = go.AddComponent<PeekAnomaly>();
             a._root = root;
             a._lamp = lamp;
+            a._room = room.Id;
             var rng = new Hollowbrook.Logic.GameRng(seed);
             a._home = new Vector3(rng.NextFloat() * 10f - 5f, RoomInstance.FloorY + 1.8f, 0f);
             go.transform.localPosition = a._home;
@@ -43,7 +47,7 @@ namespace Hollowbrook.World
         // internal so the headless FlowCheck can step frames (stub MonoBehaviours get no Update)
         internal void Tick(float dt)
         {
-            if (_lamp == null || !_lamp.Active || _root.Session.PeekAnomalyGone) return;
+            if (_lamp == null || !_lamp.Active || !_root.PeekAnomalyIn(_room)) return;
             bool lit = _lamp.Covers(_home);
             if (lit && !_told)
             {

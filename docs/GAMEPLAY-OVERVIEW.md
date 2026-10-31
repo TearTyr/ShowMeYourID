@@ -51,12 +51,10 @@ dark. The doors follow the desk map: Security, Room 101, Room 202, CR-1, the sea
 (FloorPlan.cs draws the hallway and both maps). The **flashlight** points at the cursor (`F` sweep
 on/off, `Q` focus, `L` off). While it is lit it turns the guard to face it; while it is off he faces
 the way he walks. **One patrol cycle** is required before END SHIFT: peek into Room 101, Room 202 and
-a CR (either one). **Anomalies** roam the hallway from night 1, with one guaranteed about 15 seconds
-into each patrol: hold the Focus beam on it to repel it, and it drops a token. Every room is a
+a CR (either one). **Anomalies** roam the hallway only, from night 1, with one guaranteed about 15 seconds into each patrol: hold the Focus beam on it to repel it, and it drops a token. The guard carries only a weak light, so what is ahead of him is black until the flashlight finds it: sweep it along the walls, up at the ceiling and down at the floor. Every room is a
 **peek** from its door: a black cover with a hole that follows the mouse shows the room behind it
 (`F` on/off, `Q` wide/tight). `E` selects what the lit lamp is on, nothing else; `S` or the bottom
-edge steps back. One anomaly hides in a peek room each night: hold the lit lamp on it for 1.5 seconds
-to drive it out. That room does not count for the cycle until it is gone. Besides the clues there
+edge steps back. The peek rooms hold **standing anomalies** that never move, in some rooms each night and always at least one: hold the lit lamp on one for 1.5 seconds to drive it out. A room does not count for the cycle until its anomaly is gone, and standing ones leave no token. Besides the clues there
 are things to inspect: the patrol clipboard, the lockers, and each CR's mirror, sinks and stalls.
 Tokens are banked between runs and 3 open Endless and Challenge on the main menu. Ten clues, found
 in order, open the secret ending.

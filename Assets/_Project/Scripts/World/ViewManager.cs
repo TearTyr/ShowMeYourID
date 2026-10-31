@@ -282,7 +282,7 @@ namespace Hollowbrook.World
             EnsurePeekLight();
             _peekLight.Enter(Current, Hunt != null && Hunt.Running);   // the hunt starts the lamp ON
             if (_gameRoot.PeekAnomalyIn(id))
-                _peekAnomaly = PeekAnomaly.Place(_gameRoot, Current, _peekLight, _gameRoot.Session.Seed + (int)id * 53);
+                _peekAnomaly = PeekAnomaly.Place(_gameRoot, Current, _peekLight, _gameRoot.Session.Seed + _gameRoot.Session.CurrentShift * 131 + (int)id * 53);
             _cam.transform.position = new Vector3(0f, 0f, -10f);   // frozen frame of the room
             yield return FadeTo(0f, 0.34f);
             Transitioning = false;

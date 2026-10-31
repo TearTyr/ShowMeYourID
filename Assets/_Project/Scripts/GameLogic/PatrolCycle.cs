@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
@@ -7,6 +8,30 @@ namespace Hollowbrook.Logic
     public static class PatrolCycle
     {
         public static int Bit(RoomId room) => 1 << (int)room;
+
+        // the four rooms the guard peeks into
+        private static readonly RoomId[] PeekRooms =
+            { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 };
+
+        private const float StandingChance = 0.6f;
+
+        /// <summary>Does this peek room hold a standing anomaly tonight? Each room rolls for itself,
+        /// from the run seed and the night, and at least one room always does. Standing anomalies
+        /// never move: the player has to find them with the lamp. Same inputs, same answer.</summary>
+        public static bool StandingIn(int seed, int shift, RoomId room)
+        {
+            int index = Array.IndexOf(PeekRooms, room);
+            if (index < 0) return false;
+            var rng = new GameRng(seed ^ (shift * 6151));
+            bool any = false, mine = false;
+            for (int i = 0; i < PeekRooms.Length; i++)
+            {
+                bool here = rng.Chance(StandingChance);
+                any |= here;
+                if (i == index) mine = here;
+            }
+            return any ? mine : index == rng.NextInt(0, PeekRooms.Length);
+        }
 
         private static bool Has(int cleared, RoomId room) => (cleared & Bit(room)) != 0;
 
