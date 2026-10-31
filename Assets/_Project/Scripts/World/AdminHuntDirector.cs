@@ -249,7 +249,7 @@ namespace Hollowbrook.World
         {
             PlaceBehindPlayer();
             if (_views.Flashlight != null) _views.Flashlight.Recharge();
-            Say("*he is right behind you - TURN AND FLASH HIS FACE!  (A / D, then F or Q)*", 2.4f);
+            Say("*he is right behind you - AIM AT HIS FACE AND FLASH!  (F or Q)*", 2.4f);
         }
 
         private void OnRepelled()
@@ -320,7 +320,7 @@ namespace Hollowbrook.World
             {
                 case HuntPhase.AtDoor: return "HOLD THE DOOR OF " + RoomName(_hunt.Room).ToUpperInvariant() + " (E)   " + meter;
                 case HuntPhase.Closet: return "PEEK INTO " + RoomName(_hunt.Room) + " AND LIGHT HIS HEAD   " + meter;
-                case HuntPhase.Behind: return "TURN TO HIM AND FLASH HIS FACE - F or Q!   " + meter;
+                case HuntPhase.Behind: return "AIM AT HIS FACE AND FLASH - F or Q!   " + meter;
                 default: return "Listen for where the footsteps stop. Survive until dawn.   " + meter;
             }
         }

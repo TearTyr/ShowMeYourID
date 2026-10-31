@@ -114,6 +114,7 @@ namespace Hollowbrook.World
             SetLit(false, true);
             _room = null;
             _lastPrompt = "\0";
+            if (_gameRoot != null) _gameRoot.Bus.Publish(GameEvent.Of(EventIds.InteractionPrompt, ""));
             gameObject.SetActive(false);
         }
 

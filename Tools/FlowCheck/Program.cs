@@ -2595,7 +2595,6 @@ namespace FlowCheck
                   "P: the hallway has no wall switch plate any more");
 
             var cfg = root.Config;
-            AimGuard = views.Player;
             Check(!cfg.patrolAnomalies, "PATROL: no roaming anomalies in the game, only at the security window");
             cfg.patrolAnomalies = true;   // the old anomaly proofs below keep the switched-off code honest
             float chanceSave = cfg.anomalySpawnChancePerSecond;
@@ -2934,7 +2933,7 @@ namespace FlowCheck
             views.Player.PlaceInRoom(hall, new Vector3(0f, 0f, 0f));
             AimAt(5f, -1.2f);
             PressKey(root, KeyCode.F);           // sweep, aiming right
-            Check(rig.Dir.x > 0.99f && Mathf.Abs(rig.Dir.y) < 0.01f, "W3: facing right gives a right-pointing beam");
+            Check(rig.Dir.x > 0.99f && Mathf.Abs(rig.Dir.y) < 0.01f, "W3: aiming right gives a right-pointing beam");
             Check(rig.ConeCovers(new Vector3(4f, 0f, 0f)), "W3: Sweep covers a point 4u ahead");
             Check(!rig.ConeCovers(new Vector3(-4f, 0f, 0f)), "W3: nothing behind the player is covered");
             Check(!rig.ConeCovers(new Vector3(rig.Params.Range + 1.5f, -0.5f, 0f)), "W3: beyond the Sweep range is dark");
@@ -2960,6 +2959,53 @@ namespace FlowCheck
                 Check(Mathf.Abs(cone.localEulerAngles.z - 180f) < 0.5f || Mathf.Abs(cone.localEulerAngles.z + 180f) < 0.5f,
                     $"W3: the sprite rotates to ~180° for a left aim (got {cone.localEulerAngles.z:F1})");
             }
+            // the beam can turn right round, and it turns the guard with it
+            Check(views.Player.Facing < 0f && views.Player.transform.localScale.x < 0f,
+                "W3: a lit beam aimed left flips the guard left");
+            AimAt(5f, -1.2f); WorldFrames(root, 30);
+            Check(views.Player.Facing > 0f && views.Player.transform.localScale.x > 0f,
+                "W3: aimed right he turns back to normal");
+            Check(Mathf.Abs(Mathf.DeltaAngle(coneT.localEulerAngles.z, 0f)) < 0.5f,
+                "W3: the drawn cone swings all the way round from an exact half turn");
+            AimAt(0f, 4f); WorldFrame(root);
+            Check(views.Player.Facing > 0f, "W3: aiming straight up keeps the side he was on");
+            float walkStart = views.Player.transform.localPosition.x;
+            AimAt(5f, -1.2f); Input.KeysHeld.Add(KeyCode.A); WorldFrames(root, 10);
+            Check(views.Player.Facing > 0f && views.Player.transform.localPosition.x < walkStart,
+                "W3: he can back away while the beam stays on what he is watching");
+            Input.KeysHeld.Remove(KeyCode.A);
+            SetBeam(root, rig, LightMode.Off);
+            Input.KeysHeld.Add(KeyCode.A); WorldFrames(root, 3); Input.KeysHeld.Remove(KeyCode.A);
+            Check(views.Player.Facing < 0f, "W3: with the beam off he faces the way he walks (left)");
+            Input.KeysHeld.Add(KeyCode.D); WorldFrames(root, 3); Input.KeysHeld.Remove(KeyCode.D);
+            Check(views.Player.Facing > 0f, "W3: and right");
+            SetBeam(root, rig, LightMode.Sweep);
+            views.Player.PlaceInRoom(hall, new Vector3(0f, 0f, 0f));
+
+            // hallway interaction goes by the body: the cursor can point at anything
+            Interactable anyDoor = null;
+            foreach (var it in hall.Interactables) if (it is Doorway) anyDoor = it;
+            var promptText = FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>();
+            float clearX = 99f;
+            for (float x = -13f; x < 13f && clearX > 90f; x += 0.1f)
+            {
+                bool free = true;
+                foreach (var it in hall.Interactables)
+                    if (it != null && it.Enabled && Mathf.Abs(x - it.AnchorX) < cfg.interactRange) free = false;
+                if (free) clearX = x;
+            }
+            views.Player.PlaceInRoom(hall, new Vector3(clearX, 0f, 0f));
+            AimAt(anyDoor.AnchorX, anyDoor.AnchorY); WorldFrame(root);
+            Check(promptText.text.Length == 0, "W3: the cursor on a far door shows no prompt (got '" + promptText.text + "')");
+            RoomId roomBefore = hall.Id;
+            PressKey(root, KeyCode.E);
+            Check(!views.PeekActive && root.State == AppViewState.Exploration && views.Current.Id == roomBefore,
+                "W3: and E does nothing, the cursor selects nothing on patrol");
+            views.Player.PlaceInRoom(hall, new Vector3(anyDoor.AnchorX, 0f, 0f));
+            AimAt(clearX, -1.2f); WorldFrame(root);
+            Check(promptText.text == anyDoor.Prompt, "W3: standing at the door shows its prompt wherever the cursor is");
+            views.Player.PlaceInRoom(hall, new Vector3(0f, 0f, 0f));
+
             AimAt(5f, 0f); WorldFrame(root);
             var pp = views.Player.transform.localPosition;
             Check(Mathf.Abs(rig.Origin.x - pp.x) < 1e-3f && Mathf.Abs(rig.Origin.y - (pp.y + 0.2f)) < 1e-3f,
@@ -3282,6 +3328,7 @@ namespace FlowCheck
             Check(views.PeekLight.Lit, "W10: one F press lights the second classroom too");
             PressKey(root, KeyCode.F);
             Check(!views.PeekLight.Lit, "W10: ...and one F press puts it out again (a clean toggle)");
+            RoomId peekedRoom = views.Current.Id;
             // the dark exit: S steps back with the lamp OFF
             PressKey(root, KeyCode.S);
             Check(!views.PeekActive && root.State == AppViewState.Exploration,
@@ -3290,6 +3337,21 @@ namespace FlowCheck
                 "W10: the step-back band is gone after leaving the doorway");
             Check(!views.PeekLight.Lit && rig.Beam == LightMode.Off,
                 "W10: exiting leaves everything dark - restarting patrol never re-lights anything");
+
+            // what the cursor found in the peek must not follow the guard into the hallway
+            var bodyPrompt = FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>();
+            WorldFrames(root, 2);
+            string ownPrompt = bodyPrompt.text;
+            root.EnterRoomPeek(peekedRoom);
+            views.PeekLight.ToggleLamp();
+            AimAt(views.Current.Interactables[0].AnchorX, views.Current.Interactables[0].AnchorY);
+            WorldFrames(root, 2);
+            string peekPrompt = views.Current.Interactables[0].Prompt;
+            Check(bodyPrompt.text == peekPrompt, "W10: the lit lamp on a thing shows its prompt");
+            PressKey(root, KeyCode.S);
+            WorldFrames(root, 2);
+            Check(!views.PeekActive && bodyPrompt.text == ownPrompt,
+                "W10: stepping back drops the peek's prompt, the guard's own comes back (got '" + bodyPrompt.text + "')");
 
             // ---- W9: spawn ownership under ambient pressure + the desk handoff
             Console.WriteLine("== W9 spawn ownership + desk handoff ==");
@@ -3586,7 +3648,6 @@ namespace FlowCheck
             Check(root.State == AppViewState.Exploration && views.Hunt != null && views.Hunt.Running,
                 "HUNT: the radio call ends in the school and the hunt is running");
             var hunt = views.Hunt.Model;
-            AimGuard = views.Player;
             Check(hunt.Phase == HuntPhase.Stalking && hunt.Catches == 0, "HUNT: he starts walking the halls");
             Check(views.Spawner.Live == null, "HUNT: nothing else is roaming the school");
 
@@ -4404,13 +4465,7 @@ namespace FlowCheck
             WorldFrame(root);
         }
 
-        // The mouse for the peek lamp; on patrol the beam follows the guard, so he turns that way too.
-        private static PlayerController AimGuard;
-        private static void AimAt(float x, float y)
-        {
-            Input.mousePosition = new Vector3(x, y, 0f);
-            if (AimGuard != null) AimGuard.Face(x - AimGuard.transform.localPosition.x);
-        }
+        private static void AimAt(float x, float y) => Input.mousePosition = new Vector3(x, y, 0f);
 
         // idempotent beam selection through the real toggles (pressing Q while Focus is
         // latched would switch it OFF - scenarios need the mode, not the keypress count)

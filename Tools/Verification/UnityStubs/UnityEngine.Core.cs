@@ -405,7 +405,6 @@ namespace UnityEngine
 
     public static class Cursor
     {
-        public static bool visible { get; set; } = true;
         public static Texture2D LastTexture { get; private set; }
         public static Vector2 LastHotspot { get; private set; }
         public static void SetCursor(Texture2D texture, Vector2 hotspot, CursorMode cursorMode)

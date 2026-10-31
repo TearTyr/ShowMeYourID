@@ -59,7 +59,7 @@ captions tell you when he is walking and where he stops:
 
 - **At a classroom door:** stand at that door and hold `E` until he gives up.
 - **In CR-1 or CR-2:** peek in and keep the lamp on his head.
-- **Right behind you:** turn to him and flash his face (`F` / `Q`).
+- **Right behind you:** aim at him and flash his face (`F` / `Q`).
 
 Too slow and he catches you. **Three catches** and he reaches the server door: you lose. Survive
 until **dawn** to win. Every lie you exposed at the window makes the night shorter. The security
@@ -70,7 +70,7 @@ door is locked while he is inside. The numbers are in `GameConfig.asset` under "
 | Where | Keys |
 |---|---|
 | Desk | mouse to drag papers and stamps · `1` to `4` ask the questions · `Tab` file drawer · `F` flip the ID (or click its black spine) · `T` talk to the administrator · `X` or `Esc` close the rules/log sheet · `M` map · `Esc` pause |
-| Patrol | no mouse · `A`/`D` or arrows walk and turn the guard and his flashlight · `Shift` run · `E` interact · `F` flashlight on/off · `Q` focus · `L` off · `Esc` pause · night 5: hold `E` at the door he is behind |
+| Patrol | `A`/`D` or arrows walk · mouse aims the flashlight · `Shift` run · `E` interact with what the guard stands at · `F` flashlight on/off · `Q` focus · `L` off · `Esc` pause · night 5: hold `E` at the door he is behind |
 | Peeking | mouse moves the lamp · `F` lamp on/off · `Q` wide/tight · `E` selects what the lit lamp is on · `S` or the bottom edge steps back · `Esc` pause |
 | Dialogue | click / `Space` / `Enter` / `E` |
 | Menu | `F2` ×3 erases save data (then confirm) |

@@ -174,16 +174,8 @@ namespace Hollowbrook.Core
             TogglePause(true);
         }
 
-        // The mouse belongs to the desk and the peek. Walking the hallway is keyboard only, so the
-        // cursor is hidden there (it comes back for the pause menu and any open overlay).
-        private void RefreshCursor()
-        {
-            Cursor.visible = State != AppViewState.Exploration || Paused || BlockingOverlayOpen;
-        }
-
         private void Update()
         {
-            RefreshCursor();
             CheckSceneHandshake();
             if (Paused || Session == null) return;
             TickShiftClock();

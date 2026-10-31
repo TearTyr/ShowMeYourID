@@ -294,6 +294,7 @@ namespace Hollowbrook.World
             if (from != null && from.Light != null) from.Light.EnterPeek(false);
             EnterRoomImmediate(RoomId.Hallway, from);
             SetPlayerVisible(true);
+            if (Player != null) Player.ResetPrompt();
             _peeking = false;
             _peekExiting = false;
             _gameRoot.PeekRoom = null;
