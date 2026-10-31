@@ -203,7 +203,7 @@ namespace Hollowbrook.UI
         {
             bool exploring = s == AppViewState.Exploration;
             bool peeking = s == AppViewState.RoomPeek;
-            bool atDesk = s == AppViewState.Checkpoint || s == AppViewState.AdminEncounter;
+            bool atDesk = s == AppViewState.Checkpoint;
             _prompt.gameObject.SetActive(true);
             _roomInfo.gameObject.SetActive(exploring || peeking);
             // the desk keeps only night/clock/pause/sanity: battery and track are patrol tools
@@ -215,7 +215,9 @@ namespace Hollowbrook.UI
             if (!exploring && !peeking) _prompt.text = "";
             if (!exploring && !peeking && _batteryBar != null) _batteryBar.SetActive(false); // desk has no flashlight
             if (s == AppViewState.Checkpoint) _objective.text = _gameRoot.ObjectiveText ?? "";
-            if (peeking) _objective.text = "Press F to switch the flashlight on — sweep it across the room; click the bottom edge to step back.";
+            if (peeking) _objective.text = _gameRoot.HuntActive
+                ? _gameRoot.ObjectiveText
+                : "Press F to switch the flashlight on — sweep it across the room; click the bottom edge to step back.";
             if (exploring) _objective.text = _gameRoot.ObjectiveText;   // restore after a peek overwrote the hint
             if (_peekExitBand != null) _peekExitBand.SetActive(peeking);
             RefreshFindings();

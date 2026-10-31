@@ -79,6 +79,5 @@ namespace Hollowbrook.Core
 
         public void Clear() => _subs.Clear();
 
-        public int SubscriberCount(string id) => _subs.TryGetValue(id, out var l) ? l.Count : 0;
     }
 }

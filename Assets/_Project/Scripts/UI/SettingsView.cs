@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    // The Options modal (Phase 10.3): audio only — MASTER / MUSIC / SFX and a way out.
+    // The Options modal: audio only — MASTER / MUSIC / SFX and a way out.
     // Display, accessibility and data-reset live in SettingsSystem/PlayerPrefs and their
     // other entry points (boot-time ApplyStoredDisplay, the menu's F2×3 reset); this sheet
     // deliberately exposes just the three volumes. Created by each scene bootstrap and
@@ -94,7 +94,7 @@ namespace Hollowbrook.UI
         }
 
         // Esc owns exactly one action per frame (InputGate): closing this sheet, never
-        // also unpausing behind it (issue #6). Internal so the harness can prove it.
+        // also unpausing behind it. Internal so the harness can prove it.
         internal bool TryCloseOnEscape()
         {
             if (!gameObject.activeInHierarchy) return false;

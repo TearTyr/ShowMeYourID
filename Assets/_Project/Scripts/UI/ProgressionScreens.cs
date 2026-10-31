@@ -350,10 +350,6 @@ namespace Hollowbrook.UI
         private Vector2 Design(float x, float y) => new Vector2(
             MapSheetLayout.ToAnchoredX(x, _planScale), MapSheetLayout.ToAnchoredY(y, _planScale));
 
-        /// <summary>The same mapping exposed to the proofs, so "is the drawing faithful to the
-        /// floor-plan table?" can be asserted instead of eyeballed.</summary>
-        internal Vector2 DesignOf(float x, float y) => Design(x, y);
-
         /// <summary>Design size -> on-screen size: the sheet fit (clamped, so a small window
         /// shrinks the plan but never makes the labels unreadable) times the player's text-scale
         /// setting. The design size stays the recorded base, so ApplyTextScale and a relayout
@@ -590,7 +586,7 @@ namespace Hollowbrook.UI
             sb.Append("Anomalies rejected:         ").Append(session.AnomaliesRejected).Append('\n');
             sb.Append("False rejections:           ").Append(session.FalseRejections).Append(" / 3\n");
             sb.Append("Anomaly breaches:           ").Append(session.Breaches).Append(" / 3\n");
-            sb.Append("Administrator:              ").Append(session.AdminAllowed ? "ALLOWED IN (fatal mistake)" : session.AdminRejected ? "REJECTED — impostor identified" : "never arrived").Append('\n');
+            sb.Append("Administrator:              ").Append(session.AdminAllowed ? "ALLOWED IN (fatal mistake)" : session.Hunt == HuntState.Lost ? "REJECTED — but he reached the server door" : session.AdminRejected ? "REJECTED — impostor driven off" : "never arrived").Append('\n');
             sb.Append("Findings:                   ").Append(session.Clues.FoundCount).Append(" / 10  (").Append(session.Clues.OrderIntact ? "intended sequence intact" : "sequence broken").Append(")\n");
             sb.Append("Final sanity:               ").Append((int)session.Sanity).Append("  (").Append(session.SanityStage).Append(")\n");
             sb.Append("Score:                      ").Append(session.Score).Append("    Best streak: ").Append(session.BestStreak);

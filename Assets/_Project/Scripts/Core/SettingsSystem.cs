@@ -82,7 +82,7 @@ namespace Hollowbrook.Core
         }
 
         /// <summary>Flush to disk: called when the settings sheet closes and on quit, not
-        /// on every slider tick (issue #8: a volume drag used to write prefs per frame).</summary>
+        /// on every slider tick (a volume drag must not write the prefs file every frame).</summary>
         public void Persist() => PlayerPrefs.Save();
 
         public void Apply(Action<SettingsData> mutate)

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -15,7 +16,7 @@ namespace Hollowbrook.Logic
     public static class SaveFormat
     {
         public const string Header = "SMYIDSAVE";
-        public const int Version = 1;
+        public const int Version = 2;   // 2: single classroom question (rosters changed; version-1 saves are dropped)
 
         public static string Serialize(SaveGame save)
         {
@@ -46,7 +47,7 @@ namespace Hollowbrook.Logic
                 sb.Append("queueActive=").Append(q.ActiveIdx).Append('\n');
                 KV(sb, "queueVanished", JoinIdx(q.VanishedIdx));
                 sb.Append("queueMissing=").Append(q.MissingIncidents).Append('\n');
-                sb.Append("queueBudget=").Append(q.BudgetMask).Append('\n');
+                sb.Append("queueAsked=").Append(q.QuestionAsked ? 1 : 0).Append('\n');
                 sb.Append("queueCollapsed=").Append(q.Overwhelmed ? 1 : 0).Append('\n');
                 sb.Append("queuePending=").Append(q.ResolutionPending ? 1 : 0).Append('\n');
                 sb.Append("queueWarned=").Append(q.Warned).Append('\n');
@@ -56,6 +57,7 @@ namespace Hollowbrook.Logic
             sb.Append("adminAllowed=").Append(s.AdminAllowed ? 1 : 0).Append('\n');
             KV(sb, "adminTalk", s.AdminTalk != null ? s.AdminTalk.Encode() : "");
             sb.Append("adminRejected=").Append(s.AdminRejected ? 1 : 0).Append('\n');
+            sb.Append("hunt=").Append((int)s.Hunt).Append('\n');
             sb.Append("shiftBreaches=").Append(s.ShiftBreaches).Append('\n');
             sb.Append("penaltySeverity=").Append(s.PendingPenaltySeverity).Append('\n');
             sb.Append("penaltyNight=").Append(s.PendingPenaltyNight).Append('\n');
@@ -146,7 +148,7 @@ namespace Hollowbrook.Logic
                         ActiveIdx = Int(map, "queueActive", -1),
                         VanishedIdx = IntList(Str(map, "queueVanished", "")),
                         MissingIncidents = Int(map, "queueMissing", 0),
-                        BudgetMask = Int(map, "queueBudget", 0),
+                        QuestionAsked = Int(map, "queueAsked", 0) == 1,
                         Overwhelmed = Int(map, "queueCollapsed", 0) == 1,
                         ResolutionPending = Int(map, "queuePending", 0) == 1,
                         Warned = map.ContainsKey("queueWarned") ? Int(map, "queueWarned", -1) : -1,
@@ -165,6 +167,7 @@ namespace Hollowbrook.Logic
                 }
                 s.AdminAllowed = Int(map, "adminAllowed", 0) == 1;
                 s.AdminRejected = Int(map, "adminRejected", 0) == 1;
+                s.Hunt = (HuntState)Math.Max(0, Math.Min(3, Int(map, "hunt", 0)));
                 // absent in older saves: no failed night to pay for
                 s.ShiftBreaches = Int(map, "shiftBreaches", 0);
                 s.PendingPenaltySeverity = Int(map, "penaltySeverity", 0);

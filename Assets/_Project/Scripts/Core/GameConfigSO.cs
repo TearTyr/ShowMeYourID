@@ -8,10 +8,8 @@ namespace Hollowbrook.Core
     public class GameConfigSO : ScriptableObject
     {
         [Header("Checkpoint pacing")]
-        [Tooltip("Seconds the result banner stays up after a verdict.")]
-        public float verdictBannerSeconds = 3.2f;
-        [Tooltip("In-story shift starts at 22:00 and ends at 02:00.")]
-        public int shiftStartHour = 22;
+        [Tooltip("Seconds the stamped paper stays before the next student steps up.")]
+        public float verdictBannerSeconds = 1.2f;
 
         [Header("Checkpoint queue")]
         [Tooltip("Lower bound of the randomized visitor arrival interval while a shift runs (Normal mode, night 1).")][Range(0.5f, 60f)]
@@ -54,8 +52,6 @@ namespace Hollowbrook.Core
         public float walkSpeed = 3.4f;
         public float runSpeed = 6.0f;
         public float interactRange = 1.35f;
-        public float roomHalfWidthHallway = 14f;
-        public float roomHalfWidthClassroom = 9f;
 
         [Header("Flashlight battery")]
         [Tooltip("Percent per second while the wide Sweep beam is on.")]
@@ -88,6 +84,28 @@ namespace Hollowbrook.Core
         public float focusHalfAngleDeg = BeamGeometry.DefaultFocusHalfAngleDeg;
         [Tooltip("Target body radius added to the cone test — grazing a silhouette still counts.")][Range(0f, 2f)]
         public float beamTargetRadius = BeamGeometry.DefaultTargetRadius;
+
+        [Header("Administrator hunt (night 5, after the DENY stamp)")]
+        [Tooltip("Stuns needed to drive the administrator off.")][Range(1, 10)]
+        public int huntStunsToWin = 4;
+        [Tooltip("The SERVER DOOR meter: seconds until he reaches the server room (paused while you hold the lamp on him).")][Range(30f, 600f)]
+        public float huntServerSeconds = 180f;
+        [Tooltip("How long he waits in a classroom before moving on by himself (min / max).")][Range(2f, 30f)]
+        public float huntHideMinSeconds = 6f;
+        [Range(2f, 40f)]
+        public float huntHideMaxSeconds = 14f;
+        [Tooltip("Longest a single tracking phase lasts before he slips away without a stun.")][Range(4f, 30f)]
+        public float huntTrackMaxSeconds = 12f;
+        [Tooltip("Seconds the lamp must stay on his head for one stun.")][Range(0.5f, 10f)]
+        public float huntHoldSeconds = 3.2f;
+        [Tooltip("How close (world units) the cursor must be to his head.")][Range(0.3f, 3f)]
+        public float huntHeadRadius = 1.0f;
+        [Tooltip("Seconds he takes to run down the hallway at you.")][Range(1f, 8f)]
+        public float huntChargeSeconds = 2.6f;
+        [Tooltip("Seconds of beam on his face that count as a hit.")][Range(0.1f, 2f)]
+        public float huntChargeHitSeconds = 0.35f;
+        [Tooltip("Sanity lost when he reaches you in the hallway.")][Range(0f, 40f)]
+        public float huntCaughtSanity = 15f;
 
         [Header("Encounter — repel meter")]
         [Tooltip("Meter per second while Focus holds the anomaly's body (the only way to progress).")][Range(0.05f, 2f)]
@@ -139,7 +157,7 @@ namespace Hollowbrook.Core
 
         [Header("Exhibition (5-10 minute booth cut)")]
         [Tooltip("One curated night (4 visitors, 1 anomaly) then the demo closes. Off = full five-shift story.")]
-        // shipping default is the FIVE-NIGHT story (issue #2); the booth demo opts in via
+        // shipping default is the FIVE-NIGHT story; the booth demo opts in via
         // GameConfig.asset exhibitionMode: 1 or this flag in headless proofs
         public bool exhibitionMode = false;
         public float exhibitionBannerSeconds = 2.2f;

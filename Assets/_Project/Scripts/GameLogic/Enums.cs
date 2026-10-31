@@ -10,11 +10,12 @@ namespace Hollowbrook.Logic
 
     public enum LightMode { Off, Sweep, Focus }
 
+    /// <summary>Where the administrator hunt stands (saved with the run).</summary>
+    public enum HuntState { None, Active, Won, Lost }
+
     public enum AnomalyBehaviorKind { Blink, Slide, Sprint, CoverHug }
 
     public enum RoomId { Security, Hallway, Classroom1, Classroom2 }
-
-    public enum QuestionId { Course, Year, Status, FirstClassroom }
 
     public enum DefectType
     {
@@ -29,7 +30,7 @@ namespace Hollowbrook.Logic
         RecordNameMismatch,   // name on record != name on ID
         NotInDatabase,        // ID number not in the student registry (ghost student)
         DuplicateId,          // ID number already used by an earlier visitor (shift 3+)
-        BehaviorOddity,       // documents clean; questioning/behavior gives it away
+        ClassroomMismatch,    // papers are clean; the answer to "which classroom?" disagrees with the file
         SlipMismatch,           // the paper slip disagrees with the ID card (eye-check)
     }
 
@@ -48,7 +49,7 @@ namespace Hollowbrook.Logic
     {
         Boot, Loading, MainMenu, ModeSelect, Settings, Controls, Credits,
         ShiftIntro, Checkpoint, Exploration, Map, Pause, ShiftResults,
-        AdminEncounter, Ending, EndlessResults,
+        Ending, EndlessResults,
         RoomPeek,   // flashlight peek into a classroom from the doorway (no room entry)
     }
 }

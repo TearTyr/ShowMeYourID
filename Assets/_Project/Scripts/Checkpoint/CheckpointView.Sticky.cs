@@ -16,7 +16,7 @@ namespace Hollowbrook.Checkpoint
     // the shared fields and the whole-class comment. Same class, split by desk area.
     public partial class CheckpointView
     {
-        // Phase 10.1 — the shift-start gate. A centered sticky note over a click-blocking
+        // The shift-start gate. A centered sticky note over a click-blocking
         // dimmer: nothing arrives, nothing can be inspected until it is clicked.
         private void BuildStickyNote()
         {

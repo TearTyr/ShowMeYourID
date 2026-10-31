@@ -53,16 +53,10 @@ namespace Hollowbrook.Logic
         public string StatusString => IsTransferee ? "Transferee" : "Regular";
         public string YearString => Content.YearNames[YearLevel - 1];
         public string CourseString => Content.Courses[CourseIndex];
-        public string ClassroomString =>
-            (FirstClassroom == RoomId.Classroom1 ? "Room 101" : "Room 202") + " · " + FirstClassSubject;
-    }
-
-    [Serializable]
-    public struct Answer
-    {
-        public string Text;
-        public ToneTag Tone;
-        public bool ContradictsDocuments;
+        // as printed on the file: "Room 101 · Data Structures"
+        public string ClassroomString => Content.RoomName(FirstClassroom) + " · " + FirstClassSubject;
+        // as the student says it at the window: "Room 101, Data Structures."
+        public string ClassroomSpeech => Content.Speech(FirstClassroom, FirstClassSubject);
     }
 
     [Serializable]
@@ -96,19 +90,22 @@ namespace Hollowbrook.Logic
         public string SlipName;
         public string SlipIdNumber;
         public string SlipReason = "NIGHT CLASS — LATE LIST";
-        public Dictionary<QuestionId, Answer> Answers = new Dictionary<QuestionId, Answer>();
-        public bool BehaviorGlitchVisible;    // rare visual micro-glitch hint for BehaviorOddity
+        // What the visitor answers to "Which classroom are you going to?". It matches the
+        // file (RecordFirstClassroom) unless the visitor carries the ClassroomMismatch defect.
+        public string ClassroomAnswer = "…";
+        public ToneTag ClassroomTone = ToneTag.Normal;
+        // Which student's face is shown at the window (a PhotoMismatch shows somebody else's).
+        public int WindowFaceIndex = -1;
         // Canon roster position of the person this visitor CLAIMS to be (-1 = none, e.g. the
         // administrator). Set once by RosterFactory; drives the temporary face asset so the same
         // student always wears the same face on the card and at the window. Old saves load -1
         // and fall back to the procedural portraits.
         public int FaceAssetIndex = -1;
-        public bool OnLateList = true;        // office rule: on tonight's late list
 
         public bool PhotoMatches => WindowPortrait == IdPhoto;
 
         /// <summary>Do the two faces AS DISPLAYED agree — portrait features AND the anomaly
-        /// distortion overlay (the administrator's glitched window face is her photo tell, and
+        /// distortion overlay (the administrator's glitched window face is his photo tell, and
         /// Portrait equality ignores Distorted on purpose for the scoring rules). This is the
         /// truth the desk's face-comparison cue shows; it never contradicts the rendered sprites.
         /// Informational only: verdicts stay with InspectionRules.</summary>
@@ -126,13 +123,13 @@ namespace Hollowbrook.Logic
                     case DefectType.PhotoSubtleMismatch: lines.Add("The ID photo differs subtly from the person (one feature)."); break;
                     case DefectType.ExpiredId: lines.Add("The ID expired on " + ExpirationDisplay + "."); break;
                     case DefectType.IdFormatInvalid: lines.Add("ID number '" + IdNumber + "' is not in HB-YYYY-NNNN format."); break;
-                    case DefectType.YearMismatch: lines.Add("Year level: ID says " + Content.YearNames[IdYearLevel - 1] + ", record says " + Content.YearNames[RecordYearLevel - 1] + "."); break;
-                    case DefectType.CourseMismatch: lines.Add("Course: ID says " + Content.Courses[IdCourseIndex] + ", record says " + Content.Courses[RecordCourseIndex] + "."); break;
-                    case DefectType.StatusMismatch: lines.Add("Status: ID says " + (IdIsTransferee ? "Transferee" : "Regular") + ", record says " + (RecordIsTransferee ? "Transferee" : "Regular") + "."); break;
-                    case DefectType.RecordNameMismatch: lines.Add("Record name '" + RecordName + "' does not match ID name '" + ClaimedName + "'."); break;
+                    case DefectType.YearMismatch: lines.Add("Year level: ID says " + Content.YearNames[IdYearLevel - 1] + ", the file says " + Content.YearNames[RecordYearLevel - 1] + "."); break;
+                    case DefectType.CourseMismatch: lines.Add("Course: ID says " + Content.Courses[IdCourseIndex] + ", the file says " + Content.Courses[RecordCourseIndex] + "."); break;
+                    case DefectType.StatusMismatch: lines.Add("Status: ID says " + (IdIsTransferee ? "Transferee" : "Regular") + ", the file says " + (RecordIsTransferee ? "Transferee" : "Regular") + "."); break;
+                    case DefectType.RecordNameMismatch: lines.Add("The ID says '" + ClaimedName + "' but the file for this ID number says '" + RecordName + "'."); break;
                     case DefectType.NotInDatabase: lines.Add("ID number not found in the student database."); break;
                     case DefectType.DuplicateId: lines.Add("ID number already used by a visitor from " + DuplicateOfShift + "."); break;
-                    case DefectType.BehaviorOddity: lines.Add("Behavior and answers did not match the class schedule."); break;
+                    case DefectType.ClassroomMismatch: lines.Add("Said they were going to " + ClassroomAnswer.TrimEnd('.') + ", but the file says " + RecordFirstClassroom + "."); break;
                     case DefectType.SlipMismatch: lines.Add("The paper slip (" + SlipName + " / " + SlipIdNumber + ") does not match the ID card."); break;
                 }
             }
@@ -177,7 +174,7 @@ namespace Hollowbrook.Logic
         public int MaxDefectsPerAnomaly; // difficulty escalation
         public bool SubtleDefectsAllowed;
         public bool DuplicateIdsAllowed;
-        public bool BehaviorOddityAllowed;
+        public bool ClassroomLieAllowed;
         public bool ExplorationFocus;    // shift 4 nudges investigation
     }
 
@@ -197,8 +194,6 @@ namespace Hollowbrook.Logic
                 case "fourth_year_curfew": return !v.IsAnomaly && v.IdYearLevel == 4;
                 case "strict_expiry": return !v.IsAnomaly && v.ExpirationDay - Content.ShiftDayNumber(v.ShiftNumber) <= 60;
                 case "odd_serials": return !v.IsAnomaly && IdRules.SerialOf(v.IdNumber) % 2 == 1;
-                case "office_late_list": return !v.IsAnomaly &&
-                    (!v.OnLateList || IdRules.IsExpired(v, v.ShiftNumber));
                 default: return false;
             }
         }
@@ -207,7 +202,12 @@ namespace Hollowbrook.Logic
     public static class Content
     {
         public const int TotalStudents = 14;          // 8 core + 6 variations (approved asset plan)
-        public const int MaxQuestionsPerInspection = 2; // conflict C1 resolution: §2.3 + checklists say 1–2
+
+        /// <summary>"Room 101" / "Room 202" — the two classrooms of the school.</summary>
+        public static string RoomName(RoomId room) => room == RoomId.Classroom1 ? "Room 101" : "Room 202";
+
+        /// <summary>How a student says where they are going: "Room 101, Data Structures."</summary>
+        public static string Speech(RoomId room, string subject) => RoomName(room) + ", " + subject + ".";
 
         public static readonly string[] Courses =
         {
@@ -314,7 +314,6 @@ namespace Hollowbrook.Logic
         {
             "Custodian. I'm the district administrator. I'll be taking control of this facility tonight.",
             "My credentials are in order. Badge and roster memo, as your instructions require.",
-            "There have been… complaints about your performance. Let's not add to them.",
             "Open the checkpoint. That is an order from the district.",
         };
     }

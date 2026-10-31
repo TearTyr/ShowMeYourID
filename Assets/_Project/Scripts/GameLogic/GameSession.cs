@@ -45,9 +45,12 @@ namespace Hollowbrook.Logic
         public int Breaches = 0;            // anomalies allowed in (includes administrator if allowed)
         public int AnomaliesRejected = 0;
         public int TokensCollected = 0;
-        public int VisitorIndexAtSave = 0;   // where a mid-shift continue resumes      // fully-tracked anomalies (master prompt §3)
+        public int VisitorIndexAtSave = 0;   // where a mid-shift continue resumes
         public bool AdminAllowed = false;
         public bool AdminRejected = false;
+        // After the DENY stamp the administrator hunts through the school (see AdminHunt).
+        // Won = he was driven off; Lost = he reached the server door.
+        public HuntState Hunt = HuntState.None;
         // The Shift-5 conversation: where it stands, which one-shots were spent, the tactic
         // counters. Encoded into the save as one invariant string (see SaveFormat "adminTalk").
         // It carries no mechanical power — no clues, no budget, no verdict — so resuming it
@@ -227,7 +230,7 @@ namespace Hollowbrook.Logic
         public EndingRules.Evaluation EvaluateEnding()
         {
             // the night's books close: anomalies still outstanding count as breaches, so
-            // patrol finally feeds the ending (issue #7). Folded EXACTLY ONCE per run — the
+            // patrol feeds the ending. Folded EXACTLY ONCE per run — the
             // pool is closed with the books, so a repeated evaluation (ending screen, summary,
             // a resumed save) can never count the same outstanding anomalies twice.
             if (CompletedShifts >= ShiftPlan.TotalShifts && !PoolFolded)
@@ -244,7 +247,8 @@ namespace Hollowbrook.Logic
 
 
         public bool LoseThresholdReached =>
-            AdminAllowed || Breaches >= EndingRules.LoseThreshold || FalseRejections >= EndingRules.LoseThreshold;
+            AdminAllowed || Hunt == HuntState.Lost || Breaches >= EndingRules.LoseThreshold ||
+            FalseRejections >= EndingRules.LoseThreshold;
     }
 
     [Serializable]

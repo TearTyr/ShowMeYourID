@@ -16,6 +16,11 @@ namespace Hollowbrook.Checkpoint
     // the shared fields and the whole-class comment. Same class, split by desk area.
     public partial class CheckpointView
     {
+        private static readonly Color SlipPaperColor = new Color(0.88f, 0.86f, 0.80f);
+        private Image _slipBg;        // the slip's paper (glows while a stamp is in hand)
+        private Image _windowCue;     // the strip along the window sill: "return the ID here"
+        private Text _windowCueText;
+
         private void BuildWindowArea()
         {
             // booth dressing from the mockup: two hood bands over the frame, then the frame
@@ -64,8 +69,16 @@ namespace Hollowbrook.Checkpoint
             Reg("base3", base3.rectTransform, L.Base3);
             base3.raycastTarget = false;
 
-            // the student slides their ID to the counter edge on arrival (OfferAtCounter);
-            // nothing here needs a click target any more
+            // the hand-back cue: lit along the sill once the slip is stamped (see RefreshWindowCue)
+            _windowCue = UIFactory.Panel(_desk, "windowcue", new Color(0.95f, 0.80f, 0.30f, 0f));
+            L.Place(_windowCue.rectTransform, L.Sill);
+            _windowCue.raycastTarget = false;
+            _windowCueText = UIFactory.Label(_windowCue.rectTransform, "text", "▼  DRAG THE ID BACK TO THE WINDOW  ▼", 11,
+                UIFactory.NsInk, TextAnchor.MiddleCenter);
+            _windowCueText.font = UIFactory.UiFontBold;
+            _windowCueText.raycastTarget = false;
+            UIFactory.AnchorsFull(_windowCueText.rectTransform);
+            _windowCue.gameObject.SetActive(false);
         }
 
         // The hand-over step: a dimmer plus the centred offered ID. Clicking the card takes
@@ -126,7 +139,8 @@ namespace Hollowbrook.Checkpoint
             var slipArtRt = UIFactory.NewUI(slipRt, "slipart");
             UIFactory.PlaceTL(slipArtRt, 0, 0, 200, 120);
             slipArtRt.localScale = new Vector3(L.SlipScale, L.SlipScale, 1f);
-            var slipBg = UIFactory.Panel(slipArtRt, "bg", new Color(0.88f, 0.86f, 0.80f));
+            var slipBg = UIFactory.Panel(slipArtRt, "bg", SlipPaperColor);
+            _slipBg = slipBg;
             UIFactory.AnchorsFull(slipBg.rectTransform);
             _slipName = UIFactory.Label(slipArtRt, "sname", "", 11, UIFactory.PaperInk, TextAnchor.UpperLeft);
             L.Place(_slipName.rectTransform, new L.Region(8, 8, 184, 16));
@@ -201,7 +215,12 @@ namespace Hollowbrook.Checkpoint
         internal void HandBackId()
         {
             if (_backId) return;
-            if (!_slipStamped) { _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.25f); return; }  // decide first
+            if (!_slipStamped)   // decide first: say so, do not just buzz
+            {
+                _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.25f);
+                ToastDesk("STAMP THE SLIP FIRST - then hand the ID back.");
+                return;
+            }
             _backId = true;
             SetPaperHeld(_idCardGo, false);
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.4f);
@@ -274,15 +293,6 @@ namespace Hollowbrook.Checkpoint
             PresentFromQueue(admin, false);   // same state machine the queue path uses
         }
 
-        // Headless hook: the window goes empty mid-beat (the visitor walked off while a
-        // typed line was still in flight) so the dock's error path is provable.
-        internal void DebugClearVisitor()
-        {
-            _current = null;
-            SetVisitorVisible(false);
-            RefreshHud();
-        }
-
         // Arrival beat: the student slides the ID to the counter edge, unasked.
         private void OfferAtCounter()
         {
@@ -325,13 +335,13 @@ namespace Hollowbrook.Checkpoint
             if (_current.IsAdministrator && _recordGo != null)
             {
                 // the District Roster Memo rides on the record sheet: hand it over WITH the
-                // badge (issue #4) — it is the administrator's paper clue
+                // badge - it is the administrator's paper clue
                 _recordGo.SetActive(true);
                 _recordGo.transform.SetAsLastSibling();
             }
             bool admin = _current.IsAdministrator;
             FillIdCard(_current, admin);
-            FillRecordSheet(_current, admin);
+            if (admin) FillAdminMemo(_current);
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.6f);
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.DocumentsShown, _current));
             RefreshHandoverPrompt();
@@ -440,7 +450,7 @@ namespace Hollowbrook.Checkpoint
                 };
                 if (_gameRoot.Session.Clues.FoundCount >= 6)
                     lines.Add(new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "That face. The old school photo — the staff member who never aged. It's them." });
-                lines.Add(new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[3] });
+                lines.Add(new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[2] });
                 SayLine("AT THE WINDOW", "A formal coat. A briefcase. A smile that arrives a half-second late.");
                 // the scripted introduction hands over to the branching conversation: same
                 // visitor, same state, one owner (CheckpointView.AdminTalk)
@@ -451,8 +461,8 @@ namespace Hollowbrook.Checkpoint
             else
             {
                 Say(v.Greeting);
-                if (v.IsAnomaly && v.BehaviorGlitchVisible && _gameRoot.Session.Sanity < 70f)
-                    StartCoroutine(GlitchHint());
+                if (v.Defects.Contains(DefectType.PhotoSubtleMismatch) && _gameRoot.Session.Sanity < 70f)
+                    StartCoroutine(GlitchHint());   // a flicker over the one feature that is off
             }
         }
     }

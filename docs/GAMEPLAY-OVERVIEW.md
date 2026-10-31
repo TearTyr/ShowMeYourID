@@ -1,85 +1,70 @@
-# Show Me Your ID! — how the game plays *right now* (verified state)
+# Show Me Your ID! - how the game plays right now
 
-**Loop:** Main Menu → NEW GAME → night intro (click to advance) → **sticky note ("CLICK TO BEGIN")** →
-**checkpoint desk** ⇄ **patrol** (hallway + 2 classrooms) → shift results → next night → ending.
-Exhibition build = one curated night.
+**Loop:** Main Menu -> NEW GAME -> night intro (click to advance) -> **sticky note ("CLICK TO
+BEGIN")** -> **checkpoint desk** <-> **patrol** (hallway + 2 classrooms) -> shift results -> next
+night -> ending. Exhibition build (`exhibitionMode` in GameConfig) = one curated night.
 
-**The line (Phase 9):** visitors no longer politely wait for you to finish. An **arrival clock**
-(randomized **3–5 s**, `GameConfig.queueArrival*`) walks the roster up to the booth: if the window is
-busy they **queue in the yard** — one identical silhouette per waiting visitor in the strips either
-side of the booth (legit and anomaly look the same). The day banner's second line reads
-`QUEUE: n | CURRENT: arrived/expected`. After your verdict banner, the **oldest waiter steps up
-immediately**. Let the line reach **5** and the radio warns you (once); reach **7** and the line
-**overruns the checkpoint** — a one-shot lose ending (arrivals stop, stamps die). The queue lives in
-`GameRoot` (`GameLogic/CheckpointQueue.cs`, engine-free and unit-tested): patrol **pauses** the clock
-and nothing is lost across the scene switch; quit + CONTINUE restores the window visitor, your spent
-question budget, the line order and the arrival
-timer. An empty yard is **never** mistaken for a
-finished shift — END SHIFT only lights when the whole roster is resolved.
+**The line:** an **arrival clock** (25-30 s on night 1, x0.8 each night, double speed while the
+window is busy) walks the roster up to the booth. If the window is busy they queue in the yard.
+The top bar reads `WAITING n  ·  n TO GO TONIGHT`. After your verdict, the oldest waiter steps up
+right away. Patrol **pauses** the clock and nothing is lost across the scene switch; quit +
+CONTINUE restores the window visitor, the line order and the arrival timer. Line pressure
+(warning at 5, overrun at 7) is switched off in the current build (`queuePressureWarnAt` /
+`queueOverwhelmedAt` = 9999); set sane values in GameConfig to bring it back.
 
-**Missing students:** when an anomaly first enters the line it may (configured chance, seeded roll,
-**max 1 per shift**) make one legitimate student disappear before reaching you — preferentially
-someone already waiting. The night's expected total drops, the radio reports a roll-call discrepancy,
-and the absence is **permanent** (even allowing the anomaly in). Nobody is ever recorded as inspected
-who never arrived; the line never reveals who the anomaly is.
+**Missing students:** when an anomaly first enters the line it may (seeded, **max 1 per shift**)
+make one legitimate student disappear before reaching you. The night's expected total drops, the
+radio reports a roll-call discrepancy, and the absence is permanent.
 
-**Checkpoint (mouse):** a student reaches the window *behind glass*. The student's lines appear in a
-**speech bubble beside their head** — never in a bottom-screen strip — and the bubble is removed
-**2 s after the line ends** (a new line cancels the pending hide and restarts the countdown; one
-clock, generation-guarded, so a stale timer can never swallow a newer line). On the desk: the FLOOR
-FILES cabinet (browse the 1st/2nd-floor folders, pull the student's record), the student ID card
-(a slightly smaller default display; the scroll wheel never resizes it) + paper slip, and the
-PRINCIPAL NOTE (tonight's rule). Photo comparison is **the player's own eyes** — there is no
-face-check form and no scanner (the old CAMERA/SCAN monitor is retired; verification is fully
-manual: documents, floor files, questions, eyes). The ID
-flips **only by its black spine** (click the left edge; the mirrored spine on the back flips it
-home) — a click on the card body just drags it — and the slip flips **on its own** (tap it, or `F`
-for whichever paper you touched last); flipping one paper never touches the other. Right panel: four questions (max **2** per visitor, permanent budget) with the **verdict
-stamp tray** under it (*Papers, Please* style): drag **A — ACCEPT** or **D — DENY** onto the slip and
-the mark lands **where you dropped it** — mapped through the slip's position, zoom and tilt, clamped
-so the whole mark stays on the paper (keyboard `A`/`D` stamp a corner default) — one stamp per slip.
-Verdicts are permanent;
-wrong calls feed complaints (false rejects) and breaches (anomalies admitted); 3 of either ends the run.
-**Smart questioning:** each answer posts a testimony line stating whether it *matches the papers* or
-*papers disagree*, plus an odd-voice flag — the desk does the clerical comparison, the player keeps judgment.
+**The window (mouse):** a student reaches the window *behind glass*. Their words appear in a
+**speech bubble beside their head** and stay until the next line. On the desk: the FLOOR FILES
+cabinet (pick Room 101 or Room 202, A-Z files), the **ID card** and **paper slip** (already on your
+desk), the **rules note** and **tonight's log** (with ID numbers), and the **questions panel**.
 
-**Patrol (A/D or arrows, Shift run, E interact):** every room is entered **dark** — each has its own
-on/off lights (wall switch, E) and arriving always resets them off;
-the handheld **flashlight** is a separate system — cursor-aimed as a true cone: F = wide Sweep and
-F again = off (the on/off toggle), Q = tight Focus, L = off; the mouse buttons are not beam input,
-and every room entry forces the beam OFF (a lit beam never carries through a door). Classrooms are
-inspected by **peeking** from the doorway: the room is framed dark and the cursor lamp starts
-**OFF** — `F` is its one and only toggle (mouse movement never lights it), every peek entry resets
-it, and the exit (bottom band or `E` on the doorway) works in the dark. The HUD room
-line reads both states live (`LIGHTS` + `BEAM` on patrol, `LAMP` while peeking), so the text can
-never disagree with the picture.
-The beam punches real darkness (sprite mask) and runs on a battery
-(Focus drains 2.4x Sweep; off recovers, faster in genuinely lit rooms; a dead beam reboots at 20% and
-needs a deliberate press — it never relights itself). Holding Focus on a roaming anomaly fills TRACK:
-roaming → stalking → detected (any light) → exposed (distorted face, meter > 0.55) → repelled (it
-physically retreats, drops a token once, then may return later through another room). Sweep is not a
-weaker Focus — it freezes a Blink mid-stalk and interrupts a Sprint's telegraphed dash. Anomalies roam
-through the connected doors (Hallway ↔ Classroom 1/2); leaving a room neither freezes nor resets them. Ten clues across three rooms, in a discoverable order, gate the
-secret ending. Security office (Classroom 1 door): late-list verdicts count toward the story.
+- **The one question:** *Which classroom are you going to?* (button or `1`). It is free. The
+  answer shows in the bubble and stays in the panel under "THEY ANSWERED". Compare it with the
+  student's file. A lie is one of: the other real room, a room the school does not have (303, 305,
+  410), or the right room with the wrong class. Lies only start on night 2.
+- **The ID** flips only by its black spine (or `F`). Click it to inspect it enlarged; an open file
+  stays visible next to it. The face at the window vs the ID photo is **your own eyes**.
+- **Faces:** the ID always shows the real student. The window shows the same person unless the
+  visitor has a photo defect (somebody else's face, or the same person with one feature off).
+  Anomalies with other defects look completely normal.
+- **Stamps:** drag **ACCEPT** or **DECLINE** onto the slip. The slip glows while you hold a stamp,
+  and a missed drop tells you why. The mark lands where you dropped it. Stamp again to replace it.
+- **Hand back:** the window sill lights up; drag the ID back. The decision counts now and is
+  permanent. Wrong calls feed complaints (false rejects) and breaches (anomalies let in); 3 of
+  either ends the run on the last night.
+- The prompt line at the top always names the next step.
 
-**Endings:** Surviving Hollowbrook (5 clean nights + reject the administrator) / Another Custodian
-(3 breaches or 3 complaints — or letting the line overrun the checkpoint) / The Truth Behind
-Hollowbrook (10 clues in order). Exhibition night closes with its own demo card and never touches
-story records.
+**Patrol (A/D or arrows, Shift run, E interact):** every room is entered **dark**. Each has a wall
+switch (E). The handheld **flashlight** is separate: `F` sweep on/off, `Q` focus, `L` off. Rooms
+1 and 2 are inspected by **peeking** from the doorway with a cursor lamp (`F` on/off, `Q` wide/tight);
+the exit is the bottom edge or `E` on the doorway. The beam runs on a battery. Holding Focus on a
+roaming anomaly fills TRACK: roaming -> stalking -> detected -> exposed -> repelled (it retreats and
+drops a token, and may return). Ten clues across three rooms, found in order, open the secret ending.
 
-**Options (Phase 10):** the SETTINGS sheet is a compact **audio-only modal** — MASTER / MUSIC / SFX
-with live % read-outs and BACK — usable from the main menu and the pause menu (pause stays paused;
-closing returns to the pause sheet; Escape never unpauses behind an open sheet). Volumes apply
-immediately (music crossfades read the mix live) and persist through PlayerPrefs. Display,
-accessibility and data-reset settings remain in `SettingsSystem` and their other entry points
-(boot-time display apply, the menu's `F2`×3 reset).
+**Night 5 - the administrator:** he arrives last with a staff badge and a roster memo that do not
+match. `T` opens the conversation (a short list of questions about the badge, the number, his face,
+his answer, and any evidence you found). Talking never stamps. **REFUSE ENTRY** = the DENY stamp.
+Allowing him in loses at once.
 
-**Exhibition mode (default ON, `GameConfig.exhibitionMode`):** one night, 4 visitors, 1 anomaly with an
-honest tell and faster banners (2.2 s), one coaching hint → ~5-8 minutes. Set it false for
-the full five-shift campaign.
+**The hunt (after the DENY):** he forces the gate and hides in Classroom 1 or 2 (a knock and a
+caption say which). Peek in with the lamp on: his picture shakes and circles; keep the cursor on his
+head until the hold fills (**stun**). The lamp flickers out and he vanishes, then he hides in the
+other room or **charges down the hallway**: flash his face with the beam. **4 stuns** = driven off
+(normal Win/Secret ending). **SERVER DOOR** meter (180 s, paused only while he is held under the
+lamp) reaching zero = he reaches the server room (lose). Nothing else roams during the hunt, the
+security door is locked, and every phase has a time limit, so it cannot get stuck. Quit + CONTINUE
+resumes the hunt.
 
-**Verified here:** compile vs real Unity assemblies 0/0 (minimal + full sets); frozen LogicTests 663;
-independent suite 27,336 (fairness, endings, saves, encounter states, display policy, checkpoint
-queue); FlowCheck 830 OK / 0 BAD ×5 (button-level desk + queue + settings proofs, patrol world loop).
-`Tools/Verification/EngineSmoke` was removed in the issue #9 cleanup; `Tools/FlowCheck` is the running headless harness. **Not verified here:** pixels,
-audio, feel — editor playthrough required (steps in the refactor log).
+**Endings:** Surviving Hollowbrook (5 nights + the administrator driven off) / Another Custodian
+(3 breaches, 3 false rejections, the line overruns, the administrator let in, or the server door) /
+The Truth Behind Hollowbrook (10 clues in order, administrator driven off).
+
+**Options:** SETTINGS is an audio-only modal (MASTER / MUSIC / SFX), usable from the menu and the
+pause menu. Display, accessibility and the data reset (`F2` x3) live in `SettingsSystem`.
+
+**Checked here:** rules tests, a button-level flow check of the desk, patrol and the whole hunt, and
+a compile against real Unity assemblies. **Not checked here:** pixels, audio, feel - play it in the
+editor (see the playtest list in the final report).

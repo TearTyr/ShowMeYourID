@@ -146,13 +146,5 @@ namespace Hollowbrook.Audio
             if (_musicB != null && _musicB.isPlaying) _musicB.volume = mv;
         }
 
-        public void StopEverything()
-        {
-            if (_fadeRoutine != null) { StopCoroutine(_fadeRoutine); _fadeRoutine = null; }
-            _musicKey = "";
-            if (_musicA != null) { _musicA.Stop(); _musicA.clip = null; }
-            if (_musicB != null) { _musicB.Stop(); _musicB.clip = null; }
-            if (_sfxPool != null) foreach (var s in _sfxPool) if (s != null) s.Stop();
-        }
     }
 }

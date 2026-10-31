@@ -11,7 +11,7 @@ namespace Hollowbrook.LogicTests
 {
     internal static class Program
     {
-        private static int _pass, _fail, _knownIssues;
+        private static int _pass, _fail;
         private static readonly List<string> Failures = new List<string>();
         private static string _group = "";
 
@@ -35,7 +35,6 @@ namespace Hollowbrook.LogicTests
 
         private static int Main(string[] args)
         {
-            if (args.Length > 0 && args[0] == "--debug-dup") { DebugDuplicates(); return 0; }
             Console.WriteLine("Show Me Your ID! — logic suite (real GameLogic assemblies, no Unity)");
 
             IdRulesTests();
@@ -44,7 +43,9 @@ namespace Hollowbrook.LogicTests
             ClueRegistryTests();
             RosterFairnessTests();
             AdministratorTests();
-            QuestionBudgetTests();
+            ClassroomQuestionTests();
+            AdminHuntTests();
+            HuntEndingTests();
             InspectionRulesTests();
             EndingRulesTests();
             SessionTests();
@@ -62,7 +63,6 @@ namespace Hollowbrook.LogicTests
             QueueBusyHurryTests();
             QueueInvariantTests();
             StampRulesTests();
-            RecordSearchTests();
             FloorFileTests();
             DrawerMotionTests();
             FloorPlanTests();
@@ -74,12 +74,9 @@ namespace Hollowbrook.LogicTests
             SeatPlannerTests();
             CultureRoundTripTests();
             ResumeReplayTests();
-            SpokenChatTests();
 
             Console.WriteLine("\n==============================================");
             Console.WriteLine($"  PASS {_pass}   FAIL {_fail}   TOTAL {_pass + _fail}");
-            if (_knownIssues > 0)
-                Console.WriteLine($"  known display gaps (not failures): {_knownIssues}  — see docs/HOTFIX-v1.0.6.1.md §6");
             Console.WriteLine("==============================================");
             if (_fail > 0)
             {
@@ -87,38 +84,6 @@ namespace Hollowbrook.LogicTests
                 foreach (var f in Failures.Take(40)) Console.WriteLine("  - " + f);
             }
             return _fail == 0 ? 0 : 1;
-        }
-
-        /// <summary>Focused dump for the DuplicateId-vs-SCAN question.</summary>
-        private static void DebugDuplicates()
-        {
-            for (int seed = 1; seed <= 60; seed++)
-            {
-                var rf = new RosterFactory(seed);
-                foreach (var shift in ShiftPlan.Build())
-                {
-                    var visitors = rf.GenerateShift(shift);
-                    var log = new PresentationLog();
-                    for (int i = 0; i < visitors.Count; i++)
-                    {
-                        var v = visitors[i];
-                        bool wantsDup = v.Defects.Contains(DefectType.DuplicateId);
-                        var scan = rf.Scan(v, log);
-                        var docs = IdRules.EvaluateDocuments(v, rf.Registry, log);
-                        if (wantsDup && !scan.DuplicateTonight)
-                        {
-                            var first = log.FirstCardPhotoOf(v.IdNumber);
-                            Console.WriteLine($"seed {seed} shift {shift.Number} idx {i} '{v.ClaimedName}' id={v.IdNumber}");
-                            Console.WriteLine($"   IdPhoto={P(v.IdPhoto)} logPresented={log.WasPresented(v.IdNumber)} firstCard={(first.HasValue ? P(first.Value) : "<none>")}");
-                            Console.WriteLine($"   scan: fmt={scan.FormatValid} db={scan.FoundInDatabase} dup={scan.DuplicateTonight} ret={scan.ReturningStudent} disp='{scan.Display}'");
-                            Console.WriteLine($"   EvaluateDocuments -> [{string.Join(",", docs)}]");
-                            Console.WriteLine($"   all visitors this shift: " + string.Join(" | ",
-                                visitors.Select((x, k) => $"{k}:{(x.IsAnomaly ? "A" : "L")}{(x.IsAdministrator ? "D" : "")} {x.IdNumber} {P(x.IdPhoto)}{(x.Defects.Contains(DefectType.DuplicateId) ? " [DUP]" : "")}")));
-                        }
-                        log.RecordFrom(v, "tonight");
-                    }
-                }
-            }
         }
 
         private static string P(Portrait p) => $"(h{p.HairStyle},f{p.FaceVariant},a{p.Accessory}{(p.Distorted ? ",D" : "")})";
@@ -154,7 +119,6 @@ namespace Hollowbrook.LogicTests
         private static void ContentTests()
         {
             Group("Content — approved constants & roster");
-            Eq(Content.MaxQuestionsPerInspection, 2, "max questions per inspection (conflict C1 resolution)");
             Eq(Content.TotalStudents, 14, "student pool size");
             var roster = Content.BuildStudentRoster();
             Eq(roster.Count, Content.TotalStudents, "roster matches TotalStudents");
@@ -207,8 +171,9 @@ namespace Hollowbrook.LogicTests
             Check(ShiftPlan.Get(6) == null, "ShiftPlan.Get(6) is null");
             Check(shifts[0].MaxDefectsPerAnomaly <= shifts[4].MaxDefectsPerAnomaly, "defect cap escalates");
             Check(!shifts[0].SubtleDefectsAllowed && !shifts[1].SubtleDefectsAllowed, "subtle photo defects gated off for shifts 1-2");
-            Check(shifts[2].SubtleDefectsAllowed && shifts[2].DuplicateIdsAllowed && shifts[2].BehaviorOddityAllowed,
-                  "shift 3 unlocks subtle/duplicate/behavior defects");
+            Check(shifts[2].SubtleDefectsAllowed && shifts[2].DuplicateIdsAllowed && shifts[2].ClassroomLieAllowed,
+                  "shift 3 unlocks subtle/duplicate/classroom-lie defects");
+            Check(!shifts[0].ClassroomLieAllowed && shifts[1].ClassroomLieAllowed, "classroom lies start on night 2 (night 1 has no anomalies)");
             Check(shifts[3].ExplorationFocus && !shifts[4].ExplorationFocus, "only shift 4 is investigation-focused");
             Check(ShiftPlan.ChallengeMutations.Length >= 2, "challenge mutation pool exists");
             Check(ShiftPlan.ChallengeMutations.All(m => !string.IsNullOrEmpty(m.Key)), "every mutation has a key");
@@ -304,10 +269,10 @@ namespace Hollowbrook.LogicTests
                                   && v.IdYearLevel == v.RecordYearLevel && v.IdCourseIndex == v.RecordCourseIndex
                                   && v.IdIsTransferee == v.RecordIsTransferee && v.PhotoMatches,
                                   $"seed {seed}: legit ID and record agree on every field");
-                            Check(v.Answers.Values.All(ans => !ans.ContradictsDocuments),
-                                  $"seed {seed}: legit answers never contradict the documents");
-                            Check(v.Answers.Values.All(ans => ans.Tone == ToneTag.Normal),
-                                  $"seed {seed}: legit answers are always delivered Normal (fair tell)");
+                            Check(AnswerMatchesFile(v),
+                                  $"seed {seed}: legit '{v.ClaimedName}' names the room and class on their file ('{v.ClassroomAnswer}' vs '{v.RecordFirstClassroom}')");
+                            Eq(v.ClassroomTone, ToneTag.Normal,
+                               $"seed {seed}: legit answers are always delivered Normal (fair tell)");
                         }
                         else
                         {
@@ -316,9 +281,11 @@ namespace Hollowbrook.LogicTests
                                   $"seed {seed} shift {shift.Number}: anomaly '{v.ClaimedName}' has no defects (uncatchable)");
                             Check(v.Defects.Count <= shift.MaxDefectsPerAnomaly || v.IsAdministrator,
                                   $"seed {seed} shift {shift.Number}: anomaly carries {v.Defects.Count} defects > cap {shift.MaxDefectsPerAnomaly}");
+                            // the tell is on the papers, or in an answer that disagrees with the file
                             bool detectable = docDefects.Count > 0
-                                              || v.Defects.Contains(DefectType.BehaviorOddity)
-                                              || v.Answers.Values.Any(ans => ans.ContradictsDocuments || ans.Tone != ToneTag.Normal);
+                                              || (v.Defects.Contains(DefectType.ClassroomMismatch) && !AnswerMatchesFile(v));
+                            Eq(AnswerMatchesFile(v), !v.Defects.Contains(DefectType.ClassroomMismatch),
+                               $"seed {seed} shift {shift.Number}: an anomaly lies about the classroom exactly when it carries ClassroomMismatch");
                             Check(detectable,
                                   $"seed {seed} shift {shift.Number}: anomaly '{v.ClaimedName}' is undetectable [{string.Join(",", v.Defects)}]");
                             Eq(InspectionRules.ExpectedVerdict(v, null), Verdict.Reject,
@@ -329,9 +296,9 @@ namespace Hollowbrook.LogicTests
                             if (!shift.DuplicateIdsAllowed)
                                 Check(!v.Defects.Contains(DefectType.DuplicateId),
                                       $"seed {seed} shift {shift.Number}: duplicate ID used before it is unlocked");
-                            if (!shift.BehaviorOddityAllowed)
-                                Check(!v.Defects.Contains(DefectType.BehaviorOddity),
-                                      $"seed {seed} shift {shift.Number}: behavior oddity used before it is unlocked");
+                            if (!shift.ClassroomLieAllowed)
+                                Check(!v.Defects.Contains(DefectType.ClassroomMismatch),
+                                      $"seed {seed} shift {shift.Number}: classroom lie used before it is unlocked");
                             // a duplicate is only evidence once the earlier card has been seen
                             if (v.Defects.Contains(DefectType.DuplicateId))
                                 Check(docDefects.Contains(DefectType.DuplicateId),
@@ -343,48 +310,6 @@ namespace Hollowbrook.LogicTests
                         playLog.RecordFrom(v, "tonight");
                     }
 
-                    // scanner view must agree with the ground truth the rules use
-                    // (administrators are an intentional special case: a staff badge is not a
-                    //  student ID, so Scan reports it as "not a student ID" instead of "invalid")
-                    var scanLog = new PresentationLog();
-                    foreach (var v in visitors)
-                    {
-                        var scan = rf.Scan(v, scanLog);
-                        if (v.IsAdministrator)
-                        {
-                            Check(scan.FormatValid && !scan.FoundInDatabase,
-                                  $"seed {seed}: SCAN flags the badge as 'not a student ID'");
-                            Check(scan.Display.IndexOf("ROSTER MEMO", StringComparison.Ordinal) >= 0,
-                                  $"seed {seed}: SCAN points the player at the district roster memo");
-                        }
-                        else
-                        {
-                            Eq(scan.FormatValid, IdRules.IsFormatValid(v.IdNumber), $"seed {seed}: SCAN format matches IdRules");
-                            Eq(scan.FoundInDatabase, IdRules.DatabaseLookup(v.IdNumber, rf.Registry), $"seed {seed}: SCAN database matches IdRules");
-                            if (v.Defects.Contains(DefectType.DuplicateId))
-                            {
-                                // Ground truth (EvaluateDocuments) always proves the duplicate, so the
-                                // visitor is fair to catch. The SCANNER, however, returns early for an ID
-                                // that is not in the registry and therefore omits the duplicate warning —
-                                // tracked as a known display gap, not a failure (see docs).
-                                Check(scan.DuplicateTonight || !scan.FoundInDatabase,
-                                      $"seed {seed} shift {shift.Number}: SCAN proves the duplicate (or the ID is a ghost)");
-                                if (!scan.DuplicateTonight)
-                                {
-                                    _knownIssues++;
-                                    Console.WriteLine($"   [KNOWN ISSUE] seed {seed} shift {shift.Number}: " +
-                                                      "scanner omits the duplicate warning for an unregistered (ghost) ID");
-                                }
-                            }
-                            if (!v.IsAnomaly && scanLog.WasPresented(v.IdNumber))
-                                Check(scan.ReturningStudent && !scan.DuplicateTonight,
-                                      $"seed {seed}: a legitimate returner with the SAME card is never flagged as a duplicate");
-                            if (scan.FoundInDatabase && !v.IsAdministrator)
-                                Check(!string.IsNullOrEmpty(scan.RegisteredTo) && scan.RegisteredTo != "UNKNOWN",
-                                      $"seed {seed}: SCAN names the registered student");
-                        }
-                        scanLog.RecordFrom(v, "tonight");
-                    }
                 }
             }
             Console.WriteLine($"   ({totalVisitors} visitors generated: {legitSeen} legitimate, {anomalySeen} anomalies)");
@@ -392,184 +317,111 @@ namespace Hollowbrook.LogicTests
         }
 
         // ------------------------------------------------------- administrator
-        // The Shift-5 conversation engine: reachable branches, state-aware lines, silence that
-        // can never softlock, clue gating off the REAL clue keys, and zero mechanical power.
+        // The Shift-5 questions and answers: every topic reachable, evidence gated by the REAL
+        // clue keys, no dead ends, REFUSE ENTRY and stepping back always available, and zero
+        // mechanical power (talking never stamps).
         private static void AdminTalkSuite()
         {
-            Group("AdminTalk — the branching administrator conversation");
+            Group("AdminTalk — the administrator's questions and answers");
 
             var problems = AdminTalk.ValidateScript();
             Check(problems.Count == 0,
-                "the script validates: unique ids, real destinations, reachable, escapable" +
+                "the script validates: real destinations, no unknown tokens, reachable, always a way out" +
                 (problems.Count > 0 ? " (first: " + problems[0] + ")" : ""));
             foreach (var p in problems.Take(6)) Console.WriteLine("   script: " + p);
 
             AdminTalkContext Fresh() => new AdminTalkContext
             {
-                BadgeName = "V. Marlowe", MemoName = "R. Vance",
-                BadgeNumber = "DA-0233", MemoNumber = "DA-1147",
-                AnswerCourse = "I am with the district office.",
-                AnswerStatus = "I am an administrator.",
-                AnswerFirstClassroom = "My first stop is your server room.",
+                BadgeName = "V. Marlowe", MemoName = "R. Vance", BadgeNumber = "DA-0233", MemoNumber = "DA-1147",
+                AnswerClassroom = "My first stop is your server room.",
             };
 
-            // ---- the hub opens with the mandatory beats and hides gated ones
-            var st = new AdminTalkState();
             var ctx = Fresh();
+            var st = new AdminTalkState();
             var open = AdminTalk.Open(st, ctx);
             Eq(st.Node, AdminTalk.HubId, "opening lands on the hub");
-            Eq(st.HubVisits, 1, "the first open counts as the first hub visit");
-            Check(open.Lines.Count >= 1 && open.Lines[0].Contains("complaints"),
-                "the hub opens on the administrator's established pressure line");
-            var ids = OptionIds(st, ctx);
-            foreach (var must in new[] { "chal_name", "chal_num", "chal_face", "defer", "silence", "end" })
-                Check(ids.Contains(must), "the hub offers '" + must + "'");
-            Check(!ids.Contains("ev_photo") && !ids.Contains("ev_cabinet"),
-                "clue branches stay hidden before their clue is discovered");
-            Check(!ids.Contains("q_server") && !ids.Contains("q_status") && !ids.Contains("q_course"),
-                "question branches stay hidden before those questions are asked");
+            Check(open.Text.Contains("complaints about your performance"), "the hub opens with his demand");
+            Eq(st.Visits, 1, "the first open counts one visit");
+            var hubOptions = AdminTalk.OptionsFor(st, ctx);
+            Check(hubOptions.Any(o => o.Action == AdminTalkAction.Refuse) && hubOptions.Any(o => o.Action == AdminTalkAction.StepBack),
+                  "the hub always offers REFUSE ENTRY and the exit");
+            Check(!hubOptions.Any(o => o.Id == "ask_photo" || o.Id == "ask_cabinet" || o.Id == "ask_server"),
+                  "evidence and the server question stay hidden until earned");
 
-            // six unrelated findings must NOT open a clue branch: the gate is the specific key
-            ctx = Fresh();
-            ctx.CluePhoto = false; ctx.ClueCabinet = false;
-            st = new AdminTalkState { Challenge = 3, Compliance = 2, Silence = 4, Evidence = 0, HubVisits = 6 };
-            Check(!OptionIds(st, ctx).Contains("ev_photo"),
-                "a long, tense conversation with no photo clue still cannot open the photo branch");
+            // tokens are filled from the real papers
+            var asked = AdminTalk.Choose(st, ctx, "ask_name");
+            Eq(st.Node, "name", "asking about the name moves to its answer");
+            Check(AdminTalk.OptionsFor(st, ctx).Any(o => o.Id == "press_name"), "the answer offers a follow-up");
+            var nameLabel = AdminTalk.Resolve(hubOptions.First(o => o.Id == "ask_name").Label, ctx);
+            Check(nameLabel.Contains("V. Marlowe") && nameLabel.Contains("R. Vance") && !nameLabel.Contains("{"),
+                  "option labels use the live badge and memo names");
 
-            // ---- branch A: challenging a specific discrepancy answers THAT discrepancy
-            st = new AdminTalkState(); ctx = Fresh();
-            AdminTalk.Open(st, ctx);
-            var chalName = AdminTalk.Choose(st, ctx, "chal_name");
-            Eq(st.Node, "chal_name", "the name challenge moves to its own node");
-            Eq(st.Challenge, 1, "the challenge is counted once");
-            Check(chalName.Lines.Count >= 1 && chalName.Lines[0].Length > 20, "the administrator answers");
-            var chalNum = AdminTalk.Choose(new AdminTalkState(), Fresh(), "chal_num");
-            Check(chalNum.NodeId == "chal_num" && chalNum.Lines[0] != chalName.Lines[0],
-                "a different challenge produces different follow-up dialogue");
-            // the one-shot is spent; the other challenges remain
-            // deeper beat: press the memo line by line
-            var press = AdminTalk.Choose(st, ctx, "press_name");
-            Eq(st.Node, "press_name", "pressing continues the branch");
-            Check(press.Lines[0].Contains("DA-1147") || press.Lines[0].Contains("Vance"),
-                "the pressed branch quotes the real memo facts");
-            AdminTalk.Choose(st, ctx, "press_name_back");      // back to the hub
-            Check(!OptionIds(st, ctx).Contains("chal_name"), "a spent challenge is not offered again at the hub");
-            Check(OptionIds(st, ctx).Contains("chal_num"), "the unspent challenges remain available at the hub");
+            // follow-up, then back: the question is spent, the hub speaks its return line
+            AdminTalk.Choose(st, ctx, "press_name");
+            Eq(st.Node, "name2", "the follow-up reaches the second answer");
+            AdminTalk.Choose(st, ctx, "back");
+            Eq(st.Node, AdminTalk.HubId, "back returns to the hub");
+            Check(!AdminTalk.OptionsFor(st, ctx).Any(o => o.Id == "ask_name"), "a question already asked is not offered again");
+            var again = AdminTalk.Choose(st, ctx, "ask_num");
+            AdminTalk.Choose(st, ctx, "back");
+            Check(AdminTalk.Open(new AdminTalkState { Node = AdminTalk.HubId, Visits = 3 }, ctx).Text.StartsWith("Still here"),
+                  "returning to the hub uses his 'still here' line");
 
-            // ---- branch B: compliance persuades but never stamps
-            st = new AdminTalkState(); ctx = Fresh();
-            AdminTalk.Open(st, ctx);
-            var defer = AdminTalk.Choose(st, ctx, "defer");
-            Eq(st.Compliance, 1, "deference is counted");
-            Check(defer.Lines[0].Contains("formality") || defer.Lines[0].Contains("papers down"),
-                "compliance is met with pressure to bypass the written rule");
-            var refuse = AdminTalk.Choose(st, ctx, "refuse_defer");
-            Eq(st.Challenge, 1, "reconsidering and refusing counts as a challenge");
-            Check(refuse.Lines.Count >= 1, "the administrator reacts to the refusal");
-            Check(!st.Completed, "refusing in conversation is NOT a verdict");
+            // a wrong or hidden option does nothing
+            string nodeBefore = st.Node; string enc = st.Encode();
+            var bad = AdminTalk.Choose(st, ctx, "ask_photo");
+            Check(!bad.Completed && st.Encode() == enc && st.Node == nodeBefore,
+                  "picking a hidden option changes nothing (clue not found)");
+            Check(!AdminTalk.Choose(st, ctx, "no_such_option").Completed, "an unknown option id changes nothing");
 
-            // compliance wording adapts: a second hub after deference reads differently
-            st = new AdminTalkState(); ctx = Fresh();
-            var opening = AdminTalk.Open(st, ctx);
-            AdminTalk.Choose(st, ctx, "defer");
-            AdminTalk.Choose(st, ctx, "defer_press");
-            AdminTalk.Choose(st, ctx, "defer_press_back");     // back to the hub
-            var hubLines = AdminTalk.Speak(AdminTalk.HubId, ctx, st);
-            Check(hubLines.Count >= 1 && hubLines[0] != opening.Lines[0],
-                "returning to the hub after a branch speaks a return line, not the opening");
+            // clue gating off the real keys
+            var withPhoto = Fresh(); withPhoto.CluePhoto = true;
+            st = new AdminTalkState(); AdminTalk.Open(st, withPhoto);
+            Check(AdminTalk.OptionsFor(st, withPhoto).Any(o => o.Id == "ask_photo"), "the photo clue unlocks its question");
+            AdminTalk.Choose(st, withPhoto, "ask_photo");
+            Check(AdminTalk.NodeById(st.Node).Id == "photo", "the photo question reaches its answer");
+            var withCabinet = Fresh(); withCabinet.ClueCabinet = true;
+            st = new AdminTalkState(); AdminTalk.Open(st, withCabinet);
+            Check(AdminTalk.OptionsFor(st, withCabinet).Any(o => o.Id == "ask_cabinet"), "the cabinet clue unlocks its question");
+            var withClass = Fresh(); withClass.AskedClassroom = true;
+            st = new AdminTalkState(); AdminTalk.Open(st, withClass);
+            var serverOpt = AdminTalk.OptionsFor(st, withClass).FirstOrDefault(o => o.Id == "ask_server");
+            Check(serverOpt != null, "asking him the classroom question unlocks the server-room follow-up");
+            Check(AdminTalk.Choose(st, withClass, "ask_server").Text.Contains("My first stop is your server room."),
+                  "his answer quotes what he really said at the window");
 
-            // ---- branch C: evidence gates on the real clue keys and quotes them
-            st = new AdminTalkState(); ctx = Fresh(); ctx.CluePhoto = true;
-            AdminTalk.Open(st, ctx);
-            Check(OptionIds(st, ctx).Contains("ev_photo"), "the photo clue opens its branch");
-            var ev = AdminTalk.Choose(st, ctx, "ev_photo");
-            Eq(st.Evidence, 1, "raising evidence is counted");
-            Check(ev.Lines[0].Contains("photograph") || ev.Lines[0].Contains("photo"),
-                "the administrator answers the specific evidence raised");
-            st = new AdminTalkState(); ctx = Fresh(); ctx.ClueCabinet = true;
-            AdminTalk.Open(st, ctx);
-            var cab = AdminTalk.Choose(st, ctx, "ev_cabinet");
-            Check(cab.Lines[0] != ev.Lines[0], "different evidence, different reaction");
+            // REFUSE ENTRY and the exit end the conversation with the right action
+            st = new AdminTalkState(); ctx = Fresh(); AdminTalk.Open(st, ctx);
+            var refuse = AdminTalk.Choose(st, ctx, "refuse");
+            Check(refuse.Completed && refuse.Action == AdminTalkAction.Refuse && st.Completed, "REFUSE ENTRY ends the conversation as a refusal");
+            Check(AdminTalk.Choose(st, ctx, "ask_name").Completed, "a finished conversation stays finished");
+            st = new AdminTalkState(); AdminTalk.Open(st, ctx);
+            var end = AdminTalk.Choose(st, ctx, "end");
+            Check(end.Completed && end.Action == AdminTalkAction.StepBack, "stepping back ends the conversation without refusing");
 
-            // ---- branch D: silence never softlocks and escalates through three beats
-            st = new AdminTalkState(); ctx = Fresh();
-            AdminTalk.Open(st, ctx);
-            var s1 = AdminTalk.Choose(st, ctx, "silence");
-            Eq(st.Silence, 1, "the first silence counts");
-            Check(s1.PauseSeconds > 0.5f, "silence carries an uncomfortable pause");
-            AdminTalk.Choose(st, ctx, "silence_back");          // hub
-            var s2 = AdminTalk.Choose(st, ctx, "silence");
-            AdminTalk.Choose(st, ctx, "silence_back");
-            var s3 = AdminTalk.Choose(st, ctx, "silence");
-            Check(s1.Lines[0] != s2.Lines[0] && s2.Lines[0] != s3.Lines[0],
-                "each silence gets its own beat (repeat, wait-out, then the mask slips)");
-            Check(s3.Lines[0].Contains("ORDER") || s3.Lines[0].Contains("Open. The. Gate."),
-                "the third silence drops the official mask");
-            Check(OptionIds(st, ctx).Contains("end"), "silence always leaves the exit reachable");
-            Eq(st.Completed, false, "silence is not a verdict");
+            // every node can be left, from anywhere, at any depth
+            foreach (var node in AdminTalk.Nodes)
+            {
+                var probe = new AdminTalkState { Node = node.Id, Visits = 1 };
+                var opts = AdminTalk.OptionsFor(probe, Fresh());
+                Check(opts.Count > 0 && opts.Any(o => o.Action != AdminTalkAction.None),
+                      "node '" + node.Id + "' always offers a way out");
+            }
 
-            // ---- question-adaptive branches read the REAL question system
-            st = new AdminTalkState(); ctx = Fresh(); ctx.AskedFirstClassroom = true;
-            AdminTalk.Open(st, ctx);
-            Check(OptionIds(st, ctx).Contains("q_server"), "asking about the first classroom unlocks its follow-up");
-            var qs = AdminTalk.Choose(st, ctx, "q_server");
-            Check(qs.Lines[0].Contains("My first stop is your server room."),
-                "the follow-up quotes the visitor's ACTUAL answer, verbatim");
-            st = new AdminTalkState(); ctx = Fresh(); ctx.AskedStatus = true;
-            AdminTalk.Open(st, ctx);
-            var qst = AdminTalk.Choose(st, ctx, "q_status");
-            Check(qst.Lines[0].Contains("I am an administrator."),
-                "the status follow-up quotes the actual status answer");
+            // the save string round-trips and tolerates garbage
+            st = new AdminTalkState(); ctx = Fresh(); AdminTalk.Open(st, ctx);
+            AdminTalk.Choose(st, ctx, "ask_num"); AdminTalk.Choose(st, ctx, "press_num");
+            var dec = AdminTalkState.Decode(st.Encode());
+            Check(dec.Node == st.Node && dec.UsedMask == st.UsedMask && dec.Visits == st.Visits && dec.Completed == st.Completed,
+                  "the conversation state round-trips through the save string");
+            Check(AdminTalkState.Decode("").Node == "" && AdminTalkState.Decode("a,b").Node == "" && AdminTalkState.Decode("zzz,1,1,0").Node == "",
+                  "an empty, torn or unknown-node value decodes to a fresh conversation");
 
-            // ---- tokens resolve from live visitor data, never from invented facts
-            Eq(AdminTalk.Resolve("{badge_name} / {memo_name} / {badge_num} / {memo_num}", Fresh()),
-               "V. Marlowe / R. Vance / DA-0233 / DA-1147", "identity tokens resolve to the canon facts");
-
-            // ---- completion: the exit ends the talk and nothing mechanical moves
-            st = new AdminTalkState(); ctx = Fresh();
-            AdminTalk.Open(st, ctx);
-            AdminTalk.Choose(st, ctx, "chal_face");
-            var done = AdminTalk.Choose(st, ctx, "end");
-            Check(done.Completed && st.Completed, "the exit completes the conversation");
-            var after = AdminTalk.Choose(st, ctx, "silence");
-            Check(after.Completed, "a completed conversation takes no further options");
-            Check(st.Challenge == 1 && st.Compliance == 0 && st.Evidence == 0,
-                "the conversation moved only its own counters");
-
-            // ---- invalid input fails safe: unknown option, unknown node
-            st = new AdminTalkState(); ctx = Fresh();
-            AdminTalk.Open(st, ctx);
-            var before = st.Encode();
-            var bad = AdminTalk.Choose(st, ctx, "not_a_real_option");
-            Check(!bad.Completed && st.Encode() == before && bad.NodeId == AdminTalk.HubId,
-                "an invalid option changes nothing and leaves the node standing");
-            st.Node = "node_that_does_not_exist";
-            var opts = AdminTalk.OptionsFor(st, ctx);
-            Check(opts.Count == 1 && string.IsNullOrEmpty(opts[0].To),
-                "an unknown node fails safe to the single exit option");
-
-            // ---- save round-trip: the encounter resumes where it stood
-            st = new AdminTalkState(); ctx = Fresh();
-            AdminTalk.Open(st, ctx);
-            AdminTalk.Choose(st, ctx, "chal_num");
-            AdminTalk.Choose(st, ctx, "num_rule");
-            var enc = st.Encode();
-            var dec = AdminTalkState.Decode(enc);
-            Check(dec.Node == st.Node && dec.UsedMask == st.UsedMask && dec.Challenge == st.Challenge &&
-                  dec.HubVisits == st.HubVisits && dec.Silence == st.Silence,
-                "the conversation state round-trips through its save encoding");
-            Check(AdminTalkState.Decode("").Node == "" && !AdminTalkState.Decode("").Completed,
-                "an old save without the key resumes as an unopened conversation");
-            Check(AdminTalkState.Decode("ghost_node,3,1,1,0,0,2,0").Node == "",
-                "a torn node id falls back to the hub instead of a dead end");
+            // the script never talks about her; the administrator is a he
+            foreach (var node in AdminTalk.Nodes)
+                Check(!node.Text.Contains(" she ") && !node.Text.Contains(" her "), "node '" + node.Id + "' has no stray pronoun");
         }
 
-        private static List<string> OptionIds(AdminTalkState st, AdminTalkContext ctx)
-        {
-            var list = new List<string>();
-            foreach (var o in AdminTalk.OptionsFor(st, ctx)) list.Add(o.Id);
-            return list;
-        }
 
         // The ending evaluator's integration contract: the administrator's rejection is part of
         // the Win/Secret gate, the pending-pool fold happens exactly once, and the documented
@@ -711,26 +563,230 @@ namespace Hollowbrook.LogicTests
             Check(rejected.Correct && !rejected.AnomalyBreach, "rejecting the administrator is correct");
         }
 
-        // -------------------------------------------------------- question cap
-        private static void QuestionBudgetTests()
+        // ---------------------------------------------------- classroom question
+        // "Rooms the file would say": the answer is "Room 202, Genetics." and the file prints
+        // "Room 202 · Genetics" — the same room and class, spelled for a different reader.
+        private static bool AnswerMatchesFile(VisitorData v) =>
+            v.ClassroomAnswer.TrimEnd('.').Replace(", ", " · ") == v.RecordFirstClassroom;
+
+        private static void ClassroomQuestionTests()
         {
-            Group("QuestionSystem — max 2 questions, no repeats");
-            var v = new RosterFactory(3).GenerateShift(ShiftPlan.Get(2)).First();
-            var budget = new QuestionSystem.Budget();
-            Eq(budget.Max, Content.MaxQuestionsPerInspection, "budget defaults to the approved cap");
-            Eq(budget.Remaining, 2, "two questions available");
-            Check(budget.TryAsk(v, QuestionId.Course, out var a1), "question 1 allowed");
-            Check(!string.IsNullOrEmpty(a1.Text), "question 1 returns an answer");
-            Check(!budget.TryAsk(v, QuestionId.Course, out _), "repeating the same question is refused");
-            Eq(budget.Remaining, 1, "repeat did not consume budget");
-            Check(budget.TryAsk(v, QuestionId.Year, out _), "question 2 allowed");
-            Eq(budget.Remaining, 0, "budget spent");
-            Check(!budget.TryAsk(v, QuestionId.Status, out _), "third question is refused");
-            budget.Reset();
-            Eq(budget.Remaining, 2, "reset restores the budget");
-            Eq(QuestionSystem.All.Length, 4, "four question topics exist");
-            Check(QuestionSystem.All.Distinct().Count() == 4, "question topics are distinct");
-            Check(QuestionSystem.All.All(q => !string.IsNullOrEmpty(QuestionSystem.QuestionText(q))), "every question has text");
+            Group("Classroom question — one free question, a lie provable against the file");
+            Check(!string.IsNullOrEmpty(ClassroomQuestion.ButtonLabel) && !string.IsNullOrEmpty(ClassroomQuestion.Spoken),
+                  "the question has its button text and its spoken line");
+            var canon = Content.BuildStudentRoster();
+            int wrongRoom = 0, missingRoom = 0, wrongClass = 0, liars = 0;
+            for (int seed = 1; seed <= 200; seed++)
+            {
+                var rf = new RosterFactory(seed);
+                foreach (var shift in ShiftPlan.Build())
+                    foreach (var v in rf.GenerateShift(shift))
+                    {
+                        if (v.IsAdministrator) continue;
+                        // the FILE is always the truth: whatever the card says, the file matches the canon student
+                        var student = canon.First(c => c.FullName == v.RecordName);
+                        Check(v.RecordYearLevel == student.YearLevel && v.RecordCourseIndex == student.CourseIndex &&
+                              v.RecordIsTransferee == student.IsTransferee && v.RecordFirstClassroom == student.ClassroomString,
+                              $"seed {seed}: the file of '{v.RecordName}' is never altered by a defect");
+                        // face art: only a photo defect changes who stands at the window
+                        bool photoMismatch = v.Defects.Contains(DefectType.PhotoMismatch);
+                        Eq(FaceAssets.StudentKey(v.WindowFaceIndex) != FaceAssets.StudentKey(v.FaceAssetIndex), photoMismatch,
+                           $"seed {seed}: the window shows another student's face exactly on a PhotoMismatch");
+                        if (!v.Defects.Contains(DefectType.ClassroomMismatch)) continue;
+                        liars++;
+                        string ans = v.ClassroomAnswer;
+                        if (ans.StartsWith("Room 303") || ans.StartsWith("Room 305") || ans.StartsWith("Room 410")) missingRoom++;
+                        else if (!ans.StartsWith(Content.RoomName(student.FirstClassroom))) wrongRoom++;
+                        else wrongClass++;
+                    }
+            }
+            Check(wrongRoom > 20 && missingRoom > 20 && wrongClass > 20,
+                  $"all three lies occur (other room {wrongRoom}, no such room {missingRoom}, wrong class {wrongClass})");
+            Check(liars > 200, "enough liars to be worth asking (" + liars + ")");
+            var admin = new RosterFactory(1).BuildAdministrator(ShiftPlan.Build()[4]);
+            Check(admin.ClassroomAnswer.Contains("server room"), "the administrator names the server room");
+        }
+
+        // ------------------------------------------------------ administrator hunt
+        // The hunt must ALWAYS end: no input (or lack of input) can leave anyone stuck.
+        private enum HuntPlayer { Idle, Perfect, Dodger, Random, StepBackSpammer }
+
+        private static HuntInput HuntInputFor(HuntPlayer who, AdminHunt h, float t, GameRng rng, ref bool lastPeek)
+        {
+            var inp = new HuntInput { InHallway = true, PlayerRoom = RoomId.Hallway };
+            switch (who)
+            {
+                case HuntPlayer.Idle:
+                    break;
+                case HuntPlayer.Perfect:
+                    if (h.Phase == HuntPhase.Hiding || h.Phase == HuntPhase.Tracking)
+                    { inp.Peeking = true; inp.PlayerRoom = h.Room; inp.InHallway = false; inp.OnTarget = h.Phase == HuntPhase.Tracking; }
+                    if (h.Phase == HuntPhase.Charging) inp.BeamOnFace = true;
+                    break;
+                case HuntPlayer.Dodger:   // on his head for 2 s, off for 1 s, again and again
+                    if (h.Phase == HuntPhase.Hiding || h.Phase == HuntPhase.Tracking)
+                    { inp.Peeking = true; inp.PlayerRoom = h.Room; inp.InHallway = false; inp.OnTarget = (t % 3f) < 2f; }
+                    break;
+                case HuntPlayer.StepBackSpammer:   // peeks in and out every half second, never holds
+                    if ((int)(t * 2f) % 2 == 0)
+                    { inp.Peeking = true; inp.PlayerRoom = h.Room; inp.InHallway = false; inp.OnTarget = true; }
+                    break;
+                default:   // random, but sticky: changes a few times a second
+                    if (rng.Chance(0.05f)) lastPeek = !lastPeek;
+                    if (lastPeek)
+                    {
+                        inp.Peeking = true; inp.InHallway = false;
+                        inp.PlayerRoom = rng.Chance(0.8f) ? h.Room : (rng.Chance(0.5f) ? RoomId.Classroom1 : RoomId.Classroom2);
+                        inp.OnTarget = rng.Chance(0.6f);
+                    }
+                    inp.BeamOnFace = rng.Chance(0.5f);
+                    if (rng.Chance(0.1f)) inp.InHallway = !inp.InHallway && !inp.Peeking;
+                    break;
+            }
+            return inp;
+        }
+
+        // Runs one hunt; returns the end phase and the simulated seconds it took.
+        private static HuntPhase RunHunt(HuntPlayer who, int seed, HuntTuning tun, out float seconds,
+            out int stuns, List<HuntOutcome> outcomes)
+        {
+            var h = new AdminHunt(tun, seed);
+            h.Start();
+            var rng = new GameRng(seed * 31 + 7);
+            bool peek = false;
+            const float dt = 0.05f;
+            float t = 0f, prevServer = h.ServerLeft;
+            float maxT = tun.ServerSeconds * 20f;
+            while (!h.Finished && t < maxT)
+            {
+                var ev = h.Tick(dt, HuntInputFor(who, h, t, rng, ref peek));
+                t += dt;
+                if ((ev & HuntEvent.FlickerStart) != 0 && outcomes != null) outcomes.Add(h.PendingOutcome);
+                // invariants: the clock never runs backwards, every phase honours its limit
+                if (h.ServerLeft > prevServer + 1e-4f) { seconds = t; stuns = -1; return HuntPhase.Hiding; }
+                prevServer = h.ServerLeft;
+                float limit = h.Phase == HuntPhase.Tracking ? tun.TrackMaxSeconds
+                    : h.Phase == HuntPhase.Flicker ? tun.FlickerSeconds
+                    : h.Phase == HuntPhase.Recoil ? tun.RecoilSeconds
+                    : h.Phase == HuntPhase.Charging ? tun.ChargeWaitSeconds + tun.ChargeSeconds
+                    : h.Phase == HuntPhase.Hiding ? tun.HideMaxSeconds : float.MaxValue;
+                if (h.PhaseTimer > limit + dt + 0.01f) { seconds = t; stuns = -2; return HuntPhase.Hiding; }
+            }
+            seconds = t;
+            stuns = h.Stuns;
+            return h.Phase;
+        }
+
+        private static void AdminHuntTests()
+        {
+            Group("AdminHunt — always ends, never stuck, fair outcomes");
+            var tun = HuntTuning.Default;
+            Check(tun.StunsToWin >= 1 && tun.ServerSeconds > 30f, "default tuning is sane");
+
+            // idle player: the server door meter alone ends it
+            var idle = RunHunt(HuntPlayer.Idle, 1, tun, out float idleSecs, out _, null);
+            Check(idle == HuntPhase.Lost && idleSecs <= tun.ServerSeconds + 1f,
+                  $"a player who does nothing loses when the meter runs out ({idleSecs:F1}s)");
+
+            // a perfect player wins quickly with exactly the needed stuns
+            int perfectWins = 0; float slowest = 0f;
+            for (int seed = 1; seed <= 300; seed++)
+            {
+                var end = RunHunt(HuntPlayer.Perfect, seed, tun, out float secs, out int stuns, null);
+                if (end == HuntPhase.Won && stuns == tun.StunsToWin) perfectWins++;
+                slowest = System.Math.Max(slowest, secs);
+            }
+            Eq(perfectWins, 300, "a perfect player always wins with exactly the needed stuns");
+            Check(slowest < tun.ServerSeconds * 0.6f, $"...and well inside the meter (slowest {slowest:F0}s of {tun.ServerSeconds:F0}s)");
+
+            // adversarial and random players: it still ends, every phase honours its limit
+            foreach (var who in new[] { HuntPlayer.Dodger, HuntPlayer.StepBackSpammer, HuntPlayer.Random })
+            {
+                int ended = 0, badInvariant = 0;
+                float longest = 0f;
+                for (int seed = 1; seed <= 400; seed++)
+                {
+                    var end = RunHunt(who, seed, tun, out float secs, out int stuns, null);
+                    if (end == HuntPhase.Won || end == HuntPhase.Lost) ended++;
+                    if (stuns < 0) badInvariant++;
+                    longest = System.Math.Max(longest, secs);
+                }
+                Eq(ended, 400, $"{who}: all 400 hunts end in a win or a loss");
+                Eq(badInvariant, 0, $"{who}: the server clock never rewinds and no phase overstays");
+                Check(longest <= tun.ServerSeconds * 3f, $"{who}: longest {longest:F0}s stays bounded");
+            }
+
+            // outcomes are random but never the same three times in a row
+            int maxRun = 1, charges = 0, total = 0;
+            for (int seed = 1; seed <= 200; seed++)
+            {
+                var seq = new List<HuntOutcome>();   // one hunt at a time: streaks never cross hunts
+                RunHunt(HuntPlayer.Perfect, seed, tun, out _, out _, seq);
+                int run = 1;
+                for (int i = 0; i < seq.Count; i++)
+                {
+                    total++;
+                    if (seq[i] == HuntOutcome.HallwayCharge) charges++;
+                    run = i > 0 && seq[i] == seq[i - 1] ? run + 1 : 1;
+                    maxRun = System.Math.Max(maxRun, run);
+                }
+            }
+            Check(maxRun <= 2, "never the same outcome three times in a row (longest run " + maxRun + ")");
+            Check(charges > total / 5 && charges < total * 4 / 5, "both outcomes happen (" + charges + "/" + total + " charges)");
+
+            // same seed + same input = same hunt
+            var a = RunHunt(HuntPlayer.Random, 77, tun, out float aSecs, out int aStuns, null);
+            var b = RunHunt(HuntPlayer.Random, 77, tun, out float bSecs, out int bStuns, null);
+            Check(a == b && aSecs == bSecs && aStuns == bStuns, "a hunt replays identically from its seed");
+
+            // the lamp must be ON him to count: holding off-target never stuns
+            var off = new AdminHunt(tun, 5); off.Start();
+            for (int i = 0; i < 400 && off.Phase != HuntPhase.Tracking; i++)
+                off.Tick(0.05f, new HuntInput { Peeking = true, PlayerRoom = off.Room });
+            for (int i = 0; i < 100; i++) off.Tick(0.05f, new HuntInput { Peeking = true, PlayerRoom = off.Room, OnTarget = false });
+            Check(off.Stuns == 0 && off.Hold == 0f, "peeking without the lamp on his head never stuns");
+
+            // his picture: bounded, and harder after every stun
+            float maxAbs = 0f, pathSlow = 0f, pathFast = 0f;
+            float px = 0, py = 0, qx = 0, qy = 0;
+            AdminHuntMotion.HeadOffset(0f, 0, 5, out px, out py);
+            AdminHuntMotion.HeadOffset(0f, 3, 5, out qx, out qy);
+            for (int i = 1; i <= 200; i++)
+            {
+                float t = i * 0.01f;
+                AdminHuntMotion.HeadOffset(t, 0, 5, out float x0, out float y0);
+                AdminHuntMotion.HeadOffset(t, 3, 5, out float x3, out float y3);
+                pathSlow += (float)System.Math.Sqrt((x0 - px) * (x0 - px) + (y0 - py) * (y0 - py));
+                pathFast += (float)System.Math.Sqrt((x3 - qx) * (x3 - qx) + (y3 - qy) * (y3 - qy));
+                px = x0; py = y0; qx = x3; qy = y3;
+                maxAbs = System.Math.Max(maxAbs, System.Math.Max(System.Math.Abs(x3), System.Math.Abs(y3)));
+            }
+            Check(maxAbs < 4f, "his picture stays within a few units of its anchor (" + maxAbs.ToString("F2") + ")");
+            Check(pathFast > pathSlow * 1.3f, "after three stuns he moves clearly faster");
+        }
+
+        // the hunt decides how the last night ends
+        private static void HuntEndingTests()
+        {
+            Group("Hunt endings — win needs the hunt won, loss is its own ending, state is saved");
+            GameSession Night5(HuntState hunt) => new GameSession
+            {
+                CurrentShift = ShiftPlan.TotalShifts, CompletedShifts = ShiftPlan.TotalShifts,
+                AdminRejected = true, Hunt = hunt, PoolFolded = true,
+            };
+            var active = EndingRules.Evaluate(Night5(HuntState.Active));
+            Eq(active.Ending, EndingType.None, "a night closed while the hunt is still on is not a win");
+            var won = EndingRules.Evaluate(Night5(HuntState.Won));
+            Check(won.Ending == EndingType.Win && won.ReasonKey == "win", "driving him off wins the game");
+            var lost = EndingRules.Evaluate(Night5(HuntState.Lost));
+            Check(lost.Ending == EndingType.Lose && lost.ReasonKey == "server_door", "the server door loss is its own ending");
+            var lostSecret = Night5(HuntState.Lost);
+            Eq(EndingRules.Evaluate(lostSecret).ReasonKey, "server_door", "the loss outranks everything else on the final night");
+            Check(Night5(HuntState.Lost).LoseThresholdReached, "a lost hunt counts as a lose condition");
+
+            var game = new SaveGame { Session = Night5(HuntState.Active) };
+            var back = SaveFormat.Deserialize(SaveFormat.Serialize(game));
+            Check(back != null && back.Session.Hunt == HuntState.Active, "the hunt state survives a save and load");
         }
 
         // ----------------------------------------------------- verdict matrix
@@ -1109,7 +1165,7 @@ namespace Hollowbrook.LogicTests
         {
             Group("SaveFormat — round-trip, checksum tamper detection, bad input");
             Eq(SaveFormat.Header, "SMYIDSAVE", "header constant");
-            Eq(SaveFormat.Version, 1, "version constant");
+            Eq(SaveFormat.Version, 2, "version constant");
 
             var save = new SaveGame { SavedAtLabel = "NIGHT 3 - 02:14" };
             save.Session.Mode = GameMode.Challenge;
@@ -1505,24 +1561,6 @@ namespace Hollowbrook.LogicTests
             Eq(sN.Score, 150, "the fine costs 100 score (penalty, not game over)");
         }
 
-        private static void RecordSearchTests()
-        {
-            Group("RecordSearch — registry lookup for the records station");
-            var canon = new RosterFactory(12).Canon;
-            var target = canon[5];
-            Eq(RecordSearch.FindInCanon(canon, target.IdNumber), 5, "exact ID match wins");
-            Eq(RecordSearch.FindInCanon(canon, target.IdNumber.ToLowerInvariant()), 5,
-               "ID match is case-insensitive");
-            string frag = target.FullName.Length >= 4 ? target.FullName.Substring(2, 4) : target.FullName;
-            int byName = RecordSearch.FindInCanon(canon, frag);
-            Check(byName >= 0 && canon[byName].FullName.ToUpperInvariant().Contains(frag.ToUpperInvariant()),
-                  "a name fragment opens a matching file");
-            Eq(RecordSearch.FindInCanon(canon, "HB-1999-0000"), -1, "ghost ID answers NO RECORD");
-            Eq(RecordSearch.FindInCanon(canon, "ab"), -1, "queries under 3 chars match nothing");
-            Eq(RecordSearch.FindInCanon(canon, ""), -1, "empty query matches nothing");
-            Eq(RecordSearch.FindInCanon(null, "x"), -1, "a null canon is safe");
-        }
-
         private static void FloorFileTests()
         {
             Group("RecordSearch — floor folders for the FLOOR FILES cabinet");
@@ -1537,17 +1575,17 @@ namespace Hollowbrook.LogicTests
             bool ordered = true, floorsOk = true;
             foreach (var f in folders)
             {
-                int prev = -1;
+                string prev = "";
                 foreach (int i in f.Indices)
                 {
-                    if (i <= prev) ordered = false;              // roster order inside a folder
-                    prev = i;
+                    if (string.Compare(canon[i].FullName, prev, System.StringComparison.OrdinalIgnoreCase) < 0) ordered = false;   // A-Z inside a folder
+                    prev = canon[i].FullName;
                     if (!seen.Add(i)) ordered = false;           // filed exactly once
                     if (RecordSearch.FloorOf(canon[i].FirstClassroom) != f.Floor) floorsOk = false;
                 }
             }
             Eq(seen.Count, canon.Count, "every canon student is filed exactly once");
-            Check(ordered, "files keep roster order inside their folder");
+            Check(ordered, "files are listed A-Z by name inside their folder");
             Check(floorsOk, "each file sits on its classroom's floor");
             Check(folders[0].Label != folders[1].Label &&
                   folders[0].Label.Contains("ROOM 101") && folders[1].Label.Contains("ROOM 202"),
@@ -2304,22 +2342,18 @@ namespace Hollowbrook.LogicTests
             Check(FaceAssets.AnomalyKey(0) == "student_face_01_anomaly" &&
                   FaceAssets.AnomalyKey(5) == "student_face_06_anomaly",
                 "anomaly keys are PAIRED with their student: student_face_NN_anomaly");
-            Check(FaceAssets.WindowKey(-1, false) == null && FaceAssets.IdKey(-1, true, false) == null,
+            Check(FaceAssets.WindowKey(-1, false) == null && FaceAssets.IdKey(-1) == null,
                 "no asset index (old saves, administrator) -> the procedural painter, never a broken image");
-            bool sameOnMatch = true, neverBorrowed = true, distortedIsAnomaly = true;
+            bool cardIsReal = true, anomalyIsPaired = true;
             for (int i = 0; i < 24; i++)
             {
-                if (FaceAssets.WindowKey(i, false) != FaceAssets.IdKey(i, true, false)) sameOnMatch = false;
-                if (FaceAssets.IdKey(i, false, false) != null) neverBorrowed = false;
-                if (FaceAssets.IdKey(i, true, true) != null) neverBorrowed = false;
+                if (FaceAssets.IdKey(i) != FaceAssets.StudentKey(i)) cardIsReal = false;
                 var wk = FaceAssets.WindowKey(i, true);
-                if (!(wk.EndsWith("_anomaly") && wk.StartsWith(FaceAssets.StudentKey(i)))) distortedIsAnomaly = false;
-                if (wk == FaceAssets.WindowKey(i, false)) distortedIsAnomaly = false;
+                if (!(wk.EndsWith("_anomaly") && wk.StartsWith(FaceAssets.StudentKey(i)))) anomalyIsPaired = false;
+                if (wk == FaceAssets.WindowKey(i, false)) anomalyIsPaired = false;
             }
-            Check(sameOnMatch, "a matching pair shows the SAME face on the card and at the window");
-            Check(neverBorrowed,
-                "a mismatched (or distorted) card photo never borrows the window's face asset");
-            Check(distortedIsAnomaly,
+            Check(cardIsReal, "the ID card ALWAYS shows the real student's face art");
+            Check(anomalyIsPaired,
                 "an altered window face is THAT STUDENT's anomaly variant — paired, explicit, never random");
             var seen = new Dictionary<string, int>();
             for (int i = 0; i < FaceAssets.StudentFaceCount; i++) seen[FaceAssets.StudentKey(i)] = i;
@@ -2553,12 +2587,12 @@ namespace Hollowbrook.LogicTests
             sq.ForceNextArrival();                   // #0 window
             sq.Tick(1f);                             // #1 line (vanishes via the anomaly below)
             sq.Tick(1f);                             // #2 anomaly -> incident
-            sq.ActiveBudgetMask = 1 << (int)QuestionId.Year;
+            sq.ActiveQuestionAsked = true;
             var snap = sq.BuildSnapshot();
             Check(snap.Started && snap.Arrived == 2 && snap.WaitingIdx.Count == 1 &&
                   snap.ActiveIdx == snapRoster[0].VisitorIndex && snap.MissingIncidents == 1 &&
-                  snap.BudgetMask == 1 << (int)QuestionId.Year,
-                  "snapshot captures started/arrived/line/active/incident/budget");
+                  snap.QuestionAsked,
+                  "snapshot captures started/arrived/line/active/incident/asked");
 
             var session = new GameSession { Mode = GameMode.Normal, Seed = seedWait, QueueState = snap };
             var roundTrip = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = session }));
@@ -2567,7 +2601,7 @@ namespace Hollowbrook.LogicTests
             {
                 var back = roundTrip.Session.QueueState;
                 Check(back.Started && back.Arrived == 2 && back.ActiveIdx == snap.ActiveIdx &&
-                      back.MissingIncidents == 1 && back.BudgetMask == snap.BudgetMask &&
+                      back.MissingIncidents == 1 && back.QuestionAsked == snap.QuestionAsked &&
                       Math.Abs(back.TimerSeconds - snap.TimerSeconds) < 0.001f &&
                       back.WaitingIdx.SequenceEqual(snap.WaitingIdx) &&
                       back.VanishedIdx.SequenceEqual(snap.VanishedIdx),
@@ -2579,7 +2613,7 @@ namespace Hollowbrook.LogicTests
                 rq.RestoreFromSnapshot(back, 555);
                 Check(rq.Started && rq.ArrivalCount == 2 && rq.MissingIncidents == 1, "restore brings the counters back");
                 Check(rq.Active != null && rq.Active.VisitorIndex == snap.ActiveIdx, "restore brings the window visitor back");
-                Eq(rq.ActiveBudgetMask, 1 << (int)QuestionId.Year, "restore brings the question budget back");
+                Check(rq.ActiveQuestionAsked, "restore brings the asked question back");
                 Eq(rq.WaitingCount, 1, "restore brings the waiting line back");
                 Check(rq.WaitingLine.First().VisitorIndex == snap.WaitingIdx[0], "…in the right order");
                 Eq(rq.EffectiveTotal, snapRoster.Count - 1, "restore keeps the vanished student vanished");
@@ -2622,11 +2656,11 @@ namespace Hollowbrook.LogicTests
             tq.MarkStarted();
             tq.ForceNextArrival();                   // roster[0] at the window
             tq.Tick(1f);                             // roster[1] waiting
-            tq.ActiveBudgetMask = 3;
+            tq.ActiveQuestionAsked = true;
             tq.CommitActiveResolution();             // the stamp moment
             Eq(tq.ProcessedCount, 1, "the stamp books the resolution immediately");
             Check(tq.ResolutionPending, "resolution pending while the banner is up");
-            Eq(tq.ActiveBudgetMask, 0, "committing consumes the budget mask");
+            Check(!tq.ActiveQuestionAsked, "committing clears the asked flag");
             tq.CommitActiveResolution();
             Eq(tq.ProcessedCount, 1, "committing twice books once");
             var tqSnap = tq.BuildSnapshot();
@@ -2657,19 +2691,6 @@ namespace Hollowbrook.LogicTests
             Check(abandoned >= 2, "AbandonLine sends the remaining line home (" + abandoned + ")");
             Check(tq2.Active == null && tq2.WaitingCount == 0, "the window closes with the night");
             Check(tq2.ShiftComplete, "the shift completes once the story beat closed the line");
-
-            Group("QuestionSystem.Budget — mask round-trip for quit/continue");            var budget = new QuestionSystem.Budget();
-            var visitor = RosterFor(11, 2)[0];
-            Answer a;
-            budget.TryAsk(visitor, QuestionId.Course, out a);
-            budget.TryAsk(visitor, QuestionId.Status, out a);
-            var restored = new QuestionSystem.Budget();
-            restored.RestoreFromMask(budget.Mask);
-            Eq(restored.Remaining, budget.Remaining, "restored budget has the same questions left");
-            Check(restored.HasAsked(QuestionId.Course) && restored.HasAsked(QuestionId.Status)
-                  && !restored.HasAsked(QuestionId.Year), "restored budget remembers exactly what was asked");
-            var fresh = new QuestionSystem.Budget();
-            Eq(fresh.Mask, 0, "a fresh budget has an empty mask");
         }
 
         // --------------------------------------------- display policy + options layout
@@ -2820,87 +2841,6 @@ namespace Hollowbrook.LogicTests
             Check(string.Join(",", list) != before || true, "shuffle ran");
             try { new GameRng(1).Pick(new int[0]); Check(false, "Pick on an empty collection should throw"); }
             catch (ArgumentException) { Check(true, "Pick on an empty collection throws ArgumentException"); }
-        }
-        // ---------------------------------------------------------------- window talk
-        // The typed-line router is pure: classification, question mapping, reply
-        // determinism and the bounded transcript memory.
-        private static void SpokenChatTests()
-        {
-            Group("Spoken chat router + window transcript");
-
-            Eq(SpokenChat.Normalize("  What's   your COURSE? "), "whats your course",
-               "normalize flattens case, punctuation and whitespace");
-            Eq(SpokenChat.Normalize("   \n "), "", "normalize maps blank input to empty");
-            Eq(SpokenChat.Normalize(null), "", "normalize maps null to empty");
-
-            Check(SpokenChat.TryMatchQuestion("whats your course", out var q1) && q1 == QuestionId.Course,
-                  "course phrasing maps to the Course question");
-            Check(SpokenChat.TryMatchQuestion("are you a regular student or a transferee", out var q2) && q2 == QuestionId.Status,
-                  "regular/transferee phrasing maps to Status");
-            Check(SpokenChat.TryMatchQuestion("what year are you in", out var q3) && q3 == QuestionId.Year,
-                  "year phrasing maps to Year");
-            Check(SpokenChat.TryMatchQuestion("what classroom is your first class in", out var q4) && q4 == QuestionId.FirstClassroom,
-                  "classroom phrasing maps to FirstClassroom");
-            Check(!SpokenChat.TryMatchQuestion("good evening", out _),
-                  "a greeting is not a verification question");
-            Check(!SpokenChat.TryMatchQuestion("", out _), "blank is not a question");
-
-            Eq(SpokenChat.Classify(""), SpokenTopic.Rejected, "blank classifies as Rejected");
-            Eq(SpokenChat.Classify("hi what is your course"), SpokenTopic.Question,
-               "a greeting wrapped around a question still classifies as the question");
-            Eq(SpokenChat.Classify("who are you"), SpokenTopic.NameAsk, "name ask classifies");
-            Eq(SpokenChat.Classify("your id number please"), SpokenTopic.IdAsk, "id ask classifies");
-            Eq(SpokenChat.Classify("thank you"), SpokenTopic.Thanks, "thanks classifies");
-            Eq(SpokenChat.Classify("you are a liar"), SpokenTopic.Hostile, "hostility classifies");
-            Eq(SpokenChat.Classify("hello"), SpokenTopic.Greeting, "greeting classifies");
-            Eq(SpokenChat.Classify("rain again tonight"), SpokenTopic.SmallTalk, "small talk classifies");
-            Eq(SpokenChat.Classify("blorp blorp"), SpokenTopic.Fallback, "nonsense falls through");
-
-            var nobody = new SpokenContext { HasVisitor = false };
-            Eq(SpokenChat.Route(nobody, "hello").Topic, SpokenTopic.Rejected,
-               "with nobody at the window every line is rejected");
-            Check(SpokenChat.Route(nobody, "hello").RejectReason.Length > 0,
-                  "the rejection carries a reason the desk can toast");
-
-            var stu = new SpokenContext
-            {
-                HasVisitor = true, IsAdmin = false,
-                ClaimedName = "Marco Reyes", ClaimedId = "HB-2025-01387", ClaimedRoom = "ROOM 202",
-            };
-            Eq(SpokenChat.Route(stu, "   ").Topic, SpokenTopic.Rejected, "blank is rejected even with a visitor");
-            Eq(SpokenChat.Route(stu, "what is your course").Topic, SpokenTopic.Question,
-               "a typed question routes to the question path");
-            Check(SpokenChat.Route(stu, "what is your course").Text == "",
-                  "the question path carries no text: the view answers through the budget");
-            var g0 = SpokenChat.Route(stu, "hello");
-            var g1 = SpokenChat.Route(new SpokenContext { HasVisitor = true, ClaimedName = "Marco Reyes", Variant = 1 }, "hello");
-            Check(g0.Topic == SpokenTopic.Greeting && g1.Topic == SpokenTopic.Greeting && g0.Text != g1.Text,
-                  "greeting replies vary with the caller-owned variant");
-            Check(SpokenChat.Route(stu, "hello").Text ==
-                  SpokenChat.Route(stu, "hello").Text, "same context, same reply: no hidden dice");
-            Check(SpokenChat.Route(stu, "your name").Text.Contains("Marco Reyes"),
-                  "the name answer uses the claimed name");
-            Check(SpokenChat.Route(stu, "your id number").Text.Contains("HB-2025-01387"),
-                  "the id answer reads the badge number");
-
-            var adm = new SpokenContext { HasVisitor = true, IsAdmin = true, ClaimedName = "Administrative Office" };
-            Check(SpokenChat.Route(adm, "hello").Text != g0.Text,
-                  "the administrator answers in her own register");
-            Check(SpokenChat.Route(adm, "what is your course").Topic == SpokenTopic.Question,
-                  "typed questions to the administrator still route to the budget path");
-
-            var t = new WindowTranscript();
-            for (int i = 0; i < WindowTranscript.Capacity + 5; i++)
-                t.Add("YOU", "line " + i, true);
-            Eq(t.Count, WindowTranscript.Capacity, "the transcript is bounded");
-            Eq(t.Dropped, 5, "dropped lines are counted for the +N EARLIER marker");
-            Eq(t.Entries[t.Count - 1].Text, "line " + (WindowTranscript.Capacity + 4),
-               "the newest line survives");
-            Eq(t.Last(3).Count, 3, "Last(n) hands over n entries");
-            Eq(t.Last(3)[0].Text, "line " + (WindowTranscript.Capacity + 2), "Last(n) is oldest-first");
-            t.Clear();
-            Eq(t.Count, 0, "clear empties the memory");
-            Eq(t.Dropped, 0, "clear resets the dropped counter");
         }
     }
 }

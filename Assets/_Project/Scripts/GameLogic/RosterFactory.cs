@@ -92,7 +92,8 @@ namespace Hollowbrook.Logic
             };
             v.ExpirationDisplay = DisplayOf(expDay);
             v.FaceAssetIndex = _canon.IndexOf(id);   // stable face-asset identity
-            BuildAnswers(v, id, truthful: true);
+            v.WindowFaceIndex = v.FaceAssetIndex;    // the real student stands at the window
+            BuildClassroomAnswer(v, id);
             v.SlipName = v.ClaimedName;             // legit slips always agree with the card
             v.SlipIdNumber = v.IdNumber;
             return v;
@@ -129,6 +130,7 @@ namespace Hollowbrook.Logic
             };
             v.ExpirationDisplay = DisplayOf(v.ExpirationDay);
             v.FaceAssetIndex = _canon.IndexOf(id);   // the person being impersonated, stably
+            v.WindowFaceIndex = v.FaceAssetIndex;    // a photo defect below may change this
             // slip baseline agrees with the card; defects below may move it (seeded, so
             // resumes replay the identical ticket)
             v.SlipName = v.ClaimedName;
@@ -158,12 +160,7 @@ namespace Hollowbrook.Logic
                 ApplyDefect(v, DefectType.ExpiredId, id);
 
             v.InDatabase = IdRules.IsFormatValid(v.IdNumber) && _registry.Contains(v.IdNumber);
-            bool behaviorOnly = v.Defects.Count == 1 && v.Defects[0] == DefectType.BehaviorOddity;
-            BuildAnswers(v, id, truthful: false, behaviorOnly);
-            if (behaviorOnly && v.BehaviorGlitchVisible)
-            {
-                var p = v.WindowPortrait; p.Distorted = true; v.WindowPortrait = p;
-            }
+            BuildClassroomAnswer(v, id);
             // defects that rewrote the card ID (duplicate/format) resync an unbooked slip,
             // so a slip disagrees with the card exactly when SlipMismatch is booked
             if (!v.Defects.Contains(DefectType.SlipMismatch))
@@ -205,7 +202,7 @@ namespace Hollowbrook.Logic
                 DefectType.NotInDatabase,
             };
             if (shift.SubtleDefectsAllowed) pool.Add(DefectType.PhotoSubtleMismatch);
-            if (shift.BehaviorOddityAllowed) pool.Add(DefectType.BehaviorOddity);
+            if (shift.ClassroomLieAllowed) pool.Add(DefectType.ClassroomMismatch);
             if (shift.DuplicateIdsAllowed) pool.Add(DefectType.DuplicateId);
             if (shift.Number >= 2) pool.Add(DefectType.SlipMismatch);   // slip vs card, shift 2+
             return pool;
@@ -217,6 +214,8 @@ namespace Hollowbrook.Logic
             {
                 case DefectType.PhotoMismatch:
                     v.WindowPortrait = v.IdPhoto.Swapped();
+                    // somebody else's face stands at the window (1..5 steps never lands on the same face art)
+                    v.WindowFaceIndex = v.FaceAssetIndex + 1 + _rng.NextInt(0, 5);
                     break;
                 case DefectType.PhotoSubtleMismatch:
                     v.WindowPortrait = v.IdPhoto.SubtleVariant(_rng);
@@ -234,20 +233,20 @@ namespace Hollowbrook.Logic
                     v.IdNumber = CorruptId(id.IdNumber);
                     break;
                 case DefectType.YearMismatch:
-                    v.RecordYearLevel = 1 + (id.YearLevel % 4); // guaranteed different, stays 1..4
+                    v.IdYearLevel = 1 + (id.YearLevel % 4); // the card lies; always different, stays 1..4
                     break;
                 case DefectType.CourseMismatch:
-                    v.RecordCourseIndex = (id.CourseIndex + 1 + _rng.NextInt(0, Content.Courses.Length - 1))
-                                          % Content.Courses.Length;
+                    v.IdCourseIndex = (id.CourseIndex + 1 + _rng.NextInt(0, Content.Courses.Length - 1))
+                                      % Content.Courses.Length;
                     break;
                 case DefectType.StatusMismatch:
-                    v.RecordIsTransferee = !id.IsTransferee;
+                    v.IdIsTransferee = !id.IsTransferee;
                     break;
                 case DefectType.RecordNameMismatch:
                 {
                     StudentIdentity other = _canon[_rng.NextInt(0, _canon.Count)];
                     if (other.FullName == id.FullName) other = _canon[(_canon.IndexOf(other) + 1) % _canon.Count];
-                    v.RecordName = other.FullName;
+                    v.ClaimedName = other.FullName;   // the card names somebody else
                     break;
                 }
                 case DefectType.NotInDatabase:
@@ -275,9 +274,8 @@ namespace Hollowbrook.Logic
                     v.DuplicateOfShift = "earlier tonight (" + _genLog.LabelFor(candidates[0]) + ")";
                     break;
                 }
-                case DefectType.BehaviorOddity:
-                    v.BehaviorGlitchVisible = _rng.Chance(0.5f);
-                    break;
+                case DefectType.ClassroomMismatch:
+                    break;   // nothing on the papers: the lie is told in BuildClassroomAnswer
                 case DefectType.SlipMismatch:
                     // the ticket disagrees with the card: serial nudge or name typo
                     v.SlipName = v.ClaimedName;
@@ -305,64 +303,52 @@ namespace Hollowbrook.Logic
             }
         }
 
-        private void BuildAnswers(VisitorData v, StudentIdentity id, bool truthful, bool behaviorOnly = false)
+        // The answer to "Which classroom are you going to?". Everyone tells the truth (the room
+        // and class on their file) except a visitor carrying the ClassroomMismatch defect.
+        private void BuildClassroomAnswer(VisitorData v, StudentIdentity id)
         {
-            string courseAnswer = truthful ? id.CourseString : Content.Courses[v.IdCourseIndex];
-            string yearAnswer = truthful ? id.YearString : Content.YearNames[v.IdYearLevel - 1];
-            string statusAnswer = (truthful ? id.IsTransferee : v.IdIsTransferee) ? "Transferee" : "Regular";
+            v.ClassroomAnswer = id.ClassroomSpeech;
+            v.ClassroomTone = ToneFor(v);
+            if (v.Defects.Contains(DefectType.ClassroomMismatch))
+                v.ClassroomAnswer = LieAboutClassroom(id);
+        }
 
-            v.Answers[QuestionId.Course] = new Answer { Text = courseAnswer + ".", Tone = ToneFor(v, behaviorOnly) };
-            v.Answers[QuestionId.Year] = new Answer { Text = yearAnswer + ".", Tone = ToneFor(v, behaviorOnly) };
-            v.Answers[QuestionId.Status] = new Answer { Text = statusAnswer + " student.", Tone = ToneFor(v, behaviorOnly) };
-
-            if (behaviorOnly)
+        // Three kinds of lie, all provable against the file: the other room, a room the school
+        // does not have (the drawer holds only two folders), or the right room and a wrong class.
+        private string LieAboutClassroom(StudentIdentity id)
+        {
+            switch (_rng.NextInt(0, 3))
             {
-                string[] wrong =
-                {
-                    "Room… 204? I don't remember exactly.",
-                    "My first class? It's… somewhere on the second floor.",
-                    "I have study hall. Always.",
-                    "Room 101. No — wait. Was it 101?",
-                };
-                v.Answers[QuestionId.FirstClassroom] = new Answer
-                {
-                    Text = _rng.Pick(wrong),
-                    Tone = _rng.Chance(0.5f) ? ToneTag.Hesitant : ToneTag.Flat,
-                    ContradictsDocuments = true,
-                };
-            }
-            else
-            {
-                v.Answers[QuestionId.FirstClassroom] = new Answer
-                {
-                    Text = id.ClassroomString + ".",
-                    Tone = ToneFor(v, behaviorOnly),
-                    ContradictsDocuments = false,
-                };
+                case 0:
+                    var other = id.FirstClassroom == RoomId.Classroom1 ? RoomId.Classroom2 : RoomId.Classroom1;
+                    return Content.Speech(other, id.FirstClassSubject);
+                case 1:
+                    int[] missing = { 303, 305, 410 };
+                    return "Room " + _rng.Pick(missing) + ", " + id.FirstClassSubject + ".";
+                default:
+                    return Content.Speech(id.FirstClassroom, OtherSubjectInRoom(id));
             }
         }
 
-        private ToneTag ToneFor(VisitorData v, bool behaviorOnly)
+        // A real class from the same room that is not this student's.
+        private string OtherSubjectInRoom(StudentIdentity id)
         {
-            if (!v.IsAnomaly) return ToneTag.Normal; // fairness: legit never leaks tone
-            if (behaviorOnly && _rng.Chance(0.5f)) return ToneTag.Hesitant;
-            if (_rng.Chance(0.4f))
-            {
-                var tags = new[] { ToneTag.Flat, ToneTag.TooSmooth, ToneTag.Echoing, ToneTag.Hesitant };
-                return _rng.Pick(tags);
-            }
-            return ToneTag.Normal;
+            var subjects = new List<string>();
+            foreach (var s in _canon)
+                if (s.FirstClassroom == id.FirstClassroom && s.FirstClassSubject != id.FirstClassSubject)
+                    subjects.Add(s.FirstClassSubject);
+            return subjects.Count > 0 ? _rng.Pick(subjects.ToArray()) : "Study Hall";
+        }
+
+        // Only anomalies ever show a tone (fairness: a legitimate student never leaks one).
+        private ToneTag ToneFor(VisitorData v)
+        {
+            if (!v.IsAnomaly || !_rng.Chance(0.4f)) return ToneTag.Normal;
+            var tags = new[] { ToneTag.Flat, ToneTag.TooSmooth, ToneTag.Echoing, ToneTag.Hesitant };
+            return _rng.Pick(tags);
         }
 
         public StudentIdentity PickIdentity(GameRng rng) => _canon[rng.NextInt(0, _canon.Count)];
-
-        public VisitorData BuildLateStudent(StudentIdentity id, ShiftDef shift, bool anomaly)
-        {
-            var v = anomaly ? BuildAnomaly(id, shift) : BuildLegit(id, shift);
-            v.ShiftNumber = shift.Number;
-            v.VisitorIndex = -1;   // office visitors are outside the checkpoint roster
-            return v;
-        }
 
         public VisitorData BuildAdministrator(ShiftDef shift)
         {
@@ -391,10 +377,9 @@ namespace Hollowbrook.Logic
             v.Defects.Add(DefectType.RecordNameMismatch);  // badge vs roster memo name
             v.Defects.Add(DefectType.NotInDatabase);       // badge number not on the roster
             v.Defects.Add(DefectType.PhotoSubtleMismatch); // same glitch as the other anomalies
-            v.Answers[QuestionId.Course] = new Answer { Text = "I am with the district office.", Tone = ToneTag.TooSmooth };
-            v.Answers[QuestionId.Year] = new Answer { Text = "That is not relevant to my visit.", Tone = ToneTag.Flat };
-            v.Answers[QuestionId.Status] = new Answer { Text = "I am an administrator.", Tone = ToneTag.TooSmooth };
-            v.Answers[QuestionId.FirstClassroom] = new Answer { Text = "My first stop is your server room.", Tone = ToneTag.Echoing, ContradictsDocuments = true };
+            v.ClassroomAnswer = "My first stop is your server room.";
+            v.ClassroomTone = ToneTag.Echoing;
+            v.WindowFaceIndex = -1;                        // the administrator has his own face art
             v.SlipName = v.ClaimedName;
             v.SlipIdNumber = v.IdNumber;
             v.SlipReason = "DISTRICT BUSINESS — SEE OFFICE";
@@ -418,70 +403,13 @@ namespace Hollowbrook.Logic
                 MaxDefectsPerAnomaly = processedSoFar < 5 ? 1 : (processedSoFar < 12 ? 2 : 3),
                 SubtleDefectsAllowed = processedSoFar >= 5,
                 DuplicateIdsAllowed = processedSoFar >= 8,
-                BehaviorOddityAllowed = processedSoFar >= 5,
+                ClassroomLieAllowed = processedSoFar >= 3,
                 HasAdministrator = false,
             };
             var v = anomaly ? BuildAnomaly(id, fakeShift) : BuildLegit(id, fakeShift);
             v.ShiftNumber = 0;
             _genLog.RecordFrom(v, "presented earlier this run");
             return v;
-        }
-
-        public class ScanResult
-        {
-            public bool FormatValid;
-            public bool FoundInDatabase;
-            public string RegisteredTo = "";
-            public bool DuplicateTonight;
-            public bool ReturningStudent;
-            public string Display;
-        }
-
-        public ScanResult Scan(VisitorData v, PresentationLog playLog)
-        {
-            var r = new ScanResult();
-            if (v.IsAdministrator)
-            {
-                r.FormatValid = true;
-                r.FoundInDatabase = false;
-                r.Display = "NOT A STUDENT ID — VERIFY AGAINST DISTRICT ROSTER MEMO";
-                return r;
-            }
-            r.FormatValid = IdRules.IsFormatValid(v.IdNumber);
-            if (!r.FormatValid)
-            {
-                r.Display = "SYSTEM ERROR — UNREADABLE ID NUMBER";
-                return r;
-            }
-            bool presented = playLog != null && playLog.WasPresented(v.IdNumber);
-            r.DuplicateTonight = playLog != null && playLog.WasPresentedWithDifferentCard(v.IdNumber, v.IdPhoto);
-            r.ReturningStudent = presented && !r.DuplicateTonight;
-
-            r.FoundInDatabase = _registry.Contains(v.IdNumber);
-            r.RegisteredTo = NameForRegistryId(v.IdNumber);
-            if (!r.FoundInDatabase)
-            {
-                r.Display = "NOT FOUND — NO STUDENT RECORD FOR " + v.IdNumber
-                    + (r.DuplicateTonight
-                        ? " · ⚠ ALREADY PRESENTED " + (playLog.LabelFor(v.IdNumber) ?? "").ToUpperInvariant() + " WITH A DIFFERENT CARD"
-                        : "");
-                return r;
-            }
-            if (r.DuplicateTonight)
-                r.Display = "FOUND — REGISTERED TO " + r.RegisteredTo +
-                            " · ⚠ ALREADY PRESENTED " + (playLog.LabelFor(v.IdNumber) ?? "").ToUpperInvariant() +
-                            " WITH A DIFFERENT CARD";
-            else if (r.ReturningStudent)
-                r.Display = "FOUND — " + r.RegisteredTo + " · RETURNING STUDENT";
-            else
-                r.Display = "FOUND — " + r.RegisteredTo;
-            return r;
-        }
-
-        private string NameForRegistryId(string idNumber)
-        {
-            foreach (var s in _canon) if (s.IdNumber == idNumber) return s.FullName;
-            return "UNKNOWN";
         }
     }
 }

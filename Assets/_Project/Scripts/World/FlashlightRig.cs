@@ -75,6 +75,10 @@ namespace Hollowbrook.World
                 worldPoint.x, worldPoint.y, radius);
         }
 
+        /// <summary>Full battery, not dead. The administrator hunt tops it up so a flat battery
+        /// can never leave the player without a way to stun him.</summary>
+        public void Recharge() { _battery = new BatteryState { Charge = 1f, Dead = false }; }
+
         /// <summary>Room-entry reset: arriving in a room ALWAYS means arriving dark — the
         /// beam goes off, latches clear, silently (no toast spam on every door); revival
         /// needs a deliberate F/Q. Called by ViewManager on every entry, patrol starts
@@ -120,7 +124,7 @@ namespace Hollowbrook.World
         // Keyboard-only beam input: F sweeps (toggle on/off), Q focuses (toggle), L puts it
         // out. The mouse buttons are deliberately NOT beam input — a held click (doors,
         // switches, dialogue) used to light the beam without any F press, which read as the
-        // flashlight turning itself on (audit task 3). FlashlightInput keeps its momentary
+        // flashlight turning itself on. FlashlightInput keeps its momentary
         // hold parameters for the pure-logic suites; the rig simply never feeds them.
         private void ReadInput()
         {

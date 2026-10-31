@@ -44,9 +44,7 @@ namespace Hollowbrook.Checkpoint
         // folder-tab shelf and the bottom rail, leaving the caption and tabs their room
         private const float CabFrontX = 20f, CabFrontY = 44f, CabFrontW = 265f, CabFrontH = 102f;
         private static readonly Color CabFaceInk = new Color(0.80f, 0.78f, 0.72f);
-        private static readonly Color CabFaceLit = new Color(0.90f, 0.88f, 0.82f);
         private static readonly Color CabGripInk = new Color(0.16f, 0.16f, 0.17f);
-        private static readonly Color CabGripLit = new Color(0.32f, 0.32f, 0.34f);
         private static readonly Color CabTagInk = new Color(0.28f, 0.27f, 0.25f);
 
         private readonly Button[] _folderTabs = new Button[2];
@@ -600,7 +598,7 @@ namespace Hollowbrook.Checkpoint
         }
 
         // Pulls one canon file into the record window — the folder-browsing replacement for
-        // the old typed search. The drawer STAYS OUT: browsing several files in a row is the
+        // a typed search. The drawer STAYS OUT: browsing several files in a row is the
         // normal use, and a physical drawer does not slam shut because you took a sheet.
         // Same rule as before: during the administrator's visit the registry holds no badge,
         // so no file replaces the memo already on the desk.

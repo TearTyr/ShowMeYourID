@@ -615,7 +615,7 @@ namespace Hollowbrook.Horror
             if (views != null && views.Player != null && views.Current != null)
                 views.Player.PlaceInRoom(views.Current, views.Current.PlayerSpawn);
             // caught != repelled: the anomaly slips away UNRESOLVED (pool keeps it) and
-            // comes back later — patrol now has real stakes (issue #7)
+            // comes back later — patrol now has real stakes 
             if (views != null) views.ScheduleReturn(Kind);
             Despawn(false);
         }

@@ -49,6 +49,7 @@ namespace Hollowbrook.Checkpoint
         // ---- row under the top bar (wireframe text baseline y=72) -----------
         // the strip under the kit board (board bottom = 107): hint, run stats, findings
         public static readonly Region Hint = new Region(25, 82, 300, 20);
+        public static readonly Region QueueCount = new Region(25, 58, 360, 18);        // "WAITING 2 · 4 TO GO TONIGHT"
         public static readonly Region RunStats = new Region(700, 84, 250, 10);        // endless/challenge strip
         public static readonly Region Mutation = new Region(700, 95, 250, 10);       // challenge bulletin strip
         public static readonly Region Findings = new Region(955, 84, 309, 12);        // right edge x=1264
@@ -106,7 +107,7 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region UtilityMap = new Region(955, 330, 290, 170);       // inline map sheet
         public static readonly Region UtilityNotes = new Region(240, 570, 160, 150);   // rules paper prop
         // the verdict tray: two physical stamps, dragged onto the slip to commit. The
-        // tray sits right under the questions panel (the retired appearance check's
+        // tray sits right under the questions panel (the slot an appearance check once held;
         // slot) so the right column stays balanced: questions above, stamps below,
         // open desk underneath for spreading papers. Sized at ~78% of the original 152x150
         // boxes (a 22% linear cut) and centred in the same 296..446 band: 8px apart, the D
@@ -122,7 +123,7 @@ namespace Hollowbrook.Checkpoint
         // and the inline map, which it borrows the column from while it is open) ----------
         // While the administrator talks, the desk puts the question row and the inline map
         // away and gives the whole right column above the stamps to the conversation; when it
-        // closes, both come back exactly where they were. 14 option rows fit under the header.
+        // closes, both come back exactly where they were. Up to 8 two-line option rows fit.
         public static readonly Region AdminTalk = new Region(950, 116, 309, 373);
         // the slim re-open bar shown once the player steps back out of the conversation
         public static readonly Region AdminTalkBar = new Region(950, 492, 309, 20);
@@ -130,14 +131,13 @@ namespace Hollowbrook.Checkpoint
         {
             public static readonly Region Head = new Region(8, 4, 282, 18);
             public static readonly Region Sub = new Region(8, 22, 282, 14);
-            public const float OptY0 = 40f, OptStep = 24f, OptH = 22f;
+            public const float OptY0 = 40f, OptStep = 41f, OptH = 38f;
             public static readonly Region Opt = new Region(8, 0, 282, OptH);   // y set per row
         }
 
         // ---- transient overlays (bounds-checked only; they cover the desk) ---
         public static readonly Region Toast = new Region(280, 94, 720, 30);
         public static readonly Region Prompt = new Region(450, 62, 440, 20);         // hand-over guidance strip
-        public static readonly Region ConfirmBox = new Region(430, 305, 420, 110);
         // the reading sheet for the rules note / tonight's log: centred over the desk with
         // room for crest, hand title, the hand-written block AND the printed live text
         // the reading sheet: the kit's photographed paper at its OWN aspect (789x879),
@@ -146,7 +146,7 @@ namespace Hollowbrook.Checkpoint
         public static readonly Region PaperOverlay = new Region(362, 24, 556, 620);
         public static readonly Region FullDesk = new Region(0, 0, 1280, 720);
 
-        // ---- checkpoint queue (Phase 9 additions to the approved grid) -------
+        // ---- waiting-line strips beside the booth -------
         // Waiting-line silhouette strips stand in the free gaps either side of the booth:
         // left column ends at x=336, the window sill ends at x=875, END SHIFT at x=880.
         // The right strip carries the waiting-count badge above its figures. The full
@@ -188,8 +188,6 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region DrawerHead = new Region(15, 30, 245, DrawerHeadH);
             public static readonly Region DrawerHandle = new Region(30, 9, 80, 7);
             public static readonly Region DrawerFrontLabel = new Region(0, 6, 266, 14);
-            // front-local, beside the handle: the registry readout rides out with the drawer
-            public static readonly Region DrawerFrontOut = new Region(170, 10, 90, 14);
             public const float FileRowX = 15f, FileRowY0 = 50f, FileRowStep = 27f,
                                FileRowW = 250f, FileRowH = 22f;
             public const float FileRowPillW = 160f;                // the dark name pill on the sheet
@@ -202,7 +200,6 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region RecordHeader = new Region(0, 2, 284, 24);  // clear of the X
             public const float RecordRowX = 14f, RecordRowW = 292f, RecordRowH = 14f;
             public static readonly float[] RecordRules = { 42f, 63f, 84f, 105f, 126f, 147f, 168f };
-            public static readonly Region StampLocal = new Region(195, 165, 110, 110);
 
             // id card (sprite is printed 1:1 at 320x220)
             public static readonly Region IdHeader = new Region(0, 2, 320, 24);
@@ -228,27 +225,21 @@ namespace Hollowbrook.Checkpoint
             // the sec_bubble master's pixels per layout unit (ProceduralArt.FilePpus) — 480px tail = 48u
             public const float BubbleKitArtPxPerUnit = 10f;
             public static readonly Region BubbleTail = new Region(-34, 26, 44, 36);
-            public static readonly Region NoteHead = new Region(10, 6, 260, 18);
-            public static readonly Region NoteBody = new Region(10, 28, 260, 74);
 
             // the counter slip (panel-local): the written lines own the sheet. The verdict
             // mark lands WHERE the player drops the stamp (Papers, Please style), clamped
             // fully inside the paper by StampPlacement — no printed target box.
             public static readonly Region SlipReason = new Region(8, 52, 184, 56);
 
-            // questions panel (panel-local): the header strip, then ONE content box the
-            // choice column is divided from (LayoutQuestions). The box stops above the
-            // kit panel's painted bottom border (measured at local y=198 on the 305x215
-            // rect), so no choice can ever land on — or through — the panel frame.
+            // questions panel (panel-local): the header strip, then the one question button and
+            // the note of what the student answered. The content stops above the kit panel's
+            // painted bottom border (measured at local y=198 on the 305x215 rect).
             public static readonly Region QHead = new Region(16, 14, 150, 24);
-            public static readonly Region QBudget = new Region(234, 14, 48, 24);
+            public static readonly Region QKeyHint = new Region(214, 14, 68, 24);
             public const float QBtnX = 16f, QBtnW = 266f;
-            public const float QContentY0 = 44f, QContentY1 = 193f, QBtnGap = 7f;
-
-            // confirmation popup
-            public static readonly Region ConfirmText = new Region(20, 12, 380, 40);
-            public static readonly Region ConfirmNo = new Region(150, 64, 90, 30);
-            public static readonly Region ConfirmYes = new Region(250, 64, 90, 30);
+            public const float QContentY0 = 44f, QBtnH = 44f;
+            public static readonly Region QAnswerHead = new Region(16, 100, 266, 14);
+            public static readonly Region QAnswer = new Region(16, 116, 266, 76);
 
             // verdict banner
 
@@ -259,12 +250,6 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region PaperSlip = new Region(405, 596, 470, 116);
             public static readonly Region PaperSlipBody = new Region(14, 10, 442, 96);
             public static readonly Region PaperClose = new Region(688, 42, 140, 36);
-
-            // waiting-line strips (panel-local slots: 4 silhouettes each, 56px step)
-            public const float QueueSlotW = 44f, QueueSlotH = 52f, QueueSlotStep = 56f;
-            public const float QueueSlotLX = 8f, QueueSlotLY0 = 6f;    // inside the 60-wide left strip
-            public const float QueueSlotRX = 18f, QueueSlotRY0 = 22f;  // below the right strip's badge
-            public static readonly Region QueueBadge = new Region(0, -16, 123, 16);
 
             // day banner: night label on top, queue readout underneath
             public static readonly Region BannerTop = new Region(0, 0, 700, 30);   // pre-squeeze width

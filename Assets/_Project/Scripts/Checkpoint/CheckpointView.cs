@@ -16,7 +16,7 @@ namespace Hollowbrook.Checkpoint
     // CheckpointLayout grid — see desk_layout_wireframe.svg for the approved design.
     public partial class CheckpointView : MonoBehaviour, IScreenView
     {
-        /// <summary>The ID card's resting display scale (~18% under the old default). The inspect
+        /// <summary>The ID card's resting display scale. The inspect
         /// view (DragPaper.Inspect) enlarges it from there.</summary>
         internal const float IdCardScale = L.IdScale;   // 320x220 design art -> 220x151 desk rect
         /// <summary>True once the SecurityRoom kit skin applied: paper-ink labels flip dark.</summary>
@@ -39,11 +39,11 @@ namespace Hollowbrook.Checkpoint
 
         private ShiftDef _shift;
         private VisitorData _current;
-        private QuestionSystem.Budget _budget = new QuestionSystem.Budget();
+        private bool _classroomAsked;   // the classroom question was asked of the current visitor
         private bool _verdictLocked = true;
         private bool _flowActive;
 
-        private Text _topLeft, _topClock, _topNight;
+        private Text _topLeft, _topClock, _topNight, _topQueue;
         private string _lastClockText = "";
         private Text _runStats;      // endless/challenge: score · streak · timer
         private Text _mutationStrip; // challenge bulletin
@@ -59,9 +59,8 @@ namespace Hollowbrook.Checkpoint
         private Text _recName, _recNumber, _recYear, _recCourse, _recStatus, _recClassroom, _recHeader, _recEnrolled;
         private StringBuilder _tonightsLog = new StringBuilder();
 
-        private Button[] _questionButtons = new Button[4];
-        private readonly string[] _qLabels = new string[4];
-        private Text _budgetLabel;
+        private Button _questionBtn;
+        private Text _qKeyHint, _qAnswerHead, _qAnswer;
         private Text _qEmpty;   // deliberate empty state for the questions panel
         private GameObject _slipGo;
         private GameObject _papersLayer;
@@ -85,9 +84,6 @@ namespace Hollowbrook.Checkpoint
         private Image _stampOverlay;
         private GameObject _notesRoot; private Text _notesText;
         private GameObject _recordsRoot; private Text _recordsText;
-
-        // Amber readout color while the waiting line is backing up (pressure level 1+).
-        private static readonly Color PressureColor = new Color(0.95f, 0.72f, 0.30f);
 
         public void Init(GameRoot root)
         {
@@ -172,14 +168,7 @@ namespace Hollowbrook.Checkpoint
             CloseFileDrawer(true);   // ...nor an open drawer: the cabinet is shut on return
             // ...nor a half-spoken conversation: the panel goes dark, the state stays in the
             // session, and ResumeRun puts the re-open bar back if the administrator still waits
-            if (_talkOpen)
-            {
-                if (_talkPause != null) { StopCoroutine(_talkPause); _talkPause = null; }
-                _talkOpen = false;
-                _talkCommitting = false;
-                if (_talkPanel != null) _talkPanel.SetActive(false);
-                SetTalkColumn(false);
-            }
+            ParkAdminTalk();
         }
 
         public void BeginRun(ShiftDef shift)
@@ -188,6 +177,7 @@ namespace Hollowbrook.Checkpoint
             _shift = shift;
             ResetShiftState();
             RestoreQueuePresentation();
+            if (_gameRoot.HuntActive) _gameRoot.ResumeAdminHunt();   // saved mid-hunt: back to it
         }
 
         public void ResumeRun()
@@ -272,12 +262,12 @@ namespace Hollowbrook.Checkpoint
 
         // The view-side reaction to whatever the pure queue reported: present, sounds,
         // radio lines, warnings. All audio stays direct-call through _gameRoot.Audio.
-        private void ApplyTickResult(QueueTickResult r, bool restoreBudget)
+        private void ApplyTickResult(QueueTickResult r, bool restoreAsked)
         {
             if (r.ToWindow != null)
             {
                 ExhibitionHintOnce();
-                PresentFromQueue(r.ToWindow, restoreBudget);
+                PresentFromQueue(r.ToWindow, restoreAsked);
             }
             else if (r.ToLine != null)
             {
@@ -311,14 +301,13 @@ namespace Hollowbrook.Checkpoint
         }
 
         // A visitor reached the window (from the line or the clock): fresh inspection
-        // state, then the existing presentation. restoreBudget re-applies the question
-        // budget after a mid-inspection quit/continue so it can never be refunded.
-        private void PresentFromQueue(VisitorData v, bool restoreBudget)
+        // state, then the existing presentation. restoreAsked brings back the "they answered" note
+        // after a mid-inspection quit/continue.
+        private void PresentFromQueue(VisitorData v, bool restoreAsked)
         {
             Debug.Log("[Flow] PresentVisitor " + v.ClaimedName);
             _current = v;
-            _budget = new QuestionSystem.Budget();
-            if (restoreBudget && Queue != null) _budget.RestoreFromMask(Queue.ActiveBudgetMask);
+            _classroomAsked = restoreAsked && Queue != null && Queue.ActiveQuestionAsked;
             _verdictLocked = false;
             // fresh hand-over state: nothing on the desk until the ID is offered and taken
             _documentsTaken = false;
@@ -438,19 +427,18 @@ namespace Hollowbrook.Checkpoint
         // (stub MonoBehaviours never get Update calls).
         internal void TickHotkeys()
         {
-            // While any text field holds the caret the keyboard belongs to the sentence
-            // being typed: no gameplay key may fire (an "f" must not flip a paper, an "a"
-            // must not stamp). The desk itself keeps no typed input any more — the
-            // Questions panel is the only student-interaction interface.
-            if (UIFactory.TypingInField()) return;
             // Escape belongs to an open overlay sheet (Options/Controls/Credits) first —
             // without this guard Esc over the pause menu would close Options AND unpause.
+            // Esc closes an open desk sheet (rules / log) first; with none open it pauses
             if (Input.GetKeyDown(KeyCode.Escape) && !_gameRoot.BlockingOverlayOpen && InputGate.TryEscape())
-                _gameRoot.TogglePause();
+            {
+                if (!CloseOpenSheets()) _gameRoot.TogglePause();
+            }
             // gameplay keys stand down while paused, in overlays, in dialogue, or off-desk
             if (_gameRoot.Paused || _gameRoot.BlockingOverlayOpen ||
                 (_gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive) ||
                 _gameRoot.State != AppViewState.Checkpoint) return;
+            if (Input.GetKeyDown(KeyCode.X)) CloseOpenSheets();   // the CLOSE [X] button has a key
             if (Input.GetKeyDown(KeyCode.M) && InputGate.TryM()) _gameRoot.OpenMap();
             // TAB pulls the floor-files drawer open / pushes it shut (same act as clicking
             // the cabinet front); with a floor already open it re-opens that floor's files
@@ -458,9 +446,8 @@ namespace Hollowbrook.Checkpoint
             // T speaks with the administrator (or steps back out of the conversation); it is
             // inert unless the administrator is actually at the window
             if (Input.GetKeyDown(KeyCode.T)) ToggleAdminTalkByKey();
-            // 1-4 ask the four questions while the interview is open (labels say so)
-            for (int k = 0; k < 4; k++)
-                if (Input.GetKeyDown((KeyCode)(KeyCode.Alpha1 + k))) AskByHotkey(k);
+            // 1 asks the classroom question (the panel shows the key)
+            if (Input.GetKeyDown(KeyCode.Alpha1)) AskClassroom();
             // F flips the ID (its spine does too). Verdicts and the hand-back have NO key: a
             // stamp is dragged onto the slip and the ID is dragged back to the window by hand.
             if (Input.GetKeyDown(KeyCode.F)) FlipLastPaper();

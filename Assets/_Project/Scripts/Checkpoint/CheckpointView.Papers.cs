@@ -96,7 +96,7 @@ namespace Hollowbrook.Checkpoint
             L.Place(uv.rectTransform, new L.Region(20, 190, 280, 14));
             back.gameObject.SetActive(false);
             // the card's black spine: left edge on the front, mirrored to the right on the
-            // back — and the ONLY click target that flips the card (owner feedback: the
+            // back — and the ONLY click target that flips the card (the
             // whole-card flip fired from anywhere on the papers). Both spines carry the
             // hand-cursor hover so the handle reads as clickable.
             var stripe = UIFactory.Panel(cardRt, "idstripe", new Color(0.06f, 0.06f, 0.07f));
@@ -137,7 +137,7 @@ namespace Hollowbrook.Checkpoint
 
             // papers are physical: draggable over the desk, lifted while held, settling
             // back with their tilt on drop. Dropping the ID at the window hands it back —
-            // the scanner is retired, verification is manual (documents, floor files,
+            // there is no scanner, verification is manual (documents, floor files,
             // questions).
             var recordDrag = _recordGo.AddComponent<DragPaper>();
             recordDrag.Init(_desk, -0.6f);
@@ -148,6 +148,7 @@ namespace Hollowbrook.Checkpoint
             // a click on the card lifts it into the inspect view (the spine still flips it);
             // clicking anywhere off it puts it back, tilted, where it lay
             idDrag.Inspectable = true;
+            idDrag.KeepVisible = _recordGo.transform;   // inspect the ID with the file still in view
             idDrag.OnTapped = c => idDrag.Inspect();
             idDrag.OnDropped = center =>
             {
@@ -213,30 +214,17 @@ namespace Hollowbrook.Checkpoint
             _idExpires.text = admin ? "VALID THRU: " + v.ExpirationDisplay : "EXPIRES: " + v.ExpirationDisplay;
         }
 
-        // The school's own record sheet — the paper the card gets compared against.
-        private void FillRecordSheet(VisitorData v, bool admin)
+        // The district roster memo that arrives with the administrator's badge.
+        private void FillAdminMemo(VisitorData v)
         {
-            _recHeader.text = admin ? "DISTRICT ROSTER MEMO" : "STUDENT RECORD — FORM 11-C";
-            if (admin)
-            {
-                _recName.text = "ASSIGNED: " + v.RecordName;
-                _recNumber.text = "BADGE NO: " + v.RecordIdNumber;
-                _recYear.text = "EFFECTIVE: " + Content.ShiftDates[Mathf.Clamp(_gameRoot.Session.CurrentShift - 1, 0, 4)];
-                _recCourse.text = "PURPOSE: Assume control of site";
-                _recStatus.text = "SIGNED: District Seal (smudged)";
-                _recClassroom.text = "ESCORT: None authorized";
-                _recEnrolled.text = "FILED: 1987-10-05";
-            }
-            else
-            {
-                _recName.text = "NAME: " + v.RecordName;
-                _recNumber.text = "ID NO: " + v.RecordIdNumber;
-                _recYear.text = "YEAR LEVEL: " + Content.YearNames[v.RecordYearLevel - 1];
-                _recCourse.text = "COURSE/PROGRAM: " + Content.Courses[v.RecordCourseIndex];
-                _recStatus.text = "STATUS: " + (v.RecordIsTransferee ? "TRANSFEREE" : "REGULAR");
-                _recClassroom.text = "FIRST CLASS: " + v.RecordFirstClassroom;
-                _recEnrolled.text = "EXPIRES: " + v.ExpirationDisplay;
-            }
+            _recHeader.text = "DISTRICT ROSTER MEMO";
+            _recName.text = "ASSIGNED: " + v.RecordName;
+            _recNumber.text = "BADGE NO: " + v.RecordIdNumber;
+            _recYear.text = "EFFECTIVE: " + Content.ShiftDates[Mathf.Clamp(_gameRoot.Session.CurrentShift - 1, 0, 4)];
+            _recCourse.text = "PURPOSE: Assume control of site";
+            _recStatus.text = "SIGNED: District Seal (smudged)";
+            _recClassroom.text = "ESCORT: None authorized";
+            _recEnrolled.text = "FILED: 1987-10-05";
         }
 
         // Clean-desk visibility: the three paper groups appear only once the ID is in hand.
@@ -266,7 +254,7 @@ namespace Hollowbrook.Checkpoint
             _recYear.text = "YEAR: " + v.YearString;
             _recCourse.text = "COURSE: " + v.CourseString;
             _recStatus.text = "STATUS: " + v.StatusString;
-            _recClassroom.text = "FIRST CLASS: " + v.FirstClassroom.ToString();
+            _recClassroom.text = "FIRST CLASS: " + v.ClassroomString;
             _recEnrolled.text = "REGISTRY: ON FILE";
         }
     }

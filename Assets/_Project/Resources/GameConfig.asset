@@ -12,8 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 44af37e66017bdb4f0f358b5d7561d12, type: 3}
   m_Name: GameConfig
   m_EditorClassIdentifier: 
-  verdictBannerSeconds: 3.2
-  shiftStartHour: 22
+  verdictBannerSeconds: 1.2
   queueArrivalMinSeconds: 25
   queueArrivalMaxSeconds: 30
   queueRunMinSeconds: 3
@@ -27,8 +26,6 @@ MonoBehaviour:
   walkSpeed: 3.4
   runSpeed: 6
   interactRange: 1.35
-  roomHalfWidthHallway: 14
-  roomHalfWidthClassroom: 9
   anomalySpawnChancePerSecond: 0.05
   batteryDrainSweepPerSecond: 2.5
   batteryDrainFocusPerSecond: 6

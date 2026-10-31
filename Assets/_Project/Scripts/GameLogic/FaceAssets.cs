@@ -1,12 +1,13 @@
 namespace Hollowbrook.Logic
 {
-    /// <summary>Stable mapping from a student identity to its temporary face asset. The index
-    /// rides on VisitorData (set once by RosterFactory from the canon roster position), so the
-    /// same student always shows the same face on the card AND at the window — and an anomaly is
-    /// never "the odd-looking portrait", it is explicit game data (IsAnomaly / Distorted /
-    /// PhotoMatches) that decides which representation renders. Keys resolve through
-    /// ProceduralArt (Resources/Art/<key>.png first); when no file ships, the caller falls back
-    /// to the procedural portrait painter, so missing assets can never show a broken image.</summary>
+    /// <summary>Which face art goes where. The ID card ALWAYS shows the real student's face.
+    /// The window shows that same face, unless the visitor has a photo defect:
+    ///  - PhotoMismatch: somebody else's face (VisitorData.WindowFaceIndex differs),
+    ///  - PhotoSubtleMismatch: the same student's "_anomaly" art (one feature is off).
+    /// A visitor with any other defect looks completely normal, so only the papers and the
+    /// classroom answer can give them away. Keys resolve through ProceduralArt
+    /// (Resources/Art/<key>.png first); with no file the caller falls back to the procedural
+    /// portrait painter, so a missing asset never shows a broken image.</summary>
     public static class FaceAssets
     {
         // Temporary set shipped under Assets/_Project/Resources/Art/ (see Tools/make_face_assets.py
@@ -23,28 +24,20 @@ namespace Hollowbrook.Logic
         public static string AnomalyKey(int faceIndex) =>
             StudentKey(faceIndex) + "_anomaly";
 
-        /// <summary>The face standing at the window: the student's own asset — or that same
-        /// student's ANOMALY variant when the run's data says this visitor is anomalous (or its
-        /// window portrait is distorted). Both flags are explicit game data, never a guess about
-        /// how a portrait looks. null = no asset index, use the procedural painter.</summary>
+        /// <summary>The face standing at the window: the student's art, or that student's
+        /// "_anomaly" art when <paramref name="anomalyVariant"/> is set. null = no asset index,
+        /// use the procedural painter.</summary>
         public static string WindowKey(int faceIndex, bool anomalyVariant)
         {
             if (faceIndex < 0) return null;
             return anomalyVariant ? AnomalyKey(faceIndex) : StudentKey(faceIndex);
         }
 
-        /// <summary>The photo printed on the ID card. It uses the SAME asset as the window only
-        /// when the run says the two agree (PhotoMatches); a swapped/subtle-variant card photo
-        /// falls back to the procedural painter of its own portrait triple, so a mismatched pair
-        /// always LOOKS like two different people — the cue never contradicts the pixels.</summary>
-        public static string IdKey(int faceIndex, bool photoMatches, bool anomalyWindow)
-        {
-            if (faceIndex < 0 || !photoMatches || anomalyWindow) return null;
-            return StudentKey(faceIndex);   // the card always keeps the NORMAL reference face
-        }
+        /// <summary>The photo printed on the ID card: always the real student's face.</summary>
+        public static string IdKey(int faceIndex) => faceIndex < 0 ? null : StudentKey(faceIndex);
 
-        /// <summary>The Night-5 district administrator's badge photo. She has no canon roster
-        /// row, so she gets her own pair instead of an index: the formal portrait on the badge,
+        /// <summary>The Night-5 district administrator's badge photo. He has no canon roster
+        /// row, so he gets his own pair instead of an index: the formal portrait on the badge,
         /// and the window variant that carries her tell.</summary>
         public const string AdminKey = "admin_face";
 

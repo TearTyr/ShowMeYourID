@@ -18,13 +18,13 @@ namespace Hollowbrook.Checkpoint
     {
         private void BuildOverlays()
         {
-            // the verdict banner retired: post-decision feedback is the stamp mark, the
+            // there is no verdict banner: post-decision feedback is the stamp mark, the
             // sound and the subject walking off — never text
 
             _notesRoot = BuildPaperOverlay("OverlayRules", "sec_rules_paper", out _notesText);
             _recordsRoot = BuildPaperOverlay("OverlayLog", "sec_log_paper", out _recordsText);
 
-            // the yes/no confirm popup retired with the button verdicts: stamping IS confirming
+            // there is no yes/no confirm popup: stamping IS confirming
         }
 
         // The reading sheet IS the owner's photographed document: sec_rules_paper /
@@ -42,7 +42,11 @@ namespace Hollowbrook.Checkpoint
             var goRt = UIFactory.NewUI(_desk, goName);
             var go = goRt.gameObject;
             L.Place(goRt, L.FullDesk);
-            UIFactory.Dimmer(goRt, "dim", 0.66f);
+            var dim = UIFactory.Dimmer(goRt, "dim", 0.66f);
+            var dimClose = dim.gameObject.AddComponent<Button>();   // a click outside the paper closes it
+            dimClose.targetGraphic = dim;
+            dimClose.transition = Selectable.Transition.None;
+            dimClose.onClick.AddListener(() => { go.SetActive(false); _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.5f); });
             // the photographed paper, centred at its own proportions (preserveAspect keeps
             // the 789x879 export undistorted whatever the sheet rect rounds to); no extra
             // rotation — the print already lies at its angle
@@ -82,6 +86,18 @@ namespace Hollowbrook.Checkpoint
             else if (which == "log") { RefreshRecords(); ToggleOverlay(_recordsRoot); }
         }
 
+        /// <summary>Close the rules note / tonight's log if one is open (X key, Esc, or a click
+        /// outside the paper). Returns whether anything was open.</summary>
+        private bool CloseOpenSheets()
+        {
+            bool any = (_notesRoot != null && _notesRoot.activeSelf) || (_recordsRoot != null && _recordsRoot.activeSelf);
+            if (!any) return false;
+            _notesRoot.SetActive(false);
+            _recordsRoot.SetActive(false);
+            _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.5f);
+            return true;
+        }
+
         private Text Body(RectTransform parent, string name, L.Region r, int size, bool scroll)
         {
             return UIFactory.MaskedLabel(parent, name, r.X, r.Y, r.W, r.H, size,
@@ -101,7 +117,7 @@ namespace Hollowbrook.Checkpoint
             var sb = new StringBuilder();
             sb.Append("BASE RULES — Every person presents a Student ID and record form.\n");
             sb.Append("Verify: ID format (HB-YYYY-NNNN) · photo vs. the person · expiration · year level · course/program · Regular/Transferee status · record name.\n");
-            sb.Append("You may ask up to ").Append(Content.MaxQuestionsPerInspection).Append(" questions. Decisions are permanent.\n");
+            sb.Append("Ask which classroom they are going to, then check the answer against their file in the drawer. Decisions are permanent.\n");
             sb.Append("Compare the face at the window with the ID photo yourself — the desk keeps no appearance form.\n\n");
             if (_shift != null) { sb.Append(_shift.RuleNoteAddendum).Append('\n'); }
             if (_gameRoot.Session.Mode == GameMode.Challenge)

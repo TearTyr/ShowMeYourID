@@ -9,13 +9,11 @@ namespace Hollowbrook.UI
     // Builds every button/label/panel so the whole game shares one look.
     public static class UIFactory
     {
-        public static readonly Color Bg = new Color(0.035f, 0.035f, 0.04f);
         public static readonly Color PanelBase = new Color(0.09f, 0.09f, 0.10f);
         // ---- night-shift desk palette (from the approved HTML mockup) ----
         public static readonly Color NsInk = new Color(0.047f, 0.047f, 0.047f);      // #0c0c0c
         public static readonly Color NsDesk = new Color(0.086f, 0.086f, 0.086f);     // #161616
         public static readonly Color NsPaper = new Color(0.925f, 0.925f, 0.925f);    // #ececec
-        public static readonly Color NsPaperDim = new Color(0.788f, 0.788f, 0.788f); // #c9c9c9
         public static readonly Color NsChalk = new Color(1f, 1f, 1f);                // #ffffff
         public static readonly Color NsMid = new Color(0.541f, 0.541f, 0.541f);      // #8a8a8a
 
@@ -30,11 +28,7 @@ namespace Hollowbrook.UI
         public static readonly Color PaperInk = NsInk;
         public static readonly Color Glass = new Color(0.75f, 0.78f, 0.80f, 0.10f);
 
-        public const int TypeTitle = 30;
-        public const int TypeSubtitle = 14;
         public const int TypeSection = 14;
-        public const int TypeLabel = 17;
-        public const int TypeSmall = 13;
         public const int SpaceUnit = 8;
 
         // ---- mockup type roles (bundled open-licence fonts, safe fallback to GameFont) ----
@@ -276,48 +270,6 @@ namespace Hollowbrook.UI
             return t;
         }
 
-        // A functional text box: dark well, live ink, dim placeholder, MultiLineSubmit
-        // semantics (Enter sends, Shift+Enter breaks the line). The InputField component is
-        // the single owner of the string; the view reads/writes only through it.
-        public static InputField TextField(RectTransform parent, string name, string placeholder,
-            int fontSize, Color ink, Color well)
-        {
-            var rt = NewUI(parent, name);
-            var box = rt.gameObject.AddComponent<Image>();
-            box.color = well;
-            var input = rt.gameObject.AddComponent<InputField>();
-            input.targetGraphic = box;
-            input.lineType = InputField.LineType.MultiLineSubmit;
-
-            var text = Label(rt, "ink", "", fontSize, ink, TextAnchor.UpperLeft);
-            var trt = text.rectTransform;
-            trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
-            trt.offsetMin = new Vector2(8f, 3f); trt.offsetMax = new Vector2(-8f, -3f);
-            input.textComponent = text;
-
-            // named "ph", not "placeholder": the retired registry terminal's proof looks for
-            // a node named "placeholder" anywhere on the desk — this box is the dialogue
-            // input, not the terminal's return
-            var ph = Label(rt, "ph", placeholder, fontSize, InkDim, TextAnchor.MiddleLeft);
-            var prt = ph.rectTransform;
-            prt.anchorMin = Vector2.zero; prt.anchorMax = Vector2.one;
-            prt.offsetMin = new Vector2(8f, 3f); prt.offsetMax = new Vector2(-8f, -3f);
-            ph.raycastTarget = false;
-            input.placeholder = ph;
-            return input;
-        }
-
-        // True while ANY uGUI input field holds the keyboard focus — gameplay hotkeys and
-        // dialogue advance stand down so typing an "f" never flips a paper. Works in the
-        // editor (real EventSystem) and headless (the stub EventSystem mirrors selection).
-        public static bool TypingInField()
-        {
-            var es = UnityEngine.EventSystems.EventSystem.current;
-            if (es == null) return false;
-            var go = es.currentSelectedGameObject;
-            return go != null && go.GetComponent<InputField>() != null;
-        }
-
         public static void ApplyTextScale(float multiplier)
         {
             _textScale = multiplier;
@@ -396,20 +348,6 @@ namespace Hollowbrook.UI
             cb.fadeDuration = 0.12f;
             b.colors = cb;
             return b;
-        }
-
-        public static Button IconButton(Transform parent, string name, Sprite sprite, Action onClick,
-            int size = 40, Color? tint = null)
-        {
-            var rt = NewUI(parent, name);
-            rt.sizeDelta = new Vector2(size, size);
-            var img = rt.gameObject.AddComponent<Image>();
-            img.sprite = sprite;
-            img.color = tint ?? Ink;
-            var btn = rt.gameObject.AddComponent<Button>();
-            btn.targetGraphic = img;
-            if (onClick != null) btn.onClick.AddListener(() => onClick());
-            return btn;
         }
 
         public static void SetButtonEnabled(Button b, bool on)
@@ -500,56 +438,6 @@ namespace Hollowbrook.UI
             et.triggers.Add(off);
         }
 
-        public static Toggle ToggleRow(Transform parent, string name, string labelText, bool value,
-            Action<bool> onChanged, int width = 420)
-        {
-            // One settings row: [ON/OFF box | label], wired to a Toggle we paint ourselves.
-            var row = NewUI(parent, name);
-            row.anchorMin = new Vector2(0.5f, 0.5f);
-            row.anchorMax = new Vector2(0.5f, 0.5f);
-            row.sizeDelta = new Vector2(width, 36);
-
-            var rowBg = Panel(row, "rowbg", new Color(0f, 0f, 0f, 0f));
-            AnchorsFull(rowBg.rectTransform);
-            rowBg.raycastTarget = true;
-
-            var box = Panel(row, "box", PanelAlt).rectTransform;
-            Anchor(box, new Vector2(0f, 0.5f), new Vector2(24, 24), new Vector2(16, 0)); // left-anchored: positive
-            var boxBorder = box.gameObject.AddComponent<Outline>();
-            boxBorder.effectColor = Border;
-            boxBorder.effectDistance = new Vector2(2, 2);
-
-            var check = Label(box, "check", value ? "ON" : "OFF", 10,
-                value ? PanelBase : InkDim, TextAnchor.MiddleCenter);
-            Anchor(check.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(24, 24), Vector2.zero);
-            var boxImg = box.GetComponent<Image>();
-            if (boxImg != null) boxImg.color = value ? Ink : PanelAlt;
-
-            var lab = Label(row, "label", labelText, 17, Ink);
-            lab.alignment = TextAnchor.MiddleLeft;
-            lab.raycastTarget = false; // clicks handled by rowBg catcher
-            Anchor(lab.rectTransform, new Vector2(0f, 0.5f), new Vector2(width - 48, 30),
-                new Vector2(34 + (width - 48) / 2f, 0)); // left-anchored: positive center
-
-            var toggle = row.gameObject.AddComponent<Toggle>();
-            toggle.graphic = null;   // we drive box+word ourselves, so state is never ambiguous
-            toggle.onValueChanged.AddListener(on =>
-            {
-                check.text = on ? "ON" : "OFF";
-                check.color = on ? PanelBase : InkDim;
-                var bi = box.GetComponent<Image>();
-                if (bi != null) bi.color = on ? Ink : PanelAlt;
-            });
-            toggle.isOn = value;
-            if (onChanged != null) toggle.onValueChanged.AddListener(v => onChanged(v));
-
-            var bgImg = rowBg;
-            AddHover(row.gameObject,
-                () => { if (bgImg != null) bgImg.color = new Color(1f, 1f, 1f, 0.045f); },
-                () => { if (bgImg != null) bgImg.color = new Color(0f, 0f, 0f, 0f); });
-            return toggle;
-        }
-
         public static VerticalLayoutGroup VStack(Transform parent, string name, int spacing,
             TextAnchor align = TextAnchor.UpperCenter, bool controlW = true, bool controlH = true,
             bool forceW = false, bool forceH = false)
@@ -562,20 +450,6 @@ namespace Hollowbrook.UI
             g.childControlHeight = controlH;
             g.childForceExpandWidth = forceW;
             g.childForceExpandHeight = forceH;
-            return g;
-        }
-
-        public static HorizontalLayoutGroup HStack(Transform parent, string name, int spacing,
-            TextAnchor align = TextAnchor.MiddleLeft)
-        {
-            var rt = NewUI(parent, name);
-            var g = rt.gameObject.AddComponent<HorizontalLayoutGroup>();
-            g.spacing = spacing;
-            g.childAlignment = align;
-            g.childControlWidth = true;
-            g.childControlHeight = true;
-            g.childForceExpandWidth = false;
-            g.childForceExpandHeight = false;
             return g;
         }
 
