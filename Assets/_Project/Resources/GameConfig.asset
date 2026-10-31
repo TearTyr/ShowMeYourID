@@ -18,6 +18,7 @@ MonoBehaviour:
   queueRunMinSeconds: 3
   queueRunMaxSeconds: 5
   queueBusyHurryMultiplier: 2
+  nextStudentSeconds: 3
   queueNightScale: 0.8
   queuePressureWarnAt: 9999
   queueOverwhelmedAt: 9999

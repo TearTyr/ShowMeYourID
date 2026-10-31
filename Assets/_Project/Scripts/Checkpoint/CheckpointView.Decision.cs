@@ -310,6 +310,16 @@ namespace Hollowbrook.Checkpoint
             }
         }
 
+        // A normal night's patrol comes after the last student. Endless and Challenge never run dry.
+        private bool PatrolOpen
+        {
+            get
+            {
+                if (Queue == null || !Queue.Started || Queue.Collapsed) return false;
+                return !_gameRoot.PatrolRequired || Queue.ShiftComplete;
+            }
+        }
+
         // Decisions are clickable only while an inspection is live AND the ID is in hand;
         // the interview column swaps between the QUESTION gate and the open questions.
         private void RefreshDecisionButtons()
@@ -321,8 +331,8 @@ namespace Hollowbrook.Checkpoint
             _qKeyHint.gameObject.SetActive(atWindow);
             RefreshQuestionsPanel(atWindow);
             RefreshStamps(live);
-            bool patrolOn = !atWindow && Queue != null && Queue.Started && !collapsed;
-            bool endOn = Queue != null && Queue.ShiftComplete &&
+            bool patrolOn = PatrolOpen && !atWindow;
+            bool endOn = Queue != null && Queue.ShiftComplete && _gameRoot.PatrolDone &&
                          _gameRoot.Session.Mode == GameMode.Normal && !_gameRoot.HuntActive;
             if (_kitOn) { ApplyKitPill(_patrolBtn, patrolOn); ApplyKitPill(_endShiftBtn, endOn); }
             else

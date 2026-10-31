@@ -63,6 +63,7 @@ namespace Hollowbrook.LogicTests
             FaceTruthTests();
             FaceAssetMappingTests();
             QueueBusyHurryTests();
+            PatrolCycleTests();
             QueueInvariantTests();
             StampRulesTests();
             FloorFileTests();
@@ -1608,6 +1609,24 @@ namespace Hollowbrook.LogicTests
             return -1;
         }
 
+        private static void PatrolCycleTests()
+        {
+            int c1 = PatrolCycle.Bit(RoomId.Classroom1), c2 = PatrolCycle.Bit(RoomId.Classroom2);
+            int cr1 = PatrolCycle.Bit(RoomId.ComfortRoom), cr2 = PatrolCycle.Bit(RoomId.ComfortRoom2);
+            Check(!PatrolCycle.Done(0), "patrol: nothing peeked is not done");
+            Eq(PatrolCycle.Left(0), "Room 101, Room 202, a CR", "patrol: everything is left at the start");
+            Check(!PatrolCycle.Done(c1 | c2), "patrol: the classrooms alone are not enough");
+            Check(!PatrolCycle.Done(c1 | cr1), "patrol: Room 202 is needed");
+            Check(PatrolCycle.Done(c1 | c2 | cr1), "patrol: CR-1 counts");
+            Check(PatrolCycle.Done(c1 | c2 | cr2), "patrol: CR-2 counts");
+            Eq(PatrolCycle.Left(c1 | c2 | cr2), "", "patrol: nothing is left when done");
+
+            var s = new GameSession();
+            s.ClearedRooms = c1 | cr2;
+            Eq(SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = s })).Session.ClearedRooms, c1 | cr2,
+               "patrol: progress survives a save");
+        }
+
         private static void QueueBusyHurryTests()
         {
             Group("CheckpointQueue - the busy-window hurry multiplier");
@@ -1631,6 +1650,19 @@ namespace Hollowbrook.LogicTests
             q.CommitActiveResolution(); q.CompleteActive();   // and leaves: window free
             Check(!q.Tick(9.7f).Any, "free window: 9.7s is not enough for the 9.8s left");
             Check(q.Tick(0.2f).Any, "free window: the remaining interval completes at base speed");
+
+            // a student who is done never leaves the window empty for long
+            var q2 = new CheckpointQueue();
+            q2.AttachRoster(RosterFor(11, 3), new QueueTuning
+            {
+                MissingStudentChance = 0f, ArrivalMinSeconds = 100f, ArrivalMaxSeconds = 100f,
+                NextStudentSeconds = 3f,
+            }, 4321);
+            q2.MarkStarted();
+            q2.ForceNextArrival();
+            q2.CommitActiveResolution(); q2.CompleteActive();
+            Check(!q2.Tick(2.9f).Any, "empty window: the short gap still takes its 3 seconds");
+            Check(q2.Tick(0.2f).ToWindow != null, "empty window: the next student steps up after 3 seconds, not the long clock");
         }
 
         private static void StampRulesTests()

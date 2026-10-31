@@ -377,6 +377,11 @@ namespace Hollowbrook.Checkpoint
                     Queue.Started ? "The line has overrun the checkpoint." : "Begin the night shift first."));
                 return;
             }
+            if (!PatrolOpen)
+            {
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, "Deal with every student first."));
+                return;
+            }
             _gameRoot.EnterExploration();   // the queue rides in GameRoot; the clock pauses off-desk
         }
 
@@ -512,7 +517,7 @@ namespace Hollowbrook.Checkpoint
                 _standFigures[i].gameObject.SetActive(i < waiting);
         }
 
-        private void RefreshHud()
+        internal void RefreshHud()
         {
             if (_gameRoot == null) return;
             // Bootstrap builds the desk BEFORE the HUD, so ApplyKitSkin could not tint the

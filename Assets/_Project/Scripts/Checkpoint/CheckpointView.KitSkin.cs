@@ -22,6 +22,7 @@ namespace Hollowbrook.Checkpoint
     {
         private Image _windowTop, _windowGlass, _windowBase;   // the shutter's three bands
         private Image _windowLayer;     // open/closed shutter over the booth window
+        internal bool WindowOpen { get; private set; }
         private Image _lightLayer;      // the hanging lamp cone (subtle flicker layer)
         private Image _bubbleTailInk;   // procedural tail, retired under the kit bubble's own tail
         private float _lightPhase;
@@ -210,12 +211,14 @@ namespace Hollowbrook.Checkpoint
             }
         }
 
-        // The booth shutter follows the visitor: open glass while someone stands at the window,
-        // closed blinds while the booth waits. Called from SetVisitorVisible.
+        // The booth shutter: open from the first student until everyone has been dealt with,
+        // even in the moment between two students. Called from SetVisitorVisible.
         internal void RefreshWindowLayer(bool visitorShown)
         {
+            bool nightRunning = Queue != null && Queue.Started && !Queue.ShiftComplete && !Queue.Collapsed;
+            WindowOpen = visitorShown || nightRunning;
             if (_windowLayer == null) return;
-            string state = visitorShown ? "open" : "close";
+            string state = WindowOpen ? "open" : "close";
             Swap(_windowTop, "sec_window_" + state + "_top");
             Swap(_windowGlass, "sec_window_" + state + "_glass");
             Swap(_windowBase, "sec_window_" + state + "_base");

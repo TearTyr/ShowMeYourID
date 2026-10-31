@@ -54,6 +54,7 @@ namespace Hollowbrook.Logic
                 sb.Append("queueWarned=").Append(q.Warned).Append('\n');
             }
             KV(sb, "pool", s.Pool.Encode());
+            sb.Append("clearedRooms=").Append(s.ClearedRooms).Append('\n');
             KV(sb, "admitted", string.Join(",", s.AdmittedStudents.ConvertAll(st => st.VisitorIndex + ":" + (st.IsAnomaly ? 1 : 0))));
             sb.Append("adminAllowed=").Append(s.AdminAllowed ? 1 : 0).Append('\n');
             KV(sb, "adminTalk", s.AdminTalk != null ? s.AdminTalk.Encode() : "");
@@ -162,6 +163,7 @@ namespace Hollowbrook.Logic
                 }
                 else s.QueueState = null;   // a pre-queue save: ContinueGame falls back to visitorAtSave
                 s.Pool.Decode(Str(map, "pool", ""));
+                s.ClearedRooms = Int(map, "clearedRooms", 0);
                 foreach (var pair in Str(map, "admitted", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries))
                 {
                     var halved = pair.Split(':');

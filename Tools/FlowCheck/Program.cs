@@ -1826,8 +1826,11 @@ namespace FlowCheck
             Check(cp.CurrentVisitor != null, "next visitor arrives on the clock after the verdict banner");
 
             int guard = 0;
-            while (!live("endshift") && guard++ < 16)
+            bool openBetween = true;
+            while (!root.Queue.ShiftComplete && guard++ < 16)
             {
+                openBetween &= cp.WindowOpen;   // never shut while anyone is still to come
+                if (cp.CurrentVisitor == null) Check(!live("patrol"), "PATROL stays locked between students");
                 if (cp.CurrentVisitor == null) { cp.AdvanceQueue(6f); continue; }
                 cp.DebugTakeDocuments();   // hand-over gate before the verdict path
                 TakeSlip(root);
@@ -1838,6 +1841,17 @@ namespace FlowCheck
             }
             Check(guard < 16, "roster walked to the end without runaway (" + guard + " steps)");
             Check(root.Queue.ShiftComplete, "P9: shift complete = source dry + line empty + window free");
+            Check(openBetween, "WINDOW: it stays open from the first student to the last");
+            Check(!cp.WindowOpen, "WINDOW: it closes once every student has been dealt with");
+            if (root.PatrolRequired)
+            {
+                Check(!live("endshift"), "END SHIFT stays locked until the patrol cycle is done");
+                root.Session.ClearedRooms = PatrolCycle.Bit(RoomId.Classroom1) | PatrolCycle.Bit(RoomId.Classroom2);
+                cp.RefreshHud();
+                Check(!live("endshift"), "END SHIFT: two classrooms are not enough, a CR is needed");
+                root.Session.ClearedRooms |= PatrolCycle.Bit(RoomId.ComfortRoom2);
+                cp.RefreshHud();
+            }
             Check(live("endshift"), "END SHIFT lights up when the roster is done");
             {
                 // nobody at the window: the custodian rests (the only passive recovery there is)
@@ -2091,9 +2105,15 @@ namespace FlowCheck
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));   // #2 resolved, line empty
             Check(cp.CurrentVisitor == null && root.Queue.RosterCursor == 2, "Q7: window free, cursor at 2");
+            Check(cp.WindowOpen, "Q7: the window stays open with students still to come");
+            cp.AdvanceQueue(0.01f);
+            Check(root.Queue.TimerSeconds <= root.Config.nextStudentSeconds,
+                  "Q7: an empty window brings the next student within the short gap, not the long clock");
             float timerBeforePatrol = root.Queue.TimerSeconds;
             Check(timerBeforePatrol > 0f, "Q7: the arrival clock is mid-interval");
             cp.GoPatrol();
+            Check(root.State == AppViewState.Checkpoint, "Q7: Patrol stays shut while students are still to come");
+            root.EnterExploration();
             SchoolSceneBootstrap.Build(root);                      // what Unity does after LoadScene(School)
             Check(root.State == AppViewState.Exploration, "Q7: patrol started");
             Check(root.Queue.Started && root.Queue.RosterCursor == 2 && root.Queue.ArrivalCount == 2 &&
@@ -2160,13 +2180,15 @@ namespace FlowCheck
             cp = root.Checkpoint;
             ClickStickyNote(root);
             guard = 0;
-            while (!Btn(root, "endshift").interactable && guard++ < 20)
+            while (!root.Queue.ShiftComplete && guard++ < 20)
             {
                 if (cp.CurrentVisitor == null) { cp.AdvanceQueue(6f); continue; }
                 cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
                 cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             }
             Check(guard < 20 && root.Queue.ShiftComplete, "Q10: night 1 walked to completion through the queue");
+            root.Session.ClearedRooms = PatrolCycle.Bit(RoomId.Classroom1) | PatrolCycle.Bit(RoomId.Classroom2) | PatrolCycle.Bit(RoomId.ComfortRoom);
+            cp.RefreshHud();
             ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
             Btn(root, "endshift").onClick.Invoke();
             Check(root.State == AppViewState.ShiftResults, "Q10: clocking out lands on the shift results");

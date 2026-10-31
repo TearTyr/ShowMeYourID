@@ -109,6 +109,7 @@ namespace Hollowbrook.Core
             {
                 Session.TonightLog.Clear();
                 Session.AdmittedStudents.Clear();
+                Session.ClearedRooms = 0;
                 Session.BeginNight();            // pays last night's failure (less sanity, a stack, a roamer)
             }
             ShiftFailing = false;
@@ -206,6 +207,7 @@ namespace Hollowbrook.Core
                 t.ArrivalMinSeconds = Config.queueArrivalMinSeconds * scale;
                 t.ArrivalMaxSeconds = Config.queueArrivalMaxSeconds * scale;
                 t.BusyHurryMultiplier = Config.queueBusyHurryMultiplier;
+                t.NextStudentSeconds = Config.nextStudentSeconds;
             }
             else
             {

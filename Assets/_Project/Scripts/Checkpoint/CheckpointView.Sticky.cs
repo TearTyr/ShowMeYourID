@@ -27,7 +27,8 @@ namespace Hollowbrook.Checkpoint
             "3. CHECK their file: click the cabinet, pick the room, pick the name.\n" +
             "4. STAMP: drag ACCEPT or DECLINE onto the slip.\n" +
             "5. HAND BACK: drag the ID to the window. That decision is final.\n" +
-            "\nBetween students, PATROL: A and D walk, E inspects, F is your flashlight.";
+            "\nWhen every student is done, PATROL: peek into Room 101, Room 202 and a CR, then END SHIFT.\n" +
+            "A and D walk, the mouse aims, E uses what you stand at, F is your flashlight.";
 
         private Text _stickyTitle, _stickyBody;
 

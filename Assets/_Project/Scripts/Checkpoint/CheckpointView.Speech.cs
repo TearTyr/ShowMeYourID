@@ -194,6 +194,11 @@ namespace Hollowbrook.Checkpoint
                     want = "ASK UP TO 2 QUESTIONS [1-4], THEN CHECK THEIR FILE IN THE DRAWER";
                 else want = "CHECK THE PAPERS AND THE FILE, THEN DRAG A STAMP ONTO THE SLIP";
             }
+            else if (_current == null && Queue != null && Queue.ShiftComplete && _gameRoot.PatrolRequired)
+            {
+                want = _gameRoot.PatrolDone ? "PATROL DONE: END THE SHIFT"
+                    : "THE WINDOW IS CLOSED. PATROL: " + PatrolCycle.Left(_gameRoot.Session.ClearedRooms).ToUpperInvariant();
+            }
             RefreshWindowCue();
             if (want == _lastHandoverPrompt) return;
             _lastHandoverPrompt = want;

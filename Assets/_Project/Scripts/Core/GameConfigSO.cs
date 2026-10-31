@@ -22,6 +22,8 @@ namespace Hollowbrook.Core
         public float queueRunMaxSeconds = 5f;
         [Tooltip("Normal mode: the arrival clock runs this much faster while the window is busy, so dawdling grows the line.")][Range(1f, 4f)]
         public float queueBusyHurryMultiplier = 2f;
+        [Tooltip("Normal mode: seconds before the next student steps up when the window and the line are both empty.")][Range(0.5f, 30f)]
+        public float nextStudentSeconds = 3f;
         [Tooltip("Normal mode: base arrival interval is multiplied by this per night after night 1.")][Range(0.3f, 1f)]
         public float queueNightScale = 0.8f;
         // Showcase build: the line pressure rules are switched off (set sane values such as

@@ -22,13 +22,26 @@ namespace Hollowbrook.Core
             {
                 SetState(AppViewState.Exploration);
                 Bus.Publish(GameEvent.Of(EventIds.PatrolStarted));
-                ObjectiveText = "Night " + Session.CurrentShift + " - patrol: check the rooms, follow the chain, return to the checkpoint before dawn.";
+                ObjectiveText = PatrolObjective();
                 Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));
                 if (Views != null) Views.EnterRoom(room);
                 Audio.PlayMusic(MusicForRoom(room));
                 if (HuntActive && Views != null) Views.StartAdminHunt(BuildHuntTuning(), Session.Seed ^ 0x4A0B);
             });
             Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.School);
+        }
+
+        /// <summary>Normal nights 1 to 4 need one patrol cycle before END SHIFT.</summary>
+        public bool PatrolRequired => Session != null && Session.Mode == GameMode.Normal &&
+            Session.CurrentShift < ShiftPlan.TotalShifts && (Config == null || !Config.exhibitionMode);
+
+        /// <summary>True once tonight's cycle is finished, or when tonight has none.</summary>
+        public bool PatrolDone => !PatrolRequired || PatrolCycle.Done(Session.ClearedRooms);
+
+        private string PatrolObjective()
+        {
+            if (!PatrolRequired) return "Night " + Session.CurrentShift + " - patrol: follow the chain, return to the checkpoint before dawn.";
+            return PatrolDone ? "Patrol done - return to the desk." : "Patrol: " + PatrolCycle.Left(Session.ClearedRooms);
         }
 
         public static string MusicForRoom(RoomId room)
@@ -48,6 +61,8 @@ namespace Hollowbrook.Core
         {
             if (Views == null) return;
             PeekRoom = room;
+            Session.ClearedRooms |= PatrolCycle.Bit(room);
+            ObjectiveText = PatrolObjective();   // the hallway shows it again after the peek
             SetState(AppViewState.RoomPeek);
             Views.EnterPeek(room);
         }
