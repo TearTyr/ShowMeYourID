@@ -2213,7 +2213,7 @@ namespace FlowCheck
             for (int i = 0; i < 12 && root.Dialogue != null && root.Dialogue.IsActive; i++)
                 root.Dialogue.Advance();               // play the outro to its callback
             Check(root.Queue.ShiftComplete, "Q11: rejecting the administrator completes the night");
-            Check(Btn(root, "endshift").interactable, "Q11: END SHIFT lights up after the outro");
+            Check(!Btn(root, "endshift").interactable, "Q11: END SHIFT stays off, the night is not over while he is inside");
             ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
             Btn(root, "endshift").onClick.Invoke();
             Check(root.State == AppViewState.ShiftResults && root.Session.CompletedShifts == 1,

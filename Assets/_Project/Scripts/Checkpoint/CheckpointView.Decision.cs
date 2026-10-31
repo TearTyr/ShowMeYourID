@@ -407,12 +407,14 @@ namespace Hollowbrook.Checkpoint
 
             if (resolved.IsAdministrator && _gameRoot.Session.AdminRejected)
             {
-                // he does not leave: the line is sent home and he forces the gate (the hunt)
+                // he says he will be back, then leaves the window; the hunt follows
                 if (Queue != null) Queue.AbandonLine();
-                _current = null;
-                SetVisitorVisible(false);
-                RefreshHud();
-                _gameRoot.BeginAdminHunt();
+                _gameRoot.BeginAdminHunt(() =>
+                {
+                    _current = null;
+                    SetVisitorVisible(false);
+                    RefreshHud();
+                });
                 yield break;
             }
 

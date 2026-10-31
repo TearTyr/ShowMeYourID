@@ -43,22 +43,31 @@ namespace Hollowbrook.Core
             return t;
         }
 
-        /// <summary>The administrator was turned away: he forces the gate and the hunt begins.
-        /// Called by the desk after the DENY stamp has landed.</summary>
-        public void BeginAdminHunt()
+        /// <summary>The administrator was turned away: he says he will be back and leaves, then
+        /// the hunt begins. Called by the desk after the DENY stamp has landed; left runs when he
+        /// walks away from the window.</summary>
+        public void BeginAdminHunt(System.Action left = null)
         {
             if (Session.Hunt != HuntState.None) return;
             Session.Hunt = HuntState.Active;
             PersistRun();   // quitting now continues the hunt, never skips it
-            Audio.PlaySfx("sfx_alarm", 0.8f);
-            var lines = new List<DialogueLine>
+            var parting = new List<DialogueLine>
             {
-                new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = "Then I will let myself in." },
-                new DialogueLine { Speaker = "RADIO", Text = "The gate! He is through the gate - he is inside the school!" },
-                new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "Footsteps. Listen for where they stop. Hold the doors, watch the comfort room, watch your back. Dawn is the only way out." },
+                new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = "Very well, custodian. I'll be back." },
             };
-            if (Dialogue != null) Dialogue.Play(lines, () => EnterExploration(RoomId.Hallway));
-            else EnterExploration(RoomId.Hallway);
+            var after = new List<DialogueLine>
+            {
+                new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "He walks off into the dark. The gate is still swinging. He never went through it." },
+                new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "He is inside. Watch where he stops. Hold the doors, check the comfort rooms, watch your back. Dawn is the only way out." },
+            };
+            System.Action thenHunt = () =>
+            {
+                if (left != null) left();
+                if (Dialogue != null) Dialogue.Play(after, () => EnterExploration(RoomId.Hallway));
+                else EnterExploration(RoomId.Hallway);
+            };
+            if (Dialogue != null) Dialogue.Play(parting, thenHunt);
+            else thenHunt();
         }
 
         /// <summary>Continue after a save made mid-hunt: straight back to the patrol.</summary>
@@ -74,7 +83,6 @@ namespace Hollowbrook.Core
             if (!HuntActive) return;
             Session.Hunt = HuntState.Won;
             if (Views != null) Views.StopAdminHunt();
-            Audio.PlaySfx("sfx_bell", 0.8f);
             var lines = new List<DialogueLine>
             {
                 new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = "…This building remembers who opens its doors. It will remember you." },
