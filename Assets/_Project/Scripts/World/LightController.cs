@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
-    // Per-room ambient lighting ONLY: the wall switch state, darkness alpha and flicker.
+    // Per-room ambient lighting ONLY: the lit state, darkness alpha and flicker.
     // The handheld beam is FlashlightRig's business — this class never sees a beam mode and
     // the rig never writes here. Battery recovery, sanity drain and spawn odds all read the
     // real ambient state (Lit) from this class. Created by RoomBuilder.
@@ -33,7 +33,7 @@ namespace Hollowbrook.World
         private bool _peekOverride;   // peeking: darkness is a solid-black presentation layer
 
         /// <summary>Peek presentation override: while on, the darkness is fully black and no
-        /// flicker or wall-switch visual may touch it (the real Lit state stays unchanged).
+        /// flicker or scripted light change may touch it (the real Lit state stays unchanged).
         /// Turning it off restores the visual for the real Lit state.</summary>
         public void EnterPeek(bool on)
         {
@@ -68,22 +68,21 @@ namespace Hollowbrook.World
                 ? 1f - (1f - _darkAlpha) * (1f - _depthAlpha)
                 : _darkAlpha);
 
-        /// <summary>The wall switch (and scripted events) are the only ways room light changes.</summary>
+        /// <summary>Scripted events (the hallucination flicker) are the only ways room light changes —
+        /// there are no wall switches; the flashlight is the player's only light.</summary>
         public void SetLit(bool on)
         {
             if (Lit == on) return;
             Lit = on;
-            if (!_peekOverride) ApplyVisual();   // peek keeps the room black whatever the switch does
+            if (!_peekOverride) ApplyVisual();   // peek keeps the room black whatever the scripted light does
             if (_gameRoot == null) return;
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.LightModeChanged, on));
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
                 on ? "Lights on." : "Lights off. Something prefers it that way."));
         }
 
-        public void Toggle() => SetLit(!Lit);
-
-        /// <summary>Room-entry reset: EVERY room is entered in darkness — the wall switch (E)
-        /// and the handheld beam are the only lights. Called by ViewManager on each entry
+        /// <summary>Room-entry reset: EVERY room is entered in darkness — the handheld
+        /// flashlight is the only light. Called by ViewManager on each entry
         /// (peeks included). Silent by design: no toast, no "Lights off" line; the HUD
         /// refreshes on RoomEntered. A peek override still owns the visual while it is on.</summary>
         public void ForceDarkOnEntry()
@@ -114,7 +113,7 @@ namespace Hollowbrook.World
             _depth.enabled = on;
             if (!on) return;
             var c = _depth.color; c.a = _depthAlpha; _depth.color = c;
-            FollowPlayer();   // re-centre at once: the pool is never a frame behind the switch
+            FollowPlayer();   // re-centre at once: the pool is never a frame behind the room entry
         }
 
         // Keeps the pool centred on the custodian. Struct maths only — no allocations, so the

@@ -3,63 +3,34 @@ using System.Collections.Generic;
 
 namespace Hollowbrook.Logic
 {
-    /// <summary>The speech bubble's ONE clock: a line shows the bubble, the 2 s cooldown starts
-    /// when the dialogue ENDS, and every new line advances the generation so a stale hide can
-    /// never swallow the line that replaced it. Pure so the timing is unit-testable without an
-    /// engine; CheckpointView.Speech renders whatever this reports.</summary>
+    /// <summary>The speech bubble's ONE record of what is on screen: a line shows the bubble and
+    /// it STAYS until the next line replaces it or the desk clears it (visitor walks off, room
+    /// change, new shift) — nothing times out, so the player can never lose a clue to a timer.
+    /// Every new line advances the generation so the view re-renders only on a change. Pure so the
+    /// rules are unit-testable without an engine; CheckpointView.Speech renders whatever this
+    /// reports.</summary>
     public class SpeechBubbleClock
     {
-        /// <summary>Seconds between "the line ended" and "the bubble is removed".</summary>
-        public const float HideDelaySeconds = 2f;
-
         /// <summary>Is the bubble on screen right now?</summary>
         public bool Visible { get; private set; }
-        /// <summary>Strictly monotonic line counter — the view re-renders only on a change,
-        /// and a pending hide from an older generation can be recognised as stale.</summary>
+        /// <summary>Strictly monotonic line counter — the view re-renders only on a change.</summary>
         public int Generation { get; private set; }
         public string Who { get; private set; } = "";
         public string Text { get; private set; } = "";
-        /// <summary>Seconds since the last line arrived; frozen once the bubble has hidden.</summary>
-        public float SecondsSinceLine { get; private set; }
-        /// <summary>The cursor is inside the bubble: the hide countdown is suspended for as
-        /// long as the player is reading it (the view feeds this from pointer enter/exit).</summary>
-        public bool Hovering { get; private set; }
 
-        /// <summary>Show one line. Cancels any pending hide (the countdown restarts).</summary>
+        /// <summary>Show one line. It replaces whatever the bubble was showing.</summary>
         public void Say(string who, string text)
         {
             Who = who ?? "";
             Text = text ?? "";
             Generation++;
-            SecondsSinceLine = 0f;
             Visible = true;
         }
 
-        /// <summary>Pointer entered / left the bubble. Entering suspends the countdown (a line
-        /// the player is reading must not vanish); leaving RESTARTS the cooldown from zero when
-        /// the dialogue has already ended — and changes nothing while it is still talking,
-        /// because the countdown only begins once the dialogue stops.</summary>
-        public void SetHover(bool on)
-        {
-            Hovering = on;
-            if (!on) SecondsSinceLine = 0f;   // the 2 s window opens as the cursor leaves
-        }
-
-        /// <summary>Advance the cooldown. Ticking a hidden bubble does nothing, a hovered one
-        /// waits, and a negative dt is clamped — the clock never rewinds.</summary>
-        public void Tick(float dt)
-        {
-            if (!Visible || Hovering) return;
-            if (dt > 0f) SecondsSinceLine += dt;
-            if (SecondsSinceLine >= HideDelaySeconds) Visible = false;
-        }
-
-        /// <summary>Cleanup path (room change, visitor walks off, new shift): hide instantly
-        /// and drop the countdown, so no timer survives into the next beat.</summary>
+        /// <summary>Cleanup path (room change, visitor walks off, new shift): hide instantly.</summary>
         public void HideNow()
         {
             Visible = false;
-            SecondsSinceLine = 0f;
         }
     }
 

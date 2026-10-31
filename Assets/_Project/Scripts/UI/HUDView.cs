@@ -215,7 +215,7 @@ namespace Hollowbrook.UI
             if (!exploring && !peeking) _prompt.text = "";
             if (!exploring && !peeking && _batteryBar != null) _batteryBar.SetActive(false); // desk has no flashlight
             if (s == AppViewState.Checkpoint) _objective.text = _gameRoot.ObjectiveText ?? "";
-            if (peeking) _objective.text = "Press F for the lamp — sweep it across the room; click the bottom edge to step back.";
+            if (peeking) _objective.text = "Press F to switch the flashlight on — sweep it across the room; click the bottom edge to step back.";
             if (exploring) _objective.text = _gameRoot.ObjectiveText;   // restore after a peek overwrote the hint
             if (_peekExitBand != null) _peekExitBand.SetActive(peeking);
             RefreshFindings();
@@ -286,23 +286,18 @@ namespace Hollowbrook.UI
             var room = _gameRoot.Views.Current;
             var peek = _gameRoot.Views.PeekLight;
             bool peeking = _gameRoot.State == AppViewState.RoomPeek && peek != null && peek.Active;
-            // rooms are entered dark: while peeking the manual lamp is the light to point
-            // at, anywhere else it is the wall switch
-            string light = room.Light != null
-                ? (room.Light.Lit ? "ON" : peeking ? "OFF — lamp [F]" : "OFF — wall switch [E]")
-                : "—";
-            // the handheld light reads HERE too, live: the status line must never say OFF
-            // while a light is visibly on. While peeking, the cursor lamp IS the handheld
-            // light (the beam rests OFF for the whole peek); every lamp toggle republishes
+            // the flashlight is the only light, so the line reads HERE, live: it must never say
+            // OFF while the light is visibly on. While peeking, the cursor light IS the
+            // flashlight (the beam rests OFF for the whole peek); every toggle republishes
             // LightModeChanged, and every beam change republishes the battery — so this
             // line refreshes with both.
             var rig = _gameRoot.Views.Flashlight;
             string handheld = peeking
-                ? "LAMP: " + (peek.Lit ? (peek.Focused ? "ON · FOCUS" : "ON") : "OFF")
-                : "BEAM: " + (rig == null || rig.Beam == LightMode.Off ? "OFF"
+                ? "FLASHLIGHT: " + (peek.Lit ? (peek.Focused ? "ON · FOCUS" : "ON") : "OFF")
+                : "FLASHLIGHT: " + (rig == null || rig.Beam == LightMode.Off ? "OFF"
                     : rig.Beam == LightMode.Focus ? "FOCUS"
                     : "SWEEP");
-            _roomInfo.text = room.DisplayName + "  ·  LIGHTS: " + light + "  ·  " + handheld;
+            _roomInfo.text = room.DisplayName + "  ·  " + handheld;
         }
 
         public void Notify(string msg)

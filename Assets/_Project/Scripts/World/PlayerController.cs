@@ -55,8 +55,6 @@ namespace Hollowbrook.World
             if (_gameRoot.Paused || dialogueOpen) return;
             if (_gameRoot.State != AppViewState.Exploration) return; // overlays (map/security room) freeze movement
 
-            if (Input.GetKeyDown(KeyCode.M) && InputGate.TryM()) _gameRoot.OpenMap();
-
             float h = 0f;
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) h -= 1f;
             if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) h += 1f;
