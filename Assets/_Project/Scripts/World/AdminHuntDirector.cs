@@ -5,24 +5,27 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
-    // Runs the administrator hunt in the school scene. Created by ViewManager.StartAdminHunt.
+    // Runs night 5's hunt in the school scene. Created by ViewManager.StartAdminHunt.
     //
     // The RULES live in GameLogic/AdminHunt (pure, fuzz-tested). This class only connects them
-    // to the world: it reads what the player is doing (peeking? cursor on his head? beam on his
-    // face?), feeds that to the rules every frame, and turns the events that come back into
-    // sound, captions, the shaking picture of his face and the lamp flicker.
+    // to the world: it reads what the player is doing (holding a door? lamp on his head? beam on
+    // his face?), feeds that to the rules every frame, and turns the events that come back into
+    // sound, captions and the picture of him.
     //
     // Where things happen:
-    //  - Hiding:   no picture. A caption and a knock tell you which classroom door he is behind.
-    //  - Tracking: his picture shakes and circles inside the peeked room. Only the lamp shows it.
-    //  - Flicker:  the lamp dies, the picture is gone.
-    //  - Charging: his picture runs down the hallway at you. Flash the beam on his face.
+    //  - Stalking: no picture. Footsteps only.
+    //  - AtDoor:   a knock and a caption name the door. That door's prompt becomes "hold it shut",
+    //              and it cannot be peeked through while he is behind it.
+    //  - Closet:   his picture shakes and circles inside the comfort room. Only the lamp shows it.
+    //  - Behind:   his picture closes in along the hallway. Flash the beam on his face.
     public class AdminHuntDirector : MonoBehaviour
     {
         private const float FigureHeight = 2.6f;          // world units, the picture's height
         private const int FigureSortingOrder = 40;        // under the darkness overlay (70): only light reveals him
-        private const float HintEverySeconds = 9f;        // repeat the door-rattle hint while he hides
         private const float StatusEverySeconds = 0.4f;    // how often the HUD line is rewritten
+        private const float FootstepEverySeconds = 0.8f;
+        private const float BehindStartDistance = 6f;     // how far away he starts when he comes at your back
+        private const string HoldPrompt = "HOLD E - KEEP THE DOOR SHUT";
 
         private GameRoot _root;
         private ViewManager _views;
@@ -33,13 +36,17 @@ namespace Hollowbrook.World
         private Vector3 _anchor;
         private float _trackClock;
         private int _motionSeed;
-        private float _hintClock;
         private float _statusClock;
-        private float _chargeFromX;
+        private float _stepClock;
+        private float _behindFromX;
+        private Doorway _heldDoor;
+        private string _heldDoorPrompt;
 
         public bool Running { get; private set; }
         public AdminHunt Model => _hunt;
         public GameObject Figure => _figure;
+        /// <summary>Headless proofs set this: stands in for the E key being held.</summary>
+        internal bool ForceHoldKey;
 
         public void Begin(GameRoot root, ViewManager views, HuntTuning tuning, int seed)
         {
@@ -57,10 +64,15 @@ namespace Hollowbrook.World
         public void Stop()
         {
             Running = false;
+            ReleaseDoor();
             if (_figure != null) Destroy(_figure);
             _figure = null;
             _sprite = null;
         }
+
+        /// <summary>True while he is behind this door: Doorway will not open it for a peek.</summary>
+        public bool BlocksDoor(RoomId room) =>
+            Running && _hunt != null && _hunt.Phase == HuntPhase.AtDoor && _hunt.Room == room;
 
         private void Update() { Tick(Mathf.Min(Time.deltaTime, 0.1f)); }
 
@@ -76,8 +88,8 @@ namespace Hollowbrook.World
 
             var input = ReadInput();
             var ev = _hunt.Tick(dt, input);
-            UpdateFigure(dt, input);
-            TickHint(dt, input);
+            UpdateFigure(dt);
+            TickFootsteps(dt);
             React(ev);
             TickStatus(dt);
         }
@@ -95,14 +107,23 @@ namespace Hollowbrook.World
                 InHallway = !peeking && _root.State == AppViewState.Exploration && room == RoomId.Hallway,
             };
             bool figureUp = _figure != null && _figure.activeSelf;
-            if (peeking && _hunt.Phase == HuntPhase.Tracking && figureUp)
+            if (peeking && _hunt.Phase == HuntPhase.Closet && figureUp)
             {
                 float d = Vector2.Distance(light.CursorWorld, _figure.transform.position);
                 input.OnTarget = light.Lit && !light.Flickering && d <= _tuning.HeadRadius;
             }
-            if (input.InHallway && _hunt.Phase == HuntPhase.Charging && figureUp)
+            if (input.InHallway && _hunt.Phase == HuntPhase.Behind && figureUp)
                 input.BeamOnFace = _views.BeamCovers(_figure.transform.position);
+            if (input.InHallway && _hunt.Phase == HuntPhase.AtDoor)
+                input.HoldingDoor = AtHeldDoor() && (ForceHoldKey || Input.GetKey(KeyCode.E));
             return input;
+        }
+
+        private bool AtHeldDoor()
+        {
+            if (_views.Player == null) return false;
+            float x = _views.Player.transform.localPosition.x;
+            return Mathf.Abs(x - RoomGraph.DoorX(RoomId.Hallway, _hunt.Room)) <= _root.Config.interactRange;
         }
 
         // ------------------------------------------------------------ the picture
@@ -146,126 +167,152 @@ namespace Hollowbrook.World
         }
 
         // He appears somewhere in the framed room; the shake circles around this anchor.
-        private void PlaceForTracking()
+        private void PlaceInComfortRoom()
         {
             float screenHalf = _views.ScreenHalfWidth;
-            var rng = new GameRng(_motionSeed + _hunt.Stuns * 101 + (int)_hunt.Room * 7);
+            var rng = new GameRng(_motionSeed + _hunt.Repels * 101);
             float x = (rng.NextFloat() * 2f - 1f) * Mathf.Max(0.5f, screenHalf - 3.2f);
             float y = 0.2f + (rng.NextFloat() * 2f - 1f) * 0.7f;
             _anchor = new Vector3(x, y, 0f);
             _trackClock = 0f;
-            ShowFigureIn(_hunt.Room, _anchor);
+            ShowFigureIn(RoomId.ComfortRoom, _anchor);
         }
 
-        private void UpdateFigure(float dt, HuntInput input)
+        private void UpdateFigure(float dt)
         {
-            if (_figure == null) return;
-            if (_hunt.Phase == HuntPhase.Tracking)
+            if (_figure == null || !_figure.activeSelf) return;
+            if (_hunt.Phase == HuntPhase.Closet)
             {
                 _trackClock += dt;
                 float ox, oy;
-                AdminHuntMotion.HeadOffset(_trackClock, _hunt.Stuns, _motionSeed, out ox, out oy);
+                AdminHuntMotion.HeadOffset(_trackClock, _hunt.Repels, _motionSeed, out ox, out oy);
                 _figure.transform.localPosition = _anchor + new Vector3(ox, oy, 0f);
             }
-            else if (_hunt.Phase == HuntPhase.Charging && input.InHallway)
+            else if (_hunt.Phase == HuntPhase.Behind)
             {
-                if (!_figure.activeSelf) StartCharge();
                 float playerX = _views.Player != null ? _views.Player.transform.localPosition.x : 0f;
-                float x = Mathf.Lerp(_chargeFromX, playerX, _hunt.ChargeProgress);
+                float x = Mathf.Lerp(_behindFromX, playerX, _hunt.BehindProgress);
                 _figure.transform.localPosition = new Vector3(x, RoomInstance.FloorY + FigureHeight * 0.5f, 0f);
             }
         }
 
-        // He starts from the far end of the hallway, the end the player is NOT near.
-        private void StartCharge()
+        // He comes from the side with room for it, the middle of the hallway.
+        private void PlaceBehindPlayer()
         {
-            var hall = _views.Room(RoomId.Hallway);
-            float half = hall != null ? hall.HalfWidth : 12f;
             float playerX = _views.Player != null ? _views.Player.transform.localPosition.x : 0f;
-            _chargeFromX = (playerX > 0f ? -1f : 1f) * (half - 1.2f);
-            ShowFigureIn(RoomId.Hallway, new Vector3(_chargeFromX, RoomInstance.FloorY + FigureHeight * 0.5f, 0f));
-            if (_views.Flashlight != null) _views.Flashlight.Recharge();
-            Say("*heavy footsteps in the hallway - FLASH HIS FACE!  (F / Q)*", 2.6f);
-            _root.Audio.PlaySfx("sfx_heartbeat", 0.8f);
+            _behindFromX = playerX + (playerX > 0f ? -1f : 1f) * BehindStartDistance;
+            ShowFigureIn(RoomId.Hallway, new Vector3(_behindFromX, RoomInstance.FloorY + FigureHeight * 0.5f, 0f));
         }
 
         // ------------------------------------------------------------ reacting to the rules
         private void React(HuntEvent ev)
         {
             if (ev == HuntEvent.None) return;
-            if ((ev & HuntEvent.Hid) != 0) OnHid();
-            if ((ev & HuntEvent.TrackStart) != 0) OnTrackStart();
-            if ((ev & HuntEvent.Stun) != 0) OnStun();
-            if ((ev & HuntEvent.BrokeFree) != 0) Say("*he slips out of the light and is gone*", 2.2f);
-            if ((ev & HuntEvent.FlickerStart) != 0) OnFlickerStart();
-            if ((ev & HuntEvent.ChargeStart) != 0) OnChargeStart();
+            if ((ev & HuntEvent.StalkStart) != 0) { HideFigure(); ReleaseDoor(); _stepClock = 0f; }
+            if ((ev & HuntEvent.ReachedDoor) != 0) OnReachedDoor();
+            if ((ev & HuntEvent.EnteredCloset) != 0) OnEnteredCloset();
+            if ((ev & HuntEvent.Spotted) != 0) OnSpotted();
+            if ((ev & HuntEvent.AppearedBehind) != 0) OnAppearedBehind();
+            if ((ev & HuntEvent.Repelled) != 0) OnRepelled();
             if ((ev & HuntEvent.Caught) != 0) OnCaught();
-            if ((ev & HuntEvent.Won) != 0) { HideFigure(); _root.WinAdminHunt(); }
-            if ((ev & HuntEvent.Lost) != 0) { HideFigure(); _root.LoseAdminHunt(); }
+            if ((ev & HuntEvent.Won) != 0) { Clear(); _root.WinAdminHunt(); }
+            if ((ev & HuntEvent.Lost) != 0) { Clear(); _root.LoseAdminHunt(); }
         }
 
-        private void OnHid()
+        private void Clear()
         {
             HideFigure();
-            _hintClock = 0f;
-            DropHint();
+            ReleaseDoor();
         }
 
-        private void OnTrackStart()
+        private void OnReachedDoor()
         {
-            PlaceForTracking();
+            // the door the player is peeking through is the one he came to: back out of it
+            if (_views.PeekActive && _views.Current != null && _views.Current.Id == _hunt.Room)
+                _root.ExitRoomPeek();
+            ClaimDoor();
+            _root.Audio.PlaySfx("sfx_knock", 0.8f);
+            Say("*the footsteps stop outside " + RoomName(_hunt.Room) + " - HOLD THAT DOOR*", 3f);
+        }
+
+        private void OnEnteredCloset()
+        {
+            _root.Audio.PlaySfx("sfx_door", 0.7f);
+            Say("*a door creaks in the comfort room - PEEK IN AND FIND HIM*", 3f);
+            if (_views.PeekActive && _views.Current != null && _views.Current.Id == RoomId.ComfortRoom) OnSpotted();
+        }
+
+        private void OnSpotted()
+        {
+            if (_figure != null && _figure.activeSelf) return;
+            PlaceInComfortRoom();
             _root.Audio.PlaySfx("sfx_glitch", 0.5f);
-            Say("*he is right there - keep the light on his head*", 2.4f);
+            Say("*he is in here - keep the light on his head*", 2.4f);
         }
 
-        private void OnStun()
+        private void OnAppearedBehind()
         {
-            _root.Audio.PlaySfx("sfx_scare", 0.35f);
-            Say("*something shrieks in the dark*", 2f);
-            if (_hunt.Phase == HuntPhase.Recoil) HideFigure();
+            PlaceBehindPlayer();
+            if (_views.Flashlight != null) _views.Flashlight.Recharge();
+            _root.Audio.PlaySfx("sfx_stinger", 0.7f);
+            Say("*breathing, right behind you - FLASH HIS FACE!  (F / Q)*", 2.4f);
         }
 
-        private void OnFlickerStart()
+        private void OnRepelled()
         {
-            HideFigure();
-            if (_views.PeekLight != null && _views.PeekActive) _views.PeekLight.Flicker(_tuning.FlickerSeconds);
-            _root.Audio.PlaySfx("sfx_flicker", 0.5f);
-        }
-
-        // Charging starts in the hallway: if the player is still peeking, pull them out of it.
-        private void OnChargeStart()
-        {
-            if (_views.PeekActive) _root.ExitRoomPeek();
+            Clear();
+            _root.Audio.PlaySfx("sfx_glitch", 0.35f);
+            Say("*a low laugh drifts away down the hall*", 2f);
         }
 
         private void OnCaught()
         {
-            HideFigure();
+            Clear();
             var session = _root.Session;
             float cost = _root.Config != null ? _root.Config.huntCaughtSanity : 15f;
             session.ApplySanity(-cost);
             _root.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, session.Sanity));
             if (_root.Scares != null) _root.Scares.Capture(AnomalyBehaviorKind.Blink);
-            var current = _views.Current;
-            if (_views.Player != null && current != null) _views.Player.PlaceInRoom(current, current.PlayerSpawn);
-            Say("*he reached you - you are shoved back*", 2.4f);
+            if (_views.PeekActive) _root.ExitRoomPeek();
+            else if (_views.Player != null && _views.Current != null)
+                _views.Player.PlaceInRoom(_views.Current, _views.Current.PlayerSpawn);
+            if (_hunt.Phase != HuntPhase.Lost) Say("*he reached you - you are thrown back*", 2.4f);
         }
 
-        // ------------------------------------------------------------ hints and the HUD line
-        private void TickHint(float dt, HuntInput input)
+        // The door he is behind stops being a way to peek and tells the player what to do.
+        private void ClaimDoor()
         {
-            if (_hunt.Phase != HuntPhase.Hiding || !input.InHallway) return;
-            _hintClock += dt;
-            if (_hintClock < HintEverySeconds) return;
-            _hintClock = 0f;
-            DropHint();
+            ReleaseDoor();
+            var hall = _views.Room(RoomId.Hallway);
+            if (hall == null) return;
+            foreach (var it in hall.Interactables)
+            {
+                var door = it as Doorway;
+                if (door == null || door.Target != _hunt.Room) continue;
+                _heldDoor = door;
+                _heldDoorPrompt = door.Prompt;
+                door.Prompt = HoldPrompt;
+                return;
+            }
         }
 
-        private void DropHint()
+        private void ReleaseDoor()
         {
-            string name = _hunt.Room == RoomId.Classroom1 ? "Classroom 1 (Room 101)" : "Classroom 2 (Room 202)";
-            Say("*something moves behind the door of " + name + "*", 3f);
-            _root.Audio.PlaySfx("sfx_knock", 0.6f);
+            if (_heldDoor != null) _heldDoor.Prompt = _heldDoorPrompt;
+            _heldDoor = null;
+        }
+
+        private static string RoomName(RoomId room) =>
+            room == RoomId.Classroom1 ? "Classroom 1" : room == RoomId.Classroom2 ? "Classroom 2" : "the comfort room";
+
+        // ------------------------------------------------------------ footsteps and the HUD line
+        private void TickFootsteps(float dt)
+        {
+            if (_hunt.Phase != HuntPhase.Stalking) return;
+            _stepClock += dt;
+            if (_stepClock < FootstepEverySeconds) return;
+            _stepClock = 0f;
+            _root.Audio.PlaySfx("sfx_footstep", 0.5f);
         }
 
         private void TickStatus(float dt)
@@ -283,14 +330,14 @@ namespace Hollowbrook.World
 
         private string StatusText()
         {
-            string meter = "SERVER DOOR " + Mathf.CeilToInt(_hunt.ServerFraction * 100f) + "%   STUNS " +
-                           _hunt.Stuns + "/" + _tuning.StunsToWin;
+            string meter = "DAWN " + Mathf.FloorToInt(_hunt.DawnProgress * 100f) + "%   CAUGHT " +
+                           _hunt.Catches + "/" + _tuning.CatchesToLose;
             switch (_hunt.Phase)
             {
-                case HuntPhase.Tracking: return "KEEP THE LIGHT ON HIS HEAD!   " + meter;
-                case HuntPhase.Charging: return "FLASH HIS FACE - F or Q!   " + meter;
-                case HuntPhase.Hiding: return "He is inside the school. Peek into the classrooms (E at a door).   " + meter;
-                default: return meter;
+                case HuntPhase.AtDoor: return "HOLD THE DOOR OF " + RoomName(_hunt.Room).ToUpperInvariant() + " (E)   " + meter;
+                case HuntPhase.Closet: return "PEEK INTO THE COMFORT ROOM AND LIGHT HIS HEAD   " + meter;
+                case HuntPhase.Behind: return "FLASH HIS FACE - F or Q!   " + meter;
+                default: return "Listen for where the footsteps stop. Survive until dawn.   " + meter;
             }
         }
 

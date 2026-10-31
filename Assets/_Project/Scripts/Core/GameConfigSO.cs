@@ -86,25 +86,33 @@ namespace Hollowbrook.Core
         public float beamTargetRadius = BeamGeometry.DefaultTargetRadius;
 
         [Header("Administrator hunt (night 5, after the DENY stamp)")]
-        [Tooltip("Stuns needed to drive the administrator off.")][Range(1, 10)]
-        public int huntStunsToWin = 4;
-        [Tooltip("The SERVER DOOR meter: seconds until he reaches the server room (paused while you hold the lamp on him).")][Range(30f, 600f)]
-        public float huntServerSeconds = 180f;
-        [Tooltip("How long he waits in a classroom before moving on by himself (min / max).")][Range(2f, 30f)]
-        public float huntHideMinSeconds = 6f;
-        [Range(2f, 40f)]
-        public float huntHideMaxSeconds = 14f;
-        [Tooltip("Longest a single tracking phase lasts before he slips away without a stun.")][Range(4f, 30f)]
-        public float huntTrackMaxSeconds = 12f;
-        [Tooltip("Seconds the lamp must stay on his head for one stun.")][Range(0.5f, 10f)]
-        public float huntHoldSeconds = 3.2f;
+        [Tooltip("Times he can catch you before he reaches the server door and you lose.")][Range(1, 10)]
+        public int huntCatchesToLose = 3;
+        [Tooltip("Seconds to survive until dawn.")][Range(30f, 900f)]
+        public float huntSurviveSeconds = 210f;
+        [Tooltip("Seconds taken off the night for every lie exposed in his interrogation.")][Range(0f, 60f)]
+        public float huntSecondsPerLie = 15f;
+        [Tooltip("The night is never shorter than this, however many lies were exposed.")][Range(30f, 600f)]
+        public float huntMinSurviveSeconds = 120f;
+        [Tooltip("How long he walks between stops (min / max). The max halves by dawn.")][Range(1f, 30f)]
+        public float huntStalkMinSeconds = 5f;
+        [Range(1f, 40f)]
+        public float huntStalkMaxSeconds = 10f;
+        [Tooltip("Seconds to reach the door he stopped at and hold it before he gets through.")][Range(3f, 30f)]
+        public float huntDoorSeconds = 10f;
+        [Tooltip("Seconds of holding E at the door that send him away.")][Range(0.3f, 10f)]
+        public float huntDoorHoldSeconds = 2f;
+        [Tooltip("Seconds to find him in the comfort room.")][Range(3f, 30f)]
+        public float huntClosetSeconds = 12f;
+        [Tooltip("Seconds the lamp must stay on his head in the comfort room.")][Range(0.3f, 10f)]
+        public float huntClosetHoldSeconds = 1.8f;
         [Tooltip("How close (world units) the cursor must be to his head.")][Range(0.3f, 3f)]
         public float huntHeadRadius = 1.0f;
-        [Tooltip("Seconds he takes to run down the hallway at you.")][Range(1f, 8f)]
-        public float huntChargeSeconds = 2.6f;
+        [Tooltip("Seconds to flash him when he appears behind you.")][Range(1f, 8f)]
+        public float huntBehindSeconds = 2.6f;
         [Tooltip("Seconds of beam on his face that count as a hit.")][Range(0.1f, 2f)]
-        public float huntChargeHitSeconds = 0.35f;
-        [Tooltip("Sanity lost when he reaches you in the hallway.")][Range(0f, 40f)]
+        public float huntBeamHitSeconds = 0.35f;
+        [Tooltip("Sanity lost each time he catches you.")][Range(0f, 40f)]
         public float huntCaughtSanity = 15f;
 
         [Header("Encounter - repel meter")]

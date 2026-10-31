@@ -68,6 +68,7 @@ namespace Hollowbrook.World
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, "THE SECURITY DOOR IS LOCKED - HE IS INSIDE THE SCHOOL."));
                 return;
             }
+            if (_gameRoot.Views.Hunt != null && _gameRoot.Views.Hunt.BlocksDoor(Target)) return;   // he is behind it
             if (Target == RoomId.Security) _gameRoot.Views.ReturnToSecurity();
             // every room is peek only: the player looks inside from the doorway, never enters
             else _gameRoot.EnterRoomPeek(Target);

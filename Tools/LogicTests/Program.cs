@@ -155,8 +155,8 @@ namespace Hollowbrook.LogicTests
             var shifts = ShiftPlan.Build();
             Eq(shifts.Count, ShiftPlan.TotalShifts, "five shifts");
             Eq(shifts.Count, 5, "TotalShifts is 5");
-            int[] wantVisitors = { 4, 6, 7, 8, 8 };
-            int[] wantAnomalies = { 0, 2, 3, 4, 4 };
+            int[] wantVisitors = { 4, 6, 7, 8, 0 };
+            int[] wantAnomalies = { 0, 2, 3, 4, 0 };
             for (int i = 0; i < shifts.Count; i++)
             {
                 var s = shifts[i];
@@ -522,7 +522,7 @@ namespace Hollowbrook.LogicTests
         private static void AdminRosterSuite()
         {
             Group("Shift rosters - the administrator's place in line");
-            int[] want = { 4, 6, 7, 8, 8 };
+            int[] want = { 4, 6, 7, 8, 0 };
             for (int shift = 1; shift <= 5; shift++)
             {
                 var roster = new RosterFactory(11).GenerateShift(ShiftPlan.Get(shift));
@@ -699,7 +699,7 @@ namespace Hollowbrook.LogicTests
             }
             Check(wrongRoom > 20 && missingRoom > 20 && wrongClass > 20,
                   $"all three lies occur (other room {wrongRoom}, no such room {missingRoom}, wrong class {wrongClass})");
-            Check(liars > 200, "enough liars to be worth asking (" + liars + ")");
+            Check(liars > 150, "enough liars to be worth asking (" + liars + ")");
             var admin = new RosterFactory(1).BuildAdministrator(ShiftPlan.Build()[4]);
             Check(admin.ClassroomAnswer.Contains("server room"), "the administrator names the server room");
         }
@@ -716,85 +716,85 @@ namespace Hollowbrook.LogicTests
                 case HuntPlayer.Idle:
                     break;
                 case HuntPlayer.Perfect:
-                    if (h.Phase == HuntPhase.Hiding || h.Phase == HuntPhase.Tracking)
-                    { inp.Peeking = true; inp.PlayerRoom = h.Room; inp.InHallway = false; inp.OnTarget = h.Phase == HuntPhase.Tracking; }
-                    if (h.Phase == HuntPhase.Charging) inp.BeamOnFace = true;
+                    inp.HoldingDoor = h.Phase == HuntPhase.AtDoor;
+                    inp.BeamOnFace = h.Phase == HuntPhase.Behind;
+                    if (h.Phase == HuntPhase.Closet)
+                    { inp.Peeking = true; inp.PlayerRoom = RoomId.ComfortRoom; inp.InHallway = false; inp.OnTarget = true; }
                     break;
-                case HuntPlayer.Dodger:   // on his head for 2 s, off for 1 s, again and again
-                    if (h.Phase == HuntPhase.Hiding || h.Phase == HuntPhase.Tracking)
-                    { inp.Peeking = true; inp.PlayerRoom = h.Room; inp.InHallway = false; inp.OnTarget = (t % 3f) < 2f; }
+                case HuntPlayer.Dodger:   // holds for 1 s, lets go for 2 s, again and again
+                    inp.HoldingDoor = h.Phase == HuntPhase.AtDoor && (t % 3f) < 1f;
+                    if (h.Phase == HuntPhase.Closet)
+                    { inp.Peeking = true; inp.PlayerRoom = RoomId.ComfortRoom; inp.InHallway = false; inp.OnTarget = (t % 3f) < 1f; }
                     break;
                 case HuntPlayer.StepBackSpammer:   // peeks in and out every half second, never holds
                     if ((int)(t * 2f) % 2 == 0)
-                    { inp.Peeking = true; inp.PlayerRoom = h.Room; inp.InHallway = false; inp.OnTarget = true; }
+                    { inp.Peeking = true; inp.PlayerRoom = RoomId.ComfortRoom; inp.InHallway = false; inp.OnTarget = true; }
                     break;
                 default:   // random, but sticky: changes a few times a second
                     if (rng.Chance(0.05f)) lastPeek = !lastPeek;
                     if (lastPeek)
                     {
                         inp.Peeking = true; inp.InHallway = false;
-                        inp.PlayerRoom = rng.Chance(0.8f) ? h.Room : (rng.Chance(0.5f) ? RoomId.Classroom1 : RoomId.Classroom2);
+                        inp.PlayerRoom = rng.Chance(0.5f) ? RoomId.ComfortRoom : RoomId.Classroom1;
                         inp.OnTarget = rng.Chance(0.6f);
                     }
                     inp.BeamOnFace = rng.Chance(0.5f);
-                    if (rng.Chance(0.1f)) inp.InHallway = !inp.InHallway && !inp.Peeking;
+                    inp.HoldingDoor = rng.Chance(0.3f);
                     break;
             }
             return inp;
         }
 
-        // Runs one hunt; returns the end phase and the simulated seconds it took.
+        // Runs one hunt; returns the end phase and the simulated seconds it took. catches is -1
+        // when the dawn clock rewound and -2 when a phase overstayed its limit.
         private static HuntPhase RunHunt(HuntPlayer who, int seed, HuntTuning tun, out float seconds,
-            out int stuns, List<HuntOutcome> outcomes)
+            out int catches, List<HuntPhase> stops)
         {
             var h = new AdminHunt(tun, seed);
-            h.Start();
             var rng = new GameRng(seed * 31 + 7);
             bool peek = false;
+            h.Start();
             const float dt = 0.05f;
-            float t = 0f, prevServer = h.ServerLeft;
-            float maxT = tun.ServerSeconds * 20f;
-            while (!h.Finished && t < maxT)
+            float t = 0f, prevLeft = h.SurviveLeft;
+            for (int i = 0; i < 40000 && !h.Finished; i++)
             {
                 var ev = h.Tick(dt, HuntInputFor(who, h, t, rng, ref peek));
                 t += dt;
-                if ((ev & HuntEvent.FlickerStart) != 0 && outcomes != null) outcomes.Add(h.PendingOutcome);
-                // invariants: the clock never runs backwards, every phase honours its limit
-                if (h.ServerLeft > prevServer + 1e-4f) { seconds = t; stuns = -1; return HuntPhase.Hiding; }
-                prevServer = h.ServerLeft;
-                float limit = h.Phase == HuntPhase.Tracking ? tun.TrackMaxSeconds
-                    : h.Phase == HuntPhase.Flicker ? tun.FlickerSeconds
-                    : h.Phase == HuntPhase.Recoil ? tun.RecoilSeconds
-                    : h.Phase == HuntPhase.Charging ? tun.ChargeWaitSeconds + tun.ChargeSeconds
-                    : h.Phase == HuntPhase.Hiding ? tun.HideMaxSeconds : float.MaxValue;
-                if (h.PhaseTimer > limit + dt + 0.01f) { seconds = t; stuns = -2; return HuntPhase.Hiding; }
+                if (stops != null && (ev & (HuntEvent.ReachedDoor | HuntEvent.EnteredCloset | HuntEvent.AppearedBehind)) != 0)
+                    stops.Add(h.Phase);
+                if (h.SurviveLeft > prevLeft + 1e-4f) { seconds = t; catches = -1; return HuntPhase.Stalking; }
+                prevLeft = h.SurviveLeft;
+                float limit = h.Phase == HuntPhase.AtDoor ? tun.DoorSeconds
+                    : h.Phase == HuntPhase.Closet ? tun.ClosetSeconds
+                    : h.Phase == HuntPhase.Behind ? tun.BehindSeconds
+                    : h.Phase == HuntPhase.Retreat ? tun.RetreatSeconds
+                    : h.Phase == HuntPhase.Stalking ? tun.StalkMaxSeconds : float.MaxValue;
+                if (h.PhaseTimer > limit + dt + 0.01f) { seconds = t; catches = -2; return HuntPhase.Stalking; }
             }
             seconds = t;
-            stuns = h.Stuns;
+            catches = h.Catches;
             return h.Phase;
         }
 
         private static void AdminHuntTests()
         {
-            Group("AdminHunt - always ends, never stuck, fair outcomes");
+            Group("AdminHunt - always ends, never stuck, fair stops");
             var tun = HuntTuning.Default;
-            Check(tun.StunsToWin >= 1 && tun.ServerSeconds > 30f, "default tuning is sane");
+            Check(tun.CatchesToLose >= 1 && tun.SurviveSeconds > 30f, "default tuning is sane");
 
-            // idle player: the server door meter alone ends it
-            var idle = RunHunt(HuntPlayer.Idle, 1, tun, out float idleSecs, out _, null);
-            Check(idle == HuntPhase.Lost && idleSecs <= tun.ServerSeconds + 1f,
-                  $"a player who does nothing loses when the meter runs out ({idleSecs:F1}s)");
+            // idle player: he walks in and catches them until it is over
+            var idle = RunHunt(HuntPlayer.Idle, 1, tun, out float idleSecs, out int idleCatches, null);
+            Check(idle == HuntPhase.Lost && idleCatches == tun.CatchesToLose && idleSecs < tun.SurviveSeconds,
+                  $"a player who does nothing is caught out before dawn ({idleSecs:F1}s)");
 
-            // a perfect player wins quickly with exactly the needed stuns
-            int perfectWins = 0; float slowest = 0f;
+            // a perfect player survives to dawn, uncaught
+            int perfectWins = 0;
             for (int seed = 1; seed <= 300; seed++)
             {
-                var end = RunHunt(HuntPlayer.Perfect, seed, tun, out float secs, out int stuns, null);
-                if (end == HuntPhase.Won && stuns == tun.StunsToWin) perfectWins++;
-                slowest = System.Math.Max(slowest, secs);
+                var end = RunHunt(HuntPlayer.Perfect, seed, tun, out float secs, out int caught, null);
+                if (end == HuntPhase.Won && caught == 0 && secs <= tun.SurviveSeconds + 0.2f) perfectWins++;
             }
-            Eq(perfectWins, 300, "a perfect player always wins with exactly the needed stuns");
-            Check(slowest < tun.ServerSeconds * 0.6f, $"...and well inside the meter (slowest {slowest:F0}s of {tun.ServerSeconds:F0}s)");
+            Eq(perfectWins, 300, "a perfect player always reaches dawn without being caught");
 
             // adversarial and random players: it still ends, every phase honours its limit
             foreach (var who in new[] { HuntPlayer.Dodger, HuntPlayer.StepBackSpammer, HuntPlayer.Random })
@@ -803,45 +803,43 @@ namespace Hollowbrook.LogicTests
                 float longest = 0f;
                 for (int seed = 1; seed <= 400; seed++)
                 {
-                    var end = RunHunt(who, seed, tun, out float secs, out int stuns, null);
+                    var end = RunHunt(who, seed, tun, out float secs, out int caught, null);
                     if (end == HuntPhase.Won || end == HuntPhase.Lost) ended++;
-                    if (stuns < 0) badInvariant++;
+                    if (caught < 0) badInvariant++;
                     longest = System.Math.Max(longest, secs);
                 }
                 Eq(ended, 400, $"{who}: all 400 hunts end in a win or a loss");
-                Eq(badInvariant, 0, $"{who}: the server clock never rewinds and no phase overstays");
-                Check(longest <= tun.ServerSeconds * 3f, $"{who}: longest {longest:F0}s stays bounded");
+                Eq(badInvariant, 0, $"{who}: the dawn clock never rewinds and no phase overstays");
+                Check(longest <= tun.SurviveSeconds + 0.2f, $"{who}: longest {longest:F0}s, never past dawn");
             }
 
-            // outcomes are random but never the same three times in a row
-            int maxRun = 1, charges = 0, total = 0;
+            // every kind of stop happens
+            int doors = 0, closets = 0, behinds = 0;
             for (int seed = 1; seed <= 200; seed++)
             {
-                var seq = new List<HuntOutcome>();   // one hunt at a time: streaks never cross hunts
+                var seq = new List<HuntPhase>();
                 RunHunt(HuntPlayer.Perfect, seed, tun, out _, out _, seq);
-                int run = 1;
-                for (int i = 0; i < seq.Count; i++)
+                foreach (var stop in seq)
                 {
-                    total++;
-                    if (seq[i] == HuntOutcome.HallwayCharge) charges++;
-                    run = i > 0 && seq[i] == seq[i - 1] ? run + 1 : 1;
-                    maxRun = System.Math.Max(maxRun, run);
+                    if (stop == HuntPhase.AtDoor) doors++;
+                    else if (stop == HuntPhase.Closet) closets++;
+                    else behinds++;
                 }
             }
-            Check(maxRun <= 2, "never the same outcome three times in a row (longest run " + maxRun + ")");
-            Check(charges > total / 5 && charges < total * 4 / 5, "both outcomes happen (" + charges + "/" + total + " charges)");
+            Check(doors > closets && closets > 0 && behinds > 0, $"doors, comfort room and behind you all happen ({doors}/{closets}/{behinds})");
 
             // same seed + same input = same hunt
-            var a = RunHunt(HuntPlayer.Random, 77, tun, out float aSecs, out int aStuns, null);
-            var b = RunHunt(HuntPlayer.Random, 77, tun, out float bSecs, out int bStuns, null);
-            Check(a == b && aSecs == bSecs && aStuns == bStuns, "a hunt replays identically from its seed");
+            var a = RunHunt(HuntPlayer.Random, 77, tun, out float aSecs, out int aCatches, null);
+            var b = RunHunt(HuntPlayer.Random, 77, tun, out float bSecs, out int bCatches, null);
+            Check(a == b && aSecs == bSecs && aCatches == bCatches, "a hunt replays identically from its seed");
 
-            // the lamp must be ON him to count: holding off-target never stuns
+            // looking is not enough: without the lamp on his head he is never sent away
             var off = new AdminHunt(tun, 5); off.Start();
-            for (int i = 0; i < 400 && off.Phase != HuntPhase.Tracking; i++)
-                off.Tick(0.05f, new HuntInput { Peeking = true, PlayerRoom = off.Room });
-            for (int i = 0; i < 100; i++) off.Tick(0.05f, new HuntInput { Peeking = true, PlayerRoom = off.Room, OnTarget = false });
-            Check(off.Stuns == 0 && off.Hold == 0f, "peeking without the lamp on his head never stuns");
+            for (int i = 0; i < 6000 && off.Phase != HuntPhase.Closet; i++)
+                off.Tick(0.05f, new HuntInput { HoldingDoor = true, BeamOnFace = true, InHallway = true });
+            int repelsBefore = off.Repels;
+            for (int i = 0; i < 100; i++) off.Tick(0.05f, new HuntInput { Peeking = true, PlayerRoom = RoomId.ComfortRoom, OnTarget = false });
+            Check(off.Repels == repelsBefore && off.Hold == 0f, "peeking without the lamp on his head never sends him away");
 
             // his picture: bounded, and harder after every stun
             float maxAbs = 0f, pathSlow = 0f, pathFast = 0f;
@@ -859,7 +857,7 @@ namespace Hollowbrook.LogicTests
                 maxAbs = System.Math.Max(maxAbs, System.Math.Max(System.Math.Abs(x3), System.Math.Abs(y3)));
             }
             Check(maxAbs < 4f, "his picture stays within a few units of its anchor (" + maxAbs.ToString("F2") + ")");
-            Check(pathFast > pathSlow * 1.3f, "after three stuns he moves clearly faster");
+            Check(pathFast > pathSlow * 1.3f, "after three visits he moves clearly faster");
         }
 
         // the hunt decides how the last night ends

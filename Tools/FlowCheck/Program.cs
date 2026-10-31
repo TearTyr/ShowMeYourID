@@ -2179,9 +2179,9 @@ namespace FlowCheck
                   "Q10: night 2 starts cleanly behind its own note");
 
             // ---- Q11 the district administrator's special encounter survives the queue
-            var night5 = new RosterFactory(3).GenerateShift(ShiftPlan.Build()[4]);   // 8 + admin
-            Check(night5.Count == 9 && night5[8].IsAdministrator,
-                  "Q11: night 5 roster ends with the administrator");
+            var night5 = new RosterFactory(3).GenerateShift(ShiftPlan.Build()[4]);   // only the administrator
+            Check(night5.Count == 1 && night5[0].IsAdministrator,
+                  "Q11: night 5 is only the administrator");
             FreshGame(root);
             IsolateMissingStudent(root);
             root.Queue.AttachRoster(night5, new QueueTuning
@@ -2206,7 +2206,7 @@ namespace FlowCheck
                 cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
                 cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
             }
-            Check(root.Queue.ProcessedCount == 9, "Q11: all nine visitors resolved through the queue (" +
+            Check(root.Queue.ProcessedCount == 1, "Q11: the administrator resolved through the queue (" +
                   root.Queue.ProcessedCount + ")");
             Check(root.Session.AdminRejected && !root.Session.AdminAllowed,
                   "Q11: the administrator was rejected through the queue flow");
@@ -3819,7 +3819,7 @@ namespace FlowCheck
             Check(root.State == AppViewState.Exploration && views.Hunt != null && views.Hunt.Running,
                 "HUNT: the radio call ends in the school and the hunt is running");
             var hunt = views.Hunt.Model;
-            Check(hunt.Phase == HuntPhase.Hiding && hunt.Stuns == 0, "HUNT: he starts hidden, with no stuns");
+            Check(hunt.Phase == HuntPhase.Stalking && hunt.Catches == 0, "HUNT: he starts walking the halls");
             Check(views.Spawner.Live == null, "HUNT: nothing else is roaming the school");
 
             // the security door is locked while he is inside
@@ -3834,48 +3834,63 @@ namespace FlowCheck
             Check(root.State == AppViewState.Exploration && !views.Transitioning,
                 "HUNT: the security door is locked, you cannot run back to the desk");
 
-            // time passes: the server door meter runs and the HUD says so
-            float before = hunt.ServerLeft;
+            // time passes: the dawn clock runs and the HUD says so
+            float before = hunt.SurviveLeft;
             WorldFrames(root, 30, 0.1f);
-            Check(hunt.ServerLeft < before, "HUNT: the server door meter runs while you wait");
-            Check(root.ObjectiveText.Contains("SERVER DOOR"), "HUNT: the HUD line shows the SERVER DOOR meter (got '" + root.ObjectiveText + "')");
+            Check(hunt.SurviveLeft < before, "HUNT: the dawn clock runs while you wait");
+            Check(root.ObjectiveText.Contains("DAWN"), "HUNT: the HUD line shows the way to dawn (got '" + root.ObjectiveText + "')");
 
-            // a perfect player: peek where he is, hold the lamp on his head, flash him in the hallway
+            // a perfect player: hold the door he stopped at, light him in the comfort room, flash him at your back
             var rig = views.Flashlight;
-            bool sawTracking = false, sawFlicker = false, sawCharge = false, litOnEntry = false;
+            var hallRoom = views.Room(RoomId.Hallway);
+            bool sawDoor = false, sawCloset = false, sawBehind = false, litOnEntry = false, doorBlocked = false;
             for (int frame = 0; frame < 12000 && !hunt.Finished; frame++)
             {
                 var fig = views.Hunt.Figure;
                 bool figUp = fig != null && fig.activeSelf;
-                if (hunt.Phase == HuntPhase.Tracking && figUp)
+                bool walking = !views.PeekActive && !views.Transitioning && root.State == AppViewState.Exploration;
+                views.Hunt.ForceHoldKey = hunt.Phase == HuntPhase.AtDoor;
+                if (hunt.Phase == HuntPhase.AtDoor)
                 {
-                    sawTracking = true;
-                    AimAt(fig.transform.position.x, fig.transform.position.y);
-                }
-                else if (hunt.Phase == HuntPhase.Hiding)
-                {
-                    if (views.PeekActive && views.Current.Id != hunt.Room) root.ExitRoomPeek();
-                    else if (!views.PeekActive && !views.Transitioning && root.State == AppViewState.Exploration)
+                    if (views.PeekActive) root.ExitRoomPeek();
+                    else if (walking)
                     {
-                        root.EnterRoomPeek(hunt.Room);
-                        litOnEntry = litOnEntry || (views.PeekLight != null && views.PeekLight.Lit);
+                        sawDoor = true;
+                        Doorway held = null;
+                        foreach (var it in hallRoom.Interactables)
+                        { var d = it as Doorway; if (d != null && d.Target == hunt.Room) held = d; }
+                        if (held != null)
+                        {
+                            held.Interact();
+                            doorBlocked = doorBlocked || (!views.PeekActive && held.Prompt.Contains("HOLD E"));
+                            views.Player.PlaceInRoom(hallRoom, new Vector3(held.AnchorX, 0f, 0f));
+                        }
                     }
                 }
-                else if (hunt.Phase == HuntPhase.Flicker && views.PeekLight != null && views.PeekLight.Flickering) sawFlicker = true;
-                else if (hunt.Phase == HuntPhase.Charging && !views.PeekActive && root.State == AppViewState.Exploration)
+                else if (hunt.Phase == HuntPhase.Closet)
                 {
-                    sawCharge = true;
+                    if (walking)
+                    {
+                        root.EnterRoomPeek(RoomId.ComfortRoom);
+                        litOnEntry = litOnEntry || (views.PeekLight != null && views.PeekLight.Lit);
+                    }
+                    if (figUp) { sawCloset = true; AimAt(fig.transform.position.x, fig.transform.position.y); }
+                }
+                else if (hunt.Phase == HuntPhase.Behind && walking)
+                {
+                    sawBehind = true;
                     SetBeam(root, rig, LightMode.Sweep);
                     if (figUp) AimAt(fig.transform.position.x, fig.transform.position.y);
                 }
+                else if (views.PeekActive && hunt.Phase == HuntPhase.Stalking) root.ExitRoomPeek();
                 WorldFrame(root, 0.05f);
             }
-            Check(sawTracking, "HUNT: he was found by peeking into his room (a shaking picture under the lamp)");
+            views.Hunt.ForceHoldKey = false;
+            Check(sawDoor && doorBlocked, "HUNT: he stops at a door; it cannot be opened and asks to be held");
+            Check(sawCloset, "HUNT: he was found in the comfort room, a shaking picture under the lamp");
             Check(litOnEntry, "HUNT: during the hunt a peek starts with the lamp ON");
-            Check(sawFlicker, "HUNT: a stun makes the lamp flicker out");
-            Check(sawCharge, "HUNT: at least once he charged down the hallway and the beam was needed");
-            Check(hunt.Phase == HuntPhase.Won && hunt.Stuns == root.Config.huntStunsToWin,
-                $"HUNT: a perfect player drives him off after exactly {root.Config.huntStunsToWin} stuns (phase={hunt.Phase} stuns={hunt.Stuns})");
+            Check(sawBehind, "HUNT: he came up behind the player and the beam was needed");
+            Check(hunt.Phase == HuntPhase.Won, $"HUNT: a perfect player reaches dawn (phase={hunt.Phase} caught={hunt.Catches})");
             Check(root.Session.Hunt == HuntState.Won && !root.HuntActive,
                 "HUNT: the session records the win");
             Check(EndingRules.Evaluate(root.Session).ReasonKey != "server_door",
@@ -3886,15 +3901,15 @@ namespace FlowCheck
             while (root.Dialogue != null && root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
             root.ClearQueuedSceneAction();
 
-            // a second hunt where the player does nothing: the server door meter ends it
+            // a second hunt where the player does nothing: he catches them until it is over
             root.Session.Hunt = HuntState.Active;
             root.Views.StopAdminHunt();
             if (views.PeekActive) { root.ExitRoomPeek(); WorldFrames(root, 40, 0.05f); }
             views.StartAdminHunt(root.BuildHuntTuning(), 99);
             var idle = views.Hunt.Model;
             for (int frame = 0; frame < 4000 && !idle.Finished; frame++) WorldFrame(root, 0.1f);
-            Check(idle.Phase == HuntPhase.Lost && idle.ServerLeft <= 0f,
-                "HUNT: doing nothing loses when the SERVER DOOR meter runs out (never stuck)");
+            Check(idle.Phase == HuntPhase.Lost && idle.Catches == idle.Tuning.CatchesToLose,
+                "HUNT: doing nothing loses to his catches (never stuck)");
             Check(root.Session.Hunt == HuntState.Lost, "HUNT: the session records the loss");
             root.Session.CurrentShift = ShiftPlan.TotalShifts;   // the hunt only ever happens on the final night
             var verdict = EndingRules.Evaluate(root.Session);
