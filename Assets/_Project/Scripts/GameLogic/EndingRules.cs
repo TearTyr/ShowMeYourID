@@ -28,13 +28,15 @@ namespace Hollowbrook.Logic
                     "You let the administrator through. It walked straight to the server room, and the identification system came online. By morning the district had already replaced you.");
             if (s.Hunt == HuntState.Lost)
                 return Result(EndingType.Lose, "server_door",
-                    "You turned the administrator away, but he did not leave. He found the sealed server door, and the identification system woke behind it. By morning the district had replaced you.");
+                    "You turned the administrator away, but your light failed you three times. He found the sealed server door, and the identification system woke behind it. By morning the district had replaced you.");
+            // these two can land after dawn: surviving him does not undo the nights before
+            string survived = s.Hunt == HuntState.Won ? "You lasted until dawn, and it was not enough. " : "";
             if (s.Breaches >= LoseThreshold)
                 return Result(EndingType.Lose, "breaches",
-                    "Three anomalies entered Hollowbrook on your watch. The district pulled your contract before dawn.");
+                    survived + "Three anomalies entered Hollowbrook on your watch. The district pulled your contract.");
             if (s.FalseRejections >= LoseThreshold)
                 return Result(EndingType.Lose, "false_rejections",
-                    "Three legitimate students were turned away at your window. The complaints reached the district before your explanation did.");
+                    survived + "Three legitimate students were turned away at your window. The complaints reached the district before your explanation did.");
             if (s.QueueOverwhelmed)
                 return Result(EndingType.Lose, "overwhelmed",
                     "The line overran the checkpoint. Too many faces at the glass, too little time to hold them - the gate gave way, and the yard poured into Hollowbrook unchecked. The district ended your contract before dawn.");
@@ -46,17 +48,14 @@ namespace Hollowbrook.Logic
 
             if (s.Mode == GameMode.Normal && s.CompletedShifts >= ShiftPlan.TotalShifts)
             {
-                // The Secret ending is the clue chain's own prize (ten findings, in order, in
-                // the right rooms) and outranks the ordinary Win; a hard Lose outranks both.
+                // both good endings need him turned away and survived until dawn
+                if (!s.AdminRejected || s.Hunt != HuntState.Won)
+                    return Result(EndingType.None, "admin_unresolved",
+                        "The books close with the district's administrator neither admitted nor turned away. Some nights refuse to be filed.");
+                // the Secret is the clue chain's own prize (ten findings, in order) and outranks the Win
                 if (s.Clues.SecretConditionsMet)
                     return Result(EndingType.Secret, "secret",
                         "Ten findings, in the order they were meant to be found. You leave Hollowbrook carrying what the official explanation never included - and what no custodian before you ever discovered.");
-                // The design's Win definition names the administrator's rejection explicitly,
-                // so the evaluator checks it explicitly: a completed fifth shift with the
-                // administrator neither rejected nor allowed is an unfinished night, not a win.
-                if (!s.AdminRejected || s.Hunt == HuntState.Active)
-                    return Result(EndingType.None, "admin_unresolved",
-                        "The books close with the district's administrator neither admitted nor turned away. Some nights refuse to be filed.");
                 return Result(EndingType.Win, "win",
                     "Five nights. You trusted your own judgment, kept the checkpoint, and drove the thing wearing the administrator's face back into the dark. You walk out of Hollowbrook relieved - and alive.");
             }

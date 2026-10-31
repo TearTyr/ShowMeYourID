@@ -180,21 +180,15 @@ namespace FlowCheck
             // a clean clock-out is a normal shift end
             FreshGame(root); ClickStickyNote(root);
             root.RequestEndShift();
-            Check(root.State == AppViewState.ShiftResults && root.Session.LastShiftFailure == ShiftFailure.None,
-                "FAIL: clocking out clean ends the shift normally");
-            var title = FindDeep(root.ShiftResults.transform, "title").GetComponent<UnityEngine.UI.Text>().text;
-            Check(title.Contains("COMPLETE") && !title.Contains("FAILED"), "FAIL: ...and the results say COMPLETE (got '" + title + "')");
+            Check(root.State == AppViewState.MainMenu && root.Session.LastShiftFailure == ShiftFailure.None,
+                "FAIL: clocking out clean goes straight to the main menu");
 
             // clocking out with an anomaly let in: the night fails, the next one pays
             FreshGame(root); ClickStickyNote(root);
             root.Session.ShiftBreaches = 2;
             root.RequestEndShift();
-            Check(root.State == AppViewState.ShiftResults && root.Session.LastShiftFailure == ShiftFailure.Breach,
-                "FAIL: clocking out with an anomaly let in fails the night (Breach)");
-            title = FindDeep(root.ShiftResults.transform, "title").GetComponent<UnityEngine.UI.Text>().text;
-            var body = FindDeep(root.ShiftResults.transform, "body").GetComponent<UnityEngine.UI.Text>().text;
-            Check(title.Contains("FAILED") && body.Contains("Tomorrow starts at"),
-                "FAIL: the results say FAILED and tell the player what tomorrow costs (got '" + title + "')");
+            Check(root.State == AppViewState.MainMenu && root.Session.LastShiftFailure == ShiftFailure.Breach,
+                "FAIL: clocking out with an anomaly let in fails the night (Breach), back at the main menu");
             Check(!root.ShiftFailing, "FAIL: the failure scene is over (input is live again)");
             Check(root.Session.PendingPenaltySeverity == 2, "FAIL: two anomalies let in = severity 2");
             root.AdvanceToNextShift();
@@ -210,11 +204,11 @@ namespace FlowCheck
             Time.deltaTime = 0.5f;
             root.SanityCtl.Tick(true);
             Time.deltaTime = dtSave;
-            Check(root.State == AppViewState.ShiftResults && root.Session.LastShiftFailure == ShiftFailure.Blackout,
+            Check(root.State == AppViewState.MainMenu && root.Session.LastShiftFailure == ShiftFailure.Blackout,
                 "FAIL: sanity at 0 blacks the custodian out and ends the shift (Blackout)");
             Check(root.Session.PendingPenaltySeverity == ShiftFailureRules.BlackoutSeverity, "FAIL: a blackout is severity 2");
 
-            // a blackout on patrol has to bring the desk scene back to show the results
+            // a blackout on patrol goes to the main menu the same way
             FreshGame(root); ClickStickyNote(root);
             root.EnterExploration();
             SchoolSceneBootstrap.Build(root);        // what Unity does after LoadScene(School)
@@ -223,11 +217,34 @@ namespace FlowCheck
             Time.deltaTime = 0.5f;
             root.SanityCtl.Tick(false);
             Time.deltaTime = dtSave;
-            Check(root.State == AppViewState.Exploration && root.Session.LastShiftFailure == ShiftFailure.Blackout,
-                "FAIL: a blackout on patrol fails the night and queues the desk scene (the results live there)");
-            CheckpointSceneBootstrap.Build(root);    // what Unity does after LoadScene(Hollowbrook)
-            Check(root.State == AppViewState.ShiftResults && root.Session.PendingPenaltySeverity == ShiftFailureRules.BlackoutSeverity,
-                "FAIL: ...and the desk scene shows the failed results with the penalty booked");
+            Check(root.State == AppViewState.MainMenu && root.Session.PendingPenaltySeverity == ShiftFailureRules.BlackoutSeverity,
+                "FAIL: a blackout on patrol fails the night and lands on the main menu, penalty booked");
+
+            // night 5 is the only night with results, and they lead to the ending
+            GameSession FinalNight()
+            {
+                FreshGame(root); ClickStickyNote(root);
+                var f = root.Session;
+                f.CurrentShift = ShiftPlan.TotalShifts; f.CompletedShifts = ShiftPlan.TotalShifts - 1;
+                f.AdminRejected = true; f.Hunt = HuntState.Won;
+                return f;
+            }
+            string EndingKey()
+            {
+                root.FinishShift();
+                Check(root.State == AppViewState.ShiftResults, "END: night 5 shows the results first");
+                root.AdvanceToNextShift();
+                Check(root.State == AppViewState.Ending, "END: and their button leads to the ending");
+                return root.Session.EvaluateEnding().ReasonKey;
+            }
+            FinalNight();
+            Check(EndingKey() == "win", "END: surviving the hunt is the Win");
+            FinalNight().Breaches = EndingRules.LoseThreshold;
+            Check(EndingKey() == "breaches", "END: a run with three breaches is still a Lose after dawn");
+            var secretRun = FinalNight();
+            foreach (var clue in ClueRegistry.Build().OrderBy(c => c.Order)) secretRun.DiscoverClue(clue.Key);
+            Check(secretRun.Clues.SecretConditionsMet, "END: (all ten findings, in order)");
+            Check(EndingKey() == "secret", "END: the ten findings plus the hunt is the Secret");
 
             // the final night is unique: a breach does not fail it, a blackout is the Lose result
             FreshGame(root); ClickStickyNote(root);
@@ -1869,7 +1886,7 @@ namespace FlowCheck
             ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
             btn("endshift").onClick.Invoke();
             bool expectedEnding = root.Config.exhibitionMode;   // the exhibition arc clocks out straight into its ending
-            Check(expectedEnding ? root.State == AppViewState.Ending : root.State == AppViewState.ShiftResults,
+            Check(expectedEnding ? root.State == AppViewState.Ending : root.State == AppViewState.MainMenu,
                 "END SHIFT click clocks out (exhibition=" + expectedEnding + ", state=" + root.State + ")");
         }
 
@@ -2190,7 +2207,7 @@ namespace FlowCheck
             cp.RefreshHud();
             ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
             Btn(root, "endshift").onClick.Invoke();
-            Check(root.State == AppViewState.ShiftResults, "Q10: clocking out lands on the shift results");
+            Check(root.State == AppViewState.MainMenu, "Q10: clocking out lands on the main menu");
             root.QuitToMenu(true);
             root.ContinueGame();
             CheckpointSceneBootstrap.Build(root);
@@ -2243,10 +2260,6 @@ namespace FlowCheck
                 root.Dialogue.Advance();               // play the outro to its callback
             Check(root.Queue.ShiftComplete, "Q11: rejecting the administrator completes the night");
             Check(!Btn(root, "endshift").interactable, "Q11: END SHIFT stays off, the night is not over while he is inside");
-            ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
-            Btn(root, "endshift").onClick.Invoke();
-            Check(root.State == AppViewState.ShiftResults && root.Session.CompletedShifts == 1,
-                  "Q11: clocking out lands on shift results (story arc intact)");
 
             root.Config.exhibitionMode = exhibition;   // restore the production default
         }

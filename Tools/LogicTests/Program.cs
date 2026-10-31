@@ -439,6 +439,7 @@ namespace Hollowbrook.LogicTests
                 s.CompletedShifts = ShiftPlan.TotalShifts;
                 s.CurrentShift = ShiftPlan.TotalShifts + 1;   // CompleteShift moves past the last night
                 s.AdminRejected = adminRejected;
+                s.Hunt = adminRejected ? HuntState.Won : HuntState.None;
                 s.AdminAllowed = adminAllowed;
                 return s;
             }
@@ -458,8 +459,8 @@ namespace Hollowbrook.LogicTests
             Eq(EndingRules.Evaluate(secret).Ending, EndingType.Secret, "ten ordered clues + rejection = Secret");
             var secretNoAdmin = FiveShifts(false, false);
             FillSecretClues(secretNoAdmin);
-            Eq(EndingRules.Evaluate(secretNoAdmin).Ending, EndingType.Secret,
-               "the Secret ending is the clue chain's own prize (the admin gate guards the Win branch)");
+            Eq(EndingRules.Evaluate(secretNoAdmin).Ending, EndingType.None,
+               "the Secret needs him turned away and survived, like the Win");
             var unresolvedNoClues = FiveShifts(false, false);
             Eq(EndingRules.Evaluate(unresolvedNoClues).ReasonKey, "admin_unresolved",
                "without the clue chain, an undecided administrator still blocks the Win");
@@ -878,9 +879,16 @@ namespace Hollowbrook.LogicTests
             Eq(EndingRules.Evaluate(lostSecret).ReasonKey, "server_door", "the loss outranks everything else on the final night");
             Check(Night5(HuntState.Lost).LoseThresholdReached, "a lost hunt counts as a lose condition");
 
+            var skipped = Night5(HuntState.Ready);
+            foreach (var clue in ClueRegistry.Build().OrderBy(c => c.Order)) skipped.DiscoverClue(clue.Key);
+            Check(skipped.Clues.SecretConditionsMet, "(the ten findings are in order)");
+            Check(EndingRules.Evaluate(skipped).Ending == EndingType.None, "the Secret cannot skip the hunt");
+
             var game = new SaveGame { Session = Night5(HuntState.Active) };
             var back = SaveFormat.Deserialize(SaveFormat.Serialize(game));
             Check(back != null && back.Session.Hunt == HuntState.Active, "the hunt state survives a save and load");
+            var ready = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = Night5(HuntState.Ready) }));
+            Check(ready != null && ready.Session.Hunt == HuntState.Ready, "waiting for the Patrol click survives a save and load");
         }
 
         // ----------------------------------------------------- verdict matrix
@@ -986,7 +994,7 @@ namespace Hollowbrook.LogicTests
             Eq(EndingRules.Evaluate(fresh).Ending, EndingType.None, "mid-run evaluates to None");
             Eq(EndingRules.Evaluate(fresh).ReasonKey, "continue", "mid-run reason key");
 
-            var win = new GameSession { Mode = GameMode.Normal, CompletedShifts = 5, AdminRejected = true };
+            var win = new GameSession { Mode = GameMode.Normal, CompletedShifts = 5, AdminRejected = true, Hunt = HuntState.Won };
             Eq(EndingRules.Evaluate(win).Ending, EndingType.Win, "five clean shifts = Win");
             Eq(EndingRules.Evaluate(win).ReasonKey, "win", "win reason key");
             Check(!string.IsNullOrEmpty(EndingRules.Evaluate(win).ReasonText), "win has ending text");
@@ -1008,7 +1016,7 @@ namespace Hollowbrook.LogicTests
                   "admin breach fires mid-run on the final night too");
 
             // Lose outranks Secret
-            var secretSession = new GameSession { Mode = GameMode.Normal, CompletedShifts = 5, CurrentShift = 6 };
+            var secretSession = new GameSession { Mode = GameMode.Normal, CompletedShifts = 5, CurrentShift = 6, AdminRejected = true, Hunt = HuntState.Won };
             foreach (var clue in ClueRegistry.Build().OrderBy(x => x.Order)) secretSession.Clues.Discover(clue.Key);
             Check(secretSession.Clues.SecretConditionsMet, "all ten clues in order satisfy the secret conditions");
             Eq(EndingRules.Evaluate(secretSession).Ending, EndingType.Secret, "all clues in order = Secret ending");
