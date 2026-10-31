@@ -1257,10 +1257,9 @@ namespace FlowCheck
             // which the headless Resources stub cannot load - so prove the FILE and its alpha
             // stream are in place, exactly as ProceduralArt.Get would find them in the editor.
             string rootDir = RepoRoot();
-            string png = rootDir == null ? null :
-                System.IO.Path.Combine(rootDir, "Assets/_Project/Resources/Art/stamp_allow.png");
+            string png = FindArt(rootDir, "stamp_allow");
             Check(png != null && System.IO.File.Exists(png),
-                "SP: the approval stamp ships as an asset override at Resources/Art/stamp_allow.png");
+                "SP: the approval stamp ships as an asset file named stamp_allow.png under Resources/Art");
             if (png != null && System.IO.File.Exists(png))
             {
                 byte[] head = new byte[30];
@@ -1301,6 +1300,26 @@ namespace FlowCheck
 
         // walk up from the harness binary OR the launch directory until the folder holding
         // Assets/_Project (Directory.Build.props parks the build output in /tmp, outside the repo)
+        // The art file for a key, wherever it sits under Resources/Art (keys are unique across
+        // the folders, see docs/ART-NAMING.md). Null when there is no such file.
+        private static string FindArt(string rootDir, string key)
+        {
+            if (rootDir == null) return null;
+            string dir = System.IO.Path.Combine(rootDir, "Assets/_Project/Resources/Art");
+            if (!System.IO.Directory.Exists(dir)) return null;
+            var hits = System.IO.Directory.GetFiles(dir, key + ".png", System.IO.SearchOption.AllDirectories);
+            return hits.Length > 0 ? hits[0] : null;
+        }
+
+        // The same lookup, as a path relative to the repo root (a missing file gives a path
+        // that does not exist, so the caller reports it).
+        private static string RelativeArt(string rootDir, string key)
+        {
+            string hit = FindArt(rootDir, key);
+            if (hit == null) return "Assets/_Project/Resources/Art/" + key + ".png";
+            return hit.Substring(rootDir.Length).Replace((char)92, '/').TrimStart('/');
+        }
+
         private static string RepoRoot()
         {
             var seeds = new[] { Environment.CurrentDirectory, AppContext.BaseDirectory };
@@ -1418,19 +1437,14 @@ namespace FlowCheck
 
             // temporary face/stamp assets still ship in the project's own override folder
             string rootDir = RepoRoot();
-            string artDir = rootDir == null ? null :
-                System.IO.Path.Combine(rootDir, "Assets/_Project/Resources/Art");
-            bool allFaces = artDir != null;
+            bool allFaces = rootDir != null;
             for (int i = 1; i <= Hollowbrook.Logic.FaceAssets.StudentFaceCount && allFaces; i++)
-                allFaces &= System.IO.File.Exists(System.IO.Path.Combine(artDir,
-                    Hollowbrook.Logic.FaceAssets.StudentKey(i - 1) + ".png"));
+                allFaces &= FindArt(rootDir, Hollowbrook.Logic.FaceAssets.StudentKey(i - 1)) != null;
             for (int i = 1; i <= Hollowbrook.Logic.FaceAssets.StudentFaceCount && allFaces; i++)
-                allFaces &= System.IO.File.Exists(System.IO.Path.Combine(artDir,
-                    Hollowbrook.Logic.FaceAssets.AnomalyKey(i - 1) + ".png"));   // paired variants
-            Check(allFaces, "FM: every temporary student/anomaly face asset still ships under Resources/Art");
-            Check(artDir != null && System.IO.File.Exists(
-                System.IO.Path.Combine(artDir, "stamp_approval_temp.png")),
-                "FM: the temporary approval stamp asset still ships under Resources/Art");
+                allFaces &= FindArt(rootDir, Hollowbrook.Logic.FaceAssets.AnomalyKey(i - 1)) != null;   // paired variants
+            Check(allFaces, "FM: every student and anomaly face asset ships under Resources/Art");
+            Check(FindArt(rootDir, "stamp_allow") != null,
+                "FM: the approval stamp asset ships under Resources/Art");
             Check(cp.CurrentVisitor.FaceAssetIndex >= 0 || cp.CurrentVisitor.IsAdministrator,
                 "FM: visitors still carry a stable face-asset index (admin excepted)");
             int fidx = cp.CurrentVisitor.FaceAssetIndex;
@@ -3487,8 +3501,8 @@ namespace FlowCheck
             var codeArt = new List<string>(Hollowbrook.Bootstrap.ProceduralArt.AllKeys);
             for (int i = 1; i <= 14; i++)
             {
-                codeArt.Add("student_face_" + i.ToString("D2"));
-                codeArt.Add("student_face_" + i.ToString("D2") + "_anomaly");
+                codeArt.Add("char_student_" + i.ToString("D2"));
+                codeArt.Add("char_student_" + i.ToString("D2") + "_anomaly");
             }
             codeArt.Add(Hollowbrook.Logic.FaceAssets.AdminKey);
             codeArt.Add(Hollowbrook.Logic.FaceAssets.AdminWindowKey);
@@ -3539,16 +3553,9 @@ namespace FlowCheck
                     {
                         // kit rows ship under their own folder: probe every kit folder the
                         // drop-in loader knows (SecurityRoom first, then the Main Menu kit)
-                        rel = System.IO.Path.Combine("Assets/_Project/Resources/Art/SecurityRoom", parts[0] + ".png");
-                        foreach (var kitFolder in new[] { "SecurityRoom", "MainMenu" })
-                        {
-                            var cand = System.IO.Path.Combine(
-                                System.IO.Path.Combine("Assets/_Project/Resources/Art", kitFolder),
-                                parts[0] + ".png");
-                            if (System.IO.File.Exists(System.IO.Path.Combine(rootDir, cand))) { rel = cand; break; }
-                        }
+                        rel = RelativeArt(rootDir, parts[0]);
                     }
-                    else rel = System.IO.Path.Combine("Assets/_Project/Resources/Art", parts[0] + ".png");
+                    else rel = RelativeArt(rootDir, parts[0]);
                 }
                 else
                     rel = System.IO.Path.Combine("Assets/_Project/Resources/Fonts",
@@ -3564,7 +3571,7 @@ namespace FlowCheck
             // the faces the fairness invariant leans on: paired, and the admin pair exists
             Check(Hollowbrook.Logic.FaceAssets.WindowKey(3, true) ==
                   Hollowbrook.Logic.FaceAssets.StudentKey(3) + "_anomaly" &&
-                  Hollowbrook.Logic.FaceAssets.AdminWindowKey == "admin_face_glitch",
+                  Hollowbrook.Logic.FaceAssets.AdminWindowKey == "char_admin_glitch",
                 "AM: anomaly and administrator face variants keep their pairing contract");
         }
 
@@ -3832,7 +3839,7 @@ namespace FlowCheck
             Console.WriteLine("== Main Menu art kit: shipped, resolved, click-through ==");
             string rootDir = RepoRoot();
             string kitDir = rootDir == null ? null :
-                System.IO.Path.Combine(rootDir, "Assets/_Project/Resources/Art/MainMenu");
+                System.IO.Path.Combine(rootDir, "Assets/_Project/Resources/Art/UI/MainMenu");
             string[] keys = Hollowbrook.Bootstrap.ProceduralArt.MainMenuKitKeys;
             bool shipped = true, resolves = true;
             string missing = "";
@@ -3843,7 +3850,7 @@ namespace FlowCheck
                 var sp = Hollowbrook.Bootstrap.ProceduralArt.Get(k);
                 if (sp == null || sp.name != k) { resolves = false; missing = k; break; }
             }
-            Check(shipped, "MKIT: all " + keys.Length + " kit sprites ship under Resources/Art/MainMenu" +
+            Check(shipped, "MKIT: all " + keys.Length + " kit sprites ship under Resources/Art/UI/MainMenu" +
                   (shipped ? "" : " (missing " + missing + ")"));
             Check(resolves, "MKIT: every kit key resolves to a sprite named after itself (drop-in wiring works)");
 
@@ -3885,7 +3892,7 @@ namespace FlowCheck
             var cp = root.Checkpoint;
             string rootDir = RepoRoot();
             string kitDir = rootDir == null ? null :
-                System.IO.Path.Combine(rootDir, "Assets/_Project/Resources/Art/SecurityRoom");
+                System.IO.Path.Combine(rootDir, "Assets/_Project/Resources/Art/UI/SecurityDesk");
             string[] keys = SecurityKitKeys;
             bool shipped = true, resolves = true;
             string missing = "";
@@ -3896,7 +3903,7 @@ namespace FlowCheck
                 var sp = Hollowbrook.Bootstrap.ProceduralArt.Get(k);
                 if (sp == null || sp.name != k) { resolves = false; missing = k; break; }
             }
-            Check(shipped, "KIT: all " + keys.Length + " kit sprites ship under Resources/Art/SecurityRoom" +
+            Check(shipped, "KIT: all " + keys.Length + " kit sprites ship under Resources/Art/UI/SecurityDesk" +
                   (shipped ? "" : " (missing " + missing + ")"));
             Check(resolves, "KIT: every kit key resolves to a sprite named after itself (drop-in wiring works)");
 

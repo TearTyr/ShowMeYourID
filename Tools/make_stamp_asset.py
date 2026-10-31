@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Renders the ACCEPT stamp placeholder into Assets/_Project/Resources/Art/stamp_allow.png.
+"""Renders the ACCEPT stamp placeholder into Assets/_Project/Resources/Art/UI/SecurityDesk/stamp_allow.png.
 
 Why a generator and not a hand-made/AI raster
 ---------------------------------------------
@@ -125,7 +125,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--size", type=int, default=128)
     ap.add_argument("--seed", type=int, default=4)
-    ap.add_argument("--out", default=os.path.join(root, "Assets/_Project/Resources/Art/stamp_allow.png"))
+    ap.add_argument("--out", default=os.path.join(root, "Assets/_Project/Resources/Art/UI/SecurityDesk/stamp_allow.png"))
     ap.add_argument("--preview", default=os.path.join(here, "stamp_preview.png"))
     args = ap.parse_args()
 

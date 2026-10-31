@@ -24,7 +24,7 @@ ART = [
     ("paper_flat",      "desk-doc",  "P0", "procedural", "PNG RGBA 760x480 px @100 ppu, plain aged sheet for the RULES NOTE / TONIGHT'S LOG overlays", "CheckpointView overlays", ""),
     ("note_paper",      "desk-doc",  "P1", "procedural", "PNG RGBA 390x300 px @100 ppu, sticky/notice paper", "reserve (overlay variant)", ""),
     ("clipboard",       "desk-doc",  "P1", "procedural", "PNG RGBA 370x490 px @100 ppu", "reserve (overlay variant)", ""),
-    ("stamp_allow",     "desk-doc",  "P0", "temp-shipped", "PNG RGBA square ~150 px @100 ppu, APPROVE rubber stamp mark, transparent outside the ink", "CheckpointView stamp tray + slip mark", "shipped as stamp_approval_temp.png via alias; final ink replaces the file, alias can go"),
+    ("stamp_allow",     "desk-doc",  "P0", "temp-shipped", "PNG RGBA square ~150 px @100 ppu, APPROVE rubber stamp mark, transparent outside the ink", "CheckpointView stamp tray + slip mark", "ships as Art/UI/SecurityDesk/stamp_allow.png; final ink replaces the file"),
     ("stamp_reject",    "desk-doc",  "P0", "procedural", "PNG RGBA square ~150 px @100 ppu, DENY rubber stamp mark", "CheckpointView stamp tray + slip mark", "pair of stamp_allow: same weight, same tilt language"),
     ("bubble_tail",     "desk-doc",  "P1", "procedural", "PNG RGBA 48x40 px @100 ppu, comic-bubble tail pointing left", "CheckpointView speech bubble", ""),
 
@@ -101,19 +101,19 @@ for i in range(1, 15):
     nn = f"{i:02d}"
     shipped = i <= 6
     prio = "P0" if i <= 8 else "P1"
-    FACES.append((f"student_face_{nn}", "face", prio,
+    FACES.append((f"char_student_{nn}", "face", prio,
                   "temp-shipped" if shipped else "missing",
                   "PNG RGBA 512x640 (4:5) bust, flat front light, neutral - same crop for every student; code letterboxes it into the card slot, the window and the counter card",
                   f"canon student {i} of 14 (Content.TotalStudents)",
                   "temp placeholders ship for 01-06; the approved plan is 8 core + 6 variations"))
-    FACES.append((f"student_face_{nn}_anomaly", "face", prio,
+    FACES.append((f"char_student_{nn}_anomaly", "face", prio,
                   "temp-shipped" if shipped else "missing",
                   "PNG RGBA 512x640, THE SAME PERSON as the base key, visibly wrong (the pairing is the tell)",
                   f"anomaly variant of student {i}",
                   "FaceAssets.AnomalyKey - window shows this when the run says anomaly/distorted"))
 FACES += [
-    ("admin_face",        "face", "P3", "missing", "PNG RGBA 512x640, district administrator: formal coat, briefcase, smile that arrives late - badge photo", "Night-5 administrator ID badge", "FaceAssets.AdminKey (new this pass)"),
-    ("admin_face_glitch", "face", "P3", "missing", "PNG RGBA 512x640, same administrator, a half-second wrong (the window tell)", "Night-5 administrator at the window", "FaceAssets.AdminWindowKey (new this pass)"),
+    ("char_admin",        "face", "P3", "missing", "PNG RGBA 512x640, district administrator: formal coat, briefcase, smile that arrives late - badge photo", "Night-5 administrator ID badge", "FaceAssets.AdminKey (new this pass)"),
+    ("char_admin_glitch", "face", "P3", "missing", "PNG RGBA 512x640, same administrator, a half-second wrong (the window tell)", "Night-5 administrator at the window", "FaceAssets.AdminWindowKey (new this pass)"),
 ]
 
 # --------------------------------------------------------------------------- audio

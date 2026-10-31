@@ -104,9 +104,9 @@ What these cannot tell you: how it **looks**, **sounds** and **feels**. That nee
 
 ## The owner's art kit (`Art/SecurityRoom`)
 
-The layered SecurityRoom UI kit ships in `Art/SecurityRoom/`. Run
+The layered SecurityRoom UI kit ships in `Art/UI/SecurityDesk/`. Run
 `python Tools/prep_securityroom_art.py` after changing it; it slices the export into
-`Resources/Art/SecurityRoom/` (`sec_*` keys). The desk wears the kit as a skin over the layout
+`Resources/Art/UI/SecurityDesk/` (`sec_*` keys). The desk wears the kit as a skin over the layout
 grid (`CheckpointView.KitSkin.cs`); if a file is missing the procedural look is used instead.
 
 ## Saves

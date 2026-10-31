@@ -203,7 +203,7 @@ namespace Hollowbrook.Checkpoint
             // id card (sprite is printed 1:1 at 320x220)
             public static readonly Region IdHeader = new Region(0, 2, 320, 24);
             public static readonly Region IdPhoto = new Region(10, 46, 90, 118);
-            // the photo frame printed on the student card template (id_card_template.png)
+            // the photo frame printed on the student card template (sec_id_card_template.png)
             public static readonly Region IdPhotoTemplate = new Region(18, 85, 80, 94);
             public const float IdRowX = 112f, IdRowW = 200f, IdRowH = 16f;
             public static readonly float[] IdRules = { 52f, 75f, 99f, 123f, 146f, 179f };

@@ -15,11 +15,11 @@ namespace Hollowbrook.Logic
         // and raise this number; the mapping does not change.
         public const int StudentFaceCount = 7;
 
-        /// <summary>Zero-padded key for one ordinary student face: "student_face_03".</summary>
+        /// <summary>Zero-padded key for one ordinary student face: "char_student_03".</summary>
         public static string StudentKey(int faceIndex) =>
-            "student_face_" + Pad(Mod(faceIndex, StudentFaceCount) + 1);
+            "char_student_" + Pad(Mod(faceIndex, StudentFaceCount) + 1);
 
-        /// <summary>The anomaly variant OF ONE STUDENT: "student_face_03_anomaly" - the same
+        /// <summary>The anomaly variant OF ONE STUDENT: "char_student_03_anomaly" - the same
         /// person as StudentKey(index), visibly altered. Paired assets keep the reference photo
         /// and the in-world face tied to one identity.</summary>
         public static string AnomalyKey(int faceIndex) =>
@@ -40,12 +40,12 @@ namespace Hollowbrook.Logic
         /// <summary>The Night-5 district administrator's badge photo. He has no canon roster
         /// row, so he gets his own pair instead of an index: the formal portrait on the badge,
         /// and the window variant that carries her tell.</summary>
-        public const string AdminKey = "admin_face";
+        public const string AdminKey = "char_admin";
 
         /// <summary>The face at the window during the administrator encounter: the same person,
         /// a half-second wrong. Paired with <see cref="AdminKey"/> exactly like the student
         /// anomaly variants are paired with their students.</summary>
-        public const string AdminWindowKey = "admin_face_glitch";
+        public const string AdminWindowKey = "char_admin_glitch";
 
         private static int Mod(int v, int n) { int r = v % n; return r < 0 ? r + n : r; }
 

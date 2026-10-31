@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Turn the owner's illustrated busts into the game's face art.
 
-Source: Art/UI and Design Assets/Characters   Destination: Assets/_Project/Resources/Art
+Source: Art/UI and Design Assets/Characters   Destination: Assets/_Project/Resources/Art/Characters
 Each bust sits small inside a 956x554 canvas, so it is cropped to its drawing. Every figure
 is placed on ONE shared canvas (bottom-centre), so the characters keep their real size
 relative to each other. Names the game expects:
-  student_face_NN.png          normal art  (window + ID photo)
-  student_face_NN_anomaly.png  the same person, wrong (photo-defect anomalies only)
-  admin_face.png / admin_face_glitch.png   the Night-5 administrator (the Director)
+  char_student_NN.png          normal art  (window + ID photo)
+  char_student_NN_anomaly.png  the same person, wrong (photo-defect anomalies only)
+  char_admin.png / char_admin_glitch.png   the Night-5 administrator (the Director)
 Re-run whenever the art changes. New .png files still need a .meta (Tools/generate_meta.py).
 """
 import os
@@ -15,7 +15,7 @@ from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "Art", "UI and Design Assets", "Characters")
-DST = os.path.join(ROOT, "Assets", "_Project", "Resources", "Art")
+DST = os.path.join(ROOT, "Assets", "_Project", "Resources", "Art", "Characters")
 
 # (normal, anomaly) per student, in face-index order
 STUDENTS = [
@@ -63,10 +63,10 @@ def main():
         canvas.save(os.path.join(DST, name + ".png"))
 
     for i, (normal, anomaly) in enumerate(STUDENTS, start=1):
-        put(normal, "student_face_%02d" % i)
-        put(anomaly, "student_face_%02d_anomaly" % i)
-    put(ADMIN[0], "admin_face")
-    put(ADMIN[1], "admin_face_glitch")
+        put(normal, "char_student_%02d" % i)
+        put(anomaly, "char_student_%02d_anomaly" % i)
+    put(ADMIN[0], "char_admin")
+    put(ADMIN[1], "char_admin_glitch")
 
 
 if __name__ == "__main__":

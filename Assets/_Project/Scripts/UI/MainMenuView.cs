@@ -13,7 +13,7 @@ namespace Hollowbrook.UI
     // The main menu, F2 reset and its ambience. Created by MenuSceneBootstrap.
     //
     // Visual spec: Art/MainMenu/reference/main-menu-reference.png (2880x1620). The whole menu
-    // is built from the owner's kit (Assets/_Project/Resources/Art/MainMenu/menu_*.png, cut by
+    // is built from the owner's kit (Assets/_Project/Resources/Art/UI/MainMenu/menu_*.png, cut by
     // Tools/prep_mainmenu_art.py): the corridor backdrop, the "SHOW ME YOUR ID!" logo plate,
     // the two outlined wide buttons (NEW GAME / CONTINUE) and the three outlined icon squares
     // (SETTINGS / EXIT / CREDITS). Every rect below is the reference composite measured in

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Prep the owner-supplied SecurityRoom art kit into game-ready sprites.
 
-Source of truth: <repo>/Art/SecurityRoom (the owner's layered kit, kept verbatim in the repo).
-Destination:      Assets/_Project/Resources/Art/SecurityRoom/<key>.png  (+ .meta via generate_meta.py)
+Source of truth: <repo>/Art/UI and Design Assets/Security (the owner's layered kit, kept verbatim in the repo).
+Destination:      Assets/_Project/Resources/Art/UI/SecurityDesk/<key>.png  (+ .meta via generate_meta.py)
                   Assets/_Project/Resources/Fonts/kit_*.ttf
 
 The kit is a PSD-style export: several FULL-FRAME 2880x1620 layers whose content already sits at
@@ -20,8 +20,8 @@ import zipfile
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, "Art", "SecurityRoom")
-DST = os.path.join(ROOT, "Assets", "_Project", "Resources", "Art", "SecurityRoom")
+SRC = os.path.join(ROOT, "Art", "UI and Design Assets", "Security")
+DST = os.path.join(ROOT, "Assets", "_Project", "Resources", "Art", "UI", "SecurityDesk")
 FONT_DST = os.path.join(ROOT, "Assets", "_Project", "Resources", "Fonts")
 
 

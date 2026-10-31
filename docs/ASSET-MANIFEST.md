@@ -33,16 +33,16 @@ Priority tiers map onto the five shifts in the design doc:
 The desk has no face-matching widget: the player compares the window face with the ID photo
 with their own eyes, so these portraits carry more gameplay weight than any other asset.
 
-* **`student_face_01` … `student_face_14`** - one per canon student (`Content.TotalStudents = 14`,
+* **`char_student_01` … `char_student_14`** - one per canon student (`Content.TotalStudents = 14`,
   the approved "8 core + 6 variations" plan). `01–06` ship today as temporary PNGs; `07–14` are
   **missing** and are the single highest-value art item in the project.
   Spec: PNG RGBA, **512×640 (4:5)**, bust, flat frontal light, neutral expression, same crop and
   eye-line for every student - the code letterboxes one asset into three places (ID photo slot,
   window portrait, counter card), so inconsistent crops read as different people.
-* **`student_face_NN_anomaly`** - the **same person**, visibly wrong. The pairing is the tell:
+* **`char_student_NN_anomaly`** - the **same person**, visibly wrong. The pairing is the tell:
   the window shows the anomaly variant only when the run's data says this visitor is anomalous
   (`FaceAssets.AnomalyKey`), never because a portrait "looks odd".
-* **`admin_face` / `admin_face_glitch`** - the Night-5 district administrator: badge photo and the
+* **`char_admin` / `char_admin_glitch`** - the Night-5 district administrator: badge photo and the
   window variant that carries her tell (keys added this pass; `FaceAssets.AdminKey` /
   `AdminWindowKey`).
 * `face_placeholder` is a functional fallback (shown only if an asset is missing) - never retire it.
@@ -55,7 +55,7 @@ with their own eyes, so these portraits carry more gameplay weight than any othe
 `id_card_frame` (320×220 px @100 ppu - the card art only; photo and text rows are drawn on top by
 code), `record_sheet` (320×290), `folder_tab` (304×26), `paper_flat` (760×480 overlays),
 `note_paper`, `clipboard`, `bubble_tail`, `stamp_allow` (temp ink ships as
-`stamp_approval_temp.png` via alias), `stamp_reject`. All @ **UiPpu = 100**: pixel size ÷ 100 =
+`UI/SecurityDesk/stamp_allow.png`), `stamp_reject`. All @ **UiPpu = 100**: pixel size ÷ 100 =
 desk-grid units, and the desk grid is fixed at 1280×720 reference, so **deliver at the listed px**.
 
 ## 3. Patrol world (`world-bg`, `world-prop`, `character`)
@@ -120,8 +120,8 @@ wood-grain texture of the same key.
 
 ## 9. The owner's SecurityRoom kit (`category: kit`) - shipped & integrated
 
-The owner's layered UI kit lives verbatim in `Art/SecurityRoom/` (numbered export folders).
-`Tools/prep_securityroom_art.py` slices/copies it into `Resources/Art/SecurityRoom/<key>.png`
+The owner's layered UI kit lives verbatim in `Art/UI/SecurityDesk/` (numbered export folders).
+`Tools/prep_securityroom_art.py` slices/copies it into `Resources/Art/UI/SecurityDesk/<key>.png`
 and unpacks the two font families into `Resources/Fonts/kit_*`. Re-run the script whenever the
 kit changes; keys are stable, `.meta` files come from `Tools/generate_meta.py`.
 
@@ -152,7 +152,7 @@ Contract of the integration pass (`CheckpointView.KitSkin.cs`):
 
 The approved menu composite lives at `Art/MainMenu/reference/main-menu-reference.png`;
 `Art/MainMenu/README.md` documents every source file, crop rect and naming rule.
-`Tools/prep_mainmenu_art.py` cuts the kit into `Resources/Art/MainMenu/<key>.png`
+`Tools/prep_mainmenu_art.py` cuts the kit into `Resources/Art/UI/MainMenu/<key>.png`
 (`menu_background`, `menu_logo`, `menu_frame_wide`, `menu_frame_square`, `menu_icon_*`);
 keys resolve through the same `ProceduralArt.Get()` drop-in path as the SecurityRoom kit
 (`ProceduralArt.MainMenuKitKeys`), and `MainMenuView` rebuilds the composite from them at

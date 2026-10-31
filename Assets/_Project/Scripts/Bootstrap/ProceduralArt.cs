@@ -23,11 +23,6 @@ namespace Hollowbrook.Bootstrap
         // unit, so world placeholder quads can scale in plain units (see MakeSolid).
         public const float QuadPpu = 4f;
 
-        // Temporary-asset aliases: a shipped placeholder can stand in for a procedural key
-        // without renaming anything. Removing the file restores the previous art instantly.
-        private static readonly Dictionary<string, string> FileAlias =
-            new Dictionary<string, string> { { "stamp_allow", "stamp_approval_temp" } };
-
         // 9-slice borders in TEXTURE PIXELS for kit sprites that must stretch without dragging
         // their detail: the dialogue bubble keeps its left tail and its rough edge intact.
         // Measured on the TRIMMED master (2879x1031): the tail+left edge run to x=480, the
@@ -45,19 +40,29 @@ namespace Hollowbrook.Bootstrap
 
         /// <summary>True when a real file (or a cached sprite) exists for the key - callers that
         /// have their own painter use this to fall back instead of showing a broken image.</summary>
-        // The owner's layered UI kit ships under its own folder; a key resolves from the flat
-        // Art folder first (long-standing convention), then from the kit folder, then from the
-        // procedural painter. Adding art never means renaming a key.
+        // The art folders under Resources/Art, in the order they are searched. A key is the
+        // file name without the extension and is unique across all folders (see
+        // docs/ART-NAMING.md), so adding art never means renaming a key. A key with no file
+        // falls back to the procedural painter.
+        private static readonly string[] ArtFolders =
+        {
+            "Art/",
+            "Art/Characters/",
+            "Art/UI/SecurityDesk/",
+            "Art/UI/MainMenu/",
+            "Art/Environment/Hallway/",
+            "Art/Environment/Rooms/",
+            "Art/Environment/Props/",
+        };
+
         private static Texture2D LoadFileTexture(string key)
         {
-            string fileKey = FileAlias.TryGetValue(key, out var a) ? a : key;
-            var tex = Resources.Load<Texture2D>("Art/" + fileKey);
-            if (tex == null) tex = Resources.Load<Texture2D>("Art/" + key);
-            if (tex == null) tex = Resources.Load<Texture2D>("Art/SecurityRoom/" + fileKey);
-            if (tex == null) tex = Resources.Load<Texture2D>("Art/SecurityRoom/" + key);
-            if (tex == null) tex = Resources.Load<Texture2D>("Art/MainMenu/" + fileKey);
-            if (tex == null) tex = Resources.Load<Texture2D>("Art/MainMenu/" + key);
-            return tex;
+            foreach (var folder in ArtFolders)
+            {
+                var tex = Resources.Load<Texture2D>(folder + key);
+                if (tex != null) return tex;
+            }
+            return null;
         }
 
         /// <summary>Every cached sprite key - the headless sprite export walks this.</summary>
@@ -247,7 +252,7 @@ namespace Hollowbrook.Bootstrap
             "map_paper", "map_room", "map_sealed", "map_door",
         };
 
-        /// <summary>The Main Menu art kit (Assets/_Project/Resources/Art/MainMenu/&lt;key&gt;.png,
+        /// <summary>The Main Menu art kit (Assets/_Project/Resources/Art/UI/MainMenu/&lt;key&gt;.png,
         /// cut from Art/MainMenu by Tools/prep_mainmenu_art.py). Kit keys live OUTSIDE AllKeys -
         /// they have no procedural painter, exactly like the SecurityRoom kit - but they resolve
         /// through the same Get()/LoadFileTexture() path and the same manifest rows. FlowCheck

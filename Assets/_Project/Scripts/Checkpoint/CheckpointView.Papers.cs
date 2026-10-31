@@ -198,7 +198,7 @@ namespace Hollowbrook.Checkpoint
         // badge, so every line has an admin wording.
         private void FillIdCard(VisitorData v, bool admin)
         {
-            bool template = !admin && ProceduralArt.Get("id_card_template") != null;
+            bool template = !admin && ProceduralArt.Get("sec_id_card_template") != null;
             LayoutIdCard(template);
             _idHeader.text = template ? "" : admin ? "DISTRICT STAFF BADGE" : "HOLLOWBROOK COLLEGE - STUDENT ID";
             // the printed template already carries the field names, so it holds the values only
@@ -229,7 +229,7 @@ namespace Hollowbrook.Checkpoint
         private void LayoutIdCard(bool template)
         {
             if (_idArt == null) return;
-            _idArt.sprite = template ? ProceduralArt.Get("id_card_template") : ProceduralArt.Get("id_card_frame");
+            _idArt.sprite = template ? ProceduralArt.Get("sec_id_card_template") : ProceduralArt.Get("id_card_frame");
             var st = _idStripe.rectTransform;
             if (template)
             {

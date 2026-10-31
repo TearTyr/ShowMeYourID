@@ -8,7 +8,7 @@ Source of truth: <repo>/Art/MainMenu
     buttons/menu-frame-wide.png         977x197 white outline used by NEW GAME / CONTINUE
     buttons/menu-frame-square.png       160x162 white outline used by the icon row
 
-Destination: Assets/_Project/Resources/Art/MainMenu/<key>.png  (+ .meta via generate_meta.py)
+Destination: Assets/_Project/Resources/Art/UI/MainMenu/<key>.png  (+ .meta via generate_meta.py)
 The same crops are mirrored back into Art/MainMenu/{logos,icons}/ so the source tree shows
 exactly what the runtime kit was cut from.
 
@@ -23,7 +23,7 @@ from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "Art", "MainMenu")
-DST = os.path.join(ROOT, "Assets", "_Project", "Resources", "Art", "MainMenu")
+DST = os.path.join(ROOT, "Assets", "_Project", "Resources", "Art", "UI", "MainMenu")
 
 # element -> alpha bbox inside masters/main-menu-ui-layer.png (2669x1397)
 CROPS = {

@@ -2336,12 +2336,12 @@ namespace Hollowbrook.LogicTests
         private static void FaceAssetMappingTests()
         {
             Group("FaceAssets - stable identity mapping for the temporary face set");
-            Check(FaceAssets.StudentKey(0) == "student_face_01" &&
-                  FaceAssets.StudentKey(FaceAssets.StudentFaceCount) == "student_face_01",
+            Check(FaceAssets.StudentKey(0) == "char_student_01" &&
+                  FaceAssets.StudentKey(FaceAssets.StudentFaceCount) == "char_student_01",
                 "student keys wrap stably over the shipped set");
-            Check(FaceAssets.AnomalyKey(0) == "student_face_01_anomaly" &&
-                  FaceAssets.AnomalyKey(6) == "student_face_07_anomaly",
-                "anomaly keys are PAIRED with their student: student_face_NN_anomaly");
+            Check(FaceAssets.AnomalyKey(0) == "char_student_01_anomaly" &&
+                  FaceAssets.AnomalyKey(6) == "char_student_07_anomaly",
+                "anomaly keys are PAIRED with their student: char_student_NN_anomaly");
             Check(FaceAssets.WindowKey(-1, false) == null && FaceAssets.IdKey(-1) == null,
                 "no asset index (old saves, administrator) -> the procedural painter, never a broken image");
             bool cardIsReal = true, anomalyIsPaired = true;

@@ -443,7 +443,7 @@ namespace UnityEngine
                 if (tex != null) return (T)(Object)tex;
             }
             // Fonts probe the real Resources tree too (file presence, no parsing): the kit
-            // families extracted from Art/SecurityRoom/1. Fonts/*.zip therefore win the
+            // families extracted from Art/UI/SecurityDesk/1. Fonts/*.zip therefore win the
             // UIFactory load order headless exactly as they do in the editor, and the proofs
             // can assert WHICH family a label ends up wearing.
             if (typeof(T) == typeof(Font))

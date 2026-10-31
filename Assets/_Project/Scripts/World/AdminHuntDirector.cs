@@ -119,12 +119,12 @@ namespace Hollowbrook.World
             _figure.SetActive(false);
         }
 
-        // Drop a PNG named admin_hunt.png into Resources/Art to replace his face; otherwise the
+        // Drop a PNG named char_admin_hunt.png into Resources/Art to replace his face; otherwise the
         // administrator's glitched window face, his badge face, or the painted portrait.
         private static Sprite PickSprite()
         {
             Sprite s;
-            if (ProceduralArt.TryGet("admin_hunt", out s)) return s;
+            if (ProceduralArt.TryGet("char_admin_hunt", out s)) return s;
             if (ProceduralArt.TryGet(FaceAssets.AdminWindowKey, out s)) return s;
             if (ProceduralArt.TryGet(FaceAssets.AdminKey, out s)) return s;
             var face = new Portrait { HairStyle = 2, FaceVariant = 3, Accessory = 0, Distorted = true };

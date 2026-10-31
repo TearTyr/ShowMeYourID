@@ -40,7 +40,7 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | Change what the administrator says | `GameLogic/AdminTalk.cs` > `BuildScript` (plain text, copy a `Topic(...)` line) |
 | Tune the hunt (stuns, seconds, head size, charge time) | `Resources/GameConfig.asset`, group **Administrator hunt** |
 | Change how his picture shakes | `GameLogic/AdminHunt.cs` > `AdminHuntMotion` |
-| Give him a real picture | `admin_face.png` / `admin_face_glitch.png` come from the Director art (`Tools/prep_characters.py`); drop `admin_hunt.png` in `Resources/Art/` for a special hunt picture |
+| Give him a real picture | `char_admin.png` / `char_admin_glitch.png` come from the Director art (`Tools/prep_characters.py`); drop `char_admin_hunt.png` in `Resources/Art/` for a special hunt picture |
 | Add or change a student picture | put the busts in `Art/UI and Design Assets/Characters`, edit the list in `Tools/prep_characters.py`, run it, then raise `FaceAssets.StudentFaceCount` |
 | Change the student ID card art | edit `Art/UI and Design Assets/ID/SMYI-ID.psd`, run `python Tools/prep_id_card.py` (needs `pip install psd-tools aggdraw pillow`); text positions are in `CheckpointView.Papers.cs` > `LayoutIdCard` |
 | Make customers arrive faster or slower | `GameConfig.asset`, group **Checkpoint queue** |
