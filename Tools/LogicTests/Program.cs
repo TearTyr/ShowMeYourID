@@ -203,6 +203,50 @@ namespace Hollowbrook.LogicTests
             Eq(caughtUnseen, 0, "timing out while the player peeks another room is not a catch");
             Check(followedRoom > 0, "...he goes to the room being peeked");
 
+            // lit in a peek, he is behind the player the moment they step out, and comes in if they stay
+            int ambushed = 0, enteredAfterStay = 0, tried = 0;
+            for (int seed = 1; seed <= 200; seed++)
+            {
+                var hunt = new AdminHunt(tuning, seed);
+                hunt.Start();
+                int guard = 0;
+                while (hunt.Phase != HuntPhase.InRoom && !hunt.Finished && guard++ < 5000) hunt.Tick(0.1f, inHall);
+                if (hunt.Phase != HuntPhase.InRoom) continue;
+                tried++;
+                var onHim = new HuntInput { Peeking = true, PlayerRoom = hunt.Room, OnTarget = true };
+                var ev = HuntEvent.None;
+                guard = 0;
+                while (hunt.Phase == HuntPhase.InRoom && guard++ < 200) ev |= hunt.Tick(0.1f, onHim);
+                if ((ev & HuntEvent.Repelled) == 0) continue;
+                var stayIn = new HuntInput { Peeking = true, PlayerRoom = onHim.PlayerRoom };
+                ev = HuntEvent.None;
+                for (int i = 0; i < 30; i++) ev |= hunt.Tick(0.1f, stayIn);   // three seconds, less than his patience
+                Check((ev & (HuntEvent.AppearedBehind | HuntEvent.EnteredRoom | HuntEvent.Caught)) == 0,
+                    $"seed {seed}: he waits while the player is still peeking");
+                ev = HuntEvent.None;
+                for (int i = 0; i < 20 && (ev & HuntEvent.AppearedBehind) == 0; i++) ev |= hunt.Tick(0.1f, inHall);   // two seconds out
+                if ((ev & HuntEvent.AppearedBehind) != 0 && hunt.Phase == HuntPhase.Behind) ambushed++;
+            }
+            Check(tried > 0 && ambushed == tried, $"after lighting him in a peek, he is behind the player soon after they step out ({ambushed}/{tried})");
+            for (int seed = 1; seed <= 100; seed++)
+            {
+                var hunt = new AdminHunt(tuning, seed);
+                hunt.Start();
+                int guard = 0;
+                while (hunt.Phase != HuntPhase.InRoom && !hunt.Finished && guard++ < 5000) hunt.Tick(0.1f, inHall);
+                if (hunt.Phase != HuntPhase.InRoom) continue;
+                var onHim = new HuntInput { Peeking = true, PlayerRoom = hunt.Room, OnTarget = true };
+                var ev = HuntEvent.None;
+                guard = 0;
+                while (hunt.Phase == HuntPhase.InRoom && guard++ < 200) ev |= hunt.Tick(0.1f, onHim);
+                if ((ev & HuntEvent.Repelled) == 0) continue;
+                var stayIn = new HuntInput { Peeking = true, PlayerRoom = onHim.PlayerRoom };
+                ev = HuntEvent.None;
+                for (int i = 0; i < 200 && (ev & HuntEvent.EnteredRoom) == 0; i++) ev |= hunt.Tick(0.1f, stayIn);
+                if ((ev & HuntEvent.EnteredRoom) != 0) enteredAfterStay++;
+            }
+            Check(enteredAfterStay > 0, "a player who stays in the peek is not safe: he comes into their room");
+
             // a hunt left half way starts again where it was, and never with more than a fresh one
             var resumed = new AdminHunt(tuning, 3);
             resumed.Start(2, 40f);

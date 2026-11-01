@@ -3828,6 +3828,21 @@ namespace FlowCheck
                 Check(fresh.Live.Renderer.sprite == ProceduralArt.Get("char_anomaly"), "AN: it uses the real creature art");
                 Check(fresh.Live.Room.Id == RoomId.Hallway, "AN: roaming anomalies walk the hallway only");
             }
+            {
+                // a patrol owes the player at least PatrolMinAnomalies, even with the dice turned off
+                float chanceKeep = cfg.anomalySpawnChancePerSecond;
+                cfg.anomalySpawnChancePerSecond = 0f;
+                int seen = fresh.Live != null ? 1 : 0;
+                for (int n = 0; n < 6; n++)
+                {
+                    fresh.DiscardLive();
+                    fresh.UpdateSpawner(GameRules.Current.PatrolNextAnomalySeconds + 0.1f);
+                    if (fresh.Live != null) seen++;
+                }
+                Check(seen == GameRules.Current.PatrolMinAnomalies,
+                    $"AN: a patrol meets exactly the guaranteed {GameRules.Current.PatrolMinAnomalies} when the dice are off (met {seen})");
+                cfg.anomalySpawnChancePerSecond = chanceKeep;
+            }
             fresh.DiscardLive();
 
             Check(fresh.Live == null, "AN: (the spawner test anomaly is cleared)");
@@ -3907,6 +3922,28 @@ namespace FlowCheck
             WorldFrames(root, 400);
             PressKey(root, KeyCode.S);
             WorldFrames(root, 60);
+
+            // the player is never made to wait: stepping back works while the room is still opening
+            // and while it fades in, and the step-back button is see-through
+            AimAt(40f, 40f);
+            root.EnterRoomPeek(withNone);
+            PressKey(root, KeyCode.S);
+            for (int f = 0; f < 400 && views.PeekActive; f++) WorldFrame(root);
+            Check(!views.PeekActive && root.State == AppViewState.Exploration,
+                "PEEKEXIT: S pressed while the room is still opening leaves as soon as it has opened");
+            WorldFrames(root, 60);
+            root.EnterRoomPeek(withNone);
+            int framesToAct = 0;
+            while (views.Transitioning && framesToAct++ < 200) WorldFrame(root);
+            Check(views.PeekActive && !views.Transitioning && framesToAct < 40,
+                "PEEKEXIT: the player is in control as soon as the room has opened, not after the fade-in");
+            PressKey(root, KeyCode.S);
+            for (int f = 0; f < 400 && views.PeekActive; f++) WorldFrame(root);
+            Check(!views.PeekActive, "PEEKEXIT: stepping back during the fade-in works");
+            WorldFrames(root, 60);
+            var band = FindDeep(root.HUD.transform, "peekexitband").GetComponent<UnityEngine.UI.Image>();
+            Check(band.color.a > 0.1f && band.color.a < 0.9f && Mathf.Abs(band.color.a - GameRules.Current.PeekBandAlpha) < 0.001f,
+                "PEEKEXIT: the step-back button is semi-transparent, set by the rules (" + band.color.a + ")");
 
             // stepping out of a peek never lands a catch the player did not see coming
             views.EnterRoom(RoomId.Hallway);
@@ -4335,6 +4372,7 @@ namespace FlowCheck
             root.Session.Hunt = HuntState.Active;
             root.Views.StopAdminHunt();
             if (views.PeekActive) { root.ExitRoomPeek(); WorldFrames(root, 40, 0.05f); }
+            SetBeam(root, rig, LightMode.Off);   // doing nothing includes not flashing: a lit beam answers him
             views.StartAdminHunt(root.BuildHuntTuning(), 99);
             var idle = views.Hunt.Model;
             for (int frame = 0; frame < 4000 && !idle.Finished; frame++) WorldFrame(root, 0.1f);
