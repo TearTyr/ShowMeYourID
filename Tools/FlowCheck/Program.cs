@@ -2711,6 +2711,33 @@ namespace FlowCheck
                 if (!hall.Light.Lit) hall.Light.SetLit(true);
             }
 
+            // ---- the token: one of the ten findings, inspected once and then gone ----
+            {
+                var cluesBefore = root.Session.Clues.SaveFound();
+                float sanityBefore = root.Session.Sanity;
+                var c1 = views.Room(RoomId.Classroom1);
+                Interactable tok = null;
+                foreach (var it in c1.Interactables) if (it.Prompt.Contains("Pocket Watch Token")) tok = it;
+                Check(tok != null, "TOKEN: the pocket watch token hangs in Room 101 until it is picked up");
+                int foundBefore = root.Session.Clues.FoundCount;
+                if (tok != null)
+                {
+                    tok.Interact();
+                    Check(root.Session.Clues.IsFound(ClueRegistry.TokenKey) && root.Session.Clues.FoundCount == foundBefore + 1,
+                        "TOKEN: picking it up counts as a finding");
+                    Check(!c1.Interactables.Contains(tok), "TOKEN: it is gone from the room after one use");
+                    int guardTok = 0;
+                    while (root.Dialogue != null && root.Dialogue.IsActive && guardTok++ < 20) root.Dialogue.Advance();
+                    var rebuilt = new RoomBuilder(root, new GameObject("proof_world"), new Dictionary<RoomId, RoomInstance>())
+                        .BuildRoom(RoomId.Classroom1);
+                    bool back = false;
+                    foreach (var it in rebuilt.Interactables) if (it.Prompt.Contains("Pocket Watch Token")) back = true;
+                    Check(!back, "TOKEN: a room built later (a new patrol, or after Continue) does not bring it back");
+                }
+                root.Session.Clues.LoadFound(cluesBefore);
+                root.Session.Sanity = sanityBefore;
+            }
+
             // ---- the hallway art fits the frame and the walkers stand on the painted floor ----
             {
                 int spots = 0;

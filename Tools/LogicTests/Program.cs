@@ -190,6 +190,13 @@ namespace Hollowbrook.LogicTests
             Eq(clues.Select(c => c.Key).Distinct().Count(), 10, "keys unique");
             Check(clues.All(c => !string.IsNullOrEmpty(c.Display) && !string.IsNullOrEmpty(c.InspectText)), "every clue has display + inspect text");
             Check(clues.All(c => c.Room != RoomId.Security), "no clue lives in the security room (you must leave it)");
+            var tokenClue = clues.FirstOrDefault(c => c.Key == ClueRegistry.TokenKey);
+            Check(tokenClue != null && tokenClue.Order == 7 && tokenClue.Room == RoomId.Classroom1,
+                  "the token is finding 7, in Room 101");
+            var tr = new ClueTracker();
+            Check(!tr.IsFound(ClueRegistry.TokenKey), "a fresh run has not found the token");
+            tr.Discover(ClueRegistry.TokenKey);
+            Check(tr.IsFound(ClueRegistry.TokenKey), "inspecting the token marks it found");
             Check(clues.Any(c => c.IsScare), "at least one clue is a scare event");
             Check(clues.Where(c => c.SanityDelta != 0f).All(c => c.SanityDelta < 0f), "disturbing clues cost sanity, never grant it");
             var rooms = clues.Select(c => c.Room).Distinct().OrderBy(r => r).ToArray();

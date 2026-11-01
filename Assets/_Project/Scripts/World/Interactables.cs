@@ -117,6 +117,12 @@ namespace Hollowbrook.World
                     _gameRoot.Scares.Stinger("clue_" + _clueKey, 0f); // sanity already applied by DiscoverClue
             }
             if (_gameRoot.Dialogue != null) _gameRoot.Dialogue.Play(lines, null);
+            if (_clueKey == ClueRegistry.TokenKey)
+            {
+                // picked up: it leaves the wall and the room, and stays gone for the whole run
+                if (Room != null) Room.Interactables.Remove(this);
+                Destroy(gameObject);
+            }
         }
 
         // The close up shown beside the text when the clue is inspected (null = no picture).
@@ -129,7 +135,7 @@ namespace Hollowbrook.World
                 case "board": return "inspect_noticeboard";
                 case "photo": return "inspect_photoframe";
                 case "clock": return "inspect_clock";
-                case "lostid": return "inspect_clipboard";
+                case "token": return "token";
                 default: return null;
             }
         }

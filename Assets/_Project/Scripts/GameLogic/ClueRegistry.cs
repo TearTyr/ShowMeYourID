@@ -4,6 +4,9 @@ namespace Hollowbrook.Logic
 {
     public static class ClueRegistry
     {
+        /// <summary>The token is a finding like the rest, but it is picked up: it can be inspected once and is gone.</summary>
+        public const string TokenKey = "token";
+
         public static List<ClueDef> Build()
         {
             return new List<ClueDef>
@@ -32,8 +35,8 @@ namespace Hollowbrook.Logic
                     InspectText = "Faded announcements: “STUDENT IDENTIFICATION PROJECT - photos, records and personal information will be combined into one system. Volunteer sign-up inside.” Someone added in pen: “It was never voluntary.”",
                     ChainHint = "A pin holds a torn corner of a class photo. The rest of it hangs near the lost-and-found.",
                     SanityDelta = -4f, IsScare = false },
-                new ClueDef { Order = 7, Key = "lostid", Display = "Lost Student ID", Room = RoomId.Classroom1,
-                    InspectText = "A student ID under the lost-and-found shelf. The name field has been scratched out. The photo is the previous custodian - the one who “resigned”. Status: REGULAR. Year: 1st.",
+                new ClueDef { Order = 7, Key = TokenKey, Display = "Pocket Watch Token", Room = RoomId.Classroom1,
+                    InspectText = "A brass token on a broken chain, wedged behind the lost-and-found board. The school crest is stamped on the front. Inside the case, a photo of the previous custodian - the one who “resigned”. Status: REGULAR. Year: 1st.",
                     ChainHint = "On the back, in pencil: “They put me in the system too. Look at the old picture in the hall.”",
                     SanityDelta = -6f, IsScare = true },
                 new ClueDef { Order = 8, Key = "photo", Display = "Old School Photo", Room = RoomId.Hallway,
@@ -107,6 +110,8 @@ namespace Hollowbrook.Logic
         {
             if (room != RoomId.Security) _investigatedRooms.Add(room);
         }
+
+        public bool IsFound(string key) => _found.Contains(key);
 
         public bool AllFound => _found.Count >= _byKey.Count;
 

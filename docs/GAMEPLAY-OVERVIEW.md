@@ -56,7 +56,8 @@ a CR (either one). **Anomalies** roam the hallway only, from night 1, with one g
 (`F` on/off, `Q` wide/tight). `E` selects what the lit lamp is on, nothing else; `S` or the bottom
 edge steps back. The peek rooms hold **standing anomalies** that never move, in some rooms each night and always at least one: hold the lit lamp on one for 1.5 seconds to drive it out. A room does not count for the cycle until its anomaly is gone,. Besides the clues there
 are things to inspect: the patrol clipboard, the lockers, and each CR's mirror, sinks and stalls.
-Ten clues, found
+The pocket watch token on Room 101's lost-and-found board is one of the ten: it is picked up when
+inspected (once) and is gone for good, with no other use. Ten clues, found
 in order, open the secret ending.
 
 **Night 5 - the administrator:** no students and no roaming anomalies, only him, with a staff badge
