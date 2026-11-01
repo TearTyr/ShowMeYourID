@@ -461,8 +461,8 @@ namespace Hollowbrook.LogicTests
             var shifts = ShiftPlan.Build();
             Eq(shifts.Count, ShiftPlan.TotalShifts, "five shifts");
             Eq(shifts.Count, 5, "TotalShifts is 5");
-            int[] wantVisitors = { 4, 6, 7, 8, 0 };
-            int[] wantAnomalies = { 2, 3, 4, 5, 0 };
+            int[] wantVisitors = { 4, 6, 7, 8, 8 };   // night 5 adds the administrator on top
+            int[] wantAnomalies = { 2, 3, 4, 5, 5 };
             for (int i = 0; i < shifts.Count; i++)
             {
                 var s = shifts[i];
@@ -854,7 +854,7 @@ namespace Hollowbrook.LogicTests
         private static void AdminRosterSuite()
         {
             Group("Shift rosters - the administrator's place in line");
-            int[] want = { 4, 6, 7, 8, 0 };
+            int[] want = { 4, 6, 7, 8, 8 };
             for (int shift = 1; shift <= 5; shift++)
             {
                 var roster = new RosterFactory(11).GenerateShift(ShiftPlan.Get(shift));

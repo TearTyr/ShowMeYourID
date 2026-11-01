@@ -118,7 +118,10 @@ namespace Hollowbrook.Core
             // rebuilds the IDENTICAL pool the save recorded.
             var kinds = new System.Collections.Generic.List<AnomalyBehaviorKind>();
             var krng = new GameRng(Session.Seed ^ (number * 7919));
-            for (int i = 0; i < CurrentShiftDef.AnomalyCount; i++)
+            // an administrator night has no patrol anomalies (nothing could ever clear them), so its
+            // anomalies are met at the window only and owe the patrol nothing
+            int owedToPatrol = CurrentShiftDef.HasAdministrator ? 0 : CurrentShiftDef.AnomalyCount;
+            for (int i = 0; i < owedToPatrol; i++)
                 kinds.Add((AnomalyBehaviorKind)krng.NextInt(0, 4));
             if (!keepPool) Session.Pool.Seed(kinds);
         }

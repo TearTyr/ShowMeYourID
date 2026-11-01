@@ -25,6 +25,15 @@ namespace FlowCheck
             }
         }
 
+        // Night 5 sends the students first. Stamp them all correctly until the administrator is at the window.
+        private static void ClickToAdministrator(GameRoot root)
+        {
+            ClickStickyNote(root);
+            var cp = root.Checkpoint;
+            for (int i = 0; i < 30 && !(cp.CurrentVisitor != null && cp.CurrentVisitor.IsAdministrator); i++)
+                StampCorrectly(root);
+        }
+
         private static void ContinueToDesk(GameRoot root)
         {
             root.ContinueGame();
@@ -41,6 +50,7 @@ namespace FlowCheck
         {
             float dt = Time.deltaTime;
             root.Session.Sanity = 0f;
+            root.Session.RefillPending = 0f;   // correct stamps earlier in the night would lift it off zero
             Time.deltaTime = 0.5f;
             root.SanityCtl.Tick(true);
             Time.deltaTime = dt;
@@ -77,7 +87,7 @@ namespace FlowCheck
 
             // the tester's report: lose night 5 in the hunt, press RETRY, END SHIFT is open
             ReachNight(root, ShiftPlan.TotalShifts);
-            ClickStickyNote(root);
+            ClickToAdministrator(root);
             int nightFive = root.Session.CurrentShift;
             Check(nightFive == ShiftPlan.TotalShifts, "RETRY: (the bot clocked out of nights 1 to 4)");
             root.Checkpoint.Stamp(Verdict.Reject);
@@ -100,7 +110,7 @@ namespace FlowCheck
             AdvanceDialogue(root);
             CheckFreshNight(root, nightFive, "RETRY night 5");
             Check(root.Session.Hunt == HuntState.None && !root.Session.AdminRejected, "RETRY night 5: the hunt and the refusal are gone");
-            ClickStickyNote(root);
+            ClickToAdministrator(root);
             Check(root.Checkpoint.CurrentVisitor != null && root.Checkpoint.CurrentVisitor.IsAdministrator,
                 "RETRY night 5: the administrator is back at the window");
 
@@ -185,7 +195,7 @@ namespace FlowCheck
             root.QuitToMenu(false);
             root.Saves.WriteNightStart(root.Saves.Read());
             ContinueToDesk(root);
-            ClickStickyNote(root);
+            ClickToAdministrator(root);
             root.Checkpoint.Stamp(Verdict.Reject);
             Check(root.State == AppViewState.Ending && !root.HasSave(),
                 "RETRY: a run lost for good does not offer Continue");
@@ -232,9 +242,15 @@ namespace FlowCheck
                 "SANITY: ...at the rate the rules say, no faster");
             ReachNight(root, ShiftPlan.TotalShifts);
             Check(root.AdministratorNight, "SANITY: (night 5 is an administrator night)");
+            Check(root.Session.Pool.Pending == 0, "SANITY: night 5 owes the patrol nothing (its anomalies are met at the window)");
             root.Session.Sanity = 80f; root.Session.Stacks.Clear();
             float before = root.Session.Sanity;
-            Check(SanityAfterTick(root, true) < before, "SANITY: night 5 at the desk with an empty window drains instead of resting");
+            Check(SanityAfterTick(root, true) > before, "SANITY: night 5 before the administrator arrives, an empty window rests like any night");
+            int studentsTonight = root.CurrentShiftDef.VisitorCount;
+            root.CurrentShiftDef.VisitorCount = 0;   // from here on it is the administrator alone, as on night 6
+            root.Session.Sanity = 80f; root.Session.Stacks.Clear();
+            before = root.Session.Sanity;
+            Check(SanityAfterTick(root, true) < before, "SANITY: with only the administrator the desk drains instead of resting");
             before = root.Session.Sanity;
             Check(SanityAfterTick(root, false) < before, "SANITY: night 5 on patrol (hallway) drains");
             before = root.Session.Sanity;
@@ -256,6 +272,12 @@ namespace FlowCheck
             SanityAfterTick(root, true, 1);
             Check(90f - root.Session.Sanity > one * 1.4f, "SANITY: night 6 drains faster than night 5");
             root.Session.Mode = GameMode.Normal;
+            root.CurrentShiftDef.VisitorCount = studentsTonight;   // the real night 5 again: students, then him
+            root.Session.Sanity = 80f; root.Session.Stacks.Clear();
+            root.Session.Hunt = HuntState.Active;
+            before = root.Session.Sanity;
+            Check(SanityAfterTick(root, false) < before, "SANITY: with students on the night, the hunt still drains");
+            root.Session.Hunt = HuntState.None;
             var r = GameRules.Current;
             Check(r.RefillOnCorrect <= 8f && r.RefillPerSecond <= 1.5f && r.SecurityRoomRecoveryPerSecond <= 0.5f,
                 "SANITY: the passive gains are the nerfed values");
@@ -305,7 +327,7 @@ namespace FlowCheck
 
             // quit in the middle of the hunt and Continue: the catches and the clock are where they were
             ReachNight(root, ShiftPlan.TotalShifts);
-            ClickStickyNote(root);
+            ClickToAdministrator(root);
             root.Checkpoint.Stamp(Verdict.Reject);
             HandBack(root, true, true);
             AdvanceDialogue(root);

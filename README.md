@@ -7,8 +7,8 @@ mid-year without an official explanation, yet still open at night so its student
 term. Students come to the window of your security booth. Check their ID and paper slip, ask
 up to two questions, check the answers against their file in the cabinet, and stamp
 **ACCEPT** or **DECLINE**. Not everyone at the window is a student. Between visitors you patrol
-the hallway and peek into the classrooms and the comfort rooms. On the last night nobody comes but
-a district administrator, and turning him away is only the start.
+the hallway and peek into the classrooms and the comfort rooms. On the last night eight students come first,
+then a district administrator, and turning him away is only the start.
 
 > “Everyone has an ID. Not everyone is a student.”
 
@@ -51,13 +51,13 @@ Folder rules and naming are in [docs/ART-NAMING.md](docs/ART-NAMING.md), the ful
    The hallway passes the rooms in the desk map's order: Security, Room 101, Room 202, CR-1, the
    sealed server room, CR-2. Every room is a peek (`E` at its door).
    Each night needs one patrol: peek into Room 101, Room 202 and a CR, then END SHIFT. Only the hallway has roaming anomalies. The peek rooms hold a hooded figure that never moves, in some rooms each night: press `Q` to focus the lamp, put it fully on him and he flickers, the lamp dims and dies, and when the light slowly returns he is gone. It cannot be interrupted, and he never attacks. In the hallway the guard only has a weak light around him, so sweep the flashlight, up at the ceiling and down at the floor too.
-8. **Night 5** - no students, only the administrator. The student questions do not apply to him:
+8. **Night 5** - eight students (the usual checks), then the administrator last. The student questions do not apply to him:
    interrogate him (`T`) as often as you like, catch his lies, turn him away with the DENY stamp, and he
    forces his way in. He speaks only through the dialogue box. Survive until dawn (see below).
 
 ### Night 5: surviving the administrator
 
-There are no students: you question him at the window. When you refuse him the window closes, the
+After the eight students you question him at the window. When you refuse him the window closes, the
 booth dims and flickers, and he says he'll be back and leaves. The security game is over. When you
 press **Patrol** it plays like Nightmare Fredbear's night in *Five Nights at Freddy's 4*: he is the
 only anomaly, and he can be anywhere. There is no audio yet, so captions say where he stops:

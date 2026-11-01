@@ -2525,9 +2525,14 @@ namespace FlowCheck
                   "Q10: night 2 starts cleanly behind its own note");
 
             // ---- Q11 the district administrator's special encounter survives the queue
-            var night5 = new RosterFactory(3).GenerateShift(ShiftPlan.Build()[4]);   // only the administrator
+            var night5Full = new RosterFactory(3).GenerateShift(ShiftPlan.Build()[4]);
+            Check(night5Full.Count == 9 && night5Full[8].IsAdministrator && !night5Full[0].IsAdministrator,
+                  "Q11: night 5 is eight students and then the administrator");
+            var adminOnlyNight = ShiftPlan.Build()[4];
+            adminOnlyNight.VisitorCount = 0; adminOnlyNight.AnomalyCount = 0;   // the old shape, which night 6 still has
+            var night5 = new RosterFactory(3).GenerateShift(adminOnlyNight);
             Check(night5.Count == 1 && night5[0].IsAdministrator,
-                  "Q11: night 5 is only the administrator");
+                  "Q11: an administrator-only night is just him");
             FreshGame(root);
             IsolateMissingStudent(root);
             root.Queue.AttachRoster(night5, new QueueTuning

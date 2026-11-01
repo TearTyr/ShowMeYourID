@@ -69,7 +69,7 @@ The pocket watch token on Room 101's lost-and-found board is one of the ten: it 
 inspected (once) and is gone for good, with no other use. Ten clues, found
 in order, open the secret ending.
 
-**Night 5 - the administrator:** no students and no roaming anomalies, only him, with a staff badge
+**Night 5 - the administrator:** eight students first (five of them anomalies), then him last, with a staff badge
 and a roster memo that do not match. The four student questions are gone. `T` opens the
 interrogation: his badge name, the number, his face, his first stop, and any evidence you found.
 Each answer has a follow-up that catches him out, and every **lie exposed** takes 15 seconds off the

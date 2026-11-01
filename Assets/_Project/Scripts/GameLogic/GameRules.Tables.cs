@@ -77,10 +77,10 @@ namespace Hollowbrook.Logic
             new ShiftDef
             {
                 DateLabel = "Fri · Nov 6", LongDateLabel = "FRIDAY - NOVEMBER 6",
-                VisitorCount = 0, AnomalyCount = 0, HasAdministrator = true,   // nobody else comes tonight
+                VisitorCount = 8, AnomalyCount = 5, HasAdministrator = true,   // eight students, then the administrator last
                 Title = "Final Shift",
-                Objective = "Last night. No students tonight: only a district administrator, here to take control of the school. Check his credentials like anyone else's.",
-                RuleNoteAddendum = "NIGHT 5 - District personnel present a STAFF BADGE, not a student ID. The badge name and number must match the attached District Roster Memo. If they do not match, deny entry. No exceptions. No overrides by phone.",
+                Objective = "Last night. The students come first, then a district administrator arrives to take control of the school. Check everyone's credentials the same way, his included.",
+                RuleNoteAddendum = "NIGHT 5 - Students still show a student ID: everything you learned this week still applies. The district administrator comes last and presents a STAFF BADGE, not a student ID. The badge name and number must match the attached District Roster Memo. If they do not match, deny entry. No exceptions. No overrides by phone.",
                 IntroWarning = "Tonight the district sends an administrator to 'take control'. Check the credentials like you would check anyone else's. Trust the evidence.",
                 MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = true, DuplicateIdsAllowed = true,
                 ClassroomLieAllowed = true, SlipMismatchAllowed = true, NearExpiryAllowed = true,
