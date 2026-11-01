@@ -104,8 +104,12 @@ namespace Hollowbrook.Core
         {
             try
             {
+                // the backup and the temp file too: Read falls back to them, so leaving one behind
+                // would bring a "deleted" save back
                 string p = SavePath;
-                if (p != null && File.Exists(p)) File.Delete(p);
+                if (p == null) return;
+                foreach (string f in new[] { p, p + ".bak", p + ".tmp" })
+                    if (File.Exists(f)) File.Delete(f);
             }
             catch (Exception e) { Debug.LogWarning("[SaveSystem] delete failed: " + e.Message); }
         }

@@ -91,6 +91,19 @@ namespace Hollowbrook.UI
             WideButton(col, "CONTINUE", "CONTINUE", "menu_icon_continue",
                 new Vector2(45.33f, 45.33f), Vector2.zero, () => { Click(); _gameRoot.ContinueGame(); },
                 b => _continueBtn = b, WideX, Wide2Y);
+            // "NIGHT 3" under CONTINUE while it is hovered (only when there is a save to continue)
+            _nightHint = UIFactory.Label(col, "night_hint", "", 22, UIFactory.Ink, TextAnchor.MiddleLeft);
+            _nightHint.font = UIFactory.TypeFont;
+            _nightHint.raycastTarget = false;
+            var hintRt = _nightHint.rectTransform;
+            hintRt.anchorMin = new Vector2(0f, 1f);
+            hintRt.anchorMax = new Vector2(0f, 1f);
+            hintRt.pivot = new Vector2(0f, 1f);
+            hintRt.sizeDelta = new Vector2(WideW, 30f);
+            hintRt.anchoredPosition = new Vector2(WideX + LabelPadLeft, -(Wide2Y + WideH + 2f));
+            _nightHint.gameObject.SetActive(false);
+            OnHover(_continueBtn, ShowNightHint, () => _nightHint.gameObject.SetActive(false));
+
             SquareButton(col, "SETTINGS", "menu_icon_settings", new Vector2(49.33f, 49.33f),
                 new Vector2(0.9f, 0f), () => { Click(); _gameRoot.OpenSettings(); }, Sq1X, SqY);
             SquareButton(col, "EXIT", "menu_icon_exit", new Vector2(49.33f, 49.33f),
@@ -117,6 +130,7 @@ namespace Hollowbrook.UI
         }
 
         private Text _menuNote;
+        private Text _nightHint;
 
         private static Sprite Kit(string key) => ProceduralArt.Get(key);
 
@@ -266,7 +280,36 @@ namespace Hollowbrook.UI
 
         public void RefreshContinue()
         {
-            if (_continueBtn != null) UIFactory.SetButtonEnabled(_continueBtn, _gameRoot.HasSave());
+            if (_continueBtn == null) return;
+            bool on = _gameRoot.HasSave();
+            UIFactory.SetButtonEnabled(_continueBtn, on);
+            // really grey, not just see-through: the frame, icon and label all lose their colour
+            var tint = on ? Color.white : new Color(0.38f, 0.38f, 0.38f, 1f);
+            foreach (var g in _continueBtn.gameObject.GetComponentsInChildren<Graphic>(true))
+                if (g.name != "fill") g.color = tint;
+            if (!on && _nightHint != null) _nightHint.gameObject.SetActive(false);
+        }
+
+        // The night the save will start (the save is read each time, so it is never stale).
+        internal void ShowNightHint()
+        {
+            if (_nightHint == null || !_gameRoot.HasSave()) return;
+            var save = _gameRoot.Saves.Read();
+            int night = Mathf.Clamp(save.Session.CurrentShift, 1, ShiftPlan.TotalShifts);
+            _nightHint.text = "NIGHT " + night;
+            _nightHint.gameObject.SetActive(true);
+        }
+
+        // Extra hover reactions on a button that Skin() already gave an EventTrigger.
+        private static void OnHover(Button btn, Action enter, Action exit)
+        {
+            var et = btn.GetComponent<EventTrigger>();
+            var onEnter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+            onEnter.callback.AddListener(_ => enter());
+            et.triggers.Add(onEnter);
+            var onExit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+            onExit.callback.AddListener(_ => exit());
+            et.triggers.Add(onExit);
         }
 
         private void Update()

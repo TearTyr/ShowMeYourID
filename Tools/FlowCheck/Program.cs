@@ -4007,6 +4007,26 @@ namespace FlowCheck
                 if (frame == null || !frame.raycastTarget) clickThrough = false;   // the frame IS the click target
             }
             Check(clickThrough, "MKIT: decorative layers are click-through and every frame owns its clicks");
+
+            // CONTINUE: really grey with no save; with one, hovering it names the night
+            root.Saves.Delete();
+            root.MainMenu.RefreshContinue();
+            var cont = menu.Find("buttons/CONTINUE").GetComponent<UnityEngine.UI.Button>();
+            var contFrame = cont.GetComponent<UnityEngine.UI.Image>();
+            var hint = FindDeep(menu, "night_hint");
+            Check(!cont.interactable && contFrame.color.r < 0.5f, "MENU: CONTINUE is clearly grey and dead without a save");
+            root.MainMenu.ShowNightHint();
+            Check(hint != null && !hint.gameObject.activeSelf, "MENU: no save, no night label");
+            FreshGame(root); ClickStickyNote(root);
+            root.Session.CurrentShift = 3;
+            root.PersistRun();
+            root.MainMenu.RefreshContinue();
+            root.MainMenu.ShowNightHint();
+            Check(cont.interactable && contFrame.color.r > 0.9f, "MENU: CONTINUE is white and live with a save");
+            Check(hint.gameObject.activeSelf && hint.GetComponent<UnityEngine.UI.Text>().text == "NIGHT 3",
+                "MENU: hovering CONTINUE shows the saved night under it");
+            root.Saves.Delete();
+            root.MainMenu.RefreshContinue();
         }
 
         private static void SecurityKitProof(GameRoot root)

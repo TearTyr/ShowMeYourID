@@ -85,6 +85,9 @@ patrol and in peeks.
 (3 breaches, 3 false rejections, the line overruns, the administrator let in, or three catches on night 5) /
 The Truth Behind Hollowbrook (10 clues in order, dawn reached).
 
+**Main menu:** CONTINUE is dark grey and dead when there is no save. With a save, hovering it shows
+`NIGHT n` under the button.
+
 **Options:** SETTINGS is an audio-only modal (MASTER / MUSIC / SFX), usable from the menu and the
 pause menu. Display, accessibility and the data reset (`F2` x3) live in `SettingsSystem`.
 
