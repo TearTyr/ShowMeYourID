@@ -1032,7 +1032,9 @@ namespace FlowCheck
             UnityEngine.Input.KeysDown.Clear();
             Check(hint.text == "1/2" && !qText(1).StartsWith("YEAR: "),
                   "the year question is locked until the ID is flipped (got '" + qText(1) + "')");
+            Check(qText(1).Contains("["), "the locked year button carries its lock tag (got '" + qText(1) + "')");
             cp.FlipId();
+            Check(!qText(1).Contains("["), "flipping the ID unlocks the year button at once, before any click (got '" + qText(1) + "')");
             UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Alpha2);
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
@@ -1112,7 +1114,7 @@ namespace FlowCheck
             Check(rowGroup != null && Mathf.Abs(rowGroup.alpha - 1f) < 1e-3f && rowGroup.blocksRaycasts,
                 "DRAWER: a settled file is fully visible AND clickable");
             var headText = FindDeep(cp.transform, "drawerhead").GetComponent<UnityEngine.UI.Text>().text;
-            Check(headText.Contains("ROOM 101") && headText.Contains("4 FILES"),
+            Check(headText.Contains("ROOM 101") && headText.Contains("7 FILES"),
                   "the drawer head names the room and counts its files (got '" + headText + "')");
             Check(CheckpointView.DrawerRowCapacity() >= 7,
                 $"DRAWER: the pulled drawer holds a whole floor folder ({CheckpointView.DrawerRowCapacity()} rows)");
@@ -2523,9 +2525,14 @@ namespace FlowCheck
                   "Q10: night 2 starts cleanly behind its own note");
 
             // ---- Q11 the district administrator's special encounter survives the queue
-            var night5 = new RosterFactory(3).GenerateShift(ShiftPlan.Build()[4]);   // only the administrator
+            var night5Full = new RosterFactory(3).GenerateShift(ShiftPlan.Build()[4]);
+            Check(night5Full.Count == 9 && night5Full[8].IsAdministrator && !night5Full[0].IsAdministrator,
+                  "Q11: night 5 is eight students and then the administrator");
+            var adminOnlyNight = ShiftPlan.Build()[4];
+            adminOnlyNight.VisitorCount = 0; adminOnlyNight.AnomalyCount = 0;   // the old shape, which night 6 still has
+            var night5 = new RosterFactory(3).GenerateShift(adminOnlyNight);
             Check(night5.Count == 1 && night5[0].IsAdministrator,
-                  "Q11: night 5 is only the administrator");
+                  "Q11: an administrator-only night is just him");
             FreshGame(root);
             IsolateMissingStudent(root);
             root.Queue.AttachRoster(night5, new QueueTuning
@@ -3471,7 +3478,7 @@ namespace FlowCheck
             TopUpBattery(root, rig);
             hall.Light.SetLit(false);   // dark for behavior reads
 
-            // Blink: creeps unseen, frozen by ANY beam, pinned by room light - never auto-solved
+            // Blink: creeps unseen, frozen only by the Focus beam, pinned by room light - never auto-solved
             var blink = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Blink);
             Check(blink != null, "W6: Blink spawns");
             if (blink != null)
@@ -3486,10 +3493,19 @@ namespace FlowCheck
                 while (!rig.ConeCovers(blink.Pos) && g++ < 10) { AimAt(blink.Pos.x, blink.Pos.y); WorldFrame(root); }
                 Check(rig.ConeCovers(blink.Pos), "W6: setup - the Sweep beam covers the Blink");
                 float bx1 = blink.Pos.x;
-                for (int i = 0; i < 90; i++) { AimAt(blink.Pos.x, blink.Pos.y); WorldFrame(root); }
-                Check(Mathf.Abs(blink.Pos.x - bx1) < 1e-4f, "W6: any beam freezes a Blink mid-stalk (restraint, not resolution)");
+                for (int i = 0; i < 45; i++) { AimAt(blink.Pos.x, blink.Pos.y); WorldFrame(root); }
+                Check(Mathf.Abs(blink.Pos.x - bx1) > 0.05f, "W6: the plain Sweep beam does not stop a Blink");
+                Check(blink.State != AnomalyState.Repelled && !blink.Gone && blink.Meter < 0.05f,
+                    "W6: Sweep does nothing to the encounter (the meter stays empty)");
+                SetBeam(root, rig, LightMode.Focus);
+                g = 0;
+                while (!rig.ConeCovers(blink.Pos) && g++ < 10) { AimAt(blink.Pos.x, blink.Pos.y); WorldFrame(root); }
+                Check(rig.ConeCovers(blink.Pos), "W6: setup - the Focus beam covers the Blink");
+                float bx1f = blink.Pos.x;
+                for (int i = 0; i < 20; i++) { AimAt(blink.Pos.x, blink.Pos.y); WorldFrame(root); }
+                Check(Mathf.Abs(blink.Pos.x - bx1f) < 1e-4f, "W6: the Focus beam freezes a Blink mid-stalk (restraint, not resolution)");
                 Check(blink.State != AnomalyState.Repelled && !blink.Gone && blink.Meter < 0.55f,
-                    "W6: Sweep alone never resolves the encounter");
+                    "W6: a short Focus does not resolve the encounter");
                 SetBeam(root, rig, LightMode.Off);
                 hall.Light.SetLit(true);     // lights on
                 float bx2 = blink.Pos.x;
@@ -3499,7 +3515,7 @@ namespace FlowCheck
             }
             views.Spawner.DiscardLive();
 
-            // Sprint: readable telegraph → dash → catch; a beam interrupts the windup
+            // Sprint: readable telegraph → dash → catch; the Focus beam interrupts the windup
             var sprint = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Sprint);
             Check(sprint != null, "W6: Sprint spawns");
             if (sprint != null)
@@ -3512,17 +3528,20 @@ namespace FlowCheck
                 Check(Mathf.Abs(sprint.Pos.x - sx0) < 0.05f, "W6: Sprint holds position during the telegraph - the reaction window is real");
                 Check(Mathf.Abs(sprint.Pos.x - views.Player.transform.localPosition.x) > 3f,
                     "W6: it has not reached the player during the telegraph (no instant catch on spawn)");
-                SetBeam(root, rig, LightMode.Sweep);       // sweep on it: interrupts the windup
+                SetBeam(root, rig, LightMode.Sweep);       // the plain beam on it: the windup goes on
+                for (int i = 0; i < 20; i++) { AimAt(sprint.Pos.x, sprint.Pos.y); WorldFrame(root); }
+                Check(tensesCaptions == tenses0 + 1, "W6: the plain Sweep beam does not interrupt Sprint's windup");
+                SetBeam(root, rig, LightMode.Focus);       // Focus on it: interrupts the windup
                 float maxStepBeam = 0f, lastBx = sprint.Pos.x;
-                for (int i = 0; i < 90; i++)
+                for (int i = 0; i < 40; i++)
                 {
                     AimAt(sprint.Pos.x, sprint.Pos.y);
                     WorldFrame(root);
                     maxStepBeam = Math.Max(maxStepBeam, Mathf.Abs(sprint.Pos.x - lastBx));
                     lastBx = sprint.Pos.x;
                 }
-                Check(maxStepBeam <= 1.35f / 60f + 1e-4f, $"W6: under the beam Sprint never bursts (max step {maxStepBeam:F4}u/frame ≤ patrol speed)");
-                Check(tensesCaptions == tenses0 + 1, "W6: no re-windup while the beam holds it");
+                Check(maxStepBeam <= 1.35f / 60f + 1e-4f, $"W6: under the Focus beam Sprint never bursts (max step {maxStepBeam:F4}u/frame ≤ patrol speed)");
+                Check(tensesCaptions == tenses0 + 1, "W6: no re-windup while the Focus beam holds it");
                 SetBeam(root, rig, LightMode.Off);
                 float maxStepDash = 0f, lastDx = sprint.Pos.x;
                 g = 0;
@@ -3737,8 +3756,8 @@ namespace FlowCheck
             Check(peekInfo.Contains("FLASHLIGHT: ON"),
                 "W10: the HUD reads FLASHLIGHT: ON while the flashlight is lit (got '" + peekInfo + "')");
             string peekObjective = FindDeep(root.HUD.transform, "objective").GetComponent<UnityEngine.UI.Text>().text;
-            Check(peekObjective.Contains("Press F"),
-                "W10: the hint line teaches the manual lamp (got '" + peekObjective + "')");
+            Check(peekObjective.Contains("Focus light (Q)"),
+                "W10: the hint line teaches that only the Focus lamp works (got '" + peekObjective + "')");
             string lampToast = FindDeep(root.HUD.transform, "toast").GetComponent<UnityEngine.UI.Text>().text;
             Check(lampToast.Contains("FLASHLIGHT: ON"),
                 "W10: the toggle confirms itself with a toast (got '" + lampToast + "')");
@@ -3877,7 +3896,12 @@ namespace FlowCheck
             WorldFrames(root, 150);
             Check(!views.PeekedAnomaly.Playing && views.PeekedAnomaly.transform.localPosition == hiderPos,
                 "AN: standing in the edge of the light does nothing, he does not move");
-            AimAt(hiderPos.x, hiderPos.y);          // now the light is fully on him
+            AimAt(hiderPos.x, hiderPos.y);          // the wide lamp fully on him: it only shows him
+            WorldFrames(root, 150);
+            Check(!views.PeekedAnomaly.Playing && (root.Session.PeekAnomaliesGone & bit) == 0,
+                "AN: the wide lamp fully on him does nothing, only Focus drives him out");
+            lamp.ToggleFocus();                     // the tight Focus lamp on him
+            AimAt(hiderPos.x, hiderPos.y);
             WorldFrames(root, 5);
             Check(views.PeekedAnomaly.Playing && lamp.Locked, "AN: light fully on him starts the scene and locks the lamp");
             var blindSr = FindDeep(lamp.transform, "PeekBlind").GetComponent<SpriteRenderer>();

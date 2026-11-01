@@ -8,7 +8,9 @@ so a file can move between folders without any code change.
 
 | Folder | What goes there |
 |---|---|
-| `Characters/` | Student busts, anomaly busts, the administrator, the guard, hooded figure |
+| `Characters/Students/` | Every student bust: `char_student_NN` and `char_student_NN_anomaly` |
+| `Characters/Anomalies/` | Roaming and standing anomalies (`char_anomaly`, `char_hood`) |
+| `Characters/Staff/` | The administrator and the guard (the player) |
 | `Environment/Hallway/` | Hallway backgrounds and doors |
 | `Environment/Rooms/` | Classroom and comfort room backgrounds |
 | `Environment/Props/` | Doors, the clock, the token (cut to the visible art) |
@@ -17,7 +19,7 @@ so a file can move between folders without any code change.
 | `UI/MainMenu/` | Everything on the main menu |
 
 The source files (PSDs, full size exports) stay in the top level `Art/` folder, outside `Assets`,
-so Unity does not import them. The `Tools/prep_*.py` scripts cut the source art into the game ready
+so Unity does not import them. `Art/` is in `.gitignore`: it is never committed, so keep a backup of it. The `Tools/prep_*.py` scripts cut the source art into the game ready
 files and write them to the folders above.
 
 ## Naming

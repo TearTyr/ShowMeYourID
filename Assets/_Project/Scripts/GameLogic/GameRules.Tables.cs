@@ -16,6 +16,7 @@ namespace Hollowbrook.Logic
         public string Greeting;         // what the real student says at the window
         public int HairStyle, FaceVariant, Accessory;   // only for the code-drawn portrait if the art is missing
         public AwkwardSpeech Awkward;   // how the thing wearing this student speaks
+        public bool Off;                // true = not in the school yet (its art is missing); DefaultStudents leaves it out
     }
 
     /// <summary>How an anomaly wearing a student talks when it gets the words wrong. The facts are
@@ -76,10 +77,10 @@ namespace Hollowbrook.Logic
             new ShiftDef
             {
                 DateLabel = "Fri · Nov 6", LongDateLabel = "FRIDAY - NOVEMBER 6",
-                VisitorCount = 0, AnomalyCount = 0, HasAdministrator = true,   // nobody else comes tonight
+                VisitorCount = 8, AnomalyCount = 5, HasAdministrator = true,   // eight students, then the administrator last
                 Title = "Final Shift",
-                Objective = "Last night. No students tonight: only a district administrator, here to take control of the school. Check his credentials like anyone else's.",
-                RuleNoteAddendum = "NIGHT 5 - District personnel present a STAFF BADGE, not a student ID. The badge name and number must match the attached District Roster Memo. If they do not match, deny entry. No exceptions. No overrides by phone.",
+                Objective = "Last night. The students come first, then a district administrator arrives to take control of the school. Check everyone's credentials the same way, his included.",
+                RuleNoteAddendum = "NIGHT 5 - Students still show a student ID: everything you learned this week still applies. The district administrator comes last and presents a STAFF BADGE, not a student ID. The badge name and number must match the attached District Roster Memo. If they do not match, deny entry. No exceptions. No overrides by phone.",
                 IntroWarning = "Tonight the district sends an administrator to 'take control'. Check the credentials like you would check anyone else's. Trust the evidence.",
                 MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = true, DuplicateIdsAllowed = true,
                 ClassroomLieAllowed = true, SlipMismatchAllowed = true, NearExpiryAllowed = true,
@@ -98,11 +99,14 @@ namespace Hollowbrook.Logic
             ClassroomLieAllowed = true, SlipMismatchAllowed = true, NearExpiryAllowed = true,
         };
 
-        private static StudentRow[] DefaultStudents() => new[]
+        // The ones marked Off (art still missing) are dropped here, so turning one on is one word.
+        private static StudentRow[] DefaultStudents() => Array.FindAll(AllStudents(), s => !s.Off);
+
+        private static StudentRow[] AllStudents() => new[]
         {
             new StudentRow
             {
-                FullName = "Carlo Mendoza", IdNumber = "HB-2024-0101", YearLevel = 3, CourseIndex = 0,
+                FullName = "Mark Mendoza", IdNumber = "HB-2024-0101", YearLevel = 3, CourseIndex = 0,
                 FirstClassroom = RoomId.Classroom1, FirstClassSubject = "Networking",
                 Greeting = "Good evening. Night class.",
                 HairStyle = 0, FaceVariant = 0, Accessory = 1,
@@ -203,6 +207,111 @@ namespace Hollowbrook.Logic
                     Year = "Thank you for asking me. {0}. Thank you for the year.",
                     Status = "Thank you for asking me. I am a {0}. Thank you for me.",
                     Classroom = "Thank you for asking me. {0}. Thank you for the door.",
+                },
+            },
+            new StudentRow
+            {
+                FullName = "Jose Villanueva", IdNumber = "HB-2024-0212", YearLevel = 3, CourseIndex = 0,
+                FirstClassroom = RoomId.Classroom1, FirstClassSubject = "Cybersecurity Basics",
+                Greeting = "Evening. Long shift tonight?",
+                HairStyle = 1, FaceVariant = 2, Accessory = 0,
+                Awkward = new AwkwardSpeech   // answers everything with a question
+                {
+                    Greeting = "Is it evening? It is evening, is it not?",
+                    Course = "Am I taking {0}? I think I am taking {0}?",
+                    Year = "Am I in {0}? Is that what you are asking?",
+                    Status = "Am I a {0}? Would you say I am?",
+                    Classroom = "Am I going to {0}? Is that where I go?",
+                },
+            },
+            new StudentRow
+            {
+                FullName = "Angelica Reyes", IdNumber = "HB-2025-0094", YearLevel = 2, CourseIndex = 2,
+                FirstClassroom = RoomId.Classroom2, FirstClassSubject = "Motion Graphics",
+                Greeting = "Hello! I stayed late to finish a poster.",
+                HairStyle = 2, FaceVariant = 4, Accessory = 1,
+                Awkward = new AwkwardSpeech   // speaks as if it already happened
+                {
+                    Greeting = "Hello. I stayed late. I was always staying late.",
+                    Course = "I was taking {0}. I have always been taking it.",
+                    Year = "I was in {0}. It was a long time ago.",
+                    Status = "I was a {0}. I was that for a while.",
+                    Classroom = "I was going to {0}. I had gone there.",
+                },
+            },
+            new StudentRow
+            {
+                FullName = "Anthony Bautista", IdNumber = "HB-2023-0261", YearLevel = 4, CourseIndex = 1,
+                FirstClassroom = RoomId.Classroom1, FirstClassSubject = "Operating Systems",
+                Greeting = "Hey, sorry I'm so late.",
+                HairStyle = 3, FaceVariant = 1, Accessory = 2,
+                Awkward = new AwkwardSpeech   // apologises for everything
+                {
+                    Greeting = "Sorry. Sorry I am here. Sorry for the evening.",
+                    Course = "Sorry. {0}. Sorry for the course.",
+                    Year = "Sorry. {0}. Sorry for the year.",
+                    Status = "Sorry. A {0}. Sorry for being one.",
+                    Classroom = "Sorry. {0}. Sorry for the room.",
+                },
+            },
+            new StudentRow
+            {
+                FullName = "Bea Navarro", IdNumber = "HB-2026-0118", YearLevel = 1, CourseIndex = 0, IsTransferee = true,
+                FirstClassroom = RoomId.Classroom2, FirstClassSubject = "Web Fundamentals",
+                Greeting = "Hi. Is this the right gate?",
+                HairStyle = 4, FaceVariant = 0, Accessory = 0,
+                Awkward = new AwkwardSpeech   // far too slow, with long stops
+                {
+                    Greeting = "Hi. . . . This. . . is. . . the gate. . .",
+                    Course = "I. . . am taking. . . {0}. . . yes.",
+                    Year = "I. . . am in. . . {0}. . . yes.",
+                    Status = "I. . . am a. . . {0}. . . yes.",
+                    Classroom = "I. . . am going to. . . {0}. . . yes.",
+                },
+            },
+            new StudentRow
+            {
+                FullName = "Giones Acirfa", IdNumber = "HB-2024-0377", YearLevel = 3, CourseIndex = 2,
+                FirstClassroom = RoomId.Classroom1, FirstClassSubject = "Game Audio",
+                Greeting = "Good evening. Rehearsal ran long.",
+                HairStyle = 5, FaceVariant = 2, Accessory = 3,
+                Awkward = new AwkwardSpeech   // reads it off a wall
+                {
+                    Greeting = "It is written: good evening. It is written: rehearsal ran long.",
+                    Course = "It is written that I take {0}.",
+                    Year = "It is written that I am in {0}.",
+                    Status = "It is written that I am a {0}.",
+                    Classroom = "It is written that I go to {0}.",
+                },
+            },
+            new StudentRow
+            {
+                FullName = "Kristine Dizon", IdNumber = "HB-2025-0149", YearLevel = 2, CourseIndex = 1,
+                FirstClassroom = RoomId.Classroom2, FirstClassSubject = "Probability",
+                Greeting = "Hi, I'm only here for my notes.",
+                HairStyle = 0, FaceVariant = 5, Accessory = 1,
+                Awkward = new AwkwardSpeech   // counts down after every answer
+                {
+                    Greeting = "Hi. I am only here for the notes. Three. Two. One.",
+                    Course = "{0}. Three. Two. One.",
+                    Year = "{0}. Three. Two. One.",
+                    Status = "A {0}. Three. Two. One.",
+                    Classroom = "{0}. Three. Two. One.",
+                },
+            },
+            new StudentRow   // Off: Art/Characters/Izzy_Neckerman only holds copies of Anthony's pictures
+            {
+                FullName = "Izzy Neckerman", IdNumber = "HB-2023-0305", YearLevel = 4, CourseIndex = 0, Off = true,
+                FirstClassroom = RoomId.Classroom2, FirstClassSubject = "Capstone Project",
+                Greeting = "Evening. Capstone defence is tomorrow.",
+                HairStyle = 2, FaceVariant = 3, Accessory = 0,
+                Awkward = new AwkwardSpeech   // says the same sentence with one word swapped each time
+                {
+                    Greeting = "Evening. The defence is tomorrow. The tomorrow is defence.",
+                    Course = "I take {0}. {0} takes me.",
+                    Year = "I am in {0}. {0} is in me.",
+                    Status = "I am a {0}. A {0} is me.",
+                    Classroom = "I go to {0}. {0} goes to me.",
                 },
             },
         };

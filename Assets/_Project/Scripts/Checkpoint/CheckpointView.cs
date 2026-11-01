@@ -412,7 +412,11 @@ namespace Hollowbrook.Checkpoint
                 if (ch.name.EndsWith("back")) { bt = ch; break; }
             if (bt == null) return;
             bool on = !bt.gameObject.activeSelf;
-            if (on && paper == _idCardGo) _idFlipped = true;   // they have seen the back: the year question unlocks
+            if (on && paper == _idCardGo)
+            {
+                _idFlipped = true;   // they have seen the back: the year question unlocks
+                RefreshHud();        // and its button must stop looking locked right now
+            }
             bt.gameObject.SetActive(on);
             foreach (Transform ch in root)
             {

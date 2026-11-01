@@ -70,8 +70,8 @@ namespace Hollowbrook.Horror
             session.Stacks.Tick(dt);                       // a wrong call's extra drain wears off
             float refill = session.TakeRefill(dt);         // a correct call's refill, handed over gradually
             if (refill > 0f) session.ApplySanity(refill);
-            if (_gameRoot.AdministratorNight)
-                session.ApplySanity(-FinalNightDrain(session) * dt);   // night 5 and 6: always draining, anywhere
+            if (_gameRoot.AdministratorDrainOn)
+                session.ApplySanity(-FinalNightDrain(session) * dt);   // him at the window, the hunt, night 6: always draining, anywhere
             else if (inSecurity) TickDesk(session, dt);
             else if (_gameRoot.State == AppViewState.RoomPeek)
                 session.ApplySanity(-SanityModel.DarknessDrainPerSecond * dt);   // a peek is always dark

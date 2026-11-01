@@ -61,7 +61,7 @@ plays intro dialogue, and on the last click sets state Checkpoint and calls `Beg
 attaches the desk to `GameRoot.Queue`. If the scene script never runs, `CheckSceneHandshake` logs and
 returns to the menu after 3.5 s.
 
-**Night 5 - the administrator:** at the window, `GameLogic/AdminTalk` (pure) is a short topic list
+**Night 5 - the administrator:** eight students first (the normal desk), then he comes last. Sanity drains all the time only once he is at the window (`GameRoot.AdministratorDrainOn`). At the window, `GameLogic/AdminTalk` (pure) is a short topic list
 shown by `CheckpointView.AdminTalk`; it can never stamp or award clues, and he can be questioned without limit (a lie counts once).
 Only the DENY stamp turns him away, and his words go through the dialogue box, never the bubble. A DENY on the administrator calls
 `GameRoot.BeginAdminHunt`: `Session.Hunt` becomes Active, the patrol scene loads and

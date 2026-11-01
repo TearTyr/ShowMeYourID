@@ -3,7 +3,7 @@
 
 Source: Art/UI and Design Assets   Destination: Assets/_Project/Resources/Art/Environment
   Hallway/  bg_hallway_unlit   the painted corridor, 30 units wide, exported 3240 x 1080 (1:1 on a 1080p screen, 108 px per unit)
-  Rooms/    bg_classroom_1, bg_classroom_2, bg_comfort_room   1920 x 1080 backdrops
+  Rooms/    bg_classroom_1, bg_classroom_2, bg_comfort_room   1920 x 1080 backdrops (CR-2 flips the same picture)
   Props/    doors, the clock and the token, cut to the visible art (names are the game's keys)
   Inspect/  inspect_*   close ups shown beside the text when a clue is inspected
 Everything is a PNG named by its key (docs/ART-NAMING.md). Re-run whenever the source art changes,
@@ -55,7 +55,7 @@ def main():
     im = Image.open(os.path.join(SRC, "Hallway/HALLWAY W_O LIGHTS.png")).convert("RGB")
     im.resize((3240, 1080), Image.LANCZOS).save(out("Hallway", "bg_hallway_unlit"), optimize=True)
     for rel, key in (("Rooms/Classroom_BG1.jpg", "bg_classroom_1"), ("Rooms/Classroom_BG2.jpg", "bg_classroom_2"),
-                     ("Comfort Room/Bathroom_dimmed.jpg", "bg_comfort_room")):
+                     ("Comfort Room/Bathroom 2.png", "bg_comfort_room")):
         Image.open(os.path.join(SRC, rel)).convert("RGB").save(out("Rooms", key), optimize=True)
     for rel, key in PROPS:
         cut(rel).save(out("Props", key), optimize=True)

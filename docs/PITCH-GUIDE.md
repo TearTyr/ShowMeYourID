@@ -107,7 +107,7 @@ after quitting and Continuing half way through.
 
 ### Where the numbers live
 Nothing about the rules is buried in the code. `GameLogic/GameRules.cs` holds each number once, and
-`GameRules.Tables.cs` holds the five nights and the seven students as rows. The `GameConfig` asset
+`GameRules.Tables.cs` holds the five nights and the thirteen students as rows. The `GameConfig` asset
 owns the live copy, so a designer changes them in the Inspector. Adding a night or a student is
 adding a row.
 

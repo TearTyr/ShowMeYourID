@@ -60,16 +60,16 @@ dark. The doors follow the desk map: Security, Room 101, Room 202, CR-1, the sea
 (FloorPlan.cs draws the hallway and both maps). The **flashlight** points at the cursor (`F` sweep
 on/off, `Q` focus, `L` off). While it is lit it turns the guard to face it; while it is off he faces
 the way he walks. **One patrol cycle** is required before END SHIFT: peek into Room 101, Room 202 and
-a CR (either one). **Anomalies** (small, crouched things that slide along the floor, one hangs from the ceiling) roam the hallway only, from night 1, with one already waiting when each patrol starts: hold the Focus beam on it to repel it, and it is gone for a while. The guard carries only a weak light, so what is ahead of him is black until the flashlight finds it: sweep it along the walls, up at the ceiling and down at the floor. Every room is a
+a CR (either one). **Anomalies** (small, crouched things that slide along the floor, one hangs from the ceiling) roam the hallway only, from night 1, with one already waiting when each patrol starts: hold the Focus beam on it to repel it, and it is gone for a while. The wide Sweep beam only shows what is there: it does not hold, freeze or interrupt anything. The guard carries only a weak light, so what is ahead of him is black until the flashlight finds it: sweep it along the walls, up at the ceiling and down at the floor. Every room is a
 **peek** from its door: a black cover with a hole that follows the mouse shows the room behind it
 (on when the room opens; `F` on/off, `Q` wide/tight). `E` selects what the lit lamp is on, nothing else; `S` or the bottom
-edge steps back. The peek rooms hold a **hooded figure** that stands perfectly still, in some rooms each night and always at least one. Put the lit lamp fully on him (the cursor on his body) and he starts to flicker around while the lamp dims and flickers, then everything goes black, and a slow fade brings the room back with him gone. Once started it always plays to the end and the lamp, `E` and stepping back are locked meanwhile. He never attacks. The peek lamp is about 1.3x smaller than it was. The patrol flashlight no longer paints a yellow cone: it clears the darkness, so the room shows its own art, like the peek lamp. A room does not count for the cycle until its anomaly is gone,. Besides the clues there
+edge steps back. The peek rooms hold a **hooded figure** that stands perfectly still, in some rooms each night and always at least one. Put the Focus lamp (`Q`) fully on him (the cursor on his body; the wide lamp only shows him) and he starts to flicker around while the lamp dims and flickers, then everything goes black, and a slow fade brings the room back with him gone. Once started it always plays to the end and the lamp, `E` and stepping back are locked meanwhile. He never attacks. The peek lamp is about 1.3x smaller than it was. The patrol flashlight no longer paints a yellow cone: it clears the darkness, so the room shows its own art, like the peek lamp. A room does not count for the cycle until its anomaly is gone,. Besides the clues there
 are things to inspect: the patrol clipboard, the lockers, and each CR's mirror, sinks and stalls.
 The pocket watch token on Room 101's lost-and-found board is one of the ten: it is picked up when
 inspected (once) and is gone for good, with no other use. Ten clues, found
 in order, open the secret ending.
 
-**Night 5 - the administrator:** no students and no roaming anomalies, only him, with a staff badge
+**Night 5 - the administrator:** eight students first (five of them anomalies), then him last, with a staff badge
 and a roster memo that do not match. The four student questions are gone. `T` opens the
 interrogation: his badge name, the number, his face, his first stop, and any evidence you found.
 Each answer has a follow-up that catches him out, and every **lie exposed** takes 15 seconds off the

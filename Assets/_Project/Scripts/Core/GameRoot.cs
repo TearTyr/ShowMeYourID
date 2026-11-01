@@ -205,6 +205,20 @@ namespace Hollowbrook.Core
         /// <summary>The administrator's nights (5 and 6): sanity never rests there.</summary>
         public bool AdministratorNight => CurrentShiftDef != null && CurrentShiftDef.HasAdministrator;
 
+        /// <summary>Sanity drains all the time, wherever the player is, from the moment the administrator
+        /// matters: night 6 has only him, so it is always on there. Night 5 has students first, so it starts
+        /// when he is at the window or the hunt is on (the students before him use the normal desk rules).</summary>
+        public bool AdministratorDrainOn
+        {
+            get
+            {
+                if (!AdministratorNight) return false;
+                if (CurrentShiftDef.VisitorCount == 0 || HuntReady || HuntActive) return true;
+                var at = Checkpoint != null ? Checkpoint.CurrentVisitor : null;
+                return at != null && at.IsAdministrator;
+            }
+        }
+
         // ---------------------------------------------------------------- flow API
 
         public void SetState(AppViewState s)

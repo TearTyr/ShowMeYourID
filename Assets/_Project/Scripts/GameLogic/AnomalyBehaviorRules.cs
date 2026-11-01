@@ -58,9 +58,9 @@ namespace Hollowbrook.Logic
         public float DashSeconds;
         public float DashRecoverSeconds;
         public float AggroRange;
-        public bool FreezesWhenObserved;  // Blink: any beam or room light holds it still
+        public bool FreezesWhenObserved;  // Blink: the Focus beam or room light holds it still
         public bool CeilingLurker;        // CoverHug: only the Focus beam finds it clearly
-        public bool BeamInterruptsBurst;  // Sprint: light on it cancels the windup
+        public bool BeamInterruptsBurst;  // Sprint: the Focus beam on it cancels the windup
         public float RetreatSpeed;
 
         public static BehaviorProfile For(AnomalyBehaviorKind kind, BehaviorTuning t)

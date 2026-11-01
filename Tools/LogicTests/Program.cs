@@ -125,7 +125,7 @@ namespace Hollowbrook.LogicTests
         private static void ContentTests()
         {
             Group("Content - approved constants & roster");
-            Eq(Content.TotalStudents, 7, "student pool size");
+            Eq(Content.TotalStudents, 13, "student pool size");
             var roster = Content.BuildStudentRoster();
             Eq(roster.Count, Content.TotalStudents, "roster matches TotalStudents");
             Eq(roster.Select(s => s.FullName).Distinct().Count(), roster.Count, "roster names unique");
@@ -432,12 +432,13 @@ namespace Hollowbrook.LogicTests
                 ShiftPlan.Build()[0].Title = "changed";
                 Check(r.Nights[0].Title != "changed", "nothing can change the table by accident");
 
+                int before = r.Students.Length;
                 var students = new List<StudentRow>(r.Students);
                 students.Add(new StudentRow { FullName = "New Student", IdNumber = "HB-2026-0999", YearLevel = 2, FirstClassSubject = "Art", Greeting = "Hi.", Awkward = r.Students[0].Awkward });
                 r.Students = students.ToArray();
-                Eq(Content.TotalStudents, 8, "adding a row adds a student");
-                Eq(FaceAssets.StudentFaceCount, 8, "...with a face");
-                Eq(FaceAssets.StudentKey(7), "char_student_08", "...in the next picture");
+                Eq(Content.TotalStudents, before + 1, "adding a row adds a student");
+                Eq(FaceAssets.StudentFaceCount, before + 1, "...with a face");
+                Eq(FaceAssets.StudentKey(before), "char_student_" + (before + 1).ToString("D2"), "...in the next picture");
 
                 r.AwkwardSpeechChance = 0f;
                 Check(new RosterFactory(1).GenerateShift(ShiftPlan.Get(5)).All(v => !v.SpeaksAwkwardly), "awkward chance 0: nobody");
@@ -460,8 +461,8 @@ namespace Hollowbrook.LogicTests
             var shifts = ShiftPlan.Build();
             Eq(shifts.Count, ShiftPlan.TotalShifts, "five shifts");
             Eq(shifts.Count, 5, "TotalShifts is 5");
-            int[] wantVisitors = { 4, 6, 7, 8, 0 };
-            int[] wantAnomalies = { 2, 3, 4, 5, 0 };
+            int[] wantVisitors = { 4, 6, 7, 8, 8 };   // night 5 adds the administrator on top
+            int[] wantAnomalies = { 2, 3, 4, 5, 5 };
             for (int i = 0; i < shifts.Count; i++)
             {
                 var s = shifts[i];
@@ -853,7 +854,7 @@ namespace Hollowbrook.LogicTests
         private static void AdminRosterSuite()
         {
             Group("Shift rosters - the administrator's place in line");
-            int[] want = { 4, 6, 7, 8, 0 };
+            int[] want = { 4, 6, 7, 8, 8 };
             for (int shift = 1; shift <= 5; shift++)
             {
                 var roster = new RosterFactory(11).GenerateShift(ShiftPlan.Get(shift));
@@ -1682,11 +1683,15 @@ namespace Hollowbrook.LogicTests
 
             var log = new PresentationLog();
             var rf = new RosterFactory(2);
-            foreach (var v in rf.GenerateShift(ShiftPlan.Get(3)).Take(3)) log.RecordFrom(v, "tonight");
-            Eq(log.Count, 3, "presentation log recorded three cards");
+            var firstThree = rf.GenerateShift(ShiftPlan.Get(3)).Take(3).ToList();
+            foreach (var v in firstThree) log.RecordFrom(v, "tonight");
+            // a card with a broken ID number is not logged, and a repeated number is logged once
+            int logged = firstThree.Where(v => IdRules.IsFormatValid(v.IdNumber)).Select(v => v.IdNumber).Distinct().Count();
+            Check(logged >= 1, "setup: at least one of the first three cards is loggable");
+            Eq(log.Count, logged, "presentation log recorded every valid card once");
             var log2 = new PresentationLog();
             log2.Decode(log.Encode());
-            Eq(log2.Count, 3, "presentation log round-trips");
+            Eq(log2.Count, logged, "presentation log round-trips");
             Eq(string.Join(",", log2.PresentedIds().OrderBy(x => x)), string.Join(",", log.PresentedIds().OrderBy(x => x)),
                "presentation log keeps the same IDs");
         }
@@ -2770,11 +2775,13 @@ namespace Hollowbrook.LogicTests
             Check(seen.Count == FaceAssets.StudentFaceCount,
                 "every shipped student face maps to exactly one identity slot (no shared faces)");
             var names = Content.BuildStudentRoster();
-            string[] want = { "Carlo Mendoza", "Nathaniel Aquino", "Maria Clara Santos", "Liza May Ramos",
-                              "Raffy Isidro", "Renielle Waterbonia", "Rhevster Estrellita" };
+            string[] want = { "Mark Mendoza", "Nathaniel Aquino", "Maria Clara Santos", "Liza May Ramos",
+                              "Raffy Isidro", "Renielle Waterbonia", "Rhevster Estrellita",
+                              "Jose Villanueva", "Angelica Reyes", "Anthony Bautista", "Bea Navarro",
+                              "Giones Acirfa", "Kristine Dizon" };   // Izzy Neckerman is Off until her art arrives
             bool namesOk = names.Count == want.Length && Content.TotalStudents == FaceAssets.StudentFaceCount;
             for (int i = 0; namesOk && i < want.Length; i++) namesOk = names[i].FullName == want[i];
-            Check(namesOk, "the registry has the seven students in face-art order (row N wears char_student_NN)");
+            Check(namesOk, "the registry has the thirteen students in face-art order (row N wears char_student_NN)");
             var numbers = new HashSet<string>();
             foreach (var st in names) numbers.Add(st.IdNumber);
             Check(numbers.Count == names.Count, "every student has their own ID number");

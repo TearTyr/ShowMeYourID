@@ -43,7 +43,7 @@ namespace Hollowbrook.Core
         [System.Serializable]
         public class ScaryStudent
         {
-            [Tooltip("Full name as on the student's ID, e.g. Carlo Mendoza.")]
+            [Tooltip("Full name as on the student's ID, e.g. Mark Mendoza.")]
             public string fullName = "";
             [Tooltip("Extra sanity lost per second while they are at the window (before the drain stacks).")][Range(0f, 2f)]
             public float extraDrainPerSecond = 0.3f;
@@ -173,7 +173,7 @@ namespace Hollowbrook.Core
         public float anomalySpeedCoverHug = 0.55f;
         [Tooltip("Burst speed of the Sprint anomaly after its telegraph.")][Range(1f, 10f)]
         public float sprintDashSpeed = 4.5f;
-        [Tooltip("Readable warning before a Sprint burst; any beam coverage interrupts it.")][Range(0.3f, 4f)]
+        [Tooltip("Readable warning before a Sprint burst; only the Focus beam interrupts it.")][Range(0.3f, 4f)]
         public float sprintTelegraphSeconds = 1.1f;
         [Tooltip("Sprint burst duration before it must recover.")][Range(0.2f, 5f)]
         public float sprintDashSeconds = 1.4f;
