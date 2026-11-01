@@ -68,7 +68,7 @@ map_sealed,art,map,P2,procedural,PNG,"PNG RGBA 160x120 px @100 ppu, red hatch + 
 prop_clock,art,world-prop,P2,procedural,PNG,"PNG RGBA 112x112 px @64 ppu, wall clock stopped at 1:47 (clue #10)",hallway clue 'clock',GDD: Clock
 sec_log_paper,art,kit,P2,shipped-kit,PNG,cropped tilted paper: TONIGHT'S LOG overlay skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 sec_rules_paper,art,kit,P2,shipped-kit,PNG,cropped tilted paper: RULES NOTE overlay skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
-token,art,world-prop,P2,procedural,PNG,"PNG RGBA 28x28 px @64 ppu, pocket-watch token left by a repelled anomaly",anomaly repel reward,
+token,art,world-prop,P2,procedural,PNG,"PNG RGBA 28x28 px @64 ppu, pocket-watch token: finding 7 in Room 101 (one use interactable)",RoomBuilder (Room 101),
 camera_frame,art,reserve,P3,procedural,PNG,"PNG RGBA 252x150, viewfinder corners",reserve (retired scanner),keep unshipped unless the scanner returns
 char_admin,art,face,P3,missing,PNG,"PNG RGBA 512x640, district administrator: formal coat, briefcase, smile that arrives late - badge photo",Night-5 administrator ID badge,FaceAssets.AdminKey (new this pass)
 char_admin_glitch,art,face,P3,missing,PNG,"PNG RGBA 512x640, same administrator, a half-second wrong (the window tell)",Night-5 administrator at the window,FaceAssets.AdminWindowKey (new this pass)

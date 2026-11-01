@@ -23,7 +23,7 @@ Priority tiers map onto the five shifts in the design doc:
 |---|---|---|
 | **P0** | Night 1 vertical slice (4 students) | desk documents, stamps, booth + hallway, doors/switch/lockers, beam & lamp, guard walk, **faces 01–08 + their anomaly variants**, core sfx, menu/checkpoint/hallway beds |
 | **P1** | Nights 2–3 (6–7 students, first anomalies) | **faces 09–14 + variants**, the four anomaly silhouettes, classroom beds & props, glitch/static/flicker/intercom/heartbeat sfx, classroom/darkroom/anomaly beds |
-| **P2** | Night 4 investigation + the map | the clue props (board, photo, clock, lost ID, cabinet, light fixture), token, the hand-drawn map sheet set, investigation bed, pickup/stinger/scare/alarm |
+| **P2** | Night 4 investigation + the map | the clue props (board, photo, clock, lost ID, cabinet, light fixture), the token (finding 7), the hand-drawn map sheet set, investigation bed, pickup/stinger/scare/alarm |
 | **P3** | Night 5, endings, polish | administrator face pair, menu bg, facade, fx grain/vignette/flash, final + ending beds |
 
 ---
@@ -69,10 +69,12 @@ resolution of art just works: `prop_door`, `prop_door_security`, `prop_server_do
 padlock baked - the scratch marks are story), `prop_lockers`, and the design-doc interaction objects, each now actually drawn
 in its room: `prop_lightfixture` (flicker clue), `prop_noticeboard`, `prop_photoframe`,
 `prop_clock` (stopped at 1:47), `prop_chalkboard`, `prop_desk`, `prop_lostid`, `prop_window`,
-`prop_cabinet`, plus the repel `token`.
+`prop_cabinet`, plus `token` (the pocket watch, finding 7 in Room 101: an interactable you can use once, with no other purpose).
 
 Characters: `custodian_0/1` (96×224 walk frames), `anomaly_blink/slide/sprint/coverhug`
-(128×336 silhouettes - they render *under* the darkness overlay by design), `hood_figure`
+(128×336 silhouettes - they render *under* the darkness overlay by design), `char_anomaly` (the
+small crouched thing that slides along the hallway floor, drawn 1.9 units tall at 390 ppu),
+`char_hood` (the hooded figure in the peek rooms, 3.2 units tall at 190 ppu, feet on the floor), `hood_figure`
 (24×48 waiting-line silhouette).
 
 ## 4. The ground-floor map sheet (`category: map`) - P2
@@ -85,8 +87,8 @@ wobble proportional. The owner's hand-drawn reference can replace `map_paper.png
 
 ## 5. Light & fx (`fx`) - beam first
 
-`light_cone` 512×288 @64: the wedge the flashlight paints **and** the stencil that cuts the
-darkness - its feathered shoulders are load-bearing (`SpriteMask.alphaCutoff = 0.05`), so keep the
+`light_cone` 512×288 @64: the stencil that cuts the darkness (the flashlight no longer paints it
+yellow, so the rooms show their own art inside the beam) - its feathered shoulders are load-bearing (`SpriteMask.alphaCutoff = 0.05`), so keep the
 falloff curve, not just the shape. `lamp_glow` 128 (peek lamp). `vignette`, `noise_overlay`,
 `flash` are polish-tier.
 

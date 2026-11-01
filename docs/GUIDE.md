@@ -66,6 +66,12 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | How long after a stamp until the next student | `GameConfig.asset` > `verdictBannerSeconds` |
 | Move something on the desk | `Checkpoint/CheckpointLayout.cs` (all desk positions are numbers here) |
 | Flashlight battery, beam size | `GameConfig.asset` (battery, beam), `World/FlashlightRig.cs` |
+| The peek lamp size | `World/PeekLight.cs` (`Radius`, `FocusRadius`) |
+| The hooded figure in the peek rooms (how long he flickers, the black, the fade back) | `World/PeekAnomaly.cs`, `GameConfig.asset` > `peekRepelSeconds` |
+| How big the sliding anomaly is and where it sits on the floor | `GameLogic/AnomalyBehaviorRules.cs` (`GroundCentreY`), `FilePpus` in `Generated/ProceduralArt.cs` |
+| Night 6 (the Challenge): his questions, how hard the hunt is | `GameLogic/AdminTalk.cs` (`n6_hub`), `GameConfig.asset` group **Night 6** |
+| The ten findings (the token is number 7) | `GameLogic/ClueRegistry.cs`, `World/RoomBuilder.cs` |
+| Move a button or change a label on a screen | open the scene, find it under `SceneRoot_...` and change it in the Inspector |
 | Sanity drain and recovery | `GameLogic/ShiftPlan.cs` > `SanityModel` |
 | Win and lose rules | `GameLogic/EndingRules.cs` |
 | Replace art or sound | drop a file in `Resources/Art/<key>.png` or `Resources/Audio/<key>.wav`; names in `docs/ASSET-MANIFEST.md` |
