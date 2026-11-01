@@ -17,9 +17,9 @@ namespace Hollowbrook.Logic
     /// an engine - the rendered cone sprite is only a visual echo of this math.</summary>
     public static class BeamGeometry
     {
-        public const float DefaultSweepRange = 6.2f;
+        public const float DefaultSweepRange = 12f;
         public const float DefaultSweepHalfAngleDeg = 28f;
-        public const float DefaultFocusRange = 7.5f;
+        public const float DefaultFocusRange = 15f;
         public const float DefaultFocusHalfAngleDeg = 10f;
         public const float DefaultTargetRadius = 0.55f;
 

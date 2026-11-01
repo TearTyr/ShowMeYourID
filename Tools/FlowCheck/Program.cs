@@ -409,6 +409,28 @@ namespace FlowCheck
             Check(root.State == AppViewState.MainMenu && root.Session.PendingPenaltySeverity == ShiftFailureRules.BlackoutSeverity,
                 "FAIL: a blackout on patrol fails the night and lands on the main menu, penalty booked");
 
+            // the caption bar has no box: an empty caption shows nothing, a real one is text only
+            {
+                FreshGame(root); ClickStickyNote(root);
+                var capBg = FindDeep(root.Captions.transform, "bg");
+                var capImg = capBg.GetComponent<UnityEngine.UI.Image>();
+                Check(capImg.color.a < 0.01f, "CAP: the caption bar has no dark box behind its text");
+                capBg.gameObject.SetActive(false);
+                root.Settings.Current.Captions = true;
+                root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "", 2f, null));
+                Check(!capBg.gameObject.activeSelf, "CAP: an empty caption shows nothing");
+                root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*a door opens somewhere*", 2f, null));
+                Check(capBg.gameObject.activeSelf && FindDeep(capBg, "t").GetComponent<UnityEngine.UI.Text>().text == "*a door opens somewhere*",
+                    "CAP: the words the game sends as event data really appear (they used to show as an empty black strip)");
+                capBg.gameObject.SetActive(false);
+                root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, null, 2f, "*knock*"));
+                Check(capBg.gameObject.activeSelf && FindDeep(capBg, "t").GetComponent<UnityEngine.UI.Text>().text == "*knock*",
+                    "CAP: words sent as the event's Text appear too");
+                capBg.gameObject.SetActive(false);
+                root.Checkpoint.Ask(QuestionId.Classroom);
+                Check(!capBg.gameObject.activeSelf, "CAP: asking a question shows no caption at all");
+            }
+
             // a failed night is played again, not skipped: Continue stays on it, with the penalty
             void PlayToNight(int n)
             {

@@ -15,7 +15,7 @@ namespace Hollowbrook.World
         private const int Cols = 192, Rows = 108;   // about 0.1 world units per pixel; the soft edge comes from smoothing
         private const float Ppu = 100f;
         private const float SideSoftness = 0.6f;    // how far in from the beam's side the light fades in
-        private const float FarSoftness = 1.0f;     // how far before the beam's end it fades out
+        private const float FarSoftness = 3.0f;     // how far before the beam's end it fades out (long, so the end is never a visible line)
         private const float Margin = 1f;            // extra world units around the screen
 
         private Texture2D _tex;

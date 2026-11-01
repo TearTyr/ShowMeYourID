@@ -35,9 +35,9 @@ MonoBehaviour:
   batteryRecoverOffPerSecond: 4
   batteryRecoverLitPerSecond: 8
   batteryRebootFraction: 0.2
-  sweepRange: 6.2
+  sweepRange: 12
   sweepHalfAngleDeg: 28
-  focusRange: 7.5
+  focusRange: 15
   focusHalfAngleDeg: 10
   beamTargetRadius: 0.55
   focusProgressPerSecond: 0.55
