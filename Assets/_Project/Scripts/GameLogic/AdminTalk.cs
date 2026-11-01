@@ -8,8 +8,9 @@ namespace Hollowbrook.Logic
     // to talk. He gets no student questions: the hub lists what you can confront him with, built
     // from his papers and the clues you found. Each topic gets one answer and one follow-up that
     // catches him out, then you are back at the hub. From any screen you can:
-    //   - REFUSE ENTRY: the same as stamping DENY (the hunt begins),
-    //   - step back: close the conversation and go to the stamps.
+    //   - step back: close the panel and go to the stamps (T or the bar brings it back).
+    // Nothing here refuses him: only the DENY stamp does (the hunt begins). He can be asked
+    // the same questions over and over; a lie counts once however often it is pressed.
     // Every follow-up is a lie EXPOSED, and each one shortens the night that follows
     // (GameRoot.BuildHuntTuning). Talking never stamps and never gives clues.
     //
@@ -28,8 +29,7 @@ namespace Hollowbrook.Logic
     public enum AdminTalkAction
     {
         None = 0,
-        StepBack,   // close the conversation, the stamps are yours
-        Refuse,     // close the conversation AND deny entry
+        StepBack,   // close the panel, the stamps are yours (the conversation can be reopened)
     }
 
     public class AdminTalkOption
@@ -39,7 +39,7 @@ namespace Hollowbrook.Logic
         public string To = "";                          // node id to go to
         public AdminTalkCond Cond = AdminTalkCond.None;
         public AdminTalkAction Action = AdminTalkAction.None;
-        public bool Repeatable;                         // false = disappears once picked
+        public bool Repeatable;                         // false = counted once in the save (lies), still offered again
     }
 
     public class AdminTalkNode
@@ -63,7 +63,7 @@ namespace Hollowbrook.Logic
         public string Node = "";     // "" = not opened yet
         public int UsedMask;         // one bit per one-shot option
         public int Visits;           // how many times the hub was shown
-        public bool Completed;       // stepped back or refused: the conversation is over
+        public bool Completed;       // a verdict landed on him: the conversation is over
 
         public string Encode() => Node + "," + UsedMask + "," + Visits + "," + (Completed ? 1 : 0);
 
@@ -85,8 +85,8 @@ namespace Hollowbrook.Logic
     /// <summary>The result of picking an option.</summary>
     public class AdminTalkStep
     {
-        public bool Completed;                          // the conversation is over
-        public AdminTalkAction Action;                  // how it ended (StepBack / Refuse)
+        public bool Completed;                          // the panel closes (stepped back, or already over)
+        public AdminTalkAction Action;                  // how it ended (StepBack)
         public string NodeId = "";
         public string Speaker = AdminTalk.Speaker;
         public string Text = "";                        // what he says next
@@ -116,8 +116,6 @@ namespace Hollowbrook.Logic
 
         private static AdminTalkOption Back() =>
             O("back", "[Go back to the other questions.]", HubId, AdminTalkCond.None, true);
-        private static AdminTalkOption Refuse() =>
-            O("refuse", "[REFUSE ENTRY - stamp him away.]", "", AdminTalkCond.None, true, AdminTalkAction.Refuse);
         private static AdminTalkOption StepBack() =>
             O("end", "[Step back from the glass. The stamp is yours.]", "", AdminTalkCond.None, true, AdminTalkAction.StepBack);
 
@@ -131,8 +129,8 @@ namespace Hollowbrook.Logic
         // A topic: his first answer (with a follow-up question), then his second answer.
         private static void Topic(List<AdminTalkNode> s, string id, string first, string pressLabel, string second)
         {
-            s.Add(Node(id, first, O("press_" + id, pressLabel, id + "2"), Back(), Refuse(), StepBack()));
-            s.Add(Node(id + "2", second, Back(), Refuse(), StepBack()));
+            s.Add(Node(id, first, O("press_" + id, pressLabel, id + "2"), Back(), StepBack()));
+            s.Add(Node(id + "2", second, Back(), StepBack()));
         }
 
         private static List<AdminTalkNode> BuildScript()
@@ -148,7 +146,7 @@ namespace Hollowbrook.Logic
                   AdminTalkCond.CluePhoto),
                 O("ask_cabinet", "The work order names the server room. You came to wake it.", "cabinet",
                   AdminTalkCond.ClueCabinet),
-                Refuse(), StepBack());
+                StepBack());
             hub.RepeatText = "Still here. Still watching me. Choose your next sentence carefully, custodian.";
             s.Add(hub);
 
@@ -180,16 +178,15 @@ namespace Hollowbrook.Logic
         }
 
         // ------------------------------------------------------------ playing it
-        /// <summary>Which options are shown now: condition met, one-shots not yet used.</summary>
+        /// <summary>Which options are shown now: the condition is met. Used ones stay, so he can be
+        /// asked again and again.</summary>
         public static List<AdminTalkOption> OptionsFor(AdminTalkState st, AdminTalkContext ctx)
         {
             var node = NodeById(string.IsNullOrEmpty(st.Node) ? HubId : st.Node) ?? NodeById(HubId);
             var list = new List<AdminTalkOption>();
             foreach (var o in node.Options)
             {
-                if (!CondMet(o.Cond, ctx)) continue;
-                if (!o.Repeatable && st.UsedMask != 0 && (st.UsedMask & (1 << OneShotIndex(o.Id))) != 0) continue;
-                list.Add(o);
+                if (CondMet(o.Cond, ctx)) list.Add(o);
             }
             if (list.Count == 0) list.Add(StepBack());   // never a dead end
             return list;
@@ -237,7 +234,7 @@ namespace Hollowbrook.Logic
             if (!chosen.Repeatable) st.UsedMask |= 1 << OneShotIndex(chosen.Id);
             if (chosen.Action != AdminTalkAction.None)
             {
-                st.Completed = true;
+                st.Node = HubId;   // reopened later, he is back at the start of the topics
                 return new AdminTalkStep { Completed = true, Action = chosen.Action };
             }
             if (chosen.To == HubId) st.Visits++;
@@ -264,7 +261,7 @@ namespace Hollowbrook.Logic
                 .Replace("{answer_server}", ctx.AnswerClassroom ?? "…");
         }
 
-        // The save keeps one bit per one-shot option; this is that option's bit number.
+        // The save keeps one bit per counted option (the lies); this is that option's bit number.
         private static int OneShotIndex(string optionId)
         {
             int i = 0;

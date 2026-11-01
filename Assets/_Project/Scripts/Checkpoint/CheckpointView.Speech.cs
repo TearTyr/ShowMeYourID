@@ -117,7 +117,8 @@ namespace Hollowbrook.Checkpoint
         private void SyncBubble()
         {
             if (_bubbleRoot == null) return;
-            bool on = _bubble.Visible && _visitorShown;
+            // the administrator never gets a bubble: he speaks only through the dialogue box
+            bool on = _bubble.Visible && _visitorShown && !(_current != null && _current.IsAdministrator);
             _bubbleRoot.gameObject.SetActive(on);
             if (!on)
             {

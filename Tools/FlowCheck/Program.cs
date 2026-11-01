@@ -3713,7 +3713,7 @@ namespace FlowCheck
         // Integration proof at the real desk: the arrival speech hands over to the conversation,
         // the panel borrows the question column, picks move only the conversation state, the
         // classroom question and the stamps stay authoritative, stepping out and back in cannot
-        // lose the thread, and REFUSE ENTRY commits the DENY verdict exactly once.
+        // lose the thread, and the DENY stamp commits the verdict exactly once.
         private static void AdminTalkProof(GameRoot root)
         {
             Console.WriteLine("== administrator encounter: questions and answers at the checkpoint ==");
@@ -3733,13 +3733,15 @@ namespace FlowCheck
                   !FindDeep(cp.transform, "map").gameObject.activeSelf,
                 "AT: while it talks, the question panel and the inline map step aside");
             Check(FindDeep(cp.transform, "opt_ask_name") != null && FindDeep(cp.transform, "opt_ask_num") != null &&
-                  FindDeep(cp.transform, "opt_ask_face") != null && FindDeep(cp.transform, "opt_refuse") != null &&
-                  FindDeep(cp.transform, "opt_end") != null,
-                "AT: the hub offers the three badge questions, REFUSE ENTRY and the exit");
+                  FindDeep(cp.transform, "opt_ask_face") != null && FindDeep(cp.transform, "opt_end") != null,
+                "AT: the hub offers the three badge questions and the exit");
+            Check(FindDeep(cp.transform, "opt_refuse") == null, "AT: there is no REFUSE ENTRY button, only the DENY stamp");
+            Check(!FindDeep(cp.transform, "speechbubble").gameObject.activeSelf,
+                "AT: the administrator never gets the window speech bubble");
             Check(FindDeep(cp.transform, "opt_ask_photo") == null && FindDeep(cp.transform, "opt_ask_cabinet") == null &&
                   FindDeep(cp.transform, "opt_ask_server") != null,
                 "AT: evidence stays shut until earned; his first stop can always be asked");
-            var refuseLabel = FindDeep(cp.transform, "opt_refuse").Find("label").GetComponent<UnityEngine.UI.Text>();
+            var refuseLabel = FindDeep(cp.transform, "opt_end").Find("label").GetComponent<UnityEngine.UI.Text>();
             Check(refuseLabel.horizontalOverflow == UnityEngine.HorizontalWrapMode.Wrap,
                 "AT: option labels wrap to two lines instead of being cut off");
 
@@ -3761,8 +3763,8 @@ namespace FlowCheck
             FindDeep(cp.transform, "opt_back").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             guard = 0;
             while (root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
-            Check(root.Session.AdminTalk.Node == AdminTalk.HubId && FindDeep(cp.transform, "opt_ask_name") == null,
-                "AT: back at the hub; a question already asked is not offered again");
+            Check(root.Session.AdminTalk.Node == AdminTalk.HubId && FindDeep(cp.transform, "opt_ask_name") != null,
+                "AT: back at the hub; a question already asked can be asked again");
 
             // he never gets the student questions, in or out of the conversation
             cp.AskClassroom();
@@ -3805,19 +3807,20 @@ namespace FlowCheck
                 UnityEngine.Application.persistentDataPath, "hollowbrook_save.txt"));
             Check(saveText.Contains("adminTalk=hub,"), "AT: the conversation state rides the run save");
 
-            // REFUSE ENTRY is the DENY stamp: one verdict, counted once, the desk handed back
-            FindDeep(cp.transform, "opt_refuse").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            // the DENY stamp is the only way to turn him away: one verdict, counted once, the desk handed back
+            StampSlip(root, Verdict.Reject);
+            HandBack(root, true, true);
             Check(root.Session.AdminTalk.Completed && !cp.AdminTalkOpen,
-                "AT: refusing completes the conversation and closes the panel");
+                "AT: the verdict completes the conversation and closes the panel");
             Check(root.Session.AdminRejected && !root.Session.AdminAllowed,
-                $"AT: REFUSE ENTRY counts as rejecting the administrator (rejected={root.Session.AdminRejected} allowed={root.Session.AdminAllowed} processed={root.Session.Processed})");
+                $"AT: the DENY stamp counts as rejecting the administrator (rejected={root.Session.AdminRejected} allowed={root.Session.AdminAllowed} processed={root.Session.Processed})");
             int processed = root.Session.Processed;
             int breaches = root.Session.Breaches;
             root.OnVerdictResolved(admin, InspectionRules.Apply(admin, Verdict.Reject));
             Check(root.Session.Processed == processed && root.Session.Breaches == breaches,
                 "AT: a duplicated verdict callback changes nothing (exactly-once guard)");
             Check(QueueAbandoned(root), "AT: the rejected administrator closes the night's line safely");
-            Console.WriteLine("   (after REFUSE: hunt state = " + root.Session.Hunt + ")");
+            Console.WriteLine("   (after DENY: hunt state = " + root.Session.Hunt + ")");
         }
 
         // --------------------------------- after the DENY stamp: the administrator hunt

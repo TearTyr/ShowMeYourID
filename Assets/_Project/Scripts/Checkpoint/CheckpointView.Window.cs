@@ -442,15 +442,16 @@ namespace Hollowbrook.Checkpoint
             _gameRoot.Audio.PlaySfx("sfx_knock", 0.7f);
             if (admin)
             {
+                // he never speaks through the window bubble: everything he says is the dialogue box
                 var lines = new List<DialogueLine>
                 {
+                    new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "A formal coat. A briefcase. A smile that arrives a half-second late." },
                     new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[0] },
                     new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[1] },
                 };
                 if (_gameRoot.Session.Clues.FoundCount >= 6)
                     lines.Add(new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "That face. The old school photo - the staff member who never aged. It's them." });
                 lines.Add(new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[2] });
-                SayLine("AT THE WINDOW", "A formal coat. A briefcase. A smile that arrives a half-second late.");
                 // the scripted introduction hands over to the branching conversation: same
                 // visitor, same state, one owner (CheckpointView.AdminTalk)
                 if (_gameRoot.Dialogue != null) _gameRoot.Dialogue.Play(lines, () => OpenAdminTalk());

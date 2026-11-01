@@ -53,8 +53,8 @@ attaches the desk to `GameRoot.Queue`. If the bootstrap never runs, `CheckSceneH
 returns to the menu after 3.5 s.
 
 **Night 5 - the administrator:** at the window, `GameLogic/AdminTalk` (pure) is a short topic list
-shown by `CheckpointView.AdminTalk`; it can never stamp or award clues. **REFUSE ENTRY** goes
-through the same `FinalizeIfReady` path as a physical DENY. A DENY on the administrator calls
+shown by `CheckpointView.AdminTalk`; it can never stamp or award clues, and he can be questioned without limit (a lie counts once).
+Only the DENY stamp turns him away, and his words go through the dialogue box, never the bubble. A DENY on the administrator calls
 `GameRoot.BeginAdminHunt`: `Session.Hunt` becomes Active, the patrol scene loads and
 `ViewManager.StartAdminHunt` creates `World/AdminHuntDirector`. The RULES are the pure
 `GameLogic/AdminHunt` state machine (Stalking -> AtDoor, Closet or Behind -> Retreat;

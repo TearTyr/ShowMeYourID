@@ -316,7 +316,7 @@ namespace Hollowbrook.LogicTests
 
         // ------------------------------------------------------- administrator
         // The Shift-5 questions and answers: every topic reachable, evidence gated by the REAL
-        // clue keys, no dead ends, REFUSE ENTRY and stepping back always available, and zero
+        // clue keys, no dead ends, stepping back always available, unlimited questions, and zero
         // mechanical power (talking never stamps).
         private static void AdminTalkSuite()
         {
@@ -341,8 +341,9 @@ namespace Hollowbrook.LogicTests
             Check(open.Text.Contains("complaints about your performance"), "the hub opens with his demand");
             Eq(st.Visits, 1, "the first open counts one visit");
             var hubOptions = AdminTalk.OptionsFor(st, ctx);
-            Check(hubOptions.Any(o => o.Action == AdminTalkAction.Refuse) && hubOptions.Any(o => o.Action == AdminTalkAction.StepBack),
-                  "the hub always offers REFUSE ENTRY and the exit");
+            Check(hubOptions.Any(o => o.Action == AdminTalkAction.StepBack), "the hub always offers the exit");
+            Check(!hubOptions.Any(o => o.Id == "refuse") && AdminTalk.Nodes.All(n => n.Options.All(o => o.Id != "refuse")),
+                  "there is no REFUSE ENTRY option anywhere: only the DENY stamp turns him away");
             Check(!hubOptions.Any(o => o.Id == "ask_photo" || o.Id == "ask_cabinet"),
                   "evidence and the server question stay hidden until earned");
 
@@ -359,7 +360,13 @@ namespace Hollowbrook.LogicTests
             Eq(st.Node, "name2", "the follow-up reaches the second answer");
             AdminTalk.Choose(st, ctx, "back");
             Eq(st.Node, AdminTalk.HubId, "back returns to the hub");
-            Check(!AdminTalk.OptionsFor(st, ctx).Any(o => o.Id == "ask_name"), "a question already asked is not offered again");
+            Check(AdminTalk.OptionsFor(st, ctx).Any(o => o.Id == "ask_name"), "a question already asked is offered again (no limit)");
+            int liesBefore = AdminTalk.LiesExposed(st);
+            for (int i = 0; i < 5; i++)
+            {
+                AdminTalk.Choose(st, ctx, "ask_name"); AdminTalk.Choose(st, ctx, "press_name"); AdminTalk.Choose(st, ctx, "back");
+            }
+            Eq(AdminTalk.LiesExposed(st), liesBefore, "pressing the same lie again and again exposes it only once");
             var again = AdminTalk.Choose(st, ctx, "ask_num");
             AdminTalk.Choose(st, ctx, "back");
             Check(AdminTalk.Open(new AdminTalkState { Node = AdminTalk.HubId, Visits = 3 }, ctx).Text.StartsWith("Still here"),
@@ -388,14 +395,13 @@ namespace Hollowbrook.LogicTests
             Check(AdminTalk.Choose(st, withClass, "ask_server").Text.Contains("My first stop is your server room."),
                   "his answer quotes what he really said at the window");
 
-            // REFUSE ENTRY and the exit end the conversation with the right action
+            // the exit only closes the panel: the conversation can be picked up again
             st = new AdminTalkState(); ctx = Fresh(); AdminTalk.Open(st, ctx);
-            var refuse = AdminTalk.Choose(st, ctx, "refuse");
-            Check(refuse.Completed && refuse.Action == AdminTalkAction.Refuse && st.Completed, "REFUSE ENTRY ends the conversation as a refusal");
-            Check(AdminTalk.Choose(st, ctx, "ask_name").Completed, "a finished conversation stays finished");
-            st = new AdminTalkState(); AdminTalk.Open(st, ctx);
             var end = AdminTalk.Choose(st, ctx, "end");
-            Check(end.Completed && end.Action == AdminTalkAction.StepBack, "stepping back ends the conversation without refusing");
+            Check(end.Completed && end.Action == AdminTalkAction.StepBack && !st.Completed, "stepping back closes the panel, the conversation is not over");
+            Check(!AdminTalk.Choose(st, ctx, "ask_name").Completed && st.Node == "name", "...and he can be questioned again afterwards");
+            st.Completed = true;   // what a verdict does
+            Check(AdminTalk.Choose(st, ctx, "ask_name").Completed, "a finished conversation stays finished");
 
             // every node can be left, from anywhere, at any depth
             foreach (var node in AdminTalk.Nodes)

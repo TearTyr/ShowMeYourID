@@ -52,8 +52,8 @@ Folder rules and naming are in [docs/ART-NAMING.md](docs/ART-NAMING.md), the ful
    sealed server room, CR-2. Every room is a peek (`E` at its door).
    Each night needs one patrol: peek into Room 101, Room 202 and a CR, then END SHIFT. Only the hallway has roaming anomalies. The peek rooms hold standing ones that never move: hold the lit lamp on one to drive it out. In the hallway the guard only has a weak light around him, so sweep the flashlight, up at the ceiling and down at the floor too.
 8. **Night 5** - no students, only the administrator. The student questions do not apply to him:
-   interrogate him (`T`), catch his lies, refuse him (**REFUSE ENTRY** or a DENY stamp), and he
-   forces his way in. Survive until dawn (see below).
+   interrogate him (`T`) as often as you like, catch his lies, turn him away with the DENY stamp, and he
+   forces his way in. He speaks only through the dialogue box. Survive until dawn (see below).
 
 ### Night 5: surviving the administrator
 

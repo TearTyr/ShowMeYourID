@@ -63,8 +63,8 @@ in order, open the secret ending.
 and a roster memo that do not match. The four student questions are gone. `T` opens the
 interrogation: his badge name, the number, his face, his first stop, and any evidence you found.
 Each answer has a follow-up that catches him out, and every **lie exposed** takes 15 seconds off the
-night (it can never be shorter than 120 seconds). Talking never stamps. **REFUSE ENTRY** = the DENY
-stamp. Allowing him in loses at once.
+night (it can never be shorter than 120 seconds). Talking never stamps, and you can ask him anything again and again. Only the DENY stamp turns him
+away (there is no refuse button). He speaks only through the dialogue box. Allowing him in loses at once.
 
 **The hunt (after the DENY):** the window closes, the booth dims and flickers, and he says he'll be
 back and leaves. The security game is over and only Patrol works; the hunt starts when it is clicked.
