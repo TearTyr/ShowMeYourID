@@ -26,12 +26,19 @@ STAFF_DST = os.path.join(DST, "Staff")         # char_admin, char_admin_glitch, 
 # (normal, anomaly) per student, in face-index order
 STUDENTS = [
     ("Mark/Higher Res Image/Mark_Normal.png", "Mark/Higher Res Image/AnomalyMark.png"),
-    ("Jose/Jose_Normal.png", "Jose/Jose_Anomaly.png"),
+    ("Nathaniel/Nathaniel_Normal.png", "Nathaniel/Nathaniel_Anomaly.png"),
     ("Maria/Maria_Draft3.png", "Maria/Maria_Draft3_Anomaly.png"),
     ("Liza/Liza_Normal.png", "Liza/Liza_Anomaly.png"),
     ("Raffy/Raf_Normal.png", "Raffy/Raf_Anomaly.png"),
     ("Renniel/Reniel_Normal.png", "Renniel/Reniel_Anomaly.png"),
     ("Rhevsters/Rhevster_Normal.png", "Rhevsters/Rhevster_anomaly.png"),
+    ("Jose/Jose_Normal.png", "Jose/Jose_Anomaly.png"),
+    ("Angelica/Angelica_Normal.png", "Angelica/Angelica_Anomaly.png"),
+    ("Anthony/Anthony_Normal.png", "Anthony/Anthony_Anomaly.png"),
+    ("Bea/Bea_Normal.png", "Bea/Bea_Anomaly.png"),
+    ("Giones Acirfa/Giones_Normal.png", "Giones Acirfa/Giones_Anomaly.png"),
+    ("Kristine/Kristine_Normal.png", "Kristine/Kristine_Anomaly.png"),
+    # Izzy_Neckerman only holds copies of Anthony's pictures: add her here when the real art arrives
 ]
 ADMIN = ("Director/Director_Normal.png", "Director/Director_Anomaly.png")
 # the player: standing pose first, then the two walking poses (walk cycle = a, idle, b, idle)

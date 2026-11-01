@@ -43,7 +43,7 @@ namespace Hollowbrook.Core
         [System.Serializable]
         public class ScaryStudent
         {
-            [Tooltip("Full name as on the student's ID, e.g. Carlo Mendoza.")]
+            [Tooltip("Full name as on the student's ID, e.g. Mark Mendoza.")]
             public string fullName = "";
             [Tooltip("Extra sanity lost per second while they are at the window (before the drain stacks).")][Range(0f, 2f)]
             public float extraDrainPerSecond = 0.3f;

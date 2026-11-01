@@ -47,8 +47,9 @@ with their own eyes, so these portraits carry more gameplay weight than any othe
   `AdminWindowKey`).
 * `face_placeholder` is a functional fallback (shown only if an asset is missing) - never retire it.
 
-> **Code note for the day `07–14` ship:** bump `FaceAssets.StudentFaceCount` from 6 to 14 (one
-> constant). Until then indices wrap modulo 6, i.e. two canon students share a face set.
+> **Adding a student:** `FaceAssets.StudentFaceCount` follows the Students table, so a new student needs
+> a row in `GameRules.Tables.cs`, the art in `Tools/prep_characters.py` and two manifest rows. Thirteen
+> students ship. Izzy Neckerman is marked `Off` in the table until her real art arrives.
 
 ## 2. Desk documents (`category: desk-doc`) - P0
 

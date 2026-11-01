@@ -27,7 +27,7 @@ a district administrator, and turning him away is only the start.
 4. Windows build: `File > Build Settings > Windows > Build` (the three scenes are already listed).
 
 The game ships painted art for the desk, the menu, the hallway, the classrooms, the comfort room
-and the seven students. Anything without a picture is drawn in code, and sounds are generated at
+and the thirteen students. Anything without a picture is drawn in code, and sounds are generated at
 runtime. To replace a picture or a sound, drop a file with the same name in the matching folder
 under `Assets/_Project/Resources/Art/` or `Resources/Audio/`; the game prefers it automatically.
 Folder rules and naming are in [docs/ART-NAMING.md](docs/ART-NAMING.md), the full list is

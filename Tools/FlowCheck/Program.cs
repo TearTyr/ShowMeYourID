@@ -1114,7 +1114,7 @@ namespace FlowCheck
             Check(rowGroup != null && Mathf.Abs(rowGroup.alpha - 1f) < 1e-3f && rowGroup.blocksRaycasts,
                 "DRAWER: a settled file is fully visible AND clickable");
             var headText = FindDeep(cp.transform, "drawerhead").GetComponent<UnityEngine.UI.Text>().text;
-            Check(headText.Contains("ROOM 101") && headText.Contains("4 FILES"),
+            Check(headText.Contains("ROOM 101") && headText.Contains("7 FILES"),
                   "the drawer head names the room and counts its files (got '" + headText + "')");
             Check(CheckpointView.DrawerRowCapacity() >= 7,
                 $"DRAWER: the pulled drawer holds a whole floor folder ({CheckpointView.DrawerRowCapacity()} rows)");
