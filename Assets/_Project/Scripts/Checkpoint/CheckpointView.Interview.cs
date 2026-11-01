@@ -38,8 +38,7 @@ namespace Hollowbrook.Checkpoint
             _questionMask |= InterviewRules.Bit(q);
             if (Queue != null) Queue.ActiveQuestionMask = _questionMask;   // survives quit/continue
             string answer = q == QuestionId.Classroom ? _current.ClassroomAnswer : _current.Answers[(int)q];
-            string tone = _current.ClassroomTone == ToneTag.Normal ? "" : "  [" + ToneLabel(_current.ClassroomTone) + "]";
-            SayLine("AT THE WINDOW", "“" + answer + "”" + tone);
+            SayLine("AT THE WINDOW", "“" + answer + "”");
             _gameRoot.Audio.PlaySfx("sfx_intercom", 0.5f);
             RefreshHud();
             return true;
@@ -47,16 +46,5 @@ namespace Hollowbrook.Checkpoint
 
         // Kept for the administrator conversation and the older tests: the classroom question.
         public void AskClassroom() => Ask(QuestionId.Classroom);
-
-        private static string ToneLabel(ToneTag t)
-        {
-            switch (t)
-            {
-                case ToneTag.Hesitant: return "hesitant";
-                case ToneTag.Flat: return "flat, rehearsed";
-                case ToneTag.TooSmooth: return "too smooth";
-                default: return "echoing, as if reading";
-            }
-        }
     }
 }

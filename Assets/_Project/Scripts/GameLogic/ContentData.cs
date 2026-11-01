@@ -98,7 +98,7 @@ namespace Hollowbrook.Logic
         // honest answer repeats the card; a SpokenMismatch visitor lies about SpokenLieQuestion.
         public string[] Answers = new string[InterviewRules.Count];
         public int SpokenLieQuestion = -1;
-        public ToneTag ClassroomTone = ToneTag.Normal;
+        public bool SpeaksAwkwardly;          // this anomaly got its student's awkward lines
         // Which student's face is shown at the window (a PhotoMismatch shows somebody else's).
         public int WindowFaceIndex = -1;
         // Canon roster position of the person this visitor CLAIMS to be (-1 = none, e.g. the

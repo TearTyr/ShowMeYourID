@@ -337,37 +337,39 @@ namespace Hollowbrook.Logic
 
         // What the visitor says to each of the four questions. An honest student says what their
         // card says (and the classroom on their file). Two kinds of anomaly lie out loud:
-        // ClassroomMismatch about the room, SpokenMismatch about course, year or status. The
-        // tone of voice is rolled once and belongs to the whole conversation.
+        // ClassroomMismatch about the room, SpokenMismatch about course, year or status. Some
+        // anomalies also get the words wrong: rolled once, for the whole conversation. A real
+        // student never speaks that way.
         private void BuildAnswers(VisitorData v, StudentIdentity id)
         {
-            v.Answers[(int)QuestionId.Course] = InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex]);
-            v.Answers[(int)QuestionId.Year] = InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1]);
-            v.Answers[(int)QuestionId.Status] = InterviewRules.StatusSpeech(v.IdIsTransferee);
-            v.ClassroomAnswer = id.ClassroomSpeech;
-            v.ClassroomTone = ToneFor(v);
-            if (v.Defects.Contains(DefectType.ClassroomMismatch))
-                v.ClassroomAnswer = LieAboutClassroom(id);
+            v.SpeaksAwkwardly = v.IsAnomaly && _rng.Chance(GameRules.Current.AwkwardSpeechChance);
+            var awkward = v.SpeaksAwkwardly ? id.Awkward : null;
+            if (awkward != null) v.Greeting = awkward.Greeting;
+            v.Answers[(int)QuestionId.Course] = InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex], awkward);
+            v.Answers[(int)QuestionId.Year] = InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1], awkward);
+            v.Answers[(int)QuestionId.Status] = InterviewRules.StatusSpeech(v.IdIsTransferee, awkward);
+            string classroom = v.Defects.Contains(DefectType.ClassroomMismatch) ? LieAboutClassroom(id) : id.ClassroomSpeech;
+            v.ClassroomAnswer = InterviewRules.ClassroomSpeech(classroom, awkward);
             v.Answers[(int)QuestionId.Classroom] = v.ClassroomAnswer;
-            if (v.Defects.Contains(DefectType.SpokenMismatch)) LieAboutCard(v);
+            if (v.Defects.Contains(DefectType.SpokenMismatch)) LieAboutCard(v, awkward);
         }
 
         // The spoken answer to the chosen question is never what the card says.
-        private void LieAboutCard(VisitorData v)
+        private void LieAboutCard(VisitorData v, AwkwardSpeech awkward)
         {
             var q = (QuestionId)v.SpokenLieQuestion;
             switch (q)
             {
                 case QuestionId.Course:
                     int other = (v.IdCourseIndex + 1 + _rng.NextInt(0, Content.Courses.Length - 1)) % Content.Courses.Length;
-                    v.Answers[(int)q] = InterviewRules.CourseSpeech(Content.Courses[other]);
+                    v.Answers[(int)q] = InterviewRules.CourseSpeech(Content.Courses[other], awkward);
                     break;
                 case QuestionId.Year:
                     int year = 1 + (v.IdYearLevel + _rng.NextInt(0, 3)) % 4;   // 1..4, never the card's
-                    v.Answers[(int)q] = InterviewRules.YearSpeech(Content.YearNames[year - 1]);
+                    v.Answers[(int)q] = InterviewRules.YearSpeech(Content.YearNames[year - 1], awkward);
                     break;
                 default:
-                    v.Answers[(int)q] = InterviewRules.StatusSpeech(!v.IdIsTransferee);
+                    v.Answers[(int)q] = InterviewRules.StatusSpeech(!v.IdIsTransferee, awkward);
                     break;
             }
         }
@@ -399,15 +401,6 @@ namespace Hollowbrook.Logic
             return subjects.Count > 0 ? _rng.Pick(subjects.ToArray()) : "Study Hall";
         }
 
-        // Only anomalies ever show a tone (fairness: a legitimate student never leaks one).
-        private ToneTag ToneFor(VisitorData v)
-        {
-            if (!v.IsAnomaly || !_rng.Chance(0.4f)) return ToneTag.Normal;
-            var tags = new[] { ToneTag.Flat, ToneTag.TooSmooth, ToneTag.Echoing, ToneTag.Hesitant };
-            return _rng.Pick(tags);
-        }
-
-
         public VisitorData BuildAdministrator(ShiftDef shift)
         {
             var badgePhoto = new Portrait { HairStyle = 2, FaceVariant = 3, Accessory = 0, Distorted = false };
@@ -436,7 +429,6 @@ namespace Hollowbrook.Logic
             v.Defects.Add(DefectType.NotInDatabase);       // badge number not on the roster
             v.Defects.Add(DefectType.PhotoSubtleMismatch); // same glitch as the other anomalies
             v.ClassroomAnswer = "My first stop is your server room.";
-            v.ClassroomTone = ToneTag.Echoing;
             for (int q = 0; q < InterviewRules.Count; q++) v.Answers[q] = "That is not your concern.";
             v.Answers[(int)QuestionId.Classroom] = v.ClassroomAnswer;
             v.WindowFaceIndex = -1;                        // the administrator has his own face art

@@ -35,7 +35,6 @@ namespace Hollowbrook.Logic
         SlipMismatch,           // the paper slip disagrees with the ID card (eye-check)
     }
 
-    public enum ToneTag { Normal, Hesitant, Flat, TooSmooth, Echoing }
 
     public enum AppViewState
     {

@@ -186,6 +186,36 @@ namespace Hollowbrook.LogicTests
                     $"night {night.Number}: the same seed gives the same line");
             }
 
+            Group("Anomalies sometimes speak awkwardly, with no markers");
+            int awkwardCount = 0, plainCount = 0;
+            var awkwardLines = new HashSet<string>();
+            foreach (var row in GameRules.Current.Students)
+                foreach (var line in new[] { row.Awkward.Course, row.Awkward.Year, row.Awkward.Status, row.Awkward.Classroom })
+                    Check(line.Contains("{0}"), row.FullName + ": awkward lines keep the fact in them");
+            for (int seed = 1; seed <= 100; seed++)
+            {
+                var factory = new RosterFactory(seed);
+                foreach (var night in plan)
+                    foreach (var v in factory.GenerateShift(night))
+                    {
+                        if (v.IsAdministrator) continue;
+                        foreach (var line in v.Answers) Check(!line.Contains("[") && !line.Contains("{0}"), $"seed {seed}: no tone marker and no blank in '{line}'");
+                        if (!v.SpeaksAwkwardly) { if (v.IsAnomaly) plainCount++; continue; }
+                        awkwardCount++;
+                        Check(v.IsAnomaly, $"seed {seed}: only an anomaly speaks awkwardly");
+                        var student = GameRules.Current.Students[v.FaceAssetIndex];
+                        Eq(v.Greeting, student.Awkward.Greeting, $"seed {seed}: the greeting is that student's habit");
+                        if (!v.Defects.Contains(DefectType.SpokenMismatch))
+                            Check(v.Answers[(int)QuestionId.Course].Contains(Content.Courses[v.IdCourseIndex]) &&
+                                  v.Answers[(int)QuestionId.Year].Contains(Content.YearNames[v.IdYearLevel - 1]),
+                                $"seed {seed}: the facts are the card's, only the sound is off");
+                        awkwardLines.Add(student.Awkward.Greeting);
+                    }
+            }
+            Check(awkwardCount > 0 && plainCount > 0, $"some anomalies speak awkwardly, some do not ({awkwardCount} / {plainCount})");
+            Check(Math.Abs(awkwardCount - plainCount) < (awkwardCount + plainCount) / 4, "about half of them, as the rule says");
+            Eq(awkwardLines.Count, students, "every student has been heard speaking their own way");
+
             Group("Every student has both pictures");
             foreach (var row in GameRules.Current.Students) Check(row.Awkward != null, row.FullName + " has an awkward way of speaking");
             for (int i = 0; i < students; i++)
@@ -259,6 +289,11 @@ namespace Hollowbrook.LogicTests
                 Eq(Content.TotalStudents, 8, "adding a row adds a student");
                 Eq(FaceAssets.StudentFaceCount, 8, "...with a face");
                 Eq(FaceAssets.StudentKey(7), "char_student_08", "...in the next picture");
+
+                r.AwkwardSpeechChance = 0f;
+                Check(new RosterFactory(1).GenerateShift(ShiftPlan.Get(5)).All(v => !v.SpeaksAwkwardly), "awkward chance 0: nobody");
+                r.AwkwardSpeechChance = 1f;
+                Check(new RosterFactory(1).GenerateShift(ShiftPlan.Get(5)).Where(v => v.IsAnomaly).All(v => v.SpeaksAwkwardly), "awkward chance 1: every anomaly");
 
                 r.RandomSeed = false; r.FixedSeed = 12345;
                 Eq(r.NewRunSeed(), 12345, "seed mode Fixed uses the number from the rules");
@@ -396,8 +431,7 @@ namespace Hollowbrook.LogicTests
                                   $"seed {seed}: legit ID and record agree on every field");
                             Check(AnswerMatchesFile(v),
                                   $"seed {seed}: legit '{v.ClaimedName}' names the room and class on their file ('{v.ClassroomAnswer}' vs '{v.RecordFirstClassroom}')");
-                            Eq(v.ClassroomTone, ToneTag.Normal,
-                               $"seed {seed}: legit answers are always delivered Normal (fair tell)");
+                            Check(!v.SpeaksAwkwardly, $"seed {seed}: a real student never speaks awkwardly");
                         }
                         else
                         {
@@ -712,8 +746,12 @@ namespace Hollowbrook.LogicTests
         // ---------------------------------------------------- classroom question
         // "Rooms the file would say": the answer is "Room 202, Genetics." and the file prints
         // "Room 202 · Genetics" - the same room and class, spelled for a different reader.
-        private static bool AnswerMatchesFile(VisitorData v) =>
-            v.ClassroomAnswer.TrimEnd('.').Replace(", ", " · ") == v.RecordFirstClassroom;
+        private static bool AnswerMatchesFile(VisitorData v)
+        {
+            var awkward = v.SpeaksAwkwardly ? GameRules.Current.Students[v.FaceAssetIndex].Awkward : null;
+            string plain = v.RecordFirstClassroom.Replace(" · ", ", ") + ".";
+            return v.ClassroomAnswer == InterviewRules.ClassroomSpeech(plain, awkward);
+        }
 
         // A spoken lie is provable when the answer to the chosen question is not what the card says.
         private static bool SpokenLieIsProvable(VisitorData v)
@@ -722,14 +760,16 @@ namespace Hollowbrook.LogicTests
             return v.Answers[v.SpokenLieQuestion] != CardSpeech(v, (QuestionId)v.SpokenLieQuestion);
         }
 
-        // What an honest student with this card would say to a question.
+        // What a visitor with this card would say, in the words this visitor uses: an awkward anomaly
+        // says the card's fact in its own student's awkward lines.
         private static string CardSpeech(VisitorData v, QuestionId q)
         {
+            var awkward = v.SpeaksAwkwardly ? GameRules.Current.Students[v.FaceAssetIndex].Awkward : null;
             switch (q)
             {
-                case QuestionId.Course: return InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex]);
-                case QuestionId.Year: return InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1]);
-                case QuestionId.Status: return InterviewRules.StatusSpeech(v.IdIsTransferee);
+                case QuestionId.Course: return InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex], awkward);
+                case QuestionId.Year: return InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1], awkward);
+                case QuestionId.Status: return InterviewRules.StatusSpeech(v.IdIsTransferee, awkward);
                 default: return v.ClassroomAnswer;
             }
         }

@@ -79,9 +79,23 @@ namespace Hollowbrook.Logic
         /// <summary>A question already asked can be heard again for free; a new one needs budget.</summary>
         public static bool CanAsk(int mask, QuestionId q) => Asked(mask, q) || Remaining(mask) > 0;
 
-        // What a student says. The honest answer is simply what their card says.
-        public static string CourseSpeech(string course) => "I'm taking " + course + ".";
-        public static string YearSpeech(string year) => "I'm in " + year + ".";
-        public static string StatusSpeech(bool transferee) => transferee ? "I'm a transferee." : "I'm a regular student.";
+        // What a student says. The honest answer is simply what their card says. An anomaly given
+        // a row of awkward speech says the same fact in that row's words.
+        public static string CourseSpeech(string course, AwkwardSpeech awkward = null) =>
+            awkward != null ? Fill(awkward.Course, course) : "I'm taking " + course + ".";
+
+        public static string YearSpeech(string year, AwkwardSpeech awkward = null) =>
+            awkward != null ? Fill(awkward.Year, year) : "I'm in " + year + ".";
+
+        public static string StatusSpeech(bool transferee, AwkwardSpeech awkward = null)
+        {
+            string status = transferee ? "transferee" : "regular student";
+            return awkward != null ? Fill(awkward.Status, status) : "I'm a " + status + ".";
+        }
+
+        public static string ClassroomSpeech(string plainAnswer, AwkwardSpeech awkward = null) =>
+            awkward != null ? Fill(awkward.Classroom, plainAnswer.TrimEnd('.')) : plainAnswer;
+
+        private static string Fill(string line, string fact) => line.Replace("{0}", fact);
     }
 }
