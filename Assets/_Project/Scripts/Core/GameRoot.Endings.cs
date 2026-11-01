@@ -36,8 +36,9 @@ namespace Hollowbrook.Core
         /// The final night is the unique one: a blackout there is the Lose result.</summary>
         public void OnSanityDepleted()
         {
-            if (ShiftFailing || Session.Mode != GameMode.Normal) return;
-            if (Session.CurrentShift < ShiftPlan.TotalShifts) { FailShift(ShiftFailure.Blackout); return; }
+            if (ShiftFailing) return;
+            if (Session.Mode == GameMode.Normal && Session.CurrentShift < ShiftPlan.TotalShifts)
+            { FailShift(ShiftFailure.Blackout); return; }
             ShiftFailing = true;
             var lose = new EndingRules.Evaluation
             {
@@ -80,6 +81,9 @@ namespace Hollowbrook.Core
 
             var eval = Session.EvaluateEnding();
 
+            // night 6 is one night: straight to its ending
+            if (Session.Mode == GameMode.Challenge) { TriggerEnding(eval); return; }
+
             // nights 1 to 4 end straight at the main menu; Continue starts the next one
             if (Session.Mode == GameMode.Normal && Session.CurrentShift <= ShiftPlan.TotalShifts)
             {
@@ -93,6 +97,18 @@ namespace Hollowbrook.Core
             SetState(AppViewState.ShiftResults);
             if (ShiftResults != null) ShiftResults.Populate(Session, CurrentShiftDef);
             Audio.PlayMusic("");
+        }
+
+        /// <summary>Night 6 opens once the story has been finished (a Win or the Secret ending), read
+        /// from the save so it is right on the main menu too.</summary>
+        public bool Night6Unlocked
+        {
+            get
+            {
+                var save = Saves != null ? Saves.Read() : null;
+                var seen = save != null && save.Records != null ? save.Records.EndingsSeen : null;
+                return seen != null && (seen.Contains("win") || seen.Contains("secret"));
+            }
         }
 
         public void AdvanceToNextShift()
@@ -119,7 +135,7 @@ namespace Hollowbrook.Core
                 return;
             }
             string key = eval.Ending == EndingType.Secret ? "secret" : (eval.Ending == EndingType.Win ? "win" : "lose");
-            if (!Records.EndingsSeen.Contains(key)) Records.EndingsSeen.Add(key);
+            if (Session.Mode == GameMode.Normal && !Records.EndingsSeen.Contains(key)) Records.EndingsSeen.Add(key);
             Session.RunFinished = true;
             PersistRun();
             SetState(AppViewState.Ending);

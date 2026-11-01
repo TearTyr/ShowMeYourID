@@ -65,6 +65,13 @@ the rules, and turns events into sound, captions, the shaking picture and `PeekL
 Win -> `FinishShift` (normal Win/Secret ending); loss -> the `server_door` ending. The state is
 saved, so Continue resumes the hunt.
 
+**Night 6 (the Challenge):** `GameMode.Challenge`, `ShiftPlan.Night6Def()`. Unlocked when the story
+save holds a Win or Secret in `Records.EndingsSeen` (`GameRoot.Night6Unlocked`). It reuses the Night 5
+flow end to end: the same desk, DENY, hunt and endings, with a second script in `GameLogic/AdminTalk`
+(`n6_hub`, chosen by `AdminTalkContext.Night6`) and the "Night 6" numbers in `GameConfigSO` picked
+by `GameRoot.BuildHuntTuning`. `PersistRun` returns early in this mode so the story save is never
+overwritten, and `TriggerEnding` does not add to the story's endings seen.
+
 **Desk furniture that moves** (the FLOOR FILES pull drawer) keeps its numbers in a pure module
 (`GameLogic/DrawerMotion`) and one float of state in the view (`CheckpointView.FileDrawer`),
 advanced from `TickDrawer` on unscaled time, so a click is answered on its own frame and repeated

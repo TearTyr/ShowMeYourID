@@ -202,7 +202,7 @@ namespace Hollowbrook.Logic
 
         public static readonly string[] ShiftDates =
         {
-            "Mon · Nov 2", "Tue · Nov 3", "Wed · Nov 4", "Thu · Nov 5", "Fri · Nov 6",
+            "Mon · Nov 2", "Tue · Nov 3", "Wed · Nov 4", "Thu · Nov 5", "Fri · Nov 6", "Sat · Nov 7",
         };
 
         // The header board spells the night out in full (the reference header line):
@@ -210,7 +210,7 @@ namespace Hollowbrook.Logic
         public static readonly string[] ShiftDatesLong =
         {
             "MONDAY - NOVEMBER 2", "TUESDAY - NOVEMBER 3", "WEDNESDAY - NOVEMBER 4",
-            "THURSDAY - NOVEMBER 5", "FRIDAY - NOVEMBER 6",
+            "THURSDAY - NOVEMBER 5", "FRIDAY - NOVEMBER 6", "SATURDAY - NOVEMBER 7",
         };
 
         public static int ShiftDayNumber(int shift) => 1000 + shift; // arbitrary monotonic base
@@ -294,6 +294,14 @@ namespace Hollowbrook.Logic
             "Custodian. I'm the district administrator. I'll be taking control of this facility tonight.",
             "My credentials are in order. Badge and roster memo, as your instructions require.",
             "Open the checkpoint. That is an order from the district.",
+        };
+
+        // Night 6: he is back, and he is polite about it.
+        public static readonly string[] Night6AdminLines =
+        {
+            "Custodian. You remember me. I told you I do not give up.",
+            "The district sent me back with the same papers and a better offer. Make the right decision this time.",
+            "Open the checkpoint.",
         };
     }
 }

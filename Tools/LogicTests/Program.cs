@@ -130,7 +130,8 @@ namespace Hollowbrook.LogicTests
             Check(roster.All(s => s.YearLevel >= 1 && s.YearLevel <= 4), "year levels in 1..4");
             Check(roster.All(s => s.CourseIndex >= 0 && s.CourseIndex < Content.Courses.Length), "course indices in range");
             Check(Content.Courses.Length > 0 && Content.YearNames.Length == 4, "course/year pools populated");
-            Eq(Content.ShiftDates.Length, 5, "five shift dates");
+            Eq(Content.ShiftDates.Length, 6, "six shift dates (five nights and the Challenge)");
+            Eq(Content.ShiftDatesLong.Length, 6, "six long dates");
             // day-number mapping must be strictly monotonic ACROSS THE WINDOW THE GAME
             // ACTUALLY GENERATES (Jun 2026 .. Mar 2027). The model uses 30-day months, so
             // it is only an approximation: 2026-12-31 and 2027-01-01 both map to 1060.
@@ -409,6 +410,26 @@ namespace Hollowbrook.LogicTests
             Check(!AdminTalk.Choose(st, ctx, "ask_name").Completed && st.Node == "name", "...and he can be questioned again afterwards");
             st.Completed = true;   // what a verdict does
             Check(AdminTalk.Choose(st, ctx, "ask_name").Completed, "a finished conversation stays finished");
+
+            // night 6: his own hub and four new questions, no refuse button, same lie counting
+            var ctx6 = Fresh(); ctx6.Night6 = true;
+            var st6 = new AdminTalkState();
+            var open6 = AdminTalk.Open(st6, ctx6);
+            Eq(st6.Node, AdminTalk.Night6HubId, "night 6 opens on its own hub");
+            Check(open6.Text.Contains("I do not give up") && open6.Text.Contains("right decision"),
+                  "he says he does not give up and asks for the right decision");
+            var hub6 = AdminTalk.OptionsFor(st6, ctx6);
+            Check(hub6.Count(o => o.Id.StartsWith("ask_n6_")) == 4 && hub6.Any(o => o.Action == AdminTalkAction.StepBack),
+                  "night 6 offers four new questions and the exit");
+            Check(!hub6.Any(o => o.Id == "ask_name" || o.Id == "ask_num"), "none of the night 5 questions are left");
+            AdminTalk.Choose(st6, ctx6, "ask_n6_return");
+            Eq(st6.Node, "n6_return", "a night 6 question reaches its answer");
+            AdminTalk.Choose(st6, ctx6, "press_n6_return");
+            Eq(AdminTalk.LiesExposed(st6), 1, "pressing a night 6 answer exposes a lie");
+            AdminTalk.Choose(st6, ctx6, "back");
+            Eq(st6.Node, AdminTalk.Night6HubId, "back returns to the night 6 hub, not the night 5 one");
+            AdminTalk.Choose(st6, ctx6, "end");
+            Eq(st6.Node, AdminTalk.Night6HubId, "stepping back keeps him at the night 6 hub");
 
             // every node can be left, from anywhere, at any depth
             foreach (var node in AdminTalk.Nodes)
@@ -952,6 +973,27 @@ namespace Hollowbrook.LogicTests
 
             secretSession.AdminAllowed = true;
             Eq(EndingRules.Evaluate(secretSession).Ending, EndingType.Lose, "Lose outranks Secret (priority order)");
+            // ---- night 6, the Challenge
+            var n6 = ShiftPlan.Night6Def();
+            Check(n6.Number == 6 && n6.HasAdministrator && n6.VisitorCount == 0 && n6.AnomalyCount == 0,
+                  "night 6 is the administrator alone, like night 5");
+            Check(Array.IndexOf(Content.ShiftDates, n6.DateLabel) == 5 && n6.LongDateLabel == "SATURDAY - NOVEMBER 7",
+                  "night 6 has its own date");
+            Eq(ShiftPlan.LastNight(GameMode.Normal), 5, "the story ends at night 5");
+            Eq(ShiftPlan.LastNight(GameMode.Challenge), 6, "the Challenge reaches night 6");
+            Check(ShiftPlan.Get(6) == null, "night 6 is not part of the story plan");
+            var c6 = new GameSession { Mode = GameMode.Challenge, CurrentShift = 6, CompletedShifts = 1 };
+            Eq(EndingRules.Evaluate(c6).Ending, EndingType.None, "night 6 without a turned away, survived administrator is unresolved");
+            c6.AdminRejected = true; c6.Hunt = HuntState.Won;
+            var c6win = EndingRules.Evaluate(c6);
+            Check(c6win.Ending == EndingType.Win && c6win.ReasonKey == "night6", "night 6 survived is its own Win");
+            var c6lose = new GameSession { Mode = GameMode.Challenge, CurrentShift = 6, CompletedShifts = 0, AdminRejected = true, Hunt = HuntState.Lost };
+            var c6loseEval = EndingRules.Evaluate(c6lose);
+            Check(c6loseEval.Ending == EndingType.Lose && c6loseEval.ReasonKey == "server_door" && c6loseEval.ReasonText.Contains("twice"),
+                  "night 6: reaching the server door loses (he needs two catches there)");
+            var c6allow = new GameSession { Mode = GameMode.Challenge, CurrentShift = 6, AdminAllowed = true };
+            Eq(EndingRules.Evaluate(c6allow).Ending, EndingType.Lose, "night 6: letting him in loses at once");
+
             var secretWithBreaches = new GameSession { Mode = GameMode.Normal, CompletedShifts = 5, CurrentShift = 6, Breaches = 3 };
             foreach (var clue in ClueRegistry.Build().OrderBy(x => x.Order)) secretWithBreaches.Clues.Discover(clue.Key);
             Eq(EndingRules.Evaluate(secretWithBreaches).Ending, EndingType.Lose, "breaches outrank Secret too");

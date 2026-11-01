@@ -45,6 +45,9 @@ namespace Hollowbrook.Core
         /// <summary>Save at safe boundaries (shift end / run end / quit). Corrupt-safe by design.</summary>
         public void PersistRun()
         {
+            // Night 6 is a one night challenge: it must never overwrite the story save (its records,
+            // the unlock, and Continue all live there). Quitting it just ends it.
+            if (Session != null && Session.Mode == GameMode.Challenge) return;
             if (Queue != null && Queue.IsAttached)
             {
                 Session.QueueState = Queue.BuildSnapshot();

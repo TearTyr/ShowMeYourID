@@ -556,6 +556,21 @@ namespace Hollowbrook.UI
             }
             _desc.text = eval.ReasonText;
 
+            // night 6 is its own short story: no badges, and PLAY AGAIN would start the other game
+            bool night6 = session.Mode == GameMode.Challenge;
+            foreach (var b in _badges) b.gameObject.SetActive(!night6);
+            _again.gameObject.SetActive(!night6);
+            if (night6)
+            {
+                var n6 = new StringBuilder();
+                n6.Append("Night:                      6 (the Challenge)\n");
+                n6.Append("Administrator:              ").Append(session.AdminAllowed ? "ALLOWED IN (fatal mistake)" : session.Hunt == HuntState.Lost ? "REJECTED - but he reached the server door" : session.AdminRejected ? "REJECTED - driven off until dawn" : "never reached the glass").Append('\n');
+                n6.Append("Final sanity:               ").Append((int)session.Sanity).Append("  (").Append(session.SanityStage).Append(")");
+                _summary.text = n6.ToString();
+                gameObject.SetActive(true);
+                return;
+            }
+
             var sb = new StringBuilder();
             sb.Append("Nights survived:            ").Append(session.CompletedShifts).Append(" / 5\n");
             sb.Append("Visitors processed:         ").Append(session.Processed).Append('\n');

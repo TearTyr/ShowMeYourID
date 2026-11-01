@@ -93,6 +93,7 @@ namespace Hollowbrook.Checkpoint
                 AnswerClassroom = v != null ? v.ClassroomAnswer : "",
                 CluePhoto = ClueFound("photo"),
                 ClueCabinet = ClueFound("cabinet"),
+                Night6 = _gameRoot.Session.Mode == GameMode.Challenge,
             };
         }
 

@@ -180,7 +180,7 @@ namespace Hollowbrook.Checkpoint
 
         public void ResumeRun()
         {
-            _shift = ShiftPlan.Get(Mathf.Clamp(_gameRoot.Session.CurrentShift, 1, ShiftPlan.TotalShifts));
+            _shift = _gameRoot.CurrentShiftDef ?? ShiftPlan.Get(Mathf.Clamp(_gameRoot.Session.CurrentShift, 1, ShiftPlan.TotalShifts));
             ResetShiftState();
             Show();
 

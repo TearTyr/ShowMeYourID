@@ -27,7 +27,7 @@ namespace Hollowbrook.Logic
                     "You let the administrator through. It walked straight to the server room, and the identification system came online. By morning the district had already replaced you.");
             if (s.Hunt == HuntState.Lost)
                 return Result(EndingType.Lose, "server_door",
-                    "You turned the administrator away, but your light failed you three times. He found the sealed server door, and the identification system woke behind it. By morning the district had replaced you.");
+                    "You turned the administrator away, but your light failed you " + (s.Mode == GameMode.Challenge ? "twice" : "three times") + ". He found the sealed server door, and the identification system woke behind it. By morning the district had replaced you.");
             // these two can land after dawn: surviving him does not undo the nights before
             string survived = s.Hunt == HuntState.Won ? "You lasted until dawn, and it was not enough. " : "";
             if (s.Breaches >= LoseThreshold)
@@ -45,6 +45,14 @@ namespace Hollowbrook.Logic
         private static Evaluation EvaluateOutcome(GameSession s)
         {
 
+            if (s.Mode == GameMode.Challenge && s.CompletedShifts >= 1)
+            {
+                // Night 6 is one night: he must be turned away and survived until dawn
+                if (!s.AdminRejected || s.Hunt != HuntState.Won)
+                    return Result(EndingType.None, "admin_unresolved", "He is still in the building.");
+                return Result(EndingType.Win, "night6",
+                    "Night 6. He came back, asked politely, and you said no a second time. The building keeps its door shut until morning, and nobody on the district's list is watching it.");
+            }
             if (s.Mode == GameMode.Normal && s.CompletedShifts >= ShiftPlan.TotalShifts)
             {
                 // both good endings need him turned away and survived until dawn

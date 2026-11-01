@@ -24,6 +24,7 @@ namespace Hollowbrook.UI
     {
         private GameRoot _gameRoot;
         private Button _continueBtn;
+        private Button _night6Btn;
         private Button _newGameBtn;
         private Image _shade, _bg, _logo;
         private Coroutine _glitch, _ambient;
@@ -39,6 +40,7 @@ namespace Hollowbrook.UI
         private const float WideX = 49.33f;                           // left edge of the column
         private const float Wide1Y = 68.44f;                          // NEW GAME top
         private const float Wide2Y = 179.56f;                         // CONTINUE top
+        private const float Wide3Y = 290.68f;                         // NIGHT 6 top
         private const float SqW = 71.11f, SqH = 72f;                  // 160x162 frame
         private const float SqY = 591.56f;                            // icon row top
         private const float Sq1X = 48.44f, Sq2X = 134.67f, Sq3X = 218.67f;
@@ -92,17 +94,18 @@ namespace Hollowbrook.UI
                 new Vector2(45.33f, 45.33f), Vector2.zero, () => { Click(); _gameRoot.ContinueGame(); },
                 b => _continueBtn = b, WideX, Wide2Y);
             // "NIGHT 3" under CONTINUE while it is hovered (only when there is a save to continue)
-            _nightHint = UIFactory.Label(col, "night_hint", "", 22, UIFactory.Ink, TextAnchor.MiddleLeft);
-            _nightHint.font = UIFactory.TypeFont;
-            _nightHint.raycastTarget = false;
-            var hintRt = _nightHint.rectTransform;
-            hintRt.anchorMin = new Vector2(0f, 1f);
-            hintRt.anchorMax = new Vector2(0f, 1f);
-            hintRt.pivot = new Vector2(0f, 1f);
-            hintRt.sizeDelta = new Vector2(WideW, 30f);
-            hintRt.anchoredPosition = new Vector2(WideX + LabelPadLeft, -(Wide2Y + WideH + 2f));
-            _nightHint.gameObject.SetActive(false);
+            _nightHint = HintLabel(col, "night_hint", Wide2Y);
             OnHover(_continueBtn, ShowNightHint, () => _nightHint.gameObject.SetActive(false));
+
+            // NIGHT 6 (the Challenge): opens once the story has been finished
+            WideButton(col, "NIGHT 6", "NIGHT 6", "menu_icon_newgame",
+                new Vector2(44.89f, 52f), new Vector2(0f, 0.9f), () =>
+                {
+                    Click();
+                    _gameRoot.StartNewGame(GameMode.Challenge);
+                }, b => _night6Btn = b, WideX, Wide3Y);
+            _night6Hint = HintLabel(col, "night6_hint", Wide3Y);
+            OnHover(_night6Btn, ShowNight6Hint, () => _night6Hint.gameObject.SetActive(false));
 
             SquareButton(col, "SETTINGS", "menu_icon_settings", new Vector2(49.33f, 49.33f),
                 new Vector2(0.9f, 0f), () => { Click(); _gameRoot.OpenSettings(); }, Sq1X, SqY);
@@ -130,7 +133,7 @@ namespace Hollowbrook.UI
         }
 
         private Text _menuNote;
-        private Text _nightHint;
+        private Text _nightHint, _night6Hint;
 
         private static Sprite Kit(string key) => ProceduralArt.Get(key);
 
@@ -282,12 +285,43 @@ namespace Hollowbrook.UI
         {
             if (_continueBtn == null) return;
             bool on = _gameRoot.HasSave();
-            UIFactory.SetButtonEnabled(_continueBtn, on);
-            // really grey, not just see-through: the frame, icon and label all lose their colour
-            var tint = on ? Color.white : new Color(0.38f, 0.38f, 0.38f, 1f);
-            foreach (var g in _continueBtn.gameObject.GetComponentsInChildren<Graphic>(true))
-                if (g.name != "fill") g.color = tint;
+            SetGrey(_continueBtn, on);
             if (!on && _nightHint != null) _nightHint.gameObject.SetActive(false);
+            if (_night6Btn == null) return;
+            SetGrey(_night6Btn, _gameRoot.Night6Unlocked);
+            if (_night6Hint != null) _night6Hint.gameObject.SetActive(false);
+        }
+
+        // Really grey, not just see-through: the frame, icon and label all lose their colour.
+        private static void SetGrey(Button btn, bool on)
+        {
+            UIFactory.SetButtonEnabled(btn, on);
+            var tint = on ? Color.white : new Color(0.38f, 0.38f, 0.38f, 1f);
+            foreach (var g in btn.gameObject.GetComponentsInChildren<Graphic>(true))
+                if (g.name != "fill") g.color = tint;
+        }
+
+        // A small line in the gap under a wide button (shown while it is hovered).
+        private Text HintLabel(Transform parent, string name, float buttonTop)
+        {
+            var t = UIFactory.Label(parent, name, "", 18, UIFactory.Ink, TextAnchor.MiddleLeft);
+            t.font = UIFactory.TypeFont;
+            t.raycastTarget = false;
+            var rt = t.rectTransform;
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.sizeDelta = new Vector2(WideW, 20f);
+            rt.anchoredPosition = new Vector2(WideX + LabelPadLeft, -(buttonTop + WideH + 1f));
+            t.gameObject.SetActive(false);
+            return t;
+        }
+
+        internal void ShowNight6Hint()
+        {
+            if (_night6Hint == null) return;
+            _night6Hint.text = _gameRoot.Night6Unlocked ? "ONE NIGHT. HE IS BACK." : "FINISH THE STORY TO UNLOCK";
+            _night6Hint.gameObject.SetActive(true);
         }
 
         // The night the save will start (the save is read each time, so it is never stale).

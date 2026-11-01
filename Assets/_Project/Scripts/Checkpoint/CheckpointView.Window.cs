@@ -443,15 +443,19 @@ namespace Hollowbrook.Checkpoint
             if (admin)
             {
                 // he never speaks through the window bubble: everything he says is the dialogue box
+                bool night6 = _gameRoot.Session.Mode == GameMode.Challenge;
+                var said = night6 ? Content.Night6AdminLines : Content.AdminLines;
                 var lines = new List<DialogueLine>
                 {
-                    new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "A formal coat. A briefcase. A smile that arrives a half-second late." },
-                    new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[0] },
-                    new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[1] },
+                    new DialogueLine { Speaker = "YOUR THOUGHTS", Text = night6
+                        ? "The same coat. The same briefcase. The same smile, a half-second late. He came back."
+                        : "A formal coat. A briefcase. A smile that arrives a half-second late." },
+                    new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = said[0] },
+                    new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = said[1] },
                 };
                 if (_gameRoot.Session.Clues.FoundCount >= 6)
                     lines.Add(new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "That face. The old school photo - the staff member who never aged. It's them." });
-                lines.Add(new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Content.AdminLines[2] });
+                lines.Add(new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = said[2] });
                 // the scripted introduction hands over to the branching conversation: same
                 // visitor, same state, one owner (CheckpointView.AdminTalk)
                 if (_gameRoot.Dialogue != null) _gameRoot.Dialogue.Play(lines, () => OpenAdminTalk());

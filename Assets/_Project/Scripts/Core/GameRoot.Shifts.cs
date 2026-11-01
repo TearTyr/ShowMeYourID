@@ -26,7 +26,8 @@ namespace Hollowbrook.Core
             _resolvedVisitorIndices.Clear();
             _continuePending = false;
 
-            QueueSceneAction(() => BeginShift(1));
+            // the Challenge is night 6 on its own: it never touches the story save (see PersistRun)
+            QueueSceneAction(() => BeginShift(mode == GameMode.Challenge ? ShiftPlan.Night6Number : 1));
             Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
         }
 
@@ -61,7 +62,7 @@ namespace Hollowbrook.Core
         public void BeginShift(int number, int resumeFromVisitor = 0, bool isResume = false)
         {
             _resumeFromVisitor = resumeFromVisitor;
-            number = Mathf.Clamp(number, 1, ShiftPlan.TotalShifts);
+            number = Mathf.Clamp(number, 1, ShiftPlan.LastNight(Session.Mode));
             string penaltyNote = isResume ? null : PenaltyNote();   // read before BeginNight pays and clears it
             Session.CurrentShift = number;
             PrepareShiftRoster(number, isResume);
@@ -91,7 +92,7 @@ namespace Hollowbrook.Core
             var plan = ShiftPlan.Build();
             Roster = new RosterFactory(Session.Seed);
             for (int i = 0; i < number - 1; i++) Roster.GenerateShift(plan[i]); // advance RNG deterministically
-            CurrentShiftDef = plan[number - 1];
+            CurrentShiftDef = number == ShiftPlan.Night6Number ? ShiftPlan.Night6Def() : plan[number - 1];
             CurrentRoster = Roster.GenerateShift(CurrentShiftDef);
             // one shared pool: this shift's anomalies, outstanding until resolved.
             // Kinds derive from seed^shift (not the shared stream) so a resumed night
@@ -138,7 +139,11 @@ namespace Hollowbrook.Core
             };
             if (!string.IsNullOrEmpty(penaltyNote))
                 intro.Add(new DialogueLine { Speaker = "LAST NIGHT", Text = penaltyNote });
-            if (number == 5)
+            if (number == ShiftPlan.Night6Number)
+            {
+                intro.Add(new DialogueLine { Speaker = "???", Text = "He said he would be back. He does not give up. Deny him again, and this time he will not be gentle. Only the light stops him." });
+            }
+            else if (number == 5)
             {
                 intro.Add(new DialogueLine { Speaker = "???", Text = "Tonight the district sends an administrator to 'take control'. Check the credentials like you would check anyone else's. Trust the evidence." });
             }

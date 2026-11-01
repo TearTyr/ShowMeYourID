@@ -55,6 +55,7 @@ namespace Hollowbrook.Logic
     {
         public string BadgeName, MemoName, BadgeNumber, MemoNumber, AnswerClassroom;
         public bool CluePhoto, ClueCabinet;
+        public bool Night6;            // the Challenge: he is back, with a new set of answers
     }
 
     /// <summary>Where the conversation stands. Saved with the run as one short string.</summary>
@@ -96,6 +97,10 @@ namespace Hollowbrook.Logic
     {
         public const string Speaker = "V. MARLOWE";
         public const string HubId = "hub";
+        public const string Night6HubId = "n6_hub";
+
+        /// <summary>Where the conversation starts: night 6 has its own questions.</summary>
+        public static string HubFor(AdminTalkContext ctx) => ctx.Night6 ? Night6HubId : HubId;
 
         private static readonly List<AdminTalkNode> Script = BuildScript();
 
@@ -114,8 +119,8 @@ namespace Hollowbrook.Logic
             AdminTalkAction action = AdminTalkAction.None) =>
             new AdminTalkOption { Id = id, Label = label, To = to, Cond = cond, Repeatable = repeatable, Action = action };
 
-        private static AdminTalkOption Back() =>
-            O("back", "[Go back to the other questions.]", HubId, AdminTalkCond.None, true);
+        private static AdminTalkOption Back(string hub = HubId) =>
+            O("back", "[Go back to the other questions.]", hub, AdminTalkCond.None, true);
         private static AdminTalkOption StepBack() =>
             O("end", "[Step back from the glass. The stamp is yours.]", "", AdminTalkCond.None, true, AdminTalkAction.StepBack);
 
@@ -127,10 +132,11 @@ namespace Hollowbrook.Logic
         }
 
         // A topic: his first answer (with a follow-up question), then his second answer.
-        private static void Topic(List<AdminTalkNode> s, string id, string first, string pressLabel, string second)
+        private static void Topic(List<AdminTalkNode> s, string id, string first, string pressLabel, string second,
+            string hub = HubId)
         {
-            s.Add(Node(id, first, O("press_" + id, pressLabel, id + "2"), Back(), StepBack()));
-            s.Add(Node(id + "2", second, Back(), StepBack()));
+            s.Add(Node(id, first, O("press_" + id, pressLabel, id + "2"), Back(hub), StepBack()));
+            s.Add(Node(id + "2", second, Back(hub), StepBack()));
         }
 
         private static List<AdminTalkNode> BuildScript()
@@ -174,6 +180,37 @@ namespace Hollowbrook.Logic
                 "The server room is district property. I am the district. The work order you are waving is my own handwriting, filed before your predecessor learned to lock cabinets.",
                 "The seal is broken from the inside. Not by your handwriting.",
                 "…Seals fail. Wood splits. Night custodians imagine. I have no interest in what the room wants; I have an interest in what it remembers, and so, custodian, do you.");
+
+            // Night 6: the same man, a new set of questions. His lies are pressed the same way.
+            var hub6 = Node(Night6HubId,
+                "You again. I told you I do not give up, custodian. Last night you were lucky, and you know it. I am asking once, politely: make the right decision. Open the gate.",
+                O("ask_n6_return", "You left. You said you would be back. How are you at my window again?", "n6_return"),
+                O("ask_n6_choice", "What is the 'right decision'?", "n6_choice"),
+                O("ask_n6_system", "What does the identification system want?", "n6_system"),
+                O("ask_n6_hunt", "I am denying you again.", "n6_hunt"),
+                StepBack());
+            hub6.RepeatText = "Still talking. Still afraid of the answer. Ask what you came to ask.";
+            s.Add(hub6);
+            Topic(s, "n6_return",
+                "Doors are a courtesy, custodian. I was never gone. I was in the walls, in the files, in every face you stamped last week.",
+                "Then why knock at all?",
+                "...Because a gate opened by choice stays open. A gate forced only breaks, and I would rather keep what is behind it intact. Choose.",
+                Night6HubId);
+            Topic(s, "n6_choice",
+                "To stop pretending the glass is a wall. Five nights you checked cards for a system that prints them. Who do you think wrote yours?",
+                "My name is not in any drawer.",
+                "...Look again. Every name in this building is on file, including the one on your pay slip. You were enrolled before you ever walked in.",
+                Night6HubId);
+            Topic(s, "n6_system",
+                "To be complete. Every face on file, every desk filled, nobody left outside the list.",
+                "And the people who are not on your list?",
+                "...They are the exceptions, and exceptions are what I was sent to correct. You are the last one, custodian. The last one is always the quietest.",
+                Night6HubId);
+            Topic(s, "n6_hunt",
+                "Then I will be more patient, and less polite. Last night I stalked. Tonight I hunt.",
+                "I have a flashlight.",
+                "...Light is the only thing I fear. It is also the only thing you have. Keep it charged, custodian. I will be quicker, and I will not stop.",
+                Night6HubId);
             return s;
         }
 
@@ -182,7 +219,7 @@ namespace Hollowbrook.Logic
         /// asked again and again.</summary>
         public static List<AdminTalkOption> OptionsFor(AdminTalkState st, AdminTalkContext ctx)
         {
-            var node = NodeById(string.IsNullOrEmpty(st.Node) ? HubId : st.Node) ?? NodeById(HubId);
+            var node = NodeById(string.IsNullOrEmpty(st.Node) ? HubFor(ctx) : st.Node) ?? NodeById(HubFor(ctx));
             var list = new List<AdminTalkOption>();
             foreach (var o in node.Options)
             {
@@ -218,8 +255,8 @@ namespace Hollowbrook.Logic
         {
             if (st.Completed) return new AdminTalkStep { Completed = true };
             if (string.IsNullOrEmpty(st.Node)) st.Visits++;
-            st.Node = HubId;
-            return Say(st, ctx, HubId);
+            st.Node = HubFor(ctx);
+            return Say(st, ctx, st.Node);
         }
 
         /// <summary>Pick an option. A wrong or hidden option does nothing.</summary>
@@ -228,16 +265,16 @@ namespace Hollowbrook.Logic
             if (st.Completed) return new AdminTalkStep { Completed = true };
             AdminTalkOption chosen = null;
             foreach (var o in OptionsFor(st, ctx)) if (o.Id == optionId) { chosen = o; break; }
-            string nodeId = string.IsNullOrEmpty(st.Node) ? HubId : st.Node;
+            string nodeId = string.IsNullOrEmpty(st.Node) ? HubFor(ctx) : st.Node;
             if (chosen == null) return Say(st, ctx, nodeId);
 
             if (!chosen.Repeatable) st.UsedMask |= 1 << OneShotIndex(chosen.Id);
             if (chosen.Action != AdminTalkAction.None)
             {
-                st.Node = HubId;   // reopened later, he is back at the start of the topics
+                st.Node = HubFor(ctx);   // reopened later, he is back at the start of the topics
                 return new AdminTalkStep { Completed = true, Action = chosen.Action };
             }
-            if (chosen.To == HubId) st.Visits++;
+            if (chosen.To == HubId || chosen.To == Night6HubId) st.Visits++;
             st.Node = chosen.To;
             return Say(st, ctx, chosen.To);
         }
@@ -298,9 +335,10 @@ namespace Hollowbrook.Logic
                 }
                 if (!canLeave) problems.Add("no way out of node: " + n.Id);
             }
-            var seen = new HashSet<string> { HubId };
+            var seen = new HashSet<string> { HubId, Night6HubId };
             var queue = new Queue<string>();
             queue.Enqueue(HubId);
+            queue.Enqueue(Night6HubId);
             while (queue.Count > 0)
             {
                 var cur = NodeById(queue.Dequeue());

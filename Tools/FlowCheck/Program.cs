@@ -159,12 +159,110 @@ namespace FlowCheck
 
             IssueOneProofs(root);
             ShiftFailureProof(root);
+            Night6Proof(root);
             AdminTalkProof(root);
             AdminHuntProof(root);
             TeardownProof();
 
             Console.WriteLine(_failures == 0 ? "== FLOW CHAIN COMPLETE ==" : "== " + _failures + " CHECK(S) FAILED ==");
             Environment.Exit(_failures == 0 ? 0 : 1);
+        }
+
+        // --------------------------------------------- night 6, the Challenge
+        // Unlocked by finishing the story, the same hunt with harder numbers, its own conversation,
+        // and it never touches the story save.
+        private static void Night6Proof(GameRoot root)
+        {
+            Console.WriteLine("== night 6: unlock, conversation, harder hunt, the story save stays safe ==");
+            float dtSave = Time.deltaTime;
+
+            // locked until the story has been finished (a Win or the Secret ending)
+            root.Saves.Delete();
+            Check(!root.Night6Unlocked, "N6: locked with no save");
+            var story = new SaveGame();
+            story.Session.CurrentShift = 3;
+            story.Records.EndingsSeen.Add("lose");
+            root.Saves.Write(story);
+            Check(!root.Night6Unlocked, "N6: a Lose ending does not unlock it");
+            story.Records.EndingsSeen.Add("win");
+            root.Saves.Write(story);
+            Check(root.Night6Unlocked, "N6: a Win ending unlocks it");
+            root.MainMenu.RefreshContinue();
+            var n6Btn = root.MainMenu.transform.Find("buttons/NIGHT 6").GetComponent<UnityEngine.UI.Button>();
+            Check(n6Btn.interactable && n6Btn.GetComponent<UnityEngine.UI.Image>().color.r > 0.9f, "N6: the menu button is live once unlocked");
+            story.Records.EndingsSeen.Clear();
+            root.Saves.Write(story);
+            root.MainMenu.RefreshContinue();
+            Check(!n6Btn.interactable && n6Btn.GetComponent<UnityEngine.UI.Image>().color.r < 0.5f, "N6: the menu button is grey and dead while locked");
+            story.Records.EndingsSeen.Add("secret");
+            root.Saves.Write(story);
+            Check(root.Night6Unlocked, "N6: the Secret ending unlocks it too");
+
+            // start it
+            root.StartNewGame(GameMode.Challenge);
+            CheckpointSceneBootstrap.Build(root);
+            for (int i = 0; i < 12 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
+            Check(root.Session.Mode == GameMode.Challenge && root.Session.CurrentShift == 6 &&
+                  root.CurrentShiftDef.Number == 6 && root.CurrentShiftDef.HasAdministrator,
+                "N6: the Challenge starts on night 6 with only the administrator");
+            Check(root.PenaltyNote() == null, "N6: no penalty carries in");
+
+            // it never overwrites the story save
+            root.PersistRun();
+            var kept = root.Saves.Read();
+            Check(kept != null && kept.Session.CurrentShift == 3 && kept.Session.Mode == GameMode.Normal,
+                "N6: saving during the Challenge leaves the story save alone");
+
+            // his conversation is the night 6 one
+            var cp = root.Checkpoint;
+            cp.DebugPresentAdmin();
+            cp.DebugTakeDocuments();
+            int guard = 0;
+            while (root.Dialogue != null && root.Dialogue.IsActive && guard++ < 60) root.Dialogue.Advance();
+            Check(cp.AdminTalkOpen && root.Session.AdminTalk.Node == AdminTalk.Night6HubId,
+                "N6: the conversation opens on the night 6 hub");
+            Check(FindDeep(cp.transform, "opt_ask_n6_return") != null && FindDeep(cp.transform, "opt_ask_name") == null,
+                "N6: new questions, none of night 5's");
+
+            // the hunt is harder
+            var t6 = root.BuildHuntTuning();
+            var cfg = root.Config;
+            Check(t6.CatchesToLose == cfg.night6CatchesToLose && t6.CatchesToLose < cfg.huntCatchesToLose,
+                "N6: he needs fewer catches (" + t6.CatchesToLose + ")");
+            Check(t6.SurviveSeconds > cfg.huntSurviveSeconds && t6.StalkMaxSeconds < cfg.huntStalkMaxSeconds &&
+                  t6.RoomSeconds < cfg.huntRoomSeconds && t6.BehindSeconds < cfg.huntBehindSeconds,
+                "N6: a longer night, shorter stalks and less time to react");
+            Check(t6.StalkMinSeconds <= t6.StalkMaxSeconds, "N6: the stalk range stays sane");
+
+            // the DENY stamp starts the pursuit, like night 5
+            StampSlip(root, Verdict.Reject);
+            HandBack(root, true, true);
+            Check(root.Session.AdminRejected && root.HuntReady, "N6: the DENY stamp starts the pursuit (not an instant loss)");
+
+            // dawn: its own Win, no story record, the story save untouched
+            root.Session.Hunt = HuntState.Won;
+            root.FinishShift();
+            Check(root.State == AppViewState.Ending && root.Session.EvaluateEnding().ReasonKey == "night6",
+                "N6: surviving to dawn shows its ending");
+            Check(!root.Records.EndingsSeen.Contains("win") || root.Records.EndingsSeen.Contains("secret"),
+                "N6: it adds nothing to the story's endings seen");
+            var after = root.Saves.Read();
+            Check(after != null && after.Session.CurrentShift == 3, "N6: the story save is still the story save");
+            root.BootToMainMenu();
+            Check(root.HasSave(), "N6: CONTINUE still resumes the story afterwards");
+
+            // fainting is the Lose, as on night 5
+            root.StartNewGame(GameMode.Challenge);
+            CheckpointSceneBootstrap.Build(root);
+            for (int i = 0; i < 12 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
+            ClickStickyNote(root);
+            root.Session.Sanity = 0f;
+            Time.deltaTime = 0.5f;
+            root.SanityCtl.Tick(true);
+            Time.deltaTime = dtSave;
+            Check(root.State == AppViewState.Ending, "N6: blacking out is the Lose ending");
+            root.Saves.Delete();
+            FreshGame(root);   // leave a live story game for whatever runs next
         }
 
         // --------------------------------------------- a failed night (nights 1-4) and the final night

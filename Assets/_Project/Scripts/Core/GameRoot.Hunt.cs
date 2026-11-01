@@ -29,18 +29,23 @@ namespace Hollowbrook.Core
         {
             var t = HuntTuning.Default;
             if (Config == null) return t;
-            t.CatchesToLose = Config.huntCatchesToLose;
+            // night 6 is the same hunt with its own, harder numbers
+            bool n6 = Session.Mode == GameMode.Challenge;
+            t.CatchesToLose = n6 ? Config.night6CatchesToLose : Config.huntCatchesToLose;
             // every lie exposed at the window makes the night shorter
             float lies = AdminTalk.LiesExposed(Session.AdminTalk);
-            t.SurviveSeconds = Mathf.Max(Config.huntMinSurviveSeconds,
-                Config.huntSurviveSeconds - lies * Config.huntSecondsPerLie);
-            t.StalkMinSeconds = Config.huntStalkMinSeconds;
-            t.StalkMaxSeconds = Mathf.Max(Config.huntStalkMinSeconds, Config.huntStalkMaxSeconds);
-            t.RoomSeconds = Config.huntRoomSeconds;
-            t.RoomHoldSeconds = Config.huntRoomHoldSeconds;
+            t.SurviveSeconds = n6
+                ? Mathf.Max(Config.night6MinSurviveSeconds, Config.night6SurviveSeconds - lies * Config.night6SecondsPerLie)
+                : Mathf.Max(Config.huntMinSurviveSeconds, Config.huntSurviveSeconds - lies * Config.huntSecondsPerLie);
+            float stalkMin = n6 ? Config.night6StalkMinSeconds : Config.huntStalkMinSeconds;
+            float stalkMax = n6 ? Config.night6StalkMaxSeconds : Config.huntStalkMaxSeconds;
+            t.StalkMinSeconds = stalkMin;
+            t.StalkMaxSeconds = Mathf.Max(stalkMin, stalkMax);
+            t.RoomSeconds = n6 ? Config.night6RoomSeconds : Config.huntRoomSeconds;
+            t.RoomHoldSeconds = n6 ? Config.night6RoomHoldSeconds : Config.huntRoomHoldSeconds;
             t.HeadRadius = Config.huntHeadRadius;
-            t.BehindSeconds = Config.huntBehindSeconds;
-            t.BeamHitSeconds = Config.huntBeamHitSeconds;
+            t.BehindSeconds = n6 ? Config.night6BehindSeconds : Config.huntBehindSeconds;
+            t.BeamHitSeconds = n6 ? Config.night6BeamHitSeconds : Config.huntBeamHitSeconds;
             return t;
         }
 
@@ -58,6 +63,15 @@ namespace Hollowbrook.Core
         public void PlayAdminExit()
         {
             if (Dialogue == null) return;
+            if (Session.Mode == GameMode.Challenge)
+            {
+                Dialogue.Play(new List<DialogueLine>
+                {
+                    new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = "Then we do this the hard way, custodian. I will not stop until dawn." },
+                    new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "He is faster tonight, and he is not pretending any more. Take the flashlight and go on patrol when you are ready. Only the light stops him." },
+                }, null);
+                return;
+            }
             Dialogue.Play(new List<DialogueLine>
             {
                 new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = "Very well, custodian. I'll be back." },
@@ -81,7 +95,9 @@ namespace Hollowbrook.Core
             if (Views != null) Views.StopAdminHunt();
             var lines = new List<DialogueLine>
             {
-                new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = "…This building remembers who opens its doors. It will remember you." },
+                new DialogueLine { Speaker = "DISTRICT ADMINISTRATOR", Text = Session.Mode == GameMode.Challenge
+                    ? "…Dawn. Again. You are the first who ever said no twice."
+                    : "…This building remembers who opens its doors. It will remember you." },
                 new DialogueLine { Speaker = "YOUR THOUGHTS", Text = "The shape folds into the dark. The hallway is only a hallway again. Dawn is close." },
             };
             if (Dialogue != null) Dialogue.Play(lines, FinishHuntedNight);

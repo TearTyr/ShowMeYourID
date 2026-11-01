@@ -77,6 +77,11 @@ you are thrown back. **3 catches** = he reaches the server door (lose). Survive 
 The security door is locked and every phase has a time limit, so it cannot get stuck. Quit + CONTINUE
 restarts the hunt, or returns to the desk if it has not started.
 
+**Night 6 (the Challenge):** opens on the main menu after the story's Win or Secret ending. He is back
+and says he does not give up; he asks for the right decision and has a new set of questions. DENY him
+again and the pursuit starts, harder: 2 catches, shorter stalks, less time to react, a longer night.
+Surviving to dawn is its own ending. It is one night and never touches the story save.
+
 **End of a night:** nights 1 to 4, won or failed, go straight to the main menu; CONTINUE starts the
 next one. Night 5 shows the results, then the ending. A failed night (an anomaly let in, or a
 blackout) has no scare at the desk: the next night's intro says what it costs. Scares only happen on
