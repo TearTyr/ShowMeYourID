@@ -8,7 +8,7 @@ namespace Hollowbrook.World
     // The hooded figure standing in a peek room (GameRoot.PeekAnomalyIn says which rooms have one
     // tonight). It never moves and sits under the peek's black cover, so only the lamp shows it.
     //
-    // The scene, once the lit lamp is fully on him (the cursor on his body):
+    // The scene, once the lit FOCUS lamp is fully on him (the cursor on his body):
     //   1. Flicker: he jumps around and the lamp dims and flickers (peekRepelSeconds).
     //   2. Black: the lamp is gone for a moment, he is removed and the room counts as cleared.
     //   3. Fade back: the room slowly returns, and he is gone.
@@ -82,9 +82,11 @@ namespace Hollowbrook.World
             if (lit && _lamp.Covers(_home) && !_told)
             {
                 _told = true;
-                _root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it stands perfectly still*", 3f, null));
+                string hint = _lamp.Focused ? "*it stands perfectly still*" : "*the light does nothing. Focus it (Q)*";
+                _root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, hint, 3f, null));
             }
-            if (!lit || !_lamp.CursorWithin(_home, BodyHalfW, BodyHalfH)) return;
+            // only the tight Focus lamp drives him out; the wide lamp only shows him
+            if (!lit || !_lamp.Focused || !_lamp.CursorWithin(_home, BodyHalfW, BodyHalfH)) return;
 
             _phase = Phase.Flicker;
             _clock = 0f;

@@ -214,9 +214,9 @@ namespace Hollowbrook.Horror
             if (focus) _graceLeft = grace;
             else _graceLeft = Mathf.Max(0f, _graceLeft - dt);
 
-            // Focus ADVANCES; any lesser observation (either beam mode, room lights, grace)
-            // only HOLDS - ambient light can never resolve an encounter by itself.
-            bool observed = sameRoom && (views.BeamCovers(pos) || views.RoomLit);
+            // Focus ADVANCES; a lit room or the short grace window only HOLDS - ambient light can
+            // never resolve an encounter by itself. The plain Sweep beam does nothing at all.
+            bool observed = sameRoom && views.RoomLit;
             var cfg = _gameRoot.Config;
             float rate = TrackingPolicy.RatePerSecond(focus, observed || _graceLeft > 0f,
                 cfg != null ? cfg.focusProgressPerSecond : TrackingPolicy.FocusRatePerSecond,
@@ -232,7 +232,6 @@ namespace Hollowbrook.Horror
         {
             var rig = views.Flashlight;
             var pos = transform.localPosition;
-            bool beam = sameRoom && rig != null && rig.BeamOn && rig.ConeCovers(pos);
             bool roomLit = sameRoom && views.RoomLit;
             bool focused = sameRoom && rig != null && rig.Beam == LightMode.Focus && rig.ConeCovers(pos);
             // horizontal distance: this is a side-view school - "next to you" means next to you
@@ -240,8 +239,9 @@ namespace Hollowbrook.Horror
             float dist = sameRoom && views.Player != null
                 ? Mathf.Abs(views.Player.transform.localPosition.x - pos.x) : 999f;
 
+            // only the Focus beam or a lit room counts as light on it: the plain beam changes nothing
             var step = AnomalyEncounter.Step(_state, _meter, _stateTimer,
-                beam || roomLit, focused, rig == null || !rig.BatteryDead, dist, dt, _tuning);
+                focused || roomLit, focused, rig == null || !rig.BatteryDead, dist, dt, _tuning);
 
             bool changed = ApplyStateStep(step, dt);
             if (step.JustExposed) AnnounceExposure();
@@ -254,7 +254,7 @@ namespace Hollowbrook.Horror
                 Despawn(true);
                 return;
             }
-            TickCatch(dt, step.Threatening, beam || roomLit, active);
+            TickCatch(dt, step.Threatening, focused || roomLit, active);
         }
 
         // Lands the pure state machine's verdict in the live object; true when the state moved.
@@ -373,11 +373,11 @@ namespace Hollowbrook.Horror
             transform.localPosition = ClampToBand(p);
         }
 
-        // Blink: moves only when not effectively observed - any beam or the room lights
-        // hold it still. Detection is not defeat - Focus is still needed to repel.
+        // Blink: moves only when not effectively observed - the Focus beam or the room lights
+        // hold it still. The plain beam does not. Focus is still needed to repel.
         private Vector3 MoveBlink(float dt, ViewManager views, Vector3 player, bool stalking, Vector3 p)
         {
-            if (views.BeamCovers(p) || views.RoomLit) return p;
+            if (views.IsFocusLit(p) || views.RoomLit) return p;
             float tx = stalking ? player.x : _targetX;
             p.x = Mathf.MoveTowards(p.x, tx, _profile.MoveSpeed * dt);
             if (!stalking && Mathf.Abs(p.x - _targetX) < 0.2f) PickWanderTarget(player);
@@ -393,8 +393,8 @@ namespace Hollowbrook.Horror
             return p;
         }
 
-        // Sprint: telegraphed burst - windup under darkness, dash, recover; light on it
-        // interrupts the windup (Sweep has a job).
+        // Sprint: telegraphed burst - windup under darkness, dash, recover; the Focus beam on it
+        // interrupts the windup.
         private Vector3 MoveSprint(float dt, ViewManager views, Vector3 player, float dist, Vector3 p)
         {
             if (_dashTimer > 0f)
@@ -407,7 +407,7 @@ namespace Hollowbrook.Horror
             }
             if (_dashRecover > 0f) { _dashRecover -= dt; return p; }
 
-            if (dist < _profile.AggroRange && !views.BeamCovers(p))
+            if (dist < _profile.AggroRange && !views.IsFocusLit(p))
             {
                 if (_telegraph < 0f)
                 {
