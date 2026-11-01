@@ -24,7 +24,7 @@ namespace Hollowbrook.Logic
             new Section("AUDIO", "Clarence Manalo"),
             new Section("PROJECT ASSISTANTS", "Elijah Japeth Ramos", "Clarence Manalo"),
             new Section("MARKETING AND BRANDING", "Diosdado Fabelico II", "Daniella Garing"),
-            new Section("STORYBOARD", "All members"),
+            new Section("STORYBOARD", "Clarence Manalo"),
         };
 
         // Third party pieces the game ships with.

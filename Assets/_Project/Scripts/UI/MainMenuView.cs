@@ -304,14 +304,14 @@ namespace Hollowbrook.UI
         // A small line in the gap under a wide button (shown while it is hovered).
         private Text HintLabel(Transform parent, string name, float buttonTop)
         {
-            var t = UIFactory.Label(parent, name, "", 18, UIFactory.Ink, TextAnchor.MiddleLeft);
+            var t = UIFactory.Label(parent, name, "", 26, UIFactory.Ink, TextAnchor.MiddleLeft);
             t.font = UIFactory.TypeFont;
             t.raycastTarget = false;
             var rt = t.rectTransform;
             rt.anchorMin = new Vector2(0f, 1f);
             rt.anchorMax = new Vector2(0f, 1f);
             rt.pivot = new Vector2(0f, 1f);
-            rt.sizeDelta = new Vector2(WideW, 20f);
+            rt.sizeDelta = new Vector2(WideW, 28f);   // the gap under a button is 23 units: the bigger text just reaches into the next frame's margin
             rt.anchoredPosition = new Vector2(WideX + LabelPadLeft, -(buttonTop + WideH + 1f));
             t.gameObject.SetActive(false);
             return t;

@@ -34,7 +34,8 @@ snapshots (waiting line, cursor, timer, asked flag) ride in the save. Anomaly ar
 one legitimate student (seeded roll, once per shift, line-first, permanent). Patrol is a
 side-scroller: ViewManager owns rooms (hallway, two peek-only classrooms, the walkable comfort room), transitions and the combined illumination queries
 (BeamCovers / IsFocusLit / RoomLit); each room's LightController owns ONLY ambient light (wall
-switch + flicker); FlashlightRig owns ONLY the handheld beam (pure `BeamGeometry` cone,
+switch + flicker); FlashlightRig owns ONLY the handheld beam (pure `BeamGeometry` cone; `BeamCover` paints the room dark
+as one picture with the beam cleared out of it, while the room's own dark layers step aside;
 `FlashlightInput` arbitration, `BatteryModel`); RoomSpawner owns the single live-threat slot,
 ambient spawn odds and recovery returns; WanderingAnomaly owns one encounter driven by the
 `AnomalyEncounter` state machine, and roams between rooms through `RoomGraph` door anchors.

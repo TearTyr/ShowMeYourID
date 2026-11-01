@@ -409,6 +409,59 @@ namespace FlowCheck
             Check(root.State == AppViewState.MainMenu && root.Session.PendingPenaltySeverity == ShiftFailureRules.BlackoutSeverity,
                 "FAIL: a blackout on patrol fails the night and lands on the main menu, penalty booked");
 
+            // a failed night is played again, not skipped: Continue stays on it, with the penalty
+            void PlayToNight(int n)
+            {
+                FreshGame(root); ClickStickyNote(root);
+                root.Session.CurrentShift = n; root.Session.CompletedShifts = n - 1;
+                root.PersistRun();
+                root.ContinueGame();
+                DeskScene.Build(root);
+                for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
+                ClickStickyNote(root);
+            }
+            foreach (int n in new[] { 2, 3, 4 })
+            {
+                PlayToNight(n);
+                root.Session.Sanity = 0f;
+                Time.deltaTime = 0.5f; root.SanityCtl.Tick(true); Time.deltaTime = dtSave;
+                var kept = root.Saves.Read();
+                Check(kept != null && root.HasSave() && kept.Session.CurrentShift == n && kept.Session.CompletedShifts == n - 1,
+                    $"RETRY: failing night {n} keeps the save on night {n} (not night 1, not night {n + 1})");
+                Check(kept != null && kept.Session.PendingPenaltySeverity == ShiftFailureRules.BlackoutSeverity,
+                    "RETRY: ...with the blackout penalty booked for the replay");
+                root.ContinueGame();
+                DeskScene.Build(root);
+                Check(root.Session.CurrentShift == n && root.Session.PendingPenaltySeverity == 0 && root.Session.Stacks.Count > 0,
+                    $"RETRY: Continue plays night {n} again and pays the penalty");
+            }
+
+            // losing night 5 (or the hunt) keeps night 5 for Continue, and the ending offers a retry
+            PlayToNight(ShiftPlan.TotalShifts);
+            root.Session.Sanity = 0f;
+            Time.deltaTime = 0.5f; root.SanityCtl.Tick(true); Time.deltaTime = dtSave;
+            Check(root.State == AppViewState.Ending, "RETRY: running out of sanity on night 5 is the Lose ending");
+            var lostSave = root.Saves.Read();
+            Check(lostSave != null && !lostSave.Session.RunFinished && lostSave.Session.CurrentShift == ShiftPlan.TotalShifts && root.HasSave(),
+                "RETRY: the lost night 5 is still in the save, so Continue offers night 5 (not night 1)");
+            string retryLabel = FindDeep(root.Ending.transform, "again").GetComponentInChildren<UnityEngine.UI.Text>().text;
+            Check(retryLabel == "RETRY NIGHT 5", "RETRY: the ending button says RETRY NIGHT 5 (" + retryLabel + ")");
+            root.ContinueGame();
+            DeskScene.Build(root);
+            Check(root.Session.CurrentShift == ShiftPlan.TotalShifts && !root.Session.RunFinished,
+                "RETRY: pressing it puts the player back on night 5");
+
+            // night 6 lost: the same button plays night 6 again
+            FreshGame(root);
+            root.StartNewGame(GameMode.Challenge);
+            DeskScene.Build(root);
+            root.Session.AdminAllowed = true;
+            root.TriggerEnding(root.Session.EvaluateEnding());
+            var n6 = FindDeep(root.Ending.transform, "again");
+            Check(n6.gameObject.activeSelf && n6.GetComponentInChildren<UnityEngine.UI.Text>().text == "RETRY NIGHT 6",
+                "RETRY: losing night 6 offers RETRY NIGHT 6");
+            FreshGame(root);
+
             // night 5 is the only night with results, and they lead to the ending
             GameSession FinalNight()
             {
@@ -1501,9 +1554,9 @@ namespace FlowCheck
             var rig = root.Views.Flashlight;
             bool want = rig.Beam != LightMode.Off && !rig.BatteryDead;
             bool cone = FindDeep(rig.transform, "beam").gameObject.activeSelf;
-            bool mask = FindDeep(rig.transform, "FlashlightMask").gameObject.activeSelf;
+            bool mask = FindDeep(rig.transform, "BeamCover").gameObject.activeSelf;
             Check(cone == want && mask == want,
-                $"{tag}: cone + mask agree with the beam state ({(want ? "ON" : "OFF")}) - the only two light layers");
+                $"{tag}: cone + dark cover agree with the beam state ({(want ? "ON" : "OFF")}) - the only two light layers");
             string hud = FindDeep(root.HUD.transform, "room").GetComponent<UnityEngine.UI.Text>().text;
             // while peeking, the handheld readout is replaced by the peek flashlight's own line
             bool peeking = root.State == AppViewState.RoomPeek;
@@ -2765,7 +2818,7 @@ namespace FlowCheck
             // ---- W1: input arbitration - keyboard toggles ONLY, F is the on/off toggle
             Console.WriteLine("== W1 flashlight input arbitration ==");
             var coneGoW1 = FindDeep(rig.transform, "beam").gameObject;
-            var maskGoW1 = FindDeep(rig.transform, "FlashlightMask").gameObject;
+            var maskGoW1 = FindDeep(rig.transform, "BeamCover").gameObject;
             Check(rig.Beam == LightMode.Off && !coneGoW1.activeSelf && !maskGoW1.activeSelf,
                 "W1: the flashlight is OFF by default - cone sprite and light mask really hidden");
             Input.MouseHeld.Add(0);
@@ -2786,7 +2839,7 @@ namespace FlowCheck
             Check(rig.Beam == LightMode.Off && !rig.Latches.Sweep && !rig.Latches.Focus,
                 "W1: cursor movement alone never activates the flashlight");
             Check(!FindDeep(rig.transform, "beam").gameObject.activeSelf &&
-                  !FindDeep(rig.transform, "FlashlightMask").gameObject.activeSelf,
+                  !FindDeep(rig.transform, "BeamCover").gameObject.activeSelf,
                 "W1: and an untouched beam shows no cone, no mask, no cursor-following glow");
             PressKey(root, KeyCode.F);
             Check(rig.Beam == LightMode.Sweep, "W1: F toggles the flashlight ON (sweep)");
@@ -2968,10 +3021,9 @@ namespace FlowCheck
                   views.Room(RoomId.Classroom2).Depth == null,
                   "W2b: classrooms keep their single uniform darkness layer (design preserved)");
             if (depth == null) return;
-            Check(depth.maskInteraction == SpriteMaskInteraction.VisibleOutsideMask &&
-                  depth.sortingOrder == views.Flashlight.Mask.frontSortingOrder &&
-                  depth.sortingOrder == views.Flashlight.Mask.backSortingOrder,
-                  "W2b: the depth layer is inside the beam mask's range (same layer as the darkness), so one beam hole cuts both");
+            Check(depth.sortingOrder == views.Flashlight.Cover.SortingOrder &&
+                  depth.sortingOrder == hall.Darkness.sortingOrder,
+                  "W2b: the depth layer, the darkness and the beam's dark cover all draw on the same layer");
             Check(depth.color.r < 0.01f && depth.color.g < 0.01f && depth.color.b < 0.01f,
                   "W2b: the depth layer is black (its alpha grades, it never washes the room out)");
             Check(depth.enabled && Mathf.Abs(depth.color.a - cfg.hallwayDepthAlpha) < 1e-3f,
@@ -2995,38 +3047,41 @@ namespace FlowCheck
 
             // beam ON cuts the same hole in both layers; beam OFF removes every light layer
             SetBeam(root, rig, LightMode.Sweep);
-            Check(FindDeep(rig.transform, "FlashlightMask").gameObject.activeSelf && depth.enabled,
-                  "W2b: beam ON -> the mask is live while the depth layer stays beam-cuttable");
+            Check(FindDeep(rig.transform, "BeamCover").gameObject.activeSelf && !depth.enabled && !hall.Darkness.enabled,
+                  "W2b: beam ON -> the beam's cover paints the dark, so the room's own two dark layers step aside");
             SetBeam(root, rig, LightMode.Off);
-            Check(!FindDeep(rig.transform, "FlashlightMask").gameObject.activeSelf &&
-                  !FindDeep(rig.transform, "beam").gameObject.activeSelf,
-                  "W2b: beam OFF -> cone and mask fully removed (no residual glow anywhere)");
+            Check(!FindDeep(rig.transform, "BeamCover").gameObject.activeSelf &&
+                  !FindDeep(rig.transform, "beam").gameObject.activeSelf && depth.enabled && hall.Darkness.enabled,
+                  "W2b: beam OFF -> the cover is gone and the room's own dark layers are back (no residual glow anywhere)");
 
-            // environmental illumination, not a brighter graphic: a graded penumbra sheet puts
-            // ONE authoritative pair: stencil mask + cone tint. The stacked-sheet approach is
-            // fully rolled back - nothing left that could double-dark or desynchronise.
-            Check(FindDeep(rig.transform, "BeamPenumbra") == null &&
-                  FindDeep(rig.transform, "BeamAreaMask") == null,
-                "W2b: no stacked light layers remain (penumbra/area approach rolled back)");
+            Check(FindDeep(rig.transform, "BeamPenumbra") == null && FindDeep(rig.transform, "BeamAreaMask") == null &&
+                  rig.GetComponentInChildren<SpriteMask>() == null,
+                "W2b: no stacked light layers and no sprite mask remain");
             var coneT = FindDeep(rig.transform, "beam");
-            var maskGo = FindDeep(rig.transform, "FlashlightMask");
-            var maskC = maskGo.GetComponent<SpriteMask>();
+            var coverGo = FindDeep(rig.transform, "BeamCover");
             SetBeam(root, rig, LightMode.Sweep);
-            Check(maskC.alphaCutoff <= 0.1f,
-                $"W2b: the mask cutoff sits in the cone art's faintest feather ({maskC.alphaCutoff:F2}) - soft single-layer reveal");
-            Check(Mathf.Abs(maskGo.localScale.x - coneT.localScale.x * 1.06f) < 0.01f,
-                "W2b: the hole rides just outside the visible cone (no dark rim inside the beam)");
+            WorldFrames(root, 3);
+            var cover = rig.Cover;
+            var pl = views.Player.transform.localPosition;
+            float ahead = rig.Params.Range * 0.5f;
+            float inBeam = cover.DarkAt(rig.Origin.x + rig.Dir.x * ahead, rig.Origin.y + rig.Dir.y * ahead);
+            float behind = cover.DarkAt(rig.Origin.x - rig.Dir.x * 6f, rig.Origin.y - rig.Dir.y * 6f);
+            float beyond = cover.DarkAt(rig.Origin.x + rig.Dir.x * (rig.Params.Range + 3f), rig.Origin.y + rig.Dir.y * (rig.Params.Range + 3f));
+            Check(inBeam < 0.02f, $"W2b: inside the beam the dark is gone ({inBeam:F2}): the area ahead is clear");
+            Check(behind > 0.5f && beyond > 0.5f, $"W2b: behind the guard ({behind:F2}) and past the beam's end ({beyond:F2}) it is still dark");
+            Check(Mathf.Abs(beyond - hall.Light.DarkAlphaAt(rig.Origin.x + rig.Dir.x * (rig.Params.Range + 3f), rig.Origin.y + rig.Dir.y * (rig.Params.Range + 3f))) < 0.01f,
+                "W2b: outside the beam the cover is exactly as dark as the room was without it");
             SetBeam(root, rig, LightMode.Focus);
             Check(rig.Params.HalfAngleDeg < cfg.sweepHalfAngleDeg,
                 "W2b: FOCUS narrows the cone (tighter, longer) within the same single mask+cone system");
             Check(!coneT.GetComponent<SpriteRenderer>().enabled,
-                "W2b: the beam paints nothing over the room (no yellow cone): its mask only clears the darkness, so the art shows clear");
+                "W2b: the beam paints nothing over the room (no yellow cone): it only clears the darkness, so the art shows clear");
             SetBeam(root, rig, LightMode.Sweep);
             Check(Mathf.Abs(rig.Params.HalfAngleDeg - cfg.sweepHalfAngleDeg) < 1e-3f,
                 "W2b: leaving focus restores the broad sweep");
             SetBeam(root, rig, LightMode.Off);
-            Check(!coneT.gameObject.activeSelf && !maskGo.gameObject.activeSelf,
-                "W2b: beam OFF removes cone AND mask - no stale light layer survives");
+            Check(!coneT.gameObject.activeSelf && !coverGo.gameObject.activeSelf,
+                "W2b: beam OFF removes cone AND cover - no stale light layer survives");
 
             // a scripted lights-on still means a fully visible corridor, then darkness returns
             hall.Light.SetLit(true);
@@ -3057,24 +3112,22 @@ namespace FlowCheck
             float angleBefore = coneT.localEulerAngles.z;
             PressKey(root, KeyCode.F);           // ONE frame: key down -> tick -> measure
             Check(rig.Beam == LightMode.Sweep && coneT.gameObject.activeSelf &&
-                  maskGo.gameObject.activeSelf,
+                  coverGo.gameObject.activeSelf,
                 "W2c: F lights the sweep beam on the very frame it is pressed (layers live at once)");
             Check(Mathf.Abs(coneT.localScale.x - cfg.sweepRange / 8f) < 0.01f,
                 $"W2c: the cone is the Sweep's full length immediately ({coneT.localScale.x:F3} vs {cfg.sweepRange / 8f:F3})");
-            Check(Mathf.Abs(maskGo.localScale.x - coneT.localScale.x * 1.06f) < 0.01f,
-                "W2c: the stencil hole matches that geometry on the same frame (no rim, no desync)");
+            Check(rig.Cover.DarkAt(rig.Origin.x + rig.Dir.x * rig.Params.Range * 0.5f, rig.Origin.y + rig.Dir.y * rig.Params.Range * 0.5f) < 0.02f,
+                "W2c: the area ahead is already clear on the same frame (no wind-up)");
             // "follows the flashlight's current direction and position": the rendered cone must
             // be exactly the logical aim's mid-point and angle - derived from the rig itself,
             // so the proof holds wherever the player is standing
             var expectedMid = rig.Origin + rig.Dir * (cfg.sweepRange * 0.5f);
             float expectedAngle = Mathf.Atan2(rig.Dir.y, rig.Dir.x) * Mathf.Rad2Deg;
             Check(Vector3.Distance(coneT.localPosition, expectedMid) < 0.02f &&
-                  Mathf.Abs(Mathf.DeltaAngle(coneT.localEulerAngles.z, expectedAngle)) < 0.5f &&
-                  coneT.localPosition == maskGo.localPosition &&
-                  coneT.localEulerAngles == maskGo.localEulerAngles,
-                $"W2c: cone and mask are both parked on the aim's mid-point and angle ({coneT.localPosition} @ {coneT.localEulerAngles.z:F1}°)");
-            Check(maskGo.gameObject.activeSelf && !coneT.GetComponent<SpriteRenderer>().enabled,
-                "W2c: the light hole is open on the activation frame - no fade-in to wait through");
+                  Mathf.Abs(Mathf.DeltaAngle(coneT.localEulerAngles.z, expectedAngle)) < 0.5f,
+                $"W2c: the cone is parked on the aim's mid-point and angle ({coneT.localPosition} @ {coneT.localEulerAngles.z:F1}°)");
+            Check(coverGo.gameObject.activeSelf && !coneT.GetComponent<SpriteRenderer>().enabled,
+                "W2c: the clear area is open on the activation frame - no fade-in to wait through");
             // repeated activation/deactivation must behave identically every time, and a new
             // activation must never inherit the previous aim
             bool stable = true;
@@ -3089,7 +3142,7 @@ namespace FlowCheck
                 if (rig.Beam != LightMode.Sweep || !coneT.gameObject.activeSelf ||
                     Vector3.Distance(coneT.localPosition, want) > 0.02f ||
                     Mathf.Abs(Mathf.DeltaAngle(coneT.localEulerAngles.z, wantAngle)) > 0.5f ||
-                    !maskGo.gameObject.activeSelf)
+                    !coverGo.gameObject.activeSelf)
                     stable = false;
             }
             Check(stable,
@@ -3103,7 +3156,7 @@ namespace FlowCheck
                   Mathf.Abs(rig.Params.HalfAngleDeg - cfg.focusHalfAngleDeg) < 1e-3f,
                 "W2c: switching Sweep->Focus while lit still morphs, and lands on Focus geometry");
             SetBeam(root, rig, LightMode.Off);
-            Check(!coneT.gameObject.activeSelf && !maskGo.gameObject.activeSelf,
+            Check(!coneT.gameObject.activeSelf && !coverGo.gameObject.activeSelf,
                 "W2c: and L still puts it out at once (controls unchanged)");
             CheckLightSync(root, "W2c instant beam");
 
@@ -3125,11 +3178,10 @@ namespace FlowCheck
                   rig.Params.Range > BeamGeometry.DefaultSweepRange, "W3: Focus geometry = tight + long, Sweep = wide + short");
 
             var cone = FindDeep(rig.transform, "beam");
-            var mask = FindDeep(rig.transform, "FlashlightMask");
-            Check(cone != null && mask != null, "W3: cone sprite and mask both exist");
+            var mask = FindDeep(rig.transform, "BeamCover");
+            Check(cone != null && mask != null, "W3: cone object and dark cover both exist");
             if (cone != null && mask != null)
             {
-                Check(cone.localPosition == mask.localPosition, "W3: the mask rides exactly on the cone (no aim desync)");
                 AimAt(0f, 4f); WorldFrames(root, 30);   // let the damped aim settle
                 AimAt(-5f, -1.2f); WorldFrames(root, 30);
                 Check(rig.Dir.x < -0.99f, "W3: aiming left flips the direction");
@@ -3552,10 +3604,8 @@ namespace FlowCheck
                       "W10: the old glow circle and sprite mask are gone");
                 foreach (var r in views.Current.Root.GetComponentsInChildren<SpriteRenderer>(true))
                     Check(r.gameObject.name != "found_marker", "W10: no red dot on anything");
-                var beamMask = root.Views.Flashlight.Mask;
-                Check(beamMask.isCustomRangeActive && beamMask.frontSortingOrder == coverProof.sortingOrder &&
-                      beamMask.backSortingOrder == coverProof.sortingOrder,
-                      "W10: the handheld beam's mask range contains the black cover and the hallway shroud");
+                Check(root.Views.Flashlight.Cover.SortingOrder == WorldLayers.Darkness,
+                      "W10: the handheld beam's dark cover draws on the same layer as the room's darkness");
                 bool artUnder = true;
                 foreach (var r in views.Current.Root.GetComponentsInChildren<SpriteRenderer>(true))
                     if (r.gameObject.name.StartsWith("bg_") && r.sortingOrder >= coverProof.sortingOrder) artUnder = false;
@@ -4266,6 +4316,7 @@ namespace FlowCheck
             Check(cont.interactable && contFrame.color.r > 0.9f, "MENU: CONTINUE is white and live with a save");
             Check(hint.gameObject.activeSelf && hint.GetComponent<UnityEngine.UI.Text>().text == "NIGHT 3",
                 "MENU: hovering CONTINUE shows the saved night under it");
+            Check(hint.GetComponent<UnityEngine.UI.Text>().fontSize >= 24, "MENU: the night label is big enough to read at a glance");
             root.Saves.Delete();
             root.MainMenu.RefreshContinue();
         }

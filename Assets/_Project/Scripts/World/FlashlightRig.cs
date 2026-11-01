@@ -27,7 +27,8 @@ namespace Hollowbrook.World
         private GameRoot _gameRoot;
         private Camera _cam;
         private SpriteRenderer _cone;
-        private SpriteMask _mask;
+        private BeamCover _cover;
+        private LightController _coveredLight;   // the room whose own dark is switched off while the beam is on
         private BatteryState _battery = new BatteryState { Charge = 1f, Dead = false };
         private FlashlightLatches _latches;
         private Vector3 _origin;
@@ -36,42 +37,32 @@ namespace Hollowbrook.World
         private Vector3 _aimSmooth = Vector3.right;   // displayed aim (damped, never snaps)
         private float _dispRange, _dispHalfTan;       // displayed geometry (damped across modes)
         private float _coneWorldW = 8f, _coneWorldH = 4.5f;   // light_cone: 512x288 px @ 64 ppu
-        // ONE authoritative illumination: the stencil mask cuts the room darkness (nothing is painted on
-        // top, the room's own art shows through). The mask's alpha cutoff is dropped to 0.05 so the
-        // hole reaches into the cone sprite's faintest feather - the reveal edge lands where the
-        // beam art is already almost transparent, which reads as a soft falloff with no second
-        // layer, no rect artifacts and nothing that can desynchronise.
-        private const float MaskOverScale = 1.06f;
-        private const float MaskAlphaCutoff = 0.05f;
+        // The beam clears the dark: while it is on, BeamCover paints the room's dark with the beam
+        // cut out of it (nothing is painted on top, the room's own art shows through, like the
+        // peek lamp). The cone object stays only as the beam's placement and size.
         private float _pubThrottle;
 
         public void Init(GameRoot root, Camera cam, SpriteRenderer cone)
         {
             _gameRoot = root; _cam = cam; _cone = cone;
-            // Nothing is painted over the lit area: the beam only cuts a hole in the darkness (the
-            // stencil mask below), so what it lights is the room's own art, clear, like the peek lamp.
-            // The cone object stays: its sprite is the mask's shape and its transform is the beam.
+            // Nothing is painted over the lit area: the beam only clears the darkness (BeamCover), so
+            // what it lights is the room's own art, clear, like the peek lamp.
             if (cone != null) cone.enabled = false;
             if (cone != null && cone.sprite != null && cone.sprite.pixelsPerUnit > 0f)
             {
                 _coneWorldW = cone.sprite.rect.width / cone.sprite.pixelsPerUnit;
                 _coneWorldH = cone.sprite.rect.height / cone.sprite.pixelsPerUnit;
             }
-            var maskGo = new GameObject("FlashlightMask");
-            maskGo.transform.SetParent(transform, false);
-            _mask = maskGo.AddComponent<SpriteMask>();
-            _mask.sprite = cone != null ? cone.sprite : null;
-            _mask.isCustomRangeActive = true;
-            // same rule as the peek lamp: the range must contain the darkness layer (and the hallway
-            // shroud, which draws on the same order), with front and back equal so it cannot be inverted
-            _mask.frontSortingOrder = WorldLayers.Darkness;
-            _mask.backSortingOrder = WorldLayers.Darkness;
-            _mask.alphaCutoff = MaskAlphaCutoff;   // soft-edge hole: cut where the art is ~invisible
+            var coverGo = new GameObject("BeamCover");
+            coverGo.transform.SetParent(transform, false);
+            coverGo.AddComponent<SpriteRenderer>();
+            _cover = coverGo.AddComponent<BeamCover>();
+            _cover.Init();
             ApplyBeam(LightMode.Off, true);
         }
 
-        /// <summary>The beam's sprite mask (headless diagnostics check its sorting range).</summary>
-        internal SpriteMask Mask => _mask;
+        /// <summary>The dark that is clear inside the beam (headless checks read it).</summary>
+        internal BeamCover Cover => _cover;
 
         /// <summary>Is a world point inside the beam's actual cone? Sweep and Focus use their
         /// own range/angle; Off and dead battery cover nothing.</summary>
@@ -175,11 +166,12 @@ namespace Hollowbrook.World
                 _dispHalfTan = _params.HalfTan;
             }
 
-            if (_mask != null) _mask.gameObject.SetActive(on);
+            if (_cover != null) _cover.gameObject.SetActive(on);
+            SetCoveredLight(on ? CurrentLight() : null);
             if (_cone != null) _cone.gameObject.SetActive(on);
             // Focus is a tighter cone than Sweep, which stays the wide wash (see ParamsFor above).
             ScaleBeam();
-            if (on) PlaceBeam();   // positioned before the frame is drawn, never a frame later
+            if (on) { PlaceBeam(); DrawCover(); }   // positioned and painted before the frame is drawn, never a frame later
 
             if (!quiet)
             {
@@ -226,14 +218,35 @@ namespace Hollowbrook.World
             _aimSmooth = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f);
             PlaceBeam();
             ScaleBeam(dt);
+            if (BeamOn) DrawCover();
+        }
+
+        private LightController CurrentLight()
+        {
+            var views = _gameRoot != null ? _gameRoot.Views : null;
+            var room = views != null ? views.Current : null;
+            return room != null ? room.Light : null;
+        }
+
+        // Only the room the beam is lit in has its own dark switched off; it comes back when the beam goes out.
+        private void SetCoveredLight(LightController light)
+        {
+            if (_coveredLight == light) return;
+            if (_coveredLight != null) _coveredLight.SetBeamCover(false);
+            _coveredLight = light;
+            if (light != null) light.SetBeamCover(true);
+        }
+
+        private void DrawCover()
+        {
+            if (_cover == null || _coveredLight == null) return;
+            _cover.Draw(_cam, _coveredLight, _origin, _aimSmooth, _dispRange, _dispHalfTan);
         }
 
         // damped aim: fast enough to feel instant, slow enough to read as a held lamp
         private static float AimDamping(float dt) => 1f - (float)System.Math.Exp(-14d * Mathf.Max(dt, 0f));
 
-        /// <summary>Put the cone sprite and its stencil mask on the current displayed aim:
-        /// one mid-point, one rotation, so the visible beam and the hole it cuts in the
-        /// darkness can never drift apart.</summary>
+        /// <summary>Put the cone object on the current displayed aim (one mid-point, one rotation).</summary>
         private void PlaceBeam()
         {
             if (_cone == null) return;
@@ -241,17 +254,10 @@ namespace Hollowbrook.World
             var mid = _origin + _aimSmooth * (_dispRange * 0.5f);
             _cone.transform.localPosition = mid;
             _cone.transform.localEulerAngles = new Vector3(0f, 0f, angle);
-            if (_mask != null)
-            {
-                _mask.transform.localPosition = mid;
-                _mask.transform.localEulerAngles = new Vector3(0f, 0f, angle);
-            }
         }
 
         // Non-uniform scale maps the fixed cone sprite onto the mode's logical geometry:
-        // length = Range, far-end half width = Range * tan(halfAngle). The mask AND the penumbra
-        // ride 35% larger than the visible cone so the graded falloff has room to land back on
-        // the room's ambient alpha before the stencil hole ends (no rim, no flat cut-out).
+        // length = Range, far-end half width = Range * tan(halfAngle).
         private void ScaleBeam(float dt = 0f)
         {
             if (_cone == null) return;
@@ -262,8 +268,6 @@ namespace Hollowbrook.World
             float sx = _dispRange <= 0f ? 0.001f : _dispRange / _coneWorldW;
             float sy = _dispRange <= 0f ? 0.001f : 2f * _dispRange * _dispHalfTan / _coneWorldH;
             _cone.transform.localScale = new Vector3(sx, sy, 1f);
-            if (_mask != null)
-                _mask.transform.localScale = new Vector3(sx * MaskOverScale, sy * MaskOverScale, 1f);
         }
 
         private void TickBattery(float dt)

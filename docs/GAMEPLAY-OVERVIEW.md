@@ -71,7 +71,8 @@ away (there is no refuse button). He speaks only through the dialogue box. Allow
 back and leaves. The security game is over and only Patrol works; the hunt starts when it is clicked.
 Then it plays like Nightmare Fredbear's night in FNaF 4, with captions instead of audio. He is the
 only anomaly and can be anywhere: in **Room 101, Room 202, CR-1 or CR-2** (peek in and hold the lamp
-on his head within 12 s) or **right behind you** (aim at him and flash his face within 2.6 s). Only
+on his head within 12 s) or **right behind you** (aim at him and flash his face within 2.6 s). He goes for you: in the hallway he
+comes up behind you more often than not, and while you peek into a room he is often in that very room. Only
 the light stops him, and each success gives 8 sanity. Too slow and he catches you: sanity drops and
 you are thrown back. **3 catches** = he reaches the server door (lose). Survive **210 s** to dawn.
 The security door is locked and every phase has a time limit, so it cannot get stuck. Quit + CONTINUE
@@ -82,17 +83,19 @@ and says he does not give up; he asks for the right decision and has a new set o
 again and the pursuit starts, harder: 2 catches, shorter stalks, less time to react, a longer night.
 Surviving to dawn is its own ending. It is one night and never touches the story save.
 
-**End of a night:** nights 1 to 4, won or failed, go straight to the main menu; CONTINUE starts the
-next one. Night 5 shows the results, then the ending. A failed night (an anomaly let in, or a
-blackout) has no scare at the desk: the next night's intro says what it costs. Scares only happen on
-patrol and in peeks.
+**End of a night:** nights 1 to 4 go straight to the main menu. Clocking out with an anomaly let in
+still finishes the night: CONTINUE starts the next one and its intro says what it costs. A night you
+do not finish (a blackout) is **played again**: CONTINUE stays on that night, with the same cost.
+Night 5 shows the results, then the ending. Losing night 5 keeps night 5 in the save: CONTINUE offers
+it again and the ending screen has RETRY NIGHT 5. Losing night 6 offers RETRY NIGHT 6. There is no scare
+at the desk; scares only happen on patrol and in peeks.
 
 **Endings:** Surviving Hollowbrook (5 nights + dawn on the last) / Another Custodian
 (3 breaches, 3 false rejections, the line overruns, the administrator let in, or three catches on night 5) /
 The Truth Behind Hollowbrook (10 clues in order, dawn reached).
 
 **Main menu:** CONTINUE is dark grey and dead when there is no save. With a save, hovering it shows
-`NIGHT n` under the button.
+a large `NIGHT n` under the button.
 
 **Options:** SETTINGS is an audio-only modal (MASTER / MUSIC / SFX), usable from the menu and the
 pause menu. Display, accessibility and the data reset (`F2` x3) live in `SettingsSystem`.

@@ -31,6 +31,7 @@ namespace Hollowbrook.World
         private float _flickerTimer;
         private Coroutine _flickerRoutine;
         private bool _peekOverride;   // peeking: darkness is a solid-black presentation layer
+        private bool _beamCover;      // the flashlight's BeamCover draws the dark while the beam is on
 
         /// <summary>Peek presentation override: while on, the room's own darkness steps aside for
         /// the lamp's cover (PeekLight), and no flicker or scripted light change may touch it.
@@ -44,7 +45,29 @@ namespace Hollowbrook.World
                 ApplyDepth();      // no pool, no falloff: the lamp's cover is the only dark in a peek
             }
             else ApplyVisual();
-            if (_darkness != null) _darkness.enabled = !on;
+            if (_darkness != null) _darkness.enabled = !on && !_beamCover;
+        }
+
+        /// <summary>While the flashlight is on its BeamCover paints this room's dark (clear inside the
+        /// beam), so the room's own dark layers step aside. They come back when the beam goes out.</summary>
+        public void SetBeamCover(bool on)
+        {
+            if (_beamCover == on) return;
+            _beamCover = on;
+            if (_darkness != null) _darkness.enabled = !on && !_peekOverride;
+            ApplyDepth();
+        }
+
+        /// <summary>How dark the room is at a point of the room plane, whatever is drawing it: the
+        /// room's dark alpha (flicker included), plus the hallway's pool around the custodian.</summary>
+        public float DarkAlphaAt(float x, float y)
+        {
+            float alpha = _darkness != null ? _darkness.color.a : _darkAlpha;
+            if (_depth == null || Lit) return alpha;
+            var centre = _depth.transform.localPosition;
+            float dx = x - centre.x, dy = y - centre.y;
+            float deep = _depthAlpha * HallwayDarkness.DepthAt(Mathf.Sqrt(dx * dx + dy * dy));
+            return 1f - (1f - alpha) * (1f - deep);
         }
 
         public void Init(GameRoot root, RoomInstance room, SpriteRenderer darkness, bool startLit,
@@ -109,7 +132,7 @@ namespace Hollowbrook.World
         private void ApplyDepth()
         {
             if (_depth == null) return;
-            bool on = !Lit && !_peekOverride;
+            bool on = !Lit && !_peekOverride && !_beamCover;
             _depth.enabled = on;
             if (!on) return;
             var c = _depth.color; c.a = _depthAlpha; _depth.color = c;
@@ -121,7 +144,7 @@ namespace Hollowbrook.World
         // and every room root are at identity), the same space the darkness quad is built in.
         private void FollowPlayer()
         {
-            if (_depth == null || !_depth.enabled) return;
+            if (_depth == null) return;
             var views = _gameRoot.Views;
             if (views == null || views.Player == null) return;
             var p = views.Player.transform.localPosition;

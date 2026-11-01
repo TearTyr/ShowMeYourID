@@ -14,6 +14,7 @@ namespace Hollowbrook.UI
         private Text _title, _desc, _summary;
         private Text[] _badges = new Text[3];
         private Button _again;
+        private System.Action _againAction = () => { };
 
         private const string WinTitle = "SURVIVING HOLLOWBROOK";
         private const string LoseTitle = "ANOTHER CUSTODIAN";
@@ -57,11 +58,30 @@ namespace Hollowbrook.UI
             _again = UIFactory.StandardButton(transform, "again", "PLAY AGAIN", () =>
             {
                 _gameRoot.Audio.PlaySfx("sfx_bell", 0.7f);
-                _gameRoot.StartNewGame(GameMode.Normal);
+                _againAction();
             }, 220, 46);
             UIFactory.Anchor(_again.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(220, 46), new Vector2(120, 38));
 
             gameObject.SetActive(false);
+        }
+
+        private void SetAgainButton(GameSession session, bool lost, bool night6)
+        {
+            string label = "PLAY AGAIN";
+            _againAction = () => _gameRoot.StartNewGame(GameMode.Normal);
+            if (lost && night6)
+            {
+                label = "RETRY NIGHT 6";
+                _againAction = () => _gameRoot.StartNewGame(GameMode.Challenge);
+            }
+            else if (lost && _gameRoot.HasSave())
+            {
+                label = "RETRY NIGHT " + session.CurrentShift;
+                _againAction = () => _gameRoot.ContinueGame();
+            }
+            var text = _again.GetComponentInChildren<Text>();
+            if (text != null) text.text = label;
+            _again.gameObject.SetActive(!night6 || lost);
         }
 
         public void Populate(EndingRules.Evaluation eval, GameSession session, RecordsData records)
@@ -77,10 +97,12 @@ namespace Hollowbrook.UI
             }
             _desc.text = eval.ReasonText;
 
-            // night 6 is its own short story: no badges, and PLAY AGAIN would start the other game
+            // night 6 is its own short story: no badges. The button after a loss plays the night that
+            // was lost again; after a win it starts a new game (night 6 has no second button).
             bool night6 = session.Mode == GameMode.Challenge;
+            bool lost = eval.Ending == EndingType.Lose;
             foreach (var b in _badges) b.gameObject.SetActive(!night6);
-            _again.gameObject.SetActive(!night6);
+            SetAgainButton(session, lost, night6);
             if (night6)
             {
                 var n6 = new StringBuilder();
