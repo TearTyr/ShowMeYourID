@@ -115,14 +115,14 @@ namespace Hollowbrook.UI
             }
 
             var sb = new StringBuilder();
-            sb.Append("Nights survived:            ").Append(session.CompletedShifts).Append(" / 5\n");
+            sb.Append("Nights survived:            ").Append(session.CompletedShifts).Append(" / ").Append(ShiftPlan.TotalShifts).Append("\n");
             sb.Append("Visitors processed:         ").Append(session.Processed).Append('\n');
             sb.Append("Correct decisions:          ").Append(session.CorrectDecisions).Append('\n');
             sb.Append("Anomalies rejected:         ").Append(session.AnomaliesRejected).Append('\n');
-            sb.Append("False rejections:           ").Append(session.FalseRejections).Append(" / 3\n");
-            sb.Append("Anomaly breaches:           ").Append(session.Breaches).Append(" / 3\n");
+            sb.Append("False rejections:           ").Append(session.FalseRejections).Append(" / ").Append(EndingRules.LoseThreshold).Append("\n");
+            sb.Append("Anomaly breaches:           ").Append(session.Breaches).Append(" / ").Append(EndingRules.LoseThreshold).Append("\n");
             sb.Append("Administrator:              ").Append(session.AdminAllowed ? "ALLOWED IN (fatal mistake)" : session.Hunt == HuntState.Lost ? "REJECTED - but he reached the server door" : session.AdminRejected ? "REJECTED - impostor driven off" : "never arrived").Append('\n');
-            sb.Append("Findings:                   ").Append(session.Clues.FoundCount).Append(" / 10  (").Append(session.Clues.OrderIntact ? "intended sequence intact" : "sequence broken").Append(")\n");
+            sb.Append("Findings:                   ").Append(session.Clues.FoundCount).Append(" / ").Append(session.Clues.TotalCount).Append("  (").Append(session.Clues.OrderIntact ? "intended sequence intact" : "sequence broken").Append(")\n");
             sb.Append("Final sanity:               ").Append((int)session.Sanity).Append("  (").Append(session.SanityStage).Append(")\n");
             sb.Append("Score:                      ").Append(session.Score).Append("    Best streak: ").Append(session.BestStreak);
             _summary.text = sb.ToString();

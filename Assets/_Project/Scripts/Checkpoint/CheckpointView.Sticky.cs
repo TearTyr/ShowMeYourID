@@ -21,9 +21,9 @@ namespace Hollowbrook.Checkpoint
         private const string NightRules = "Rules: Check IDs, ask questions, stamp. Don't let the wrong faces in.";
 
         // Night 1 only: the five steps, short enough to read on a sticky note.
-        private const string HowToPlay =
+        private static string HowToPlay =>
             "1. READ the ID and the slip. Click the ID's black spine to flip it.\n" +
-            "2. ASK up to 2 of the 4 questions. Some unlock after you flip the ID or open the file.\n" +
+            "2. ASK up to " + InterviewRules.Budget + " of the " + InterviewRules.Count + " questions. Some unlock after you flip the ID or open the file.\n" +
             "3. CHECK their file: click the cabinet, pick the room, pick the name.\n" +
             "4. STAMP: drag ACCEPT or DECLINE onto the slip.\n" +
             "5. HAND BACK: drag the ID to the window. That decision is final.\n" +

@@ -13,8 +13,6 @@ namespace Hollowbrook.Logic
         private static readonly RoomId[] PeekRooms =
             { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 };
 
-        private const float StandingChance = 0.6f;
-
         /// <summary>Does this peek room hold a standing anomaly tonight? Each room rolls for itself,
         /// from the run seed and the night, and at least one room always does. Standing anomalies
         /// never move: the player has to find them with the lamp. Same inputs, same answer.</summary>
@@ -26,7 +24,7 @@ namespace Hollowbrook.Logic
             bool any = false, mine = false;
             for (int i = 0; i < PeekRooms.Length; i++)
             {
-                bool here = rng.Chance(StandingChance);
+                bool here = rng.Chance(GameRules.Current.StandingChance);
                 any |= here;
                 if (i == index) mine = here;
             }

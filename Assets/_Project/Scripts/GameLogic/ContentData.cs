@@ -49,6 +49,7 @@ namespace Hollowbrook.Logic
         public RoomId FirstClassroom;  // Room 101 (Classroom1) / Room 202 (Classroom2)
         public string FirstClassSubject;
         public string Greeting;        // flavor line at the window
+        public AwkwardSpeech Awkward;  // how an anomaly wearing this student talks
 
         public string StatusString => IsTransferee ? "Transferee" : "Regular";
         public string YearString => Content.YearNames[YearLevel - 1];
@@ -159,33 +160,31 @@ namespace Hollowbrook.Logic
     [Serializable]
     public class ShiftDef
     {
-        public int Number;           // 1..5
+        public int Number;           // set by ShiftPlan from the row's place in the table
         public string DateLabel;     // "Mon · Nov 2"
-        public string LongDateLabel  // "MONDAY - NOVEMBER 2" (header board form)
-        {
-            get
-            {
-                int i = System.Array.IndexOf(Content.ShiftDates, DateLabel);
-                return i < 0 || i >= Content.ShiftDatesLong.Length
-                    ? (DateLabel ?? "") : Content.ShiftDatesLong[i];
-            }
-        }
-        public int VisitorCount;     // 4/6/7/8/0, night 5 is only the administrator
-        public int AnomalyCount;     // 0/2/3/4/4
+        public string LongDateLabel; // "MONDAY - NOVEMBER 2" (header board form)
+        public int VisitorCount;     // how many come to the window
+        public int AnomalyCount;     // how many of them are not students
         public bool HasAdministrator;
         public string Title;
         public string Objective;
         public string RuleNoteAddendum;  // new paper-note rule introduced this shift
+        public string IntroWarning;      // an extra line from "???" in the night's intro (optional)
         public int MaxDefectsPerAnomaly; // difficulty escalation
         public bool SubtleDefectsAllowed;
         public bool DuplicateIdsAllowed;
         public bool ClassroomLieAllowed;
-        public bool ExplorationFocus;    // shift 4 nudges investigation
+        public bool SlipMismatchAllowed; // the paper slip can disagree with the card
+        public bool NearExpiryAllowed;   // real students' IDs can be close to running out
+        public bool ExplorationFocus;    // this night nudges investigation
+
+        /// <summary>Its own copy, so nothing can change the table by accident.</summary>
+        public ShiftDef Copy() => (ShiftDef)MemberwiseClone();
     }
 
     public static class Content
     {
-        public const int TotalStudents = 7;           // one per illustrated character (char_student_01 to 07)
+        public static int TotalStudents => GameRules.Current.Students.Length;   // one per illustrated character
 
         /// <summary>"Room 101" / "Room 202" - the two classrooms of the school.</summary>
         public static string RoomName(RoomId room) => room == RoomId.Classroom1 ? "Room 101" : "Room 202";
@@ -200,19 +199,6 @@ namespace Hollowbrook.Logic
 
         public static readonly string[] YearNames = { "1st Year", "2nd Year", "3rd Year", "4th Year" };
 
-        public static readonly string[] ShiftDates =
-        {
-            "Mon · Nov 2", "Tue · Nov 3", "Wed · Nov 4", "Thu · Nov 5", "Fri · Nov 6", "Sat · Nov 7",
-        };
-
-        // The header board spells the night out in full (the reference header line):
-        // "NIGHT 1 - MONDAY - NOVEMBER 2". ShiftDates stays the short form for papers.
-        public static readonly string[] ShiftDatesLong =
-        {
-            "MONDAY - NOVEMBER 2", "TUESDAY - NOVEMBER 3", "WEDNESDAY - NOVEMBER 4",
-            "THURSDAY - NOVEMBER 5", "FRIDAY - NOVEMBER 6", "SATURDAY - NOVEMBER 7",
-        };
-
         public static int ShiftDayNumber(int shift) => 1000 + shift; // arbitrary monotonic base
 
         public static int DayNumberOfDate(int year, int month, int day)
@@ -224,60 +210,31 @@ namespace Hollowbrook.Logic
         public static string DisplayDate(int year, int month, int day) =>
             year.ToString("D4") + "-" + month.ToString("D2") + "-" + day.ToString("D2");
 
-        public static List<StudentIdentity> BuildStudentRoster()
+public static List<StudentIdentity> BuildStudentRoster()
         {
-            // One row per student, in face-art order: row N wears char_student_NN.
-            // name, year level, course (index into Courses), transferee (1 = yes), hair, face
-            // and accessory (only the code-drawn fallback portrait uses these), classroom
-            // (1 or 2), subject, student number
-            string[,] core =
-            {
-                { "Carlo Mendoza",       "3", "0", "0", "0", "0", "1", "1", "Networking",       "HB-2024-0101" },
-                { "Nathaniel Aquino",    "1", "0", "1", "1", "1", "0", "2", "Programming Basics", "HB-2026-0153" },
-                { "Maria Clara Santos",  "4", "1", "0", "2", "2", "1", "1", "Algorithms",       "HB-2023-0143" },
-                { "Liza May Ramos",      "3", "1", "0", "3", "3", "3", "2", "Data Structures",  "HB-2024-0341" },
-                { "Raffy Isidro",        "4", "2", "0", "4", "4", "2", "2", "Media Ethics",     "HB-2023-0129" },
-                { "Renielle Waterbonia", "2", "1", "1", "5", "5", "0", "1", "Discrete Math",     "HB-2025-0187" },
-                { "Rhevster Estrellita", "2", "2", "0", "0", "3", "2", "1", "Digital Sketching", "HB-2025-0053" },
-            };
-
             var list = new List<StudentIdentity>();
-            for (int i = 0; i < TotalStudents; i++)
+            foreach (var row in GameRules.Current.Students)
             {
-                int year = int.Parse(core[i, 1]);
-                var id = new StudentIdentity
+                list.Add(new StudentIdentity
                 {
-                    FullName = core[i, 0],
-                    IdNumber = core[i, 9],
-                    YearLevel = year,
-                    CourseIndex = int.Parse(core[i, 2]),
-                    IsTransferee = core[i, 3] == "1",
+                    FullName = row.FullName,
+                    IdNumber = row.IdNumber,
+                    YearLevel = row.YearLevel,
+                    CourseIndex = row.CourseIndex,
+                    IsTransferee = row.IsTransferee,
                     Portrait = new Portrait
                     {
-                        HairStyle = int.Parse(core[i, 4]),
-                        FaceVariant = int.Parse(core[i, 5]),
-                        Accessory = int.Parse(core[i, 6]),
+                        HairStyle = row.HairStyle, FaceVariant = row.FaceVariant, Accessory = row.Accessory,
                         Distorted = false,
                     },
-                    FirstClassroom = core[i, 7] == "1" ? RoomId.Classroom1 : RoomId.Classroom2,
-                    FirstClassSubject = core[i, 8],
-                    Greeting = Greetings[i % Greetings.Length],
-                };
-                list.Add(id);
+                    FirstClassroom = row.FirstClassroom,
+                    FirstClassSubject = row.FirstClassSubject,
+                    Greeting = row.Greeting,
+                    Awkward = row.Awkward,
+                });
             }
             return list;
         }
-
-        public static readonly string[] Greetings =
-        {
-            "Good evening. Night class.",
-            "Hi… I'm running a bit late.",
-            "Evening! Cold out there.",
-            "Let me in quick, please.",
-            "Good evening, officer… I mean, custodian.",
-            "Here's my ID.",
-            "Evening. Same routine as always.",
-        };
 
         public static readonly string[] AnomalyGreetings =
         {

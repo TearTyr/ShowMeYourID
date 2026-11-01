@@ -11,7 +11,7 @@ using L = Hollowbrook.Checkpoint.CheckpointLayout;
 
 namespace Hollowbrook.Checkpoint
 {
-    // The interview: four questions, but only InterviewRules.Budget (2) can be asked of each
+    // The interview: four questions, but only InterviewRules.Budget can be asked of each
     // student, so choose with care. Year unlocks after flipping the ID, status after opening
     // their file. The answer is spoken in the bubble and also stays on its button, so it can
     // be compared with the card and the file after the bubble moves on.

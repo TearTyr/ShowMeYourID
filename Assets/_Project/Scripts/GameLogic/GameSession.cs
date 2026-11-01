@@ -36,7 +36,7 @@ namespace Hollowbrook.Logic
     public class GameSession
     {
         public GameMode Mode = GameMode.Normal;
-        public int Seed = 20261102;
+        public int Seed = GameRules.Current.FixedSeed;
         public int CurrentShift = 1;        // Normal: shift being played (1..5)
         public int CompletedShifts = 0;     // Normal: shifts fully completed
         public int Processed = 0;           // visitors processed this run

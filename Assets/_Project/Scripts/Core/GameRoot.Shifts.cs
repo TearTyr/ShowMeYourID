@@ -21,7 +21,7 @@ namespace Hollowbrook.Core
             var old = Saves.Read();
             Records = old?.Records ?? new RecordsData();
 
-            int seed = 20261102;
+            int seed = GameRules.Current.NewRunSeed();
             Session = new GameSession { Mode = mode, Seed = seed };
             Queue = new CheckpointQueue();   // the last run's line must never be saved into this one
             _resolvedVisitorIndices.Clear();
@@ -148,14 +148,8 @@ namespace Hollowbrook.Core
             };
             if (!string.IsNullOrEmpty(penaltyNote))
                 intro.Add(new DialogueLine { Speaker = "LAST NIGHT", Text = penaltyNote });
-            if (number == ShiftPlan.Night6Number)
-            {
-                intro.Add(new DialogueLine { Speaker = "???", Text = "He said he would be back. He does not give up. Deny him again, and this time he will not be gentle. Only the light stops him." });
-            }
-            else if (number == 5)
-            {
-                intro.Add(new DialogueLine { Speaker = "???", Text = "Tonight the district sends an administrator to 'take control'. Check the credentials like you would check anyone else's. Trust the evidence." });
-            }
+if (!string.IsNullOrEmpty(CurrentShiftDef.IntroWarning))
+                intro.Add(new DialogueLine { Speaker = "???", Text = CurrentShiftDef.IntroWarning });
             return intro;
         }
 

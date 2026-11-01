@@ -40,6 +40,8 @@ namespace Hollowbrook.LogicTests
             IdRulesTests();
             ContentTests();
             ShiftPlanTests();
+            EveryStudentTurnsTests();
+            RulesAreLiveTests();
             ClueRegistryTests();
             RosterFairnessTests();
             AdministratorTests();
@@ -131,8 +133,6 @@ namespace Hollowbrook.LogicTests
             Check(roster.All(s => s.YearLevel >= 1 && s.YearLevel <= 4), "year levels in 1..4");
             Check(roster.All(s => s.CourseIndex >= 0 && s.CourseIndex < Content.Courses.Length), "course indices in range");
             Check(Content.Courses.Length > 0 && Content.YearNames.Length == 4, "course/year pools populated");
-            Eq(Content.ShiftDates.Length, 6, "six shift dates (five nights and the Challenge)");
-            Eq(Content.ShiftDatesLong.Length, 6, "six long dates");
             // day-number mapping must be strictly monotonic ACROSS THE WINDOW THE GAME
             // ACTUALLY GENERATES (Jun 2026 .. Mar 2027). The model uses 30-day months, so
             // it is only an approximation: 2026-12-31 and 2027-01-01 both map to 1060.
@@ -151,6 +151,125 @@ namespace Hollowbrook.LogicTests
         }
 
         // ------------------------------------------------------------ shift plan
+        // Every student takes a turn, in every run. The owner's report: Raffy never turned in a whole game.
+        private static void EveryStudentTurnsTests()
+        {
+            Group("Every student is an anomaly at least once per run");
+            int students = Content.TotalStudents;
+            var plan = ShiftPlan.Build();
+            for (int seed = 1; seed <= 300; seed++)
+            {
+                var turned = new HashSet<int>();
+                var factory = new RosterFactory(seed * 7919);
+                foreach (var night in plan)
+                    foreach (var v in factory.GenerateShift(night))
+                        if (v.IsAnomaly && !v.IsAdministrator) turned.Add(v.FaceAssetIndex);
+                Eq(turned.Count, students, $"seed {seed}: all {students} students turned");
+            }
+            foreach (var night in plan)
+            {
+                var v = new RosterFactory(5).GenerateShift(night);
+                int honest = night.VisitorCount - night.AnomalyCount;
+                Eq(v.Count(x => x.IsAnomaly && !x.IsAdministrator), night.AnomalyCount, $"night {night.Number}: as many anomalies as its row says");
+                Eq(v.Count(x => !x.IsAnomaly), honest, $"night {night.Number}: the rest are real students");
+                var real = v.Where(x => !x.IsAnomaly).Select(x => x.ClaimedName).ToList();
+                Eq(real.Distinct().Count(), real.Count, $"night {night.Number}: nobody real comes twice");
+            }
+            // the same seed always rebuilds the same run: Continue depends on it
+            var a = new RosterFactory(99);
+            var b = new RosterFactory(99);
+            foreach (var night in plan)
+            {
+                var x = a.GenerateShift(night);
+                var y = b.GenerateShift(night);
+                Check(x.Select(s => s.ClaimedName + s.IsAnomaly + s.WindowFaceIndex).SequenceEqual(y.Select(s => s.ClaimedName + s.IsAnomaly + s.WindowFaceIndex)),
+                    $"night {night.Number}: the same seed gives the same line");
+            }
+
+            Group("Every student has both pictures");
+            foreach (var row in GameRules.Current.Students) Check(row.Awkward != null, row.FullName + " has an awkward way of speaking");
+            for (int i = 0; i < students; i++)
+                Check(FaceAssets.AnomalyKey(i) == FaceAssets.StudentKey(i) + "_anomaly", "face " + i + " has its anomaly key");
+            for (int seed = 1; seed <= 50; seed++)
+            {
+                var factory = new RosterFactory(seed);
+                foreach (var night in plan)
+                    foreach (var v in factory.GenerateShift(night))
+                    {
+                        if (v.IsAdministrator) continue;
+                        int face = v.WindowFaceIndex >= 0 ? v.WindowFaceIndex : v.FaceAssetIndex;
+                        Check(FaceAssets.WindowKey(face, v.IsAnomaly).EndsWith("_anomaly") == v.IsAnomaly,
+                            $"seed {seed}: {v.ClaimedName}: the window face shows the monster exactly when it is an anomaly");
+                        Check(!FaceAssets.IdKey(v.FaceAssetIndex).EndsWith("_anomaly"), "the ID card always shows the real face");
+                    }
+            }
+        }
+
+        // The owner's rule: nothing buried in code. Change a rule, and the game has to change.
+        private static void RulesAreLiveTests()
+        {
+            Group("Changing a rule changes the game");
+            var keep = GameRules.Current;
+            try
+            {
+                var r = new GameRules();
+                GameRules.Current = r;
+
+                r.LoseThreshold = 7;
+                Eq(EndingRules.LoseThreshold, 7, "the lose limit comes from the rules");
+                var lose = new GameSession { Breaches = 6, CurrentShift = ShiftPlan.TotalShifts };
+                Check(!lose.LoseThresholdReached, "...six breaches are now not enough");
+                r.QuestionBudget = 3;
+                Eq(InterviewRules.Remaining(0), 3, "the question budget comes from the rules");
+                r.StableFrom = 95f;
+                Eq(SanityModel.StageFor(90f), SanityStage.Uneasy, "sanity stages come from the rules");
+                r.HallucinationBreaking = 0.5f;
+                Eq(SanityModel.HallucinationChancePerSecond(SanityStage.Breaking), 0.5f, "hallucination chances come from the rules");
+                r.RefillOnCorrect = 40f;
+                Eq(SanityModel.RefillOnCorrect, 40f, "the sanity refill comes from the rules");
+                r.BlackoutSeverity = 4;
+                Eq(ShiftFailureRules.Severity(0, ShiftFailure.Blackout), 4, "a blackout's weight comes from the rules");
+                r.MaxStartSanityLoss = 5f;
+                Eq(ShiftFailureRules.StartSanityLoss(5, 4), 5f, "the penalty cap comes from the rules");
+
+                r.StandingChance = 1f;
+                foreach (RoomId room in new[] { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 })
+                    Check(PatrolCycle.StandingIn(3, 2, room), "chance 1: every peek room holds one");
+                r.StandingChance = 0f;
+                int standing = 0;
+                foreach (RoomId room in new[] { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 })
+                    if (PatrolCycle.StandingIn(3, 2, room)) standing++;
+                Eq(standing, 1, "chance 0: still one, the patrol always meets something");
+
+                // the tables: a night and a student are rows
+                var nights = new List<ShiftDef>(r.Nights);
+                nights.Insert(0, r.Nights[0].Copy());
+                r.Nights = nights.ToArray();
+                Eq(ShiftPlan.TotalShifts, 6, "adding a row adds a night");
+                Eq(ShiftPlan.Night6Number, 7, "the Challenge moves after it");
+                Eq(ShiftPlan.Build()[5].Number, 6, "rows number themselves");
+                r.Nights[1].AnomalyCount = 1;
+                Eq(new RosterFactory(1).GenerateShift(ShiftPlan.Get(2)).Count(v => v.IsAnomaly), 1, "a night's anomaly count comes from its row");
+                ShiftPlan.Build()[0].Title = "changed";
+                Check(r.Nights[0].Title != "changed", "nothing can change the table by accident");
+
+                var students = new List<StudentRow>(r.Students);
+                students.Add(new StudentRow { FullName = "New Student", IdNumber = "HB-2026-0999", YearLevel = 2, FirstClassSubject = "Art", Greeting = "Hi.", Awkward = r.Students[0].Awkward });
+                r.Students = students.ToArray();
+                Eq(Content.TotalStudents, 8, "adding a row adds a student");
+                Eq(FaceAssets.StudentFaceCount, 8, "...with a face");
+                Eq(FaceAssets.StudentKey(7), "char_student_08", "...in the next picture");
+
+                r.RandomSeed = false; r.FixedSeed = 12345;
+                Eq(r.NewRunSeed(), 12345, "seed mode Fixed uses the number from the rules");
+                r.RandomSeed = true;
+                var seeds = new HashSet<int>();
+                for (int i = 0; i < 20; i++) seeds.Add(r.NewRunSeed());
+                Check(seeds.Count > 1, "seed mode Random gives different runs");
+            }
+            finally { GameRules.Current = keep; }
+        }
+
         private static void ShiftPlanTests()
         {
             Group("ShiftPlan - approved 4/6/7/8/8+admin progression");
@@ -158,7 +277,7 @@ namespace Hollowbrook.LogicTests
             Eq(shifts.Count, ShiftPlan.TotalShifts, "five shifts");
             Eq(shifts.Count, 5, "TotalShifts is 5");
             int[] wantVisitors = { 4, 6, 7, 8, 0 };
-            int[] wantAnomalies = { 1, 2, 3, 4, 0 };
+            int[] wantAnomalies = { 2, 3, 4, 5, 0 };
             for (int i = 0; i < shifts.Count; i++)
             {
                 var s = shifts[i];
@@ -1032,7 +1151,7 @@ namespace Hollowbrook.LogicTests
             var n6 = ShiftPlan.Night6Def();
             Check(n6.Number == 6 && n6.HasAdministrator && n6.VisitorCount == 0 && n6.AnomalyCount == 0,
                   "night 6 is the administrator alone, like night 5");
-            Check(Array.IndexOf(Content.ShiftDates, n6.DateLabel) == 5 && n6.LongDateLabel == "SATURDAY - NOVEMBER 7",
+            Check(n6.DateLabel == "Sat · Nov 7" && n6.LongDateLabel == "SATURDAY - NOVEMBER 7",
                   "night 6 has its own date");
             Eq(ShiftPlan.LastNight(GameMode.Normal), 5, "the story ends at night 5");
             Eq(ShiftPlan.LastNight(GameMode.Challenge), 6, "the Challenge reaches night 6");
@@ -1044,7 +1163,7 @@ namespace Hollowbrook.LogicTests
             Check(c6win.Ending == EndingType.Win && c6win.ReasonKey == "night6", "night 6 survived is its own Win");
             var c6lose = new GameSession { Mode = GameMode.Challenge, CurrentShift = 6, CompletedShifts = 0, AdminRejected = true, Hunt = HuntState.Lost };
             var c6loseEval = EndingRules.Evaluate(c6lose);
-            Check(c6loseEval.Ending == EndingType.Lose && c6loseEval.ReasonKey == "server_door" && c6loseEval.ReasonText.Contains("twice"),
+            Check(c6loseEval.Ending == EndingType.Lose && c6loseEval.ReasonKey == "server_door",
                   "night 6: reaching the server door loses (he needs two catches there)");
             var c6allow = new GameSession { Mode = GameMode.Challenge, CurrentShift = 6, AdminAllowed = true };
             Eq(EndingRules.Evaluate(c6allow).Ending, EndingType.Lose, "night 6: letting him in loses at once");
@@ -1271,7 +1390,7 @@ namespace Hollowbrook.LogicTests
         {
             Group("SaveFormat - round-trip, checksum tamper detection, bad input");
             Eq(SaveFormat.Header, "SMYIDSAVE", "header constant");
-            Eq(SaveFormat.Version, 3, "version constant");
+            Eq(SaveFormat.Version, 4, "version constant");
 
             var save = new SaveGame { SavedAtLabel = "NIGHT 3 - 02:14" };
             save.Session.Mode = GameMode.Normal;

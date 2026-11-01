@@ -289,7 +289,7 @@ namespace Hollowbrook.Checkpoint
         // Headless hook: present the Night-5 administrator so the memo path is provable.
         internal void DebugPresentAdmin()
         {
-            var admin = new RosterFactory(_gameRoot.Session.Seed).BuildAdministrator(ShiftPlan.Build()[4]);
+            var admin = new RosterFactory(_gameRoot.Session.Seed).BuildAdministrator(ShiftPlan.Get(ShiftPlan.TotalShifts));
             PresentFromQueue(admin, false);   // same state machine the queue path uses
         }
 
@@ -465,7 +465,7 @@ namespace Hollowbrook.Checkpoint
             else
             {
                 Say(v.Greeting);
-                if (v.Defects.Contains(DefectType.PhotoSubtleMismatch) && _gameRoot.Session.Sanity < 70f)
+                if (v.Defects.Contains(DefectType.PhotoSubtleMismatch) && _gameRoot.Session.SanityStage != SanityStage.Stable)
                     StartCoroutine(GlitchHint());   // a flicker over the one feature that is off
             }
         }

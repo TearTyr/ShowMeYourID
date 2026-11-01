@@ -152,6 +152,7 @@ namespace Hollowbrook.Core
         {
             Instance = this;
             Bus = bus; Config = config; Saves = saves; Settings = settings; Audio = audio;
+            if (config != null) GameRules.Current = config.rules;
             // (while the editor sets a scene up there is no game to keep alive, and no screen to resize)
             if (Application.isPlaying) DontDestroyOnLoad(gameObject);
             // One boot-time application of the stored display preference. Missing or unusable

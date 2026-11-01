@@ -30,7 +30,7 @@ namespace Hollowbrook.UI
                 "   folder, then click a file to pull it onto the desk - mismatches are clues.\n" +
                 "   The face at the window vs the ID photo is YOUR eye-check: this desk has no\n" +
                 "   face-match widget, nothing to click and nothing that scores it for you.\n" +
-                "   Ask up to 2 of the 4 questions (buttons, or keys 1 to 4): course, year, regular or\n" +
+                "   Ask up to " + InterviewRules.Budget + " of the " + InterviewRules.Count + " questions (buttons, or keys 1 to 4): course, year, regular or\n" +
                 "   transferee, first classroom. YEAR unlocks once you flip the ID, STATUS once you open\n" +
                 "   their file. The answer shows in the bubble and stays on its button; compare it with\n" +
                 "   the card and the file. A wrong answer means something is off.\n" +

@@ -7,6 +7,9 @@ namespace Hollowbrook.Core
     // Tuning knobs editable in one asset. Loaded by GameCore.
     public class GameConfigSO : ScriptableObject
     {
+        [Header("Game rules: the numbers, the nights and the students")]
+        public GameRules rules = new GameRules();
+
         [Header("Checkpoint pacing")]
         [Tooltip("Seconds the stamped paper stays before the next student steps up.")]
         public float verdictBannerSeconds = 1.2f;

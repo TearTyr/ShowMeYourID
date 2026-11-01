@@ -8,7 +8,7 @@ namespace Hollowbrook.Scenes
     // and the card can never disagree about who is displayed. Created by CheckpointView.Window.
     public static class FaceArt
     {
-        /// <summary>The face at the window. Only a photo defect changes it (see FaceAssets).</summary>
+        /// <summary>The face at the window: an anomaly always wears its monster art (see FaceAssets).</summary>
         public static Sprite WindowSprite(VisitorData v)
         {
             if (v == null) return null;
@@ -33,8 +33,7 @@ namespace Hollowbrook.Scenes
         private static string WindowKeyFor(VisitorData v)
         {
             int face = v.WindowFaceIndex >= 0 ? v.WindowFaceIndex : v.FaceAssetIndex;
-            bool subtle = v.Defects.Contains(DefectType.PhotoSubtleMismatch) || v.WindowPortrait.Distorted;
-            return FaceAssets.WindowKey(face, subtle);
+            return FaceAssets.WindowKey(face, v.IsAnomaly);
         }
     }
 }

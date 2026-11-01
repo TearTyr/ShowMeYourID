@@ -1,19 +1,18 @@
 namespace Hollowbrook.Logic
 {
     /// <summary>Which face art goes where. The ID card ALWAYS shows the real student's face.
-    /// The window shows that same face, unless the visitor has a photo defect:
-    ///  - PhotoMismatch: somebody else's face (VisitorData.WindowFaceIndex differs),
-    ///  - PhotoSubtleMismatch: the same student's "_anomaly" art (one feature is off).
-    /// A visitor with any other defect looks completely normal, so only the papers and the
-    /// classroom answer can give them away. Keys resolve through ProceduralArt
+    /// A real student at the window shows that same face. An anomaly ALWAYS wears the "_anomaly"
+    /// art (the owner's rule: like That's Not My Neighbor, the monster is in plain sight). A
+    /// PhotoMismatch anomaly wears somebody else's (VisitorData.WindowFaceIndex differs).
+    /// Keys resolve through ProceduralArt
     /// (Resources/Art/<key>.png first); with no file the caller falls back to the procedural
     /// portrait painter, so a missing asset never shows a broken image.</summary>
     public static class FaceAssets
     {
         // The illustrated busts (Mark, Jose, Maria, Liza, Raf, Reniel, Rhevster), built by
         // Tools/prep_characters.py into Assets/_Project/Resources/Art/. Add a character there
-        // and raise this number; the mapping does not change.
-        public const int StudentFaceCount = 7;
+        // and add a row to the Students table; the mapping does not change.
+        public static int StudentFaceCount => GameRules.Current.Students.Length;
 
         /// <summary>Zero-padded key for one ordinary student face: "char_student_03".</summary>
         public static string StudentKey(int faceIndex) =>

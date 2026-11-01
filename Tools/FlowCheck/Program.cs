@@ -81,6 +81,7 @@ namespace FlowCheck
             Console.WriteLine("== NEW GAME flow, headless ==");
             MenuScene.Build(GameCore.EnsureCore());
             var root = GameRoot.Instance;
+            GameRules.Current.RandomSeed = false;   // these proofs need the same run every time
             Check(root != null && root.State == AppViewState.MainMenu, "menu boots");
 
             var newGame = root.MainMenu.transform.Find("buttons").Find("NEW GAME");
@@ -2808,7 +2809,7 @@ namespace FlowCheck
             DeskScene.Build(root);
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
             Check(root.State == AppViewState.Checkpoint, "W0: a fresh run reaches the desk");
-            Check(root.Session.Pool.Pending == 1, "W0: night 1 seeds exactly one outstanding anomaly");
+            Check(root.Session.Pool.Pending == root.CurrentShiftDef.AnomalyCount, "W0: the night seeds as many outstanding anomalies as its row says");
 
             root.EnterExploration();
             PatrolScene.Build(root);      // what Unity does after LoadScene(School)

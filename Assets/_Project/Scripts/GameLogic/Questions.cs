@@ -8,7 +8,7 @@ namespace Hollowbrook.Logic
     public static class InterviewRules
     {
         public const int Count = 4;
-        public const int Budget = 2;   // questions per student
+        public static int Budget => GameRules.Current.QuestionBudget;   // questions per student
 
         public static string Button(QuestionId q)
         {

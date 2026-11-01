@@ -49,12 +49,12 @@ namespace Hollowbrook.UI
             sb.Append("Visitors processed tonight:  ").Append(shiftVisitors).Append('\n');
             sb.Append("Correct decisions (total):     ").Append(session.CorrectDecisions).Append(" / ").Append(session.Processed).Append('\n');
             sb.Append("Anomalies rejected (total):    ").Append(session.AnomaliesRejected).Append('\n');
-            sb.Append("False rejections:              ").Append(session.FalseRejections).Append(" / 3\n");
-            sb.Append("Anomaly breaches:              ").Append(session.Breaches).Append(" / 3\n");
+            sb.Append("False rejections:              ").Append(session.FalseRejections).Append(" / ").Append(EndingRules.LoseThreshold).Append("\n");
+            sb.Append("Anomaly breaches:              ").Append(session.Breaches).Append(" / ").Append(EndingRules.LoseThreshold).Append("\n");
             sb.Append("Sanity at clock-out:           ").Append(((int)session.Sanity)).Append("  (").Append(session.SanityStage).Append(")\n");
             sb.Append("Findings discovered:           ").Append(session.Clues.FoundCount).Append(" / 10");
             sb.Append(session.Clues.OrderIntact ? "   (sequence intact)\n" : "   (sequence broken)\n");
-            if (justFinished.Number == 5)
+            if (justFinished.HasAdministrator)
                 sb.Append("District administrator:        ").Append(session.AdminRejected ? "REJECTED - identified as an impostor\n" : "-\n");
             _body.text = sb.ToString();
 
