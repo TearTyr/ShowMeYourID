@@ -310,6 +310,18 @@ namespace Hollowbrook.Checkpoint
             }
         }
 
+        // A normal night's patrol comes after the last student. Endless and Challenge never run dry.
+        private bool PatrolOpen
+        {
+            get
+            {
+                if (_gameRoot.HuntReady) return true;
+                if (_gameRoot.CurrentShiftDef != null && _gameRoot.CurrentShiftDef.HasAdministrator) return false;
+                if (Queue == null || !Queue.Started || Queue.Collapsed) return false;
+                return !_gameRoot.PatrolRequired || Queue.ShiftComplete;
+            }
+        }
+
         // Decisions are clickable only while an inspection is live AND the ID is in hand;
         // the interview column swaps between the QUESTION gate and the open questions.
         private void RefreshDecisionButtons()
@@ -321,9 +333,9 @@ namespace Hollowbrook.Checkpoint
             _qKeyHint.gameObject.SetActive(atWindow);
             RefreshQuestionsPanel(atWindow);
             RefreshStamps(live);
-            bool patrolOn = !atWindow && Queue != null && Queue.Started && !collapsed;
-            bool endOn = Queue != null && Queue.ShiftComplete &&
-                         _gameRoot.Session.Mode == GameMode.Normal && !_gameRoot.HuntActive;
+            bool patrolOn = PatrolOpen && !atWindow;
+            bool endOn = Queue != null && Queue.ShiftComplete && _gameRoot.PatrolDone &&
+                         _gameRoot.Session.Mode == GameMode.Normal && !_gameRoot.HuntActive && !_gameRoot.HuntReady;
             if (_kitOn) { ApplyKitPill(_patrolBtn, patrolOn); ApplyKitPill(_endShiftBtn, endOn); }
             else
             {
@@ -383,6 +395,39 @@ namespace Hollowbrook.Checkpoint
             // the mark STAYS on the slip: the student gets their stamped paper back
         }
 
+        private const float DenyDimAlpha = 0.45f;
+        private const int DenyFlickerSteps = 10;
+        private Image _denyDim;
+
+        // The booth stays dim once he has been refused (also after Continue).
+        private void SetDenyDim(float alpha)
+        {
+            if (_denyDim == null)
+            {
+                var rt = UIFactory.NewUI(transform, "deny_dim");
+                rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+                rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+                _denyDim = rt.gameObject.AddComponent<Image>();
+                _denyDim.raycastTarget = false;
+            }
+            _denyDim.color = new Color(0f, 0f, 0f, alpha);
+            _denyDim.transform.SetAsLastSibling();
+        }
+
+        // A dim that stutters as it falls. Anyone who asked for calm gets a plain steady dim.
+        private IEnumerator DimAndFlicker()
+        {
+            bool calm = _gameRoot.Settings != null &&
+                        (_gameRoot.Settings.PhotosensitivitySafe || _gameRoot.Settings.ReduceMotion);
+            for (int i = 1; i <= DenyFlickerSteps; i++)
+            {
+                float a = DenyDimAlpha * i / DenyFlickerSteps;
+                SetDenyDim(!calm && i % 3 == 0 ? a * 0.3f : a);
+                yield return WaitUnpaused(0.09f);
+            }
+            SetDenyDim(DenyDimAlpha);
+        }
+
         // The post-stamp beat: the mark lands, the subject leaves, the next steps up.
         // Deliberately wordless - feedback is the stamp, the sound, the walking figure.
         private IEnumerator AfterStamp(VisitorData resolved)
@@ -396,14 +441,14 @@ namespace Hollowbrook.Checkpoint
 
             if (resolved.IsAdministrator && _gameRoot.Session.AdminRejected)
             {
-                // he says he will be back, then leaves the window; the hunt follows
+                // the window shuts on him, the booth dims and stutters, and he says he will be back
                 if (Queue != null) Queue.AbandonLine();
-                _gameRoot.BeginAdminHunt(() =>
-                {
-                    _current = null;
-                    SetVisitorVisible(false);
-                    RefreshHud();
-                });
+                _current = null;
+                SetVisitorVisible(false);
+                _gameRoot.PrepareAdminHunt();
+                RefreshHud();
+                yield return DimAndFlicker();
+                _gameRoot.PlayAdminExit();
                 yield break;
             }
 

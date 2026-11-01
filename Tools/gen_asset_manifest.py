@@ -33,34 +33,15 @@ ART = [
     ("face_placeholder","face",      "P3", "code-drawn", "PNG RGBA 168x208 px @100 ppu (only ever shown if a face asset is missing)", "CheckpointView window/card fallback", "functional fallback - do not retire"),
 
     # ---- patrol world: rooms ----
-    ("hallway_bg",      "world-bg",  "P0", "procedural", "PNG 1536x640 px @64 ppu (=24x10 world units), side-view corridor, doors/lockers baked OR as separate props", "ViewManager hallway", "final art may split baked props into layers; keep the same canvas size"),
     ("hall_depth",      "world-bg",  "P0", "procedural", "PNG RGBA, ALPHA-ONLY black radial falloff (see HallwayDarkness.DepthAt), native px = shroud world size x10", "hallway limited visibility", "must stay alpha-graded or the pool breaks"),
-    ("classroom1_bg",   "world-bg",  "P1", "procedural", "PNG 1152x640 px @64 ppu, Room 101 side view", "ViewManager classroom 1 / peek", ""),
-    ("classroom2_bg",   "world-bg",  "P1", "procedural", "PNG 1152x640 px @64 ppu, Room 202 side view (night window glow)", "ViewManager classroom 2 / peek", ""),
 
     # ---- patrol world: props & the GDD interaction objects ----
-    ("prop_door",            "world-prop", "P0", "procedural", "PNG RGBA 160x384 px @64 ppu (2.5x6 units), classroom door, stands on the floor line", "RoomBuilder doors", "drawn standing: centre = floor + h/2"),
     ("prop_door_security",   "world-prop", "P0", "procedural", "PNG RGBA 160x384 px @64 ppu, booth/security door with plate", "RoomBuilder security door + office door", ""),
     ("prop_server_door",     "world-prop", "P0", "procedural", "PNG RGBA 208x384 px @64 ppu, SEALED server/ID room door: chains + padlock baked", "hallway east end", "the scratch marks are story - keep them"),
-    ("prop_lockers",         "world-prop", "P0", "procedural", "PNG RGBA 288x336 px @64 ppu, locker bank", "hallway", ""),
-    ("prop_lightfixture",    "world-prop", "P1", "procedural", "PNG RGBA 208x40 px @64 ppu, ceiling light strip (flicker clue #1)", "hallway clue 'light'", ""),
-    ("prop_noticeboard",     "world-prop", "P2", "procedural", "PNG RGBA 208x160 px @64 ppu, notice board with torn corner (clue #6)", "hallway clue 'board'", "GDD: Notice Board"),
-    ("prop_photoframe",      "world-prop", "P2", "procedural", "PNG RGBA 144x108 px @64 ppu, framed old school photo (clue #8)", "hallway clue 'photo'", "GDD: Photo"),
     ("prop_clock",           "world-prop", "P2", "procedural", "PNG RGBA 112x112 px @64 ppu, wall clock stopped at 1:47 (clue #10)", "hallway clue 'clock'", "GDD: Clock"),
-    ("prop_chalkboard",      "world-prop", "P1", "procedural", "PNG RGBA 384x224 px @64 ppu, half-erased board (clue #2)", "classroom 1 clue 'chalkboard'", "GDD interaction list"),
-    ("prop_desk",            "world-prop", "P1", "procedural", "PNG RGBA 208x128 px @64 ppu, teacher's desk (clue #3)", "classroom 1", ""),
-    ("prop_lostid",          "world-prop", "P2", "procedural", "PNG RGBA 56x36 px @64 ppu, lost student ID on the shelf (clue #7)", "classroom 1 clue 'lostid'", "GDD: Student ID"),
-    ("prop_window",          "world-prop", "P1", "procedural", "PNG RGBA 224x300 px @64 ppu, classroom window with night glass (clue #5)", "classroom 2 clue 'window'", "GDD: Window"),
-    ("prop_cabinet",         "world-prop", "P2", "procedural", "PNG RGBA 160x272 px @64 ppu, filing cabinet (clue #9)", "classroom 2 clue 'cabinet'", "GDD: Cabinet"),
     ("token",                "world-prop", "P2", "procedural", "PNG RGBA 28x28 px @64 ppu, pocket-watch token left by a repelled anomaly", "anomaly repel reward", ""),
 
     # ---- characters ----
-    ("custodian_0",     "character", "P0", "procedural", "PNG RGBA 96x224 px @64 ppu, the guard: walk frame A", "PlayerController", "2-frame walk is enough; add _2/_3 later without renaming"),
-    ("custodian_1",     "character", "P0", "procedural", "PNG RGBA 96x224 px @64 ppu, walk frame B", "PlayerController", ""),
-    ("anomaly_blink",   "character", "P1", "procedural", "PNG RGBA 128x336 px @64 ppu, silhouette: only moves unobserved", "WanderingAnomaly", "reads as a silhouette under the darkness overlay (order 40)"),
-    ("anomaly_slide",   "character", "P1", "procedural", "PNG RGBA 128x336 px @64 ppu, lateral glider", "WanderingAnomaly", ""),
-    ("anomaly_sprint",  "character", "P1", "procedural", "PNG RGBA 128x336 px @64 ppu, telegraph-then-burst runner", "WanderingAnomaly", ""),
-    ("anomaly_coverhug","character", "P1", "procedural", "PNG RGBA 128x336 px @64 ppu, ceiling hugger", "WanderingAnomaly", ""),
     ("hood_figure",     "character", "P1", "procedural", "PNG RGBA 24x48 px @100 ppu, waiting-line silhouette for the queue stands", "CheckpointView stands", ""),
 
     # ---- map sheet (this pass) ----
@@ -158,7 +139,6 @@ MUSIC = [
 SEC = [
     ("sec_background",       "kit", "P0", "full-frame 2880x1620 layer: booth base, lamp cone baked, no window"),
     ("sec_background_open",  "kit", "P0", "full-frame layer: booth with the shutter OPEN (loading/summary backdrops)"),
-    ("sec_background_close", "kit", "P0", "full-frame layer: booth with the shutter CLOSED (night card backdrop)"),
     ("sec_light",            "kit", "P0", "full-frame layer: hanging lamp cone only (slow breath layer)"),
     ("sec_window_open",      "kit", "P0", "full-frame layer: window frame + open glass; opening matches the Portrait rect"),
     ("sec_window_close",     "kit", "P0", "full-frame layer: window frame + closed blinds"),
@@ -174,7 +154,6 @@ SEC = [
     ("sec_icon_accept",      "kit", "P0", "sliced check disc badge for the APPROVE stamp handle"),
     ("sec_icon_decline",     "kit", "P0", "sliced cross disc badge for the DECLINE stamp handle"),
     ("sec_folder_tab1",      "kit", "P0", "sliced folder: 1st-floor tab art"),
-    ("sec_folder_tab2",      "kit", "P0", "sliced folder: 2nd-floor tab art"),
     ("sec_icon_patrol",      "kit", "P0", "sliced footprint icon for the patrol button"),
     ("sec_icon_endshift",    "kit", "P0", "sliced moon icon for the end-shift button"),
     ("sec_qpanel",           "kit", "P0", "cropped panel: question column skin"),
@@ -183,10 +162,7 @@ SEC = [
     ("sec_cabinet2",         "kit", "P0", "cropped drawer unit: file-drawer body skin"),
     ("sec_stamp",            "kit", "P0", "cropped hand stamp: the draggable verdict stamp body"),
     ("sec_rules_paper",      "kit", "P2", "cropped tilted paper: RULES NOTE overlay skin"),
-    ("sec_rules_dark",       "kit", "P2", "cropped dark paper: RN tool-button skin"),
     ("sec_log_paper",        "kit", "P2", "cropped tilted paper: TONIGHT'S LOG overlay skin"),
-    ("sec_log_dark",         "kit", "P2", "cropped dark paper: TL tool-button skin"),
-    ("sec_log_rules",        "kit", "P3", "cropped pair of papers: reserve composite"),
     ("sec_bubble",           "kit", "P0", "speech box, 9-sliced (left tail + rough edge preserved): bubble + dialogue panel skin"),
 ]
 

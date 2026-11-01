@@ -18,6 +18,9 @@ MonoBehaviour:
   queueRunMinSeconds: 3
   queueRunMaxSeconds: 5
   queueBusyHurryMultiplier: 2
+  nextStudentSeconds: 3
+  anomalyFirstSpawnSeconds: 15
+  peekRepelSeconds: 1.5
   queueNightScale: 0.8
   queuePressureWarnAt: 9999
   queueOverwhelmedAt: 9999

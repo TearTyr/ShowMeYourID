@@ -42,18 +42,22 @@ desk), the **rules note** and **tonight's log** (with ID numbers), and the **que
   either ends the run on the last night.
 - The prompt line at the top always names the next step.
 
+**The window:** the next student steps up within 3 seconds of an empty window, and the window stays
+open from the first student to the last. Then it closes and Patrol unlocks.
+
 **Patrol (A/D or arrows, Shift run, E interact):** the mouse only aims the flashlight, it selects
-nothing. Doors and items go by where the guard stands. The corridor is one painted image, always dark, and **no anomalies roam the school**: they only come to the
-security window. The doors follow the desk map: Security, Room 101, Room 202, CR-1, the sealed server
-room, CR-2 (FloorPlan.cs draws the hallway and both maps). The **flashlight** points at the cursor
-(`F` sweep on/off, `Q` focus, `L` off). While it is lit it turns the guard to face it; while it is off
-he faces the way he walks. Every room is a
+nothing. Doors and items go by where the guard stands. The corridor is one painted image, always
+dark. The doors follow the desk map: Security, Room 101, Room 202, CR-1, the sealed server room, CR-2
+(FloorPlan.cs draws the hallway and both maps). The **flashlight** points at the cursor (`F` sweep
+on/off, `Q` focus, `L` off). While it is lit it turns the guard to face it; while it is off he faces
+the way he walks. **One patrol cycle** is required before END SHIFT: peek into Room 101, Room 202 and
+a CR (either one). **Anomalies** roam the hallway only, from night 1, with one guaranteed about 15 seconds into each patrol: hold the Focus beam on it to repel it, and it drops a token. The guard carries only a weak light, so what is ahead of him is black until the flashlight finds it: sweep it along the walls, up at the ceiling and down at the floor. Every room is a
 **peek** from its door: a black cover with a hole that follows the mouse shows the room behind it
 (`F` on/off, `Q` wide/tight). `E` selects what the lit lamp is on, nothing else; `S` or the bottom
-edge steps back. Besides the clues there are things to inspect: the patrol clipboard, a dead switch,
-the lockers, and each CR's mirror, sinks and stalls. One token lies in the hallway on each of nights
-1 to 4; tokens are banked between runs and 3 open Endless and Challenge on the main menu. Ten clues,
-found in order, open the secret ending.
+edge steps back. The peek rooms hold **standing anomalies** that never move, in some rooms each night and always at least one: hold the lit lamp on one for 1.5 seconds to drive it out. A room does not count for the cycle until its anomaly is gone, and standing ones leave no token. Besides the clues there
+are things to inspect: the patrol clipboard, the lockers, and each CR's mirror, sinks and stalls.
+Tokens are banked between runs and 3 open Endless and Challenge on the main menu. Ten clues, found
+in order, open the secret ending.
 
 **Night 5 - the administrator:** no students and no roaming anomalies, only him, with a staff badge
 and a roster memo that do not match. The four student questions are gone. `T` opens the
@@ -62,13 +66,18 @@ Each answer has a follow-up that catches him out, and every **lie exposed** take
 night (it can never be shorter than 120 seconds). Talking never stamps. **REFUSE ENTRY** = the DENY
 stamp. Allowing him in loses at once.
 
-**The hunt (after the DENY):** he says he'll be back and leaves the window. Then it plays like
-Nightmare Fredbear's night in FNaF 4, with captions instead of audio: he walks the halls. When they stop he is at one of three places: **a
-classroom door** (stand there and hold `E` for 2 s within 10 s), **CR-1 or CR-2** (peek in and
-hold the lamp on his head within 12 s), or **right behind you** (aim at him and flash his face within 2.6 s). Too
-slow and he catches you: sanity drops and you are thrown back. **3 catches** = he reaches the server
-door (lose). Survive **210 s** to dawn (normal Win/Secret ending). The security door is locked and
-every phase has a time limit, so it cannot get stuck. Quit + CONTINUE restarts the hunt.
+**The hunt (after the DENY):** the window closes, the booth dims and flickers, and he says he'll be
+back and leaves. The security game is over and only Patrol works; the hunt starts when it is clicked.
+Then it plays like Nightmare Fredbear's night in FNaF 4, with captions instead of audio. He is the
+only anomaly and can be anywhere: in **Room 101, Room 202, CR-1 or CR-2** (peek in and hold the lamp
+on his head within 12 s) or **right behind you** (aim at him and flash his face within 2.6 s). Only
+the light stops him, and each success gives 8 sanity. Too slow and he catches you: sanity drops and
+you are thrown back. **3 catches** = he reaches the server door (lose). Survive **210 s** to dawn.
+The security door is locked and every phase has a time limit, so it cannot get stuck. Quit + CONTINUE
+restarts the hunt, or returns to the desk if it has not started.
+
+**End of a night:** nights 1 to 4, won or failed, go straight to the main menu; CONTINUE starts the
+next one. Night 5 shows the results, then the ending.
 
 **Endings:** Surviving Hollowbrook (5 nights + dawn on the last) / Another Custodian
 (3 breaches, 3 false rejections, the line overruns, the administrator let in, or three catches on night 5) /

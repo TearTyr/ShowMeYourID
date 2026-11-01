@@ -25,16 +25,6 @@ namespace Hollowbrook.Logic
 
         public void Resolve(AnomalyBehaviorKind kind) => _pending.Remove(kind);
 
-        public bool TryTake(GameRng rng, out AnomalyBehaviorKind kind)
-        {
-            kind = AnomalyBehaviorKind.Blink;
-            if (_pending.Count == 0) return false;
-            int i = rng.NextInt(0, _pending.Count);
-            kind = _pending[i];
-            _pending.RemoveAt(i);
-            return true;
-        }
-
         public string Encode() => string.Join(",", _pending.ConvertAll(k => ((int)k).ToString()));
 
         public void Decode(string s)

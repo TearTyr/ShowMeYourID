@@ -16,8 +16,7 @@ namespace Hollowbrook.World
     //  - a repelled anomaly schedules its own kind's return here; the countdown is a plain
     //    timer ticked by UpdateSpawner (no coroutines that could fire mid-resolution), and
     //    it re-arms instead of spawning while the slot is busy;
-    //  - returns reposition through a plausible room (never the player's current one when
-    //    another is available) and never on top of the player;
+    //  - a repelled one comes back in the hallway, away from the player;
     //  - DiscardLive (leaving for the desk) destroys WITHOUT resolving: the pool keeps it
     //    outstanding, and it also cancels any pending return.
     public class RoomSpawner
@@ -26,7 +25,8 @@ namespace Hollowbrook.World
         private readonly ViewManager _views;
         private GameRng _rng;
         private WanderingAnomaly _liveAnomaly;
-        private float _spawnCooldown = 6f;
+        private float _spawnCooldown;
+        private bool _sightingDue = true;   // every patrol meets at least one
         private int _anomaliesInside;
         private float _returnTimer = -1f;
         private AnomalyBehaviorKind _returnKind;
@@ -40,6 +40,7 @@ namespace Hollowbrook.World
             _root = root;
             _views = views;
             _rng = rng;
+            _spawnCooldown = root.Config != null ? root.Config.anomalyFirstSpawnSeconds : 15f;
         }
 
         public void NoteBreach() { _anomaliesInside++; }
@@ -60,7 +61,6 @@ namespace Hollowbrook.World
 
         public void UpdateSpawner(float dt)
         {
-            if (!_root.Config.patrolAnomalies) return;   // anomalies only come to the security window
             if (_root.State != AppViewState.Exploration) return;
             if (_views.Current == null || _views.Transitioning) return;
             // on night 5 the administrator is the only thing in the building
@@ -81,11 +81,17 @@ namespace Hollowbrook.World
             }
 
             int shift = _root.Session.Mode == GameMode.Normal ? _root.Session.CurrentShift : 3;
-            if (_root.Session.Mode == GameMode.Normal && shift < 2) return; // anomalies wander from shift 2
             if (_liveAnomaly != null) return;
 
             _spawnCooldown -= dt;
             if (_spawnCooldown > 0f) return;
+            if (_sightingDue)
+            {
+                _sightingDue = false;
+                _spawnCooldown = 4f;
+                SpawnAnomaly(false);
+                return;
+            }
 
             float chance = _root.Config.anomalySpawnChancePerSecond * (0.6f + 0.2f * shift) *
                            (1f + 0.35f * _anomaliesInside + 0.3f * (int)_root.Session.Breaches) *
@@ -113,18 +119,7 @@ namespace Hollowbrook.World
             if (_liveAnomaly != null) { _returnTimer = 4f; return; }  // wait for the stage to clear
             _returnTimer = -1f;
 
-            // plausible new location: another roamable room when one exists, so it never
-            // materializes inside the player's space; it walks in through a door from there.
-            RoomId? room = null;
-            var options = new List<RoomId>();
-            foreach (var r in RoomGraph.Roamable)
-                if (_views.Current == null || r != _views.Current.Id) options.Add(r);
-            if (options.Count > 0)
-            {
-                if (_rng == null) _rng = new GameRng(_root.Session.Seed + 31 + _root.Session.CurrentShift);
-                room = options[_rng.NextInt(0, options.Count)];
-            }
-            SpawnKind(_returnKind, room);
+            SpawnKind(_returnKind, null);   // it comes back in the hallway
             _spawnCooldown = Mathf.Max(_spawnCooldown, 3f);
         }
 
@@ -132,7 +127,7 @@ namespace Hollowbrook.World
         /// (uncaught == outstanding); phantoms are always the gliding shape (they never grab).</summary>
         public void SpawnAnomaly(bool hallucination)
         {
-            if (_views.Current == null || !_root.Config.patrolAnomalies) return;
+            if (_views.Current == null) return;
             if (!hallucination && _liveAnomaly != null) return;
             if (_rng == null) _rng = new GameRng(_root.Session.Seed + 31 + _root.Session.CurrentShift);
             var kind = hallucination ? AnomalyBehaviorKind.Slide : _root.Session.Pool.PeekKind(_rng);
@@ -162,7 +157,6 @@ namespace Hollowbrook.World
             an.SeedMovement(_rng.NextInt(1, 1 << 30));   // movement rolls ride the run seed
             if (hallucination) return an;
             _liveAnomaly = an;
-            _root.Bus.Publish(GameEvent.Of(EventIds.AnomalySighted, kind));
             return an;
         }
 

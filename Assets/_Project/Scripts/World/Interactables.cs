@@ -38,14 +38,9 @@ namespace Hollowbrook.World
         public override void Interact()
         {
             if (_gameRoot == null || _gameRoot.Session == null) return;
-            _gameRoot.Session.TokensCollected++;
-            _gameRoot.Session.TokenNight = _gameRoot.Session.CurrentShift;
-            _gameRoot.Records.TokensBanked++;   // spent on the main menu: see MainMenuView
             if (Room != null) Room.Interactables.Remove(this);
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.TokenCollected, _gameRoot.Session.TokensCollected));
-            _gameRoot.Audio.PlaySfx("sfx_scan_ok", 0.6f);
+            _gameRoot.AwardToken();
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*you pocket a token*", 2.4f, null));
-            _gameRoot.PersistRun();   // a token is kept even if the run is abandoned
             Destroy(gameObject);
         }
     }
@@ -71,7 +66,6 @@ namespace Hollowbrook.World
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, "THE SECURITY DOOR IS LOCKED - HE IS INSIDE THE SCHOOL."));
                 return;
             }
-            if (_gameRoot.Views.Hunt != null && _gameRoot.Views.Hunt.BlocksDoor(Target)) return;   // he is behind it
             if (Target == RoomId.Security) _gameRoot.Views.ReturnToSecurity();
             // every room is peek only: the player looks inside from the doorway, never enters
             else _gameRoot.EnterRoomPeek(Target);
@@ -103,10 +97,7 @@ namespace Hollowbrook.World
     public class ClueObject : Interactable
     {
         private string _clueKey;
-        public string ClueKey => _clueKey;
         private ClueDef _def;
-        private bool _discovered;
-        private GameObject _marker;
 
         public void Init(GameRoot root, RoomInstance room, string clueKey, string label, float x)
         {
@@ -141,7 +132,6 @@ namespace Hollowbrook.World
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
                     "FINDING " + _gameRoot.Session.Clues.FoundCount + "/10 - " + _def.Display));
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.ClueDiscovered, res));
-                AddMarker();
                 if (_def.IsScare && _gameRoot.Scares != null)
                     _gameRoot.Scares.Stinger("clue_" + _clueKey, 0f); // sanity already applied by DiscoverClue
             }
@@ -161,24 +151,6 @@ namespace Hollowbrook.World
                 case "lostid": return "inspect_clipboard";
                 default: return null;
             }
-        }
-
-        private void AddMarker()
-        {
-            if (_discovered || _marker != null) return;
-            _discovered = true;
-            // same flat-quad convention as every other world placeholder (size in units)
-            _marker = RoomBuilder.Quad(Room.Root.transform, "found_marker",
-                new Vector3(AnchorX, -1.35f, 0), 60,
-                new Vector2(0.14f, 0.14f),
-                new Color(0.75f, 0.14f, 0.18f, 0.9f)); // restrained red = interacted/interactive
-        }
-
-        public void SyncFromSession()
-        {
-            bool found = false;
-            foreach (var k in _gameRoot.Session.Clues.FoundKeys) if (k == _clueKey) { found = true; break; }
-            if (found && !_discovered) AddMarker();
         }
     }
 }

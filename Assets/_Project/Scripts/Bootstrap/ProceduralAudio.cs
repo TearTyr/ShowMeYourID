@@ -57,7 +57,6 @@ namespace Hollowbrook.Bootstrap
             float rel = 1f - (t / dur);
             return a * rel * rel;
         }
-        private static readonly System.Random NoiseRand = new System.Random(9);
         private static float LowPass(float[] state, float input, float cutoff01)
         {
             state[0] += cutoff01 * (input - state[0]);

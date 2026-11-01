@@ -54,6 +54,8 @@ namespace Hollowbrook.Logic
                 sb.Append("queueWarned=").Append(q.Warned).Append('\n');
             }
             KV(sb, "pool", s.Pool.Encode());
+            sb.Append("clearedRooms=").Append(s.ClearedRooms).Append('\n');
+            sb.Append("peekGone=").Append(s.PeekAnomaliesGone).Append('\n');
             KV(sb, "admitted", string.Join(",", s.AdmittedStudents.ConvertAll(st => st.VisitorIndex + ":" + (st.IsAnomaly ? 1 : 0))));
             sb.Append("adminAllowed=").Append(s.AdminAllowed ? 1 : 0).Append('\n');
             KV(sb, "adminTalk", s.AdminTalk != null ? s.AdminTalk.Encode() : "");
@@ -66,7 +68,6 @@ namespace Hollowbrook.Logic
             sb.Append("runFinished=").Append(s.RunFinished ? 1 : 0).Append('\n');
             KV(sb, "sanity", Inv(s.Sanity));
             sb.Append("score=").Append(s.Score).Append('\n');
-            sb.Append("tokenNight=").Append(s.TokenNight).Append('\n');
             sb.Append("streak=").Append(s.Streak).Append('\n');
             sb.Append("bestStreak=").Append(s.BestStreak).Append('\n');
             KV(sb, "runTimer", Inv(s.RunTimer));
@@ -162,6 +163,8 @@ namespace Hollowbrook.Logic
                 }
                 else s.QueueState = null;   // a pre-queue save: ContinueGame falls back to visitorAtSave
                 s.Pool.Decode(Str(map, "pool", ""));
+                s.ClearedRooms = Int(map, "clearedRooms", 0);
+                s.PeekAnomaliesGone = Int(map, "peekGone", 0);
                 foreach (var pair in Str(map, "admitted", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries))
                 {
                     var halved = pair.Split(':');
@@ -171,7 +174,7 @@ namespace Hollowbrook.Logic
                 }
                 s.AdminAllowed = Int(map, "adminAllowed", 0) == 1;
                 s.AdminRejected = Int(map, "adminRejected", 0) == 1;
-                s.Hunt = (HuntState)Math.Max(0, Math.Min(3, Int(map, "hunt", 0)));
+                s.Hunt = (HuntState)Math.Max(0, Math.Min(4, Int(map, "hunt", 0)));
                 // absent in older saves: no failed night to pay for
                 s.ShiftBreaches = Int(map, "shiftBreaches", 0);
                 s.PendingPenaltySeverity = Int(map, "penaltySeverity", 0);
@@ -182,7 +185,6 @@ namespace Hollowbrook.Logic
                 s.RunFinished = Int(map, "runFinished", 0) == 1;
                 s.Sanity = Flt(map, "sanity", 100f);
                 s.Score = Int(map, "score", 0);
-                s.TokenNight = Int(map, "tokenNight", 0);
                 s.Streak = Int(map, "streak", 0);
                 s.BestStreak = Int(map, "bestStreak", 0);
                 s.RunTimer = Flt(map, "runTimer", 0f);

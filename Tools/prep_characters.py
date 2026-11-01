@@ -9,6 +9,7 @@ relative to each other. Names the game expects:
   char_student_NN_anomaly.png  the same person, wrong (photo-defect anomalies only)
   char_admin.png / char_admin_glitch.png   the Night-5 administrator (the Director)
   char_guard_idle.png, char_guard_walk_a.png, char_guard_walk_b.png   the player's three poses
+  char_anomaly.png   the roaming anomaly (Slide_Anomaly/Anomaly_Slide.png, cropped to its drawing)
 Re-run whenever the art changes. New .png files still need a .meta (Tools/generate_meta.py).
 """
 import os

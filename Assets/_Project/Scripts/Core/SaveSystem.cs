@@ -9,7 +9,6 @@ namespace Hollowbrook.Core
     public class SaveSystem
     {
         private const string FileName = "hollowbrook_save.txt";
-        private readonly EventBus _bus;
 
         public string SaveDirectory
         {
@@ -39,7 +38,6 @@ namespace Hollowbrook.Core
             }
         }
 
-        public SaveSystem(EventBus bus) { _bus = bus; }
 
         public bool HasSave()
         {
@@ -67,7 +65,6 @@ namespace Hollowbrook.Core
                     if (File.Exists(p + ".bak")) File.Delete(p + ".bak");
                     File.Move(tmp, p);
                 }
-                _bus?.Publish(GameEvent.Of(EventIds.GameSaved));
                 Debug.Log("[SaveSystem] saved to " + p);
                 return true;
             }
@@ -94,7 +91,6 @@ namespace Hollowbrook.Core
                 if (save == null && File.Exists(p + ".bak")) save = TryReadSave(p + ".bak");
                 if (save == null && File.Exists(p + ".tmp")) save = TryReadSave(p + ".tmp");
                 if (save == null && File.Exists(p)) Debug.LogWarning("[SaveSystem] save file corrupt/unsupported - treated as no save.");
-                else _bus?.Publish(GameEvent.Of(EventIds.GameLoaded));
                 return save;
             }
             catch (Exception e)

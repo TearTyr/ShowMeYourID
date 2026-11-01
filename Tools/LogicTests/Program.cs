@@ -63,6 +63,7 @@ namespace Hollowbrook.LogicTests
             FaceTruthTests();
             FaceAssetMappingTests();
             QueueBusyHurryTests();
+            PatrolCycleTests();
             QueueInvariantTests();
             StampRulesTests();
             FloorFileTests();
@@ -73,7 +74,6 @@ namespace Hollowbrook.LogicTests
             EndingAuditSuite();
             AdminRosterSuite();
             SlipFairnessTests();
-            SeatPlannerTests();
             CultureRoundTripTests();
             ResumeReplayTests();
 
@@ -156,7 +156,7 @@ namespace Hollowbrook.LogicTests
             Eq(shifts.Count, ShiftPlan.TotalShifts, "five shifts");
             Eq(shifts.Count, 5, "TotalShifts is 5");
             int[] wantVisitors = { 4, 6, 7, 8, 0 };
-            int[] wantAnomalies = { 0, 2, 3, 4, 0 };
+            int[] wantAnomalies = { 1, 2, 3, 4, 0 };
             for (int i = 0; i < shifts.Count; i++)
             {
                 var s = shifts[i];
@@ -439,6 +439,7 @@ namespace Hollowbrook.LogicTests
                 s.CompletedShifts = ShiftPlan.TotalShifts;
                 s.CurrentShift = ShiftPlan.TotalShifts + 1;   // CompleteShift moves past the last night
                 s.AdminRejected = adminRejected;
+                s.Hunt = adminRejected ? HuntState.Won : HuntState.None;
                 s.AdminAllowed = adminAllowed;
                 return s;
             }
@@ -458,8 +459,8 @@ namespace Hollowbrook.LogicTests
             Eq(EndingRules.Evaluate(secret).Ending, EndingType.Secret, "ten ordered clues + rejection = Secret");
             var secretNoAdmin = FiveShifts(false, false);
             FillSecretClues(secretNoAdmin);
-            Eq(EndingRules.Evaluate(secretNoAdmin).Ending, EndingType.Secret,
-               "the Secret ending is the clue chain's own prize (the admin gate guards the Win branch)");
+            Eq(EndingRules.Evaluate(secretNoAdmin).Ending, EndingType.None,
+               "the Secret needs him turned away and survived, like the Win");
             var unresolvedNoClues = FiveShifts(false, false);
             Eq(EndingRules.Evaluate(unresolvedNoClues).ReasonKey, "admin_unresolved",
                "without the clue chain, an undecided administrator still blocks the Win");
@@ -716,14 +717,12 @@ namespace Hollowbrook.LogicTests
                 case HuntPlayer.Idle:
                     break;
                 case HuntPlayer.Perfect:
-                    inp.HoldingDoor = h.Phase == HuntPhase.AtDoor;
                     inp.BeamOnFace = h.Phase == HuntPhase.Behind;
-                    if (h.Phase == HuntPhase.Closet)
+                    if (h.Phase == HuntPhase.InRoom)
                     { inp.Peeking = true; inp.PlayerRoom = h.Room; inp.InHallway = false; inp.OnTarget = true; }
                     break;
                 case HuntPlayer.Dodger:   // holds for 1 s, lets go for 2 s, again and again
-                    inp.HoldingDoor = h.Phase == HuntPhase.AtDoor && (t % 3f) < 1f;
-                    if (h.Phase == HuntPhase.Closet)
+                    if (h.Phase == HuntPhase.InRoom)
                     { inp.Peeking = true; inp.PlayerRoom = h.Room; inp.InHallway = false; inp.OnTarget = (t % 3f) < 1f; }
                     break;
                 case HuntPlayer.StepBackSpammer:   // peeks in and out every half second, never holds
@@ -739,7 +738,6 @@ namespace Hollowbrook.LogicTests
                         inp.OnTarget = rng.Chance(0.6f);
                     }
                     inp.BeamOnFace = rng.Chance(0.5f);
-                    inp.HoldingDoor = rng.Chance(0.3f);
                     break;
             }
             return inp;
@@ -760,12 +758,11 @@ namespace Hollowbrook.LogicTests
             {
                 var ev = h.Tick(dt, HuntInputFor(who, h, t, rng, ref peek));
                 t += dt;
-                if (stops != null && (ev & (HuntEvent.ReachedDoor | HuntEvent.EnteredCloset | HuntEvent.AppearedBehind)) != 0)
+                if (stops != null && (ev & (HuntEvent.EnteredRoom | HuntEvent.AppearedBehind)) != 0)
                     stops.Add(h.Phase);
                 if (h.SurviveLeft > prevLeft + 1e-4f) { seconds = t; catches = -1; return HuntPhase.Stalking; }
                 prevLeft = h.SurviveLeft;
-                float limit = h.Phase == HuntPhase.AtDoor ? tun.DoorSeconds
-                    : h.Phase == HuntPhase.Closet ? tun.ClosetSeconds
+                float limit = h.Phase == HuntPhase.InRoom ? tun.RoomSeconds
                     : h.Phase == HuntPhase.Behind ? tun.BehindSeconds
                     : h.Phase == HuntPhase.Retreat ? tun.RetreatSeconds
                     : h.Phase == HuntPhase.Stalking ? tun.StalkMaxSeconds : float.MaxValue;
@@ -814,19 +811,22 @@ namespace Hollowbrook.LogicTests
             }
 
             // every kind of stop happens
-            int doors = 0, closets = 0, behinds = 0;
+            int rooms = 0, behinds = 0;
+            var roomsSeen = new HashSet<RoomId>();
             for (int seed = 1; seed <= 200; seed++)
             {
                 var seq = new List<HuntPhase>();
                 RunHunt(HuntPlayer.Perfect, seed, tun, out _, out _, seq);
-                foreach (var stop in seq)
+                foreach (var stop in seq) { if (stop == HuntPhase.InRoom) rooms++; else behinds++; }
+                var watch = new AdminHunt(tun, seed); watch.Start();
+                for (int i = 0; i < 2000 && !watch.Finished; i++)
                 {
-                    if (stop == HuntPhase.AtDoor) doors++;
-                    else if (stop == HuntPhase.Closet) closets++;
-                    else behinds++;
+                    watch.Tick(0.05f, new HuntInput { InHallway = true, BeamOnFace = true });
+                    if (watch.Phase == HuntPhase.InRoom) roomsSeen.Add(watch.Room);
                 }
             }
-            Check(doors > closets && closets > 0 && behinds > 0, $"doors, comfort room and behind you all happen ({doors}/{closets}/{behinds})");
+            Check(rooms > 0 && behinds > 0, $"he stops in rooms and behind you ({rooms}/{behinds})");
+            Eq(roomsSeen.Count, 4, "he can be in Room 101, Room 202, CR-1 and CR-2");
 
             // same seed + same input = same hunt
             var a = RunHunt(HuntPlayer.Random, 77, tun, out float aSecs, out int aCatches, null);
@@ -835,8 +835,8 @@ namespace Hollowbrook.LogicTests
 
             // looking is not enough: without the lamp on his head he is never sent away
             var off = new AdminHunt(tun, 5); off.Start();
-            for (int i = 0; i < 6000 && off.Phase != HuntPhase.Closet; i++)
-                off.Tick(0.05f, new HuntInput { HoldingDoor = true, BeamOnFace = true, InHallway = true });
+            for (int i = 0; i < 6000 && off.Phase != HuntPhase.InRoom; i++)
+                off.Tick(0.05f, new HuntInput { BeamOnFace = true, InHallway = true });
             int repelsBefore = off.Repels;
             for (int i = 0; i < 100; i++) off.Tick(0.05f, new HuntInput { Peeking = true, PlayerRoom = off.Room, OnTarget = false });
             Check(off.Repels == repelsBefore && off.Hold == 0f, "peeking without the lamp on his head never sends him away");
@@ -879,9 +879,16 @@ namespace Hollowbrook.LogicTests
             Eq(EndingRules.Evaluate(lostSecret).ReasonKey, "server_door", "the loss outranks everything else on the final night");
             Check(Night5(HuntState.Lost).LoseThresholdReached, "a lost hunt counts as a lose condition");
 
+            var skipped = Night5(HuntState.Ready);
+            foreach (var clue in ClueRegistry.Build().OrderBy(c => c.Order)) skipped.DiscoverClue(clue.Key);
+            Check(skipped.Clues.SecretConditionsMet, "(the ten findings are in order)");
+            Check(EndingRules.Evaluate(skipped).Ending == EndingType.None, "the Secret cannot skip the hunt");
+
             var game = new SaveGame { Session = Night5(HuntState.Active) };
             var back = SaveFormat.Deserialize(SaveFormat.Serialize(game));
             Check(back != null && back.Session.Hunt == HuntState.Active, "the hunt state survives a save and load");
+            var ready = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = Night5(HuntState.Ready) }));
+            Check(ready != null && ready.Session.Hunt == HuntState.Ready, "waiting for the Patrol click survives a save and load");
         }
 
         // ----------------------------------------------------- verdict matrix
@@ -987,7 +994,7 @@ namespace Hollowbrook.LogicTests
             Eq(EndingRules.Evaluate(fresh).Ending, EndingType.None, "mid-run evaluates to None");
             Eq(EndingRules.Evaluate(fresh).ReasonKey, "continue", "mid-run reason key");
 
-            var win = new GameSession { Mode = GameMode.Normal, CompletedShifts = 5, AdminRejected = true };
+            var win = new GameSession { Mode = GameMode.Normal, CompletedShifts = 5, AdminRejected = true, Hunt = HuntState.Won };
             Eq(EndingRules.Evaluate(win).Ending, EndingType.Win, "five clean shifts = Win");
             Eq(EndingRules.Evaluate(win).ReasonKey, "win", "win reason key");
             Check(!string.IsNullOrEmpty(EndingRules.Evaluate(win).ReasonText), "win has ending text");
@@ -1009,7 +1016,7 @@ namespace Hollowbrook.LogicTests
                   "admin breach fires mid-run on the final night too");
 
             // Lose outranks Secret
-            var secretSession = new GameSession { Mode = GameMode.Normal, CompletedShifts = 5, CurrentShift = 6 };
+            var secretSession = new GameSession { Mode = GameMode.Normal, CompletedShifts = 5, CurrentShift = 6, AdminRejected = true, Hunt = HuntState.Won };
             foreach (var clue in ClueRegistry.Build().OrderBy(x => x.Order)) secretSession.Clues.Discover(clue.Key);
             Check(secretSession.Clues.SecretConditionsMet, "all ten clues in order satisfy the secret conditions");
             Eq(EndingRules.Evaluate(secretSession).Ending, EndingType.Secret, "all clues in order = Secret ending");
@@ -1568,23 +1575,6 @@ namespace Hollowbrook.LogicTests
             Eq(BehaviorProfile.For(AnomalyBehaviorKind.CoverHug, customB).CatchGraceSeconds, 5f, "CoverHug grace is tunable on its own");
             Eq(BehaviorProfile.For(AnomalyBehaviorKind.Blink, customB).CatchGraceSeconds, bt.CatchGraceBlink, "...without touching the other three");
 
-            Group("RoomGraph - roaming through connected rooms, never teleporting");
-            Eq(RoomGraph.Roamable.Length, 3, "three roamable rooms");
-            Check(!RoomGraph.IsRoamable(RoomId.Security), "the security exit is not a patrol route");
-            Check(RoomGraph.Connected(RoomId.Hallway, RoomId.Classroom1) && RoomGraph.Connected(RoomId.Classroom1, RoomId.Hallway), "hallway ↔ classroom 1");
-            Check(RoomGraph.Connected(RoomId.Hallway, RoomId.Classroom2) && RoomGraph.Connected(RoomId.Classroom2, RoomId.Hallway), "hallway ↔ classroom 2");
-            Check(!RoomGraph.Connected(RoomId.Classroom1, RoomId.Classroom2), "classrooms are NOT directly connected");
-            Check(float.IsNaN(RoomGraph.DoorX(RoomId.Classroom1, RoomId.Classroom2)), "no phantom door between classrooms");
-            Check(float.IsNaN(RoomGraph.DoorX(RoomId.Hallway, RoomId.Hallway)), "no self doors");
-            Eq(RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom1), -8.8f, "hallway C1 door anchor == RoomBuilder placement");
-            Eq(RoomGraph.DoorX(RoomId.Hallway, RoomId.Classroom2), 0.4f, "hallway C2 door anchor == RoomBuilder placement");
-            Eq(RoomGraph.DoorX(RoomId.Classroom1, RoomId.Hallway), 7.6f, "classroom 1 hallway door anchor == RoomBuilder placement");
-            Eq(RoomGraph.DoorX(RoomId.Classroom2, RoomId.Hallway), 7.6f, "classroom 2 hallway door anchor == RoomBuilder placement");
-            Eq(RoomGraph.NextHop(RoomId.Classroom1, RoomId.Classroom2), RoomId.Hallway, "classroom→classroom routes through the hallway");
-            Eq(RoomGraph.NextHop(RoomId.Hallway, RoomId.Classroom2), RoomId.Classroom2, "hallway→classroom is one hop");
-            Eq(RoomGraph.NextHop(RoomId.Classroom1, RoomId.Classroom1), RoomId.Classroom1, "already there: no hop");
-            Eq(RoomGraph.NextHop(RoomId.Security, RoomId.Hallway), RoomId.Security, "off-graph origins do not route");
-
             Group("Tokens - collection persists with the run");
             var ses = new GameSession();
             Eq(ses.TokensCollected, 0, "a fresh run holds no tokens");
@@ -1606,6 +1596,50 @@ namespace Hollowbrook.LogicTests
             for (int seed = 1; seed <= 400; seed++)
                 if (pred(RosterFor(seed, shiftNumber))) return seed;
             return -1;
+        }
+
+        private static void PatrolCycleTests()
+        {
+            int c1 = PatrolCycle.Bit(RoomId.Classroom1), c2 = PatrolCycle.Bit(RoomId.Classroom2);
+            int cr1 = PatrolCycle.Bit(RoomId.ComfortRoom), cr2 = PatrolCycle.Bit(RoomId.ComfortRoom2);
+            Check(!PatrolCycle.Done(0), "patrol: nothing peeked is not done");
+            Eq(PatrolCycle.Left(0), "Room 101, Room 202, a CR", "patrol: everything is left at the start");
+            Check(!PatrolCycle.Done(c1 | c2), "patrol: the classrooms alone are not enough");
+            Check(!PatrolCycle.Done(c1 | cr1), "patrol: Room 202 is needed");
+            Check(PatrolCycle.Done(c1 | c2 | cr1), "patrol: CR-1 counts");
+            Check(PatrolCycle.Done(c1 | c2 | cr2), "patrol: CR-2 counts");
+            Eq(PatrolCycle.Left(c1 | c2 | cr2), "", "patrol: nothing is left when done");
+
+            var s = new GameSession();
+            s.ClearedRooms = c1 | cr2;
+            s.PeekAnomaliesGone = c2 | cr1;
+            var rt = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = s })).Session;
+            Eq(rt.ClearedRooms, c1 | cr2, "patrol: progress survives a save");
+            Eq(rt.PeekAnomaliesGone, c2 | cr1, "patrol: the standing anomalies driven out survive a save");
+
+            // standing anomalies: deterministic, only in the four peek rooms, at least one a night
+            var rooms = new[] { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 };
+            bool always = true, steady = true, manyNights = false, someEmpty = false, hallwayNever = true;
+            for (int seed = 1; seed <= 300; seed++)
+                for (int night = 1; night <= 4; night++)
+                {
+                    int here = 0;
+                    foreach (var r in rooms)
+                    {
+                        bool a1 = PatrolCycle.StandingIn(seed, night, r);
+                        steady &= a1 == PatrolCycle.StandingIn(seed, night, r);
+                        if (a1) here++;
+                    }
+                    always &= here >= 1;
+                    manyNights |= here >= 2;
+                    someEmpty |= here < 4;
+                    hallwayNever &= !PatrolCycle.StandingIn(seed, night, RoomId.Hallway) && !PatrolCycle.StandingIn(seed, night, RoomId.Security);
+                }
+            Check(always, "standing: every night at least one peek room holds an anomaly");
+            Check(steady, "standing: the same seed and night always gives the same rooms");
+            Check(manyNights, "standing: some nights have more than one");
+            Check(someEmpty, "standing: some rooms are empty, so the player has to look");
+            Check(hallwayNever, "standing: never in the hallway or the security room");
         }
 
         private static void QueueBusyHurryTests()
@@ -1631,6 +1665,19 @@ namespace Hollowbrook.LogicTests
             q.CommitActiveResolution(); q.CompleteActive();   // and leaves: window free
             Check(!q.Tick(9.7f).Any, "free window: 9.7s is not enough for the 9.8s left");
             Check(q.Tick(0.2f).Any, "free window: the remaining interval completes at base speed");
+
+            // a student who is done never leaves the window empty for long
+            var q2 = new CheckpointQueue();
+            q2.AttachRoster(RosterFor(11, 3), new QueueTuning
+            {
+                MissingStudentChance = 0f, ArrivalMinSeconds = 100f, ArrivalMaxSeconds = 100f,
+                NextStudentSeconds = 3f,
+            }, 4321);
+            q2.MarkStarted();
+            q2.ForceNextArrival();
+            q2.CommitActiveResolution(); q2.CompleteActive();
+            Check(!q2.Tick(2.9f).Any, "empty window: the short gap still takes its 3 seconds");
+            Check(q2.Tick(0.2f).ToWindow != null, "empty window: the next student steps up after 3 seconds, not the long clock");
         }
 
         private static void StampRulesTests()
@@ -1843,8 +1890,7 @@ namespace Hollowbrook.LogicTests
             Check(doorsOnWalls, "every doorway is drawn on its own room's wall");
 
             // patrol coverage: the map can never lose a room the player can actually walk to
-            foreach (var id in RoomGraph.Roamable)
-                Check(FloorPlan.ForRoom(id).HasValue, "roamable room " + id + " is on the plan");
+            Check(FloorPlan.ForRoom(RoomId.Hallway).HasValue, "the hallway, where anomalies roam, is on the plan");
             float mx, my;
             Check(FloorPlan.TryMarkerPos(RoomId.Hallway, out mx, out my) &&
                   Math.Abs(mx - hall.Value.X) < 1e-4f && Math.Abs(my - hall.Value.Y) < 1e-4f,
@@ -1956,31 +2002,6 @@ namespace Hollowbrook.LogicTests
             Check(legitOk, "legitimate slips always agree with the card (fairness invariant)");
             Check(mismatchSeen > 0, "slip discrepancies really occur on anomalies");
             Check(mismatchOk, "a slip disagrees exactly when the SlipMismatch defect is booked");
-        }
-
-        private static void SeatPlannerTests()
-        {
-            Group("SeatPlanner - determinism, distinct seats, overflow, duplicates");
-            var ids = new List<string> { "HB-2026-0001", "HB-2026-0002", "HB-2026-0003", "HB-2026-0004" };
-            int[] a = SeatPlanner.Plan(ids, 6, new GameRng(42));
-            int[] b = SeatPlanner.Plan(ids, 6, new GameRng(42));
-            Check(a.SequenceEqual(b), "same seed + same list = identical seating");
-            Check(a.Where(s => s >= 0).Distinct().Count() == 4, "four students, four distinct seats");
-            Check(a.All(s => s >= 0 && s < 6), "every seat index is inside the room");
-
-            var many = new List<string>();
-            for (int i = 0; i < 10; i++) many.Add("HB-2026-" + (100 + i));
-            var over = SeatPlanner.Plan(many, 6, new GameRng(7));
-            Check(over.Count(s => s >= 0) == 6 && over.Count(s => s < 0) == 4,
-                  "overflow: six seated, four skipped with -1, no exception");
-            Check(over.Where(s => s >= 0).Distinct().Count() == 6, "overflow: seated seats stay distinct");
-
-            var dup = new List<string> { "HB-2026-0001", "HB-2026-0002", "HB-2026-0001" };
-            var dp = SeatPlanner.Plan(dup, 6, new GameRng(42));
-            Check(dp[0] == dp[2] && dp[1] != dp[0], "duplicate id shares one seat (one body)");
-            Check(SeatPlanner.Plan(new List<string>(), 6, new GameRng(1)).Length == 0, "empty list: empty plan");
-            Check(SeatPlanner.Plan(null, 6, new GameRng(1)).Length == 0, "null list: empty plan, no exception");
-            Check(SeatPlanner.Plan(ids, 0, new GameRng(1)).All(s => s == -1), "zero seats: everyone skipped");
         }
 
         private static void CultureRoundTripTests()
@@ -2337,10 +2358,10 @@ namespace Hollowbrook.LogicTests
             Group("HallwayDarkness - corridor ambient + the limited-visibility pool");
 
             float vsLit = HallwayDarkness.DarkerThanLitRoom(0.12f);
-            Check(vsLit > 0.70f && vsLit < 0.85f,
-                $"the corridor ambient is 70-85% darker than a normally lit room ({vsLit:P1})");
-            Check(HallwayDarkness.BaseAlpha > 0.62f,
-                "the corridor's base darkness is deeper than a dark classroom's 0.62");
+            Check(vsLit > 0.40f && vsLit < 0.60f,
+                $"the guard's weak light is 40-60% darker than a normally lit room ({vsLit:P1})");
+            Check(HallwayDarkness.AlphaAt(10f) > 0.62f,
+                "beyond the pool the corridor is deeper than a dark classroom's 0.62");
 
             Eq(HallwayDarkness.DepthAt(0f), 0f, "at the custodian the depth layer adds nothing");
             Eq(HallwayDarkness.DepthAt(HallwayDarkness.ClearRadius), 0f,
@@ -2365,16 +2386,16 @@ namespace Hollowbrook.LogicTests
             Check(monotone, "the falloff never brightens with distance");
             Check(smooth, "no single step of the falloff is a hard circular edge");
 
-            Check(HallwayDarkness.VisibleFractionAt(0f) > 0.10f &&
-                  HallwayDarkness.VisibleFractionAt(0f) < 0.30f,
-                "the near field keeps 10-30% of the art's brightness: navigable, not lit");
+            Check(HallwayDarkness.VisibleFractionAt(0f) > 0.30f &&
+                  HallwayDarkness.VisibleFractionAt(0f) < 0.55f,
+                "the near field keeps 30-55% of the art's brightness: a weak light you can see by");
             Check(HallwayDarkness.VisibleFractionAt(10f) < 0.08f,
                 "beyond the pool the corridor keeps under 8% brightness (darkness dominates)");
 
             float viewHalf = 5f * 16f / 9f;      // ortho size 5 at the 16:9 reference aspect
             float share = HallwayDarkness.PoolShareOfView(viewHalf);
-            Check(share > 0.15f && share < 0.25f,
-                $"the pool spans 15-25% of the on-screen width ({share:P1})");
+            Check(share > 0.10f && share < 0.20f,
+                $"the pool spans 10-20% of the on-screen width ({share:P1})");
 
             Check(HallwayDarkness.ShroudWorldW / 2f >=
                   HallwayDarkness.HallwayHalfWidth + HallwayDarkness.RoomDarkMargin +

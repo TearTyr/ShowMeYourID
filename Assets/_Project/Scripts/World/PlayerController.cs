@@ -115,15 +115,13 @@ namespace Hollowbrook.World
             }
         }
 
-        // Show one of the guard's drawn poses. Without the art files the old code-drawn guard is used.
+        // Show one of the guard's drawn poses.
         private void SetPose(string key)
         {
             if (_pose == key && _sr != null && _sr.sprite != null) return;
             _pose = key;
             if (_sr == null) return;
-            Sprite pose;
-            if (ProceduralArt.TryGet(key, out pose)) _sr.sprite = pose;
-            else _sr.sprite = ProceduralArt.Get(key == IdlePose ? "custodian_0" : "custodian_1");
+            _sr.sprite = ProceduralArt.Get(key);
         }
 
 

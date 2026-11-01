@@ -19,6 +19,8 @@ namespace Hollowbrook.Core
         /// <summary>True while a failed night's scene is playing (input and the sanity tick stand down).</summary>
         public bool ShiftFailing { get; private set; }
 
+        private EndingRules.Evaluation _endingAfterResults;
+
         /// <summary>The END SHIFT button. Clocking out with an anomaly let in fails the night (black
         /// screen, a face, the jumpscare) on nights 1-4; anything else just ends the shift.</summary>
         public void RequestEndShift()
@@ -45,7 +47,7 @@ namespace Hollowbrook.Core
         }
 
         // A failed night (nights 1-4): record how and what it will cost, play the scene, then close
-        // the shift out. From the patrol the desk scene has to load first - the results screen lives there.
+        // the shift out, which goes straight back to the main menu.
         private void FailShift(ShiftFailure kind)
         {
             if (ShiftFailing) return;
@@ -54,12 +56,7 @@ namespace Hollowbrook.Core
             PlayFailure(() =>
             {
                 ShiftFailing = false;
-                if (State == AppViewState.Exploration || State == AppViewState.RoomPeek)
-                {
-                    QueueSceneAction(() => { Bus.Publish(GameEvent.Of(EventIds.PatrolEnded)); FinishShift(); });
-                    Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
-                }
-                else FinishShift();
+                FinishShift();
             });
         }
 
@@ -71,7 +68,6 @@ namespace Hollowbrook.Core
 
         public void FinishShift()
         {
-            Bus.Publish(GameEvent.Of(EventIds.ShiftEnded, CurrentShiftDef));
             Session.CompleteShift();
             // the finished shift's line must never leak into the next one: the queue
             // resets here, so the save written below resumes as "next shift, not started"
@@ -85,8 +81,18 @@ namespace Hollowbrook.Core
                 Session.Breaches += Session.Pool.Pending;         // booth night closes its books too
                 eval = EndingRules.EvaluateExhibition(Session);   // booth cut closes after one night
             }
-            if (eval.Ending != EndingType.None) { TriggerEnding(eval); return; }
+            if (Config != null && Config.exhibitionMode && eval.Ending != EndingType.None) { TriggerEnding(eval); return; }
 
+            // nights 1 to 4 end straight at the main menu; Continue starts the next one
+            if (Session.Mode == GameMode.Normal && Session.CurrentShift <= ShiftPlan.TotalShifts)
+            {
+                SetState(AppViewState.MainMenu);
+                QuitToMenu(false);
+                return;
+            }
+
+            // the final night: the results first, and their button leads to the ending
+            _endingAfterResults = eval.Ending != EndingType.None ? eval : null;
             SetState(AppViewState.ShiftResults);
             if (ShiftResults != null) ShiftResults.Populate(Session, CurrentShiftDef);
             Audio.PlayMusic("");
@@ -94,6 +100,13 @@ namespace Hollowbrook.Core
 
         public void AdvanceToNextShift()
         {
+            if (_endingAfterResults != null)
+            {
+                var ending = _endingAfterResults;
+                _endingAfterResults = null;
+                TriggerEnding(ending);
+                return;
+            }
             if (Session.CurrentShift > ShiftPlan.TotalShifts) { BootToMainMenu(); return; }
             BeginShift(Session.CurrentShift);
         }
@@ -125,7 +138,6 @@ namespace Hollowbrook.Core
             PersistRun();
             SetState(AppViewState.Ending);
             if (Ending != null) Ending.Populate(eval, Session, Records);
-            Bus.Publish(GameEvent.Of(EventIds.EndingReached, eval));
             Audio.PlayMusic("end_" + key);
             Audio.PlaySfx(eval.Ending == EndingType.Lose ? "sfx_alarm" : "sfx_bell");
         }

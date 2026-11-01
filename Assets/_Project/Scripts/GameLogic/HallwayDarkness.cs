@@ -12,21 +12,19 @@ namespace Hollowbrook.Logic
     public static class HallwayDarkness
     {
         // ---- ambient levels -------------------------------------------------------------
-        // A normally lit room sits at LightController.LitAlpha 0.12 (88% of the art's brightness).
-        // The corridor's base ambient leaves 24% - 73% darker than that lit room (inside the
-        // 70-85% band) and 37% darker than a dark classroom (0.62 alpha / 38%). The low end of
-        // the band is deliberate: the patrol placeholder art is near-black already (walls 0.13),
-        // so 24% is what keeps the pool legible enough to navigate by eye.
-        public const float BaseAlpha = 0.76f;
-        // What the depth layer ADDS once the falloff has run out: 20% * (1-0.72) = 5.6% brightness
-        // left beyond the pool, i.e. the corridor reads as black while the near field stays legible.
-        public const float DepthAlpha = 0.72f;
+        // The guard carries a weak light. Right around him the painting keeps 45% of its
+        // brightness (BaseAlpha 0.55): enough to see his own feet and the wall beside him.
+        public const float BaseAlpha = 0.55f;
+        // What the depth layer ADDS once the falloff has run out: 45% * (1 - 0.90) = 4.5% brightness
+        // left beyond the pool, so whatever lies ahead of him is black until the flashlight finds it.
+        public const float DepthAlpha = 0.90f;
 
         // ---- the pool (world units from the custodian) -----------------------------------
         // Fully clear out to ClearRadius, fully deep from DepthRadius, smoothstep between - a
-        // gradual radial falloff with zero slope at both ends, never a hard circular edge.
-        public const float ClearRadius = 1.9f;
-        public const float DepthRadius = 6.0f;
+        // gradual radial falloff with zero slope at both ends, never a hard circular edge. The pool
+        // is small on purpose: it is his weak light, the flashlight is what does the looking.
+        public const float ClearRadius = 1.3f;
+        public const float DepthRadius = 3.8f;
 
         // ---- shroud coverage --------------------------------------------------------------
         // The depth layer is ONE quad that follows the player, so it has to cover the room's whole
@@ -62,7 +60,7 @@ namespace Hollowbrook.Logic
         }
 
         /// <summary>How dark the corridor is at a distance: the two black layers composited
-        /// (base ambient, then the depth layer scaled by the falloff). 0.80 near, 0.944 far.</summary>
+        /// (base ambient, then the depth layer scaled by the falloff). 0.55 near, 0.955 far.</summary>
         public static float AlphaAt(float worldDistance) =>
             1f - (1f - BaseAlpha) * (1f - DepthAlpha * DepthAt(worldDistance));
 
@@ -70,12 +68,12 @@ namespace Hollowbrook.Logic
         public static float VisibleFractionAt(float worldDistance) => 1f - AlphaAt(worldDistance);
 
         /// <summary>The pool's share of the on-screen width - the "how much can he see" number
-        /// (1.9u radius in a 17.78u-wide view = 21%).</summary>
+        /// (1.3u radius in a 17.78u-wide view = 15%).</summary>
         public static float PoolShareOfView(float cameraHalfWidth) =>
             cameraHalfWidth > 0f ? ClearRadius / cameraHalfWidth : 0f;
 
         /// <summary>How much darker the corridor's base ambient is than a normally lit room
-        /// (lit alpha 0.12 → 0.773, i.e. 77% darker).</summary>
+        /// (lit alpha 0.12 → 0.489, i.e. 49% darker).</summary>
         public static float DarkerThanLitRoom(float litAlpha)
         {
             float litVisible = 1f - litAlpha;

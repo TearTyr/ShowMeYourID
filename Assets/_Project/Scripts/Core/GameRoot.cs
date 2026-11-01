@@ -64,7 +64,6 @@ namespace Hollowbrook.Core
         public ShiftResultsView ShiftResults;
         public ConfirmationPopup Confirm;
         public CaptionBar Captions;
-        public Hollowbrook.World.StudentSpawner Students;
         public SanityController SanityCtl;
         public ScareSystem Scares;
         public HallucinationSystem Hallucinations;
@@ -323,7 +322,6 @@ namespace Hollowbrook.Core
             Paused = target;
             Time.timeScale = Paused ? 0f : 1f;
             if (PauseScreen != null) { if (Paused) PauseScreen.Show(); else PauseScreen.Hide(); }
-            Bus.Publish(GameEvent.Of(EventIds.PauseToggled, Paused));
             Audio.PlaySfx(Paused ? "sfx_ui_open" : "sfx_ui_close");
         }
 

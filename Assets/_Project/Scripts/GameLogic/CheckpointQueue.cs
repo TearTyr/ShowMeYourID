@@ -16,6 +16,8 @@ namespace Hollowbrook.Logic
         // While the window is busy (an inspection is live) the arrival clock runs at this
         // multiplier. 1 = never hurries (old behaviour / tests); 2 = dawdling grows the line.
         public float BusyHurryMultiplier = 1f;
+        // With nobody at the window or in line, the next arrival comes within this many seconds.
+        public float NextStudentSeconds = float.MaxValue;
 
         public QueueTuning Clone() => (QueueTuning)MemberwiseClone();
 
@@ -224,6 +226,8 @@ namespace Hollowbrook.Logic
             }
             // the line hurries only while the window is busy: lingering at a visitor is what
             // makes the yard fill up. A free window lets the base interval breathe.
+            if (Active == null && _waiting.Count == 0)
+                TimerSeconds = Math.Min(TimerSeconds, Tuning.NextStudentSeconds);
             float hurry = Active != null ? Tuning.BusyHurryMultiplier : 1f;
             TimerSeconds -= dt * hurry;
             if (TimerSeconds <= 0f && RemainingSource > 0)

@@ -41,6 +41,7 @@ namespace Hollowbrook.Bootstrap
                 { "sec_bubble", 10f },
                 // the guard's frames are 452 px tall and the old drawn guard stood 3.5 world units
                 // high, so 129 px per unit keeps him the same size
+                { "char_anomaly", 155f },   // 4.8 units tall, feet on the floor at its centre height of 2.4
                 { "char_guard_idle", 129f }, { "char_guard_walk_a", 129f }, { "char_guard_walk_b", 129f },
                 // backdrops: the three screen wide hallway covers 30 units, a room 17.8 (the camera's
                 // 16:9 view), the bathroom 17.1
@@ -49,7 +50,7 @@ namespace Hollowbrook.Bootstrap
                 // props drawn about 3.4 units tall (doors), a 1.5 unit wall clock, a half unit token
                 { "prop_door_classroom_1", 308f }, { "prop_door_classroom_2", 299f },
                 { "prop_door_comfort", 196f }, { "prop_door_security", 188f }, { "prop_server_door", 191f },
-                { "prop_light_switch", 950f }, { "prop_clipboard", 918f },
+                { "prop_clipboard", 918f },
                 { "prop_clock", 524f }, { "token", 1154f },
             };
 
@@ -252,15 +253,12 @@ namespace Hollowbrook.Bootstrap
         {
             "solid_white", "vignette", "noise_overlay", "flash", "light_cone",
             "menu_bg", "desk_bg", "hood_figure",
-            "hallway_bg", "hall_depth", "classroom1_bg", "classroom2_bg",
-            "prop_door", "prop_door_security", "prop_server_door", "prop_lockers", "prop_desk",
-            "prop_chalkboard", "prop_window", "prop_noticeboard", "prop_cabinet", "prop_clock",
+            "hall_depth", 
+            "prop_door_security", "prop_server_door", 
+            "prop_clock",
             "token",
             "rough_panel", "rough_panel_dark", "rough_circle", "circle_dark", "circle_paper",
             "paper_flat", "school_facade", "camera_frame", "window_frame", "lamp_glow",
-            "prop_photoframe", "prop_lightfixture", "prop_lostid",
-            "custodian_0", "custodian_1",
-            "anomaly_blink", "anomaly_slide", "anomaly_sprint", "anomaly_coverhug",
             "face_placeholder",
             "record_sheet", "clipboard", "note_paper", "stamp_allow", "stamp_reject",
             "folder_tab", "cursor_hand", "icon_check", "icon_x", "bubble_tail",
@@ -292,19 +290,9 @@ namespace Hollowbrook.Bootstrap
                 case "menu_bg": return MakeMenuBg(1280, 720);
                 case "desk_bg": return MakeDeskBg(640, 360);
                 case "hood_figure": return MakeHoodFigure(24, 48);
-                case "hallway_bg": return MakeHallway(1536, 640);
                 case "hall_depth": return MakeHallDepth();
-                case "classroom1_bg": return MakeClassroom(1152, 640, false);
-                case "classroom2_bg": return MakeClassroom(1152, 640, true);
-                case "prop_door": return MakeDoor(160, 384, false);
                 case "prop_door_security": return MakeDoor(160, 384, true);
                 case "prop_server_door": return MakeDoor(208, 384, false, chained: true);
-                case "prop_lockers": return MakeLockers(288, 336);
-                case "prop_desk": return MakeDeskProp(208, 128);
-                case "prop_chalkboard": return MakeChalkboardProp(384, 224);
-                case "prop_window": return MakeWindowProp(224, 300);
-                case "prop_noticeboard": return MakeNoticeBoard(208, 160);
-                case "prop_cabinet": return MakeCabinet(160, 272);
                 case "prop_clock": return MakeClock(112);
                 case "token": return MakeClock(28, "token");   // pocket-watch token left by a revealed anomaly
                 case "rough_panel": return MakeRoughPanel(256, 192, 0.88f, "rough_panel");
@@ -318,15 +306,6 @@ namespace Hollowbrook.Bootstrap
                 case "window_frame": return MakeWindowFrame(470, 316);
                 case "lamp_glow": return MakeLampGlow(128);
                 case "peek_hole": return MakePeekHole(256);
-                case "prop_photoframe": return MakePhotoFrame(144, 108);
-                case "prop_lightfixture": return MakeLightFixture(208, 40);
-                case "prop_lostid": return MakeLostId(56, 36);
-                case "custodian_0": return MakeCustodian(96, 224, 0);
-                case "custodian_1": return MakeCustodian(96, 224, 1);
-                case "anomaly_blink": return MakeAnomaly(128, 336, AnomalyBehaviorKind.Blink);
-                case "anomaly_slide": return MakeAnomaly(128, 336, AnomalyBehaviorKind.Slide);
-                case "anomaly_sprint": return MakeAnomaly(160, 336, AnomalyBehaviorKind.Sprint);
-                case "anomaly_coverhug": return MakeAnomaly(192, 224, AnomalyBehaviorKind.CoverHug);
                 case "face_placeholder": return MakeFacePlaceholder(168, 208);
                 case "id_card_frame": return MakeIdCard();
                 case "record_sheet": return MakeRecordSheet();

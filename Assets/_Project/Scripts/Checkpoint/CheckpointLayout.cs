@@ -237,8 +237,6 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region QKeyHint = new Region(196, 26, 78, 26);
             public const float QBtnX = 32f, QBtnW = 242f;   // inside the painted border, like the concept
             public const float QContentY0 = 58f, QBtnH = 24f, QBtnStep = 33.5f;   // four strips, as tall as the concept's
-            public static readonly Region QAnswerHead = new Region(16, 100, 266, 14);
-            public static readonly Region QAnswer = new Region(16, 116, 266, 76);
 
             // verdict banner
 

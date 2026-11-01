@@ -22,6 +22,8 @@ namespace Hollowbrook.Core
         public float queueRunMaxSeconds = 5f;
         [Tooltip("Normal mode: the arrival clock runs this much faster while the window is busy, so dawdling grows the line.")][Range(1f, 4f)]
         public float queueBusyHurryMultiplier = 2f;
+        [Tooltip("Normal mode: seconds before the next student steps up when the window and the line are both empty.")][Range(0.5f, 30f)]
+        public float nextStudentSeconds = 3f;
         [Tooltip("Normal mode: base arrival interval is multiplied by this per night after night 1.")][Range(0.3f, 1f)]
         public float queueNightScale = 0.8f;
         // Showcase build: the line pressure rules are switched off (set sane values such as
@@ -86,8 +88,10 @@ namespace Hollowbrook.Core
         public float beamTargetRadius = BeamGeometry.DefaultTargetRadius;
 
         [Header("Patrol")]
-        [Tooltip("Roaming anomalies on patrol. Off: the only anomalies are the ones at the security window.")]
-        public bool patrolAnomalies = false;
+        [Tooltip("Seconds into a patrol before the first anomaly is guaranteed to appear.")][Range(2f, 60f)]
+        public float anomalyFirstSpawnSeconds = 15f;
+        [Tooltip("Seconds the lit lamp must stay on the anomaly hiding in a peek room to drive it out.")][Range(0.3f, 6f)]
+        public float peekRepelSeconds = 1.5f;
 
         [Header("Administrator hunt (night 5, after the DENY stamp)")]
         [Tooltip("Times he can catch you before he reaches the server door and you lose.")][Range(1, 10)]
@@ -102,14 +106,10 @@ namespace Hollowbrook.Core
         public float huntStalkMinSeconds = 5f;
         [Range(1f, 40f)]
         public float huntStalkMaxSeconds = 10f;
-        [Tooltip("Seconds to reach the door he stopped at and hold it before he gets through.")][Range(3f, 30f)]
-        public float huntDoorSeconds = 10f;
-        [Tooltip("Seconds of holding E at the door that send him away.")][Range(0.3f, 10f)]
-        public float huntDoorHoldSeconds = 2f;
-        [Tooltip("Seconds to find him in the comfort room.")][Range(3f, 30f)]
-        public float huntClosetSeconds = 12f;
-        [Tooltip("Seconds the lamp must stay on his head in the comfort room.")][Range(0.3f, 10f)]
-        public float huntClosetHoldSeconds = 1.8f;
+        [Tooltip("Seconds to find him in the room he stopped in.")][Range(3f, 30f)]
+        public float huntRoomSeconds = 12f;
+        [Tooltip("Seconds the lamp must stay on his head.")][Range(0.3f, 10f)]
+        public float huntRoomHoldSeconds = 1.8f;
         [Tooltip("How close (world units) the cursor must be to his head.")][Range(0.3f, 3f)]
         public float huntHeadRadius = 1.0f;
         [Tooltip("Seconds to flash him when he appears behind you.")][Range(1f, 8f)]
@@ -118,6 +118,8 @@ namespace Hollowbrook.Core
         public float huntBeamHitSeconds = 0.35f;
         [Tooltip("Sanity lost each time he catches you.")][Range(0f, 40f)]
         public float huntCaughtSanity = 15f;
+        [Tooltip("Sanity gained each time the light sends him away.")][Range(0f, 40f)]
+        public float huntSanityPerRepel = 8f;
 
         [Header("Encounter - repel meter")]
         [Tooltip("Meter per second while Focus holds the anomaly's body (the only way to progress).")][Range(0.05f, 2f)]

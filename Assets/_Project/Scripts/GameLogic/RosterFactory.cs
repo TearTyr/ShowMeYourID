@@ -12,7 +12,6 @@ namespace Hollowbrook.Logic
 
         public IReadOnlyList<StudentIdentity> Canon => _canon;
         public ISet<string> Registry => _registry;
-        public PresentationLog GenLog => _genLog;
 
         public RosterFactory(int seed)
         {
@@ -387,7 +386,6 @@ namespace Hollowbrook.Logic
             return _rng.Pick(tags);
         }
 
-        public StudentIdentity PickIdentity(GameRng rng) => _canon[rng.NextInt(0, _canon.Count)];
 
         public VisitorData BuildAdministrator(ShiftDef shift)
         {

@@ -27,8 +27,8 @@ namespace Hollowbrook.Logic
         /// <summary>What the small map on the desk calls this room.</summary>
         public string MiniLabel;
         /// <summary>Where its door stands along the walkable hallway (world x). Null for the
-        /// hallway itself. RoomGraph and RoomBuilder both read this, so the patrol cannot
-        /// disagree with the maps.</summary>
+        /// hallway itself. RoomBuilder and the maps both read this, so the patrol cannot
+        /// disagree with them.</summary>
         public float? HallX;
         /// <summary>The name in the door's prompt.</summary>
         public string DoorName;
@@ -141,8 +141,8 @@ namespace Hollowbrook.Logic
             h = r.H / MiniScale;
         }
 
-        /// <summary>Every room that is part of the patrol graph must be on the plan - the
-        /// proof that the map and RoomGraph never drift apart.</summary>
+        /// <summary>Every room the player can reach must be on the plan - the proof that the
+        /// map and the patrol never drift apart.</summary>
         public static FloorRoom? ForRoom(RoomId id)
         {
             foreach (var r in Rooms)

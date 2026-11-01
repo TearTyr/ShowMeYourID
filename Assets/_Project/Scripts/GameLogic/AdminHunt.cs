@@ -2,16 +2,15 @@ using System;
 
 namespace Hollowbrook.Logic
 {
-    // Night 5 after the administrator is refused (pure rules, no UnityEngine).
+    // Night 5 after the administrator is refused and the player clicks Patrol (pure rules, no
+    // UnityEngine).
     //
     // It plays like Nightmare Fredbear's night in Five Nights at Freddy's 4: he is the only
-    // thing in the building, you listen for where his footsteps stop, and you survive until
-    // dawn. Each time he stops, he is in one of three kinds of place:
-    //   - AT A CLASSROOM DOOR (the game's left and right halls): stand at that door and hold E
-    //     until he gives up.
-    //   - IN A COMFORT ROOM (the closet): peek in and keep the lamp on his head.
-    //   - BEHIND YOU in the hallway (the bed): flash his face with the beam.
-    // Too slow and he catches you. CatchesToLose catches and he walks to the server door.
+    // thing in the building, and you survive until dawn. Each time he stops he is somewhere new:
+    //   - IN A ROOM (Room 101, Room 202, CR-1 or CR-2): peek in and keep the lamp on his head.
+    //   - BEHIND YOU in the hallway: flash his face with the beam.
+    // Only the light stops him. Too slow and he catches you. CatchesToLose catches and he walks
+    // to the server door.
     //
     // The hard rule: nobody can ever get stuck. The dawn clock always runs and every phase has
     // a time limit, so the hunt ends in a win or a loss whatever the player does or does not do.
@@ -20,8 +19,7 @@ namespace Hollowbrook.Logic
     public enum HuntPhase
     {
         Stalking,   // walking the halls: footsteps, no danger yet
-        AtDoor,     // behind a classroom door: hold it shut
-        Closet,     // in CR-1 or CR-2: find him with the lamp
+        InRoom,     // in a peek room: find him with the lamp
         Behind,     // right behind the player in the hallway: flash him
         Retreat,    // driven back or done catching you: harmless for a moment
         Won,        // dawn came
@@ -35,10 +33,8 @@ namespace Hollowbrook.Logic
         public float SurviveSeconds;     // the dawn clock
         public float StalkMinSeconds;    // shortest walk between stops
         public float StalkMaxSeconds;    // longest walk between stops (halves by dawn)
-        public float DoorSeconds;        // time to reach the door he stopped at and hold it
-        public float DoorHoldSeconds;    // seconds of holding the door that send him away
-        public float ClosetSeconds;      // time to find him in the comfort room
-        public float ClosetHoldSeconds;  // seconds of lamp on his head that send him away
+        public float RoomSeconds;        // time to find him in the room he stopped in
+        public float RoomHoldSeconds;    // seconds of lamp on his head that send him away
         public float HoldDecayPerSecond; // how fast a hold drains when you let go
         public float HeadRadius;         // world units: how close the cursor must be to his head
         public float BehindSeconds;      // time to flash him when he is behind you
@@ -48,7 +44,7 @@ namespace Hollowbrook.Logic
         public static HuntTuning Default => new HuntTuning
         {
             CatchesToLose = 3, SurviveSeconds = 210f, StalkMinSeconds = 5f, StalkMaxSeconds = 10f,
-            DoorSeconds = 10f, DoorHoldSeconds = 2f, ClosetSeconds = 12f, ClosetHoldSeconds = 1.8f,
+            RoomSeconds = 12f, RoomHoldSeconds = 1.8f,
             HoldDecayPerSecond = 0.5f, HeadRadius = 1.0f, BehindSeconds = 2.6f, BeamHitSeconds = 0.35f,
             RetreatSeconds = 1.5f,
         };
@@ -62,7 +58,6 @@ namespace Hollowbrook.Logic
         public bool OnTarget;       // peeking, lamp lit, cursor on his head
         public bool InHallway;      // walking the hallway (not peeking, not mid-transition)
         public bool BeamOnFace;     // the hallway beam covers his face
-        public bool HoldingDoor;    // standing at the door he is behind, holding E
     }
 
     [Flags]
@@ -70,9 +65,8 @@ namespace Hollowbrook.Logic
     {
         None = 0,
         StalkStart = 1,     // footsteps begin
-        ReachedDoor = 2,    // the footsteps stopped at a classroom door
-        EnteredCloset = 4,  // he went into the comfort room
-        Spotted = 8,        // the player's lamp view found him in the comfort room
+        EnteredRoom = 4,    // he went into a peek room
+        Spotted = 8,        // the player's lamp view found him in that room
         AppearedBehind = 16,// he is right behind the player
         Repelled = 32,      // the player sent him away
         Caught = 64,        // he reached the player
@@ -82,7 +76,10 @@ namespace Hollowbrook.Logic
 
     public class AdminHunt
     {
-        private enum Spot { Classroom1, Classroom2, Closet, Behind }
+        // where he can stop: these four rooms, or BehindYou
+        private static readonly RoomId[] Rooms =
+            { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 };
+        private const int BehindYou = 4;
 
         private readonly GameRng _rng;
         private float _stalkLeft;
@@ -91,12 +88,12 @@ namespace Hollowbrook.Logic
 
         public HuntTuning Tuning { get; }
         public HuntPhase Phase { get; private set; } = HuntPhase.Stalking;
-        /// <summary>Where he stopped: a classroom, the comfort room, or the hallway when behind you.</summary>
+        /// <summary>Where he stopped: a peek room, or the hallway when behind you.</summary>
         public RoomId Room { get; private set; } = RoomId.Hallway;
         public int Repels { get; private set; }
         public int Catches { get; private set; }
         public float SurviveLeft { get; private set; }
-        /// <summary>0..1 progress of the current hold (door or lamp).</summary>
+        /// <summary>0..1 progress of the lamp held on his head.</summary>
         public float Hold { get; private set; }
         public float PhaseTimer { get; private set; }
         public float BeamHit { get; private set; }
@@ -139,8 +136,7 @@ namespace Hollowbrook.Logic
             switch (Phase)
             {
                 case HuntPhase.Stalking: return TickStalking(dt, input);
-                case HuntPhase.AtDoor: return TickAtDoor(dt, input);
-                case HuntPhase.Closet: return TickCloset(dt, input);
+                case HuntPhase.InRoom: return TickInRoom(dt, input);
                 case HuntPhase.Behind: return TickBehind(dt, input);
                 default: return PhaseTimer >= Tuning.RetreatSeconds ? BeginStalking() : HuntEvent.None;
             }
@@ -153,21 +149,14 @@ namespace Hollowbrook.Logic
             return _stalkLeft > 0f ? HuntEvent.None : Stop(PickSpot(input));
         }
 
-        private HuntEvent TickAtDoor(float dt, HuntInput input)
-        {
-            UpdateHold(dt, input.HoldingDoor, Tuning.DoorHoldSeconds);
-            if (Hold >= 1f) return Repel();
-            return PhaseTimer >= Tuning.DoorSeconds ? Catch() : HuntEvent.None;
-        }
-
-        private HuntEvent TickCloset(float dt, HuntInput input)
+        private HuntEvent TickInRoom(float dt, HuntInput input)
         {
             bool looking = input.Peeking && input.PlayerRoom == Room;
             var seen = HuntEvent.None;
             if (looking && !_spotted) { _spotted = true; seen = HuntEvent.Spotted; }
-            UpdateHold(dt, looking && input.OnTarget, Tuning.ClosetHoldSeconds);
+            UpdateHold(dt, looking && input.OnTarget, Tuning.RoomHoldSeconds);
             if (Hold >= 1f) return seen | Repel();
-            return PhaseTimer >= Tuning.ClosetSeconds ? seen | Catch() : seen;
+            return PhaseTimer >= Tuning.RoomSeconds ? seen | Catch() : seen;
         }
 
         private HuntEvent TickBehind(float dt, HuntInput input)
@@ -195,26 +184,19 @@ namespace Hollowbrook.Logic
             return HuntEvent.StalkStart;
         }
 
-        private HuntEvent Stop(Spot spot)
+        private HuntEvent Stop(int spot)
         {
-            _lastSpot = (int)spot;
-            switch (spot)
+            _lastSpot = spot;
+            if (spot == BehindYou)
             {
-                case Spot.Classroom1:
-                case Spot.Classroom2:
-                    Enter(HuntPhase.AtDoor);
-                    Room = spot == Spot.Classroom1 ? RoomId.Classroom1 : RoomId.Classroom2;
-                    return HuntEvent.ReachedDoor;
-                case Spot.Closet:
-                    Enter(HuntPhase.Closet);
-                    Room = _rng.Chance(0.5f) ? RoomId.ComfortRoom : RoomId.ComfortRoom2;
-                    _spotted = false;
-                    return HuntEvent.EnteredCloset;
-                default:
-                    Enter(HuntPhase.Behind);
-                    Room = RoomId.Hallway;
-                    return HuntEvent.AppearedBehind;
+                Enter(HuntPhase.Behind);
+                Room = RoomId.Hallway;
+                return HuntEvent.AppearedBehind;
             }
+            Enter(HuntPhase.InRoom);
+            Room = Rooms[spot];
+            _spotted = false;
+            return HuntEvent.EnteredRoom;
         }
 
         private HuntEvent Repel()
@@ -244,19 +226,17 @@ namespace Hollowbrook.Logic
             BeamHit = 0f;
         }
 
-        // Half the stops are at the two doors, the rest split between the comfort room and right
-        // behind you. Never the same place twice in a row, and never behind you during a peek.
-        private Spot PickSpot(HuntInput input)
+        // He can be anywhere: most stops are one of the four rooms, the rest right behind you.
+        // Never the same place twice in a row, and never behind you during a peek.
+        private int PickSpot(HuntInput input)
         {
-            float roll = _rng.NextFloat();
-            int pick = roll < 0.25f ? 0 : roll < 0.5f ? 1 : roll < 0.75f ? 2 : 3;
-            if (pick == 3 && !input.InHallway) pick = _rng.Chance(0.5f) ? 0 : 1;
-            if (pick == _lastSpot) pick = (pick + 1) % 3;
-            return (Spot)pick;
+            int pick = input.InHallway && _rng.Chance(0.35f) ? BehindYou : _rng.NextInt(0, Rooms.Length);
+            if (pick != _lastSpot) return pick;
+            return pick == BehindYou ? _rng.NextInt(0, Rooms.Length) : (pick + 1) % Rooms.Length;
         }
     }
 
-    /// <summary>How his picture moves in the comfort room: the head circles an anchor point while
+    /// <summary>How his picture moves in a room: the head circles an anchor point while
     /// the whole image jitters. Faster and wider each time he has been sent away.</summary>
     public static class AdminHuntMotion
     {

@@ -109,6 +109,8 @@ namespace Hollowbrook.Core
             {
                 Session.TonightLog.Clear();
                 Session.AdmittedStudents.Clear();
+                Session.ClearedRooms = 0;
+                Session.PeekAnomaliesGone = 0;
                 Session.BeginNight();            // pays last night's failure (less sanity, a stack, a roamer)
             }
             ShiftFailing = false;
@@ -206,6 +208,7 @@ namespace Hollowbrook.Core
                 t.ArrivalMinSeconds = Config.queueArrivalMinSeconds * scale;
                 t.ArrivalMaxSeconds = Config.queueArrivalMaxSeconds * scale;
                 t.BusyHurryMultiplier = Config.queueBusyHurryMultiplier;
+                t.NextStudentSeconds = Config.nextStudentSeconds;
             }
             else
             {
@@ -235,7 +238,6 @@ namespace Hollowbrook.Core
         private void PlayIntroThenCheckpoint(List<DialogueLine> intro, ShiftDef shift)
         {
             SetState(AppViewState.ShiftIntro);
-            Bus.Publish(GameEvent.Of(EventIds.ShiftStarted, shift));
             ObjectiveText = shift != null ? shift.Objective :
                 (Session.Mode == GameMode.Endless ? "Survive the clock. Reject every anomaly." : "Survive the clock under shifting district rules.");
             Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));
