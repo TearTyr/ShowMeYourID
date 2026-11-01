@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Horror;
 using Hollowbrook.Logic;
@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
-    // Rooms, doors, transitions, anomaly spawning, flashlight rig. Created by SchoolSceneBootstrap.
+    // Rooms, doors, transitions, anomaly spawning, flashlight rig. Created by PatrolScene.
     // Illumination queries are coordinated HERE (one place, one coordinate space - the shared
     // world/room plane): the beam cone belongs to FlashlightRig, ambient light to each room's
     // LightController. Consumers (anomalies, sanity, spawner) never mix the two themselves.

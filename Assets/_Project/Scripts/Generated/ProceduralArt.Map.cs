@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Hollowbrook.Bootstrap
+namespace Hollowbrook.Scenes
 {
     // The hand-drawn ground-floor plan: aged paper, rough room outlines, a barred seal and the
     // corridor chalk. Everything is painted in code like the rest of the game's art, so the map

@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using UnityEngine;
@@ -10,7 +10,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    // The main menu, F2 reset and its ambience. Created by MenuSceneBootstrap.
+    // The main menu, F2 reset and its ambience. Created by MenuScene.
     //
     // Visual spec: Art/MainMenu/reference/main-menu-reference.png (2880x1620). The whole menu
     // is built from the owner's kit (Assets/_Project/Resources/Art/UI/MainMenu/menu_*.png, cut by
@@ -193,11 +193,11 @@ namespace Hollowbrook.UI
             frt.offsetMax = new Vector2(-3f, -3f);
             fill.raycastTarget = false;
 
-            var frame = rt.gameObject.AddComponent<Image>();
+            var frame = rt.gameObject.GetOrAdd<Image>();
             frame.sprite = Kit(frameKey);
             frame.color = Color.white;
 
-            var btn = rt.gameObject.AddComponent<Button>();
+            var btn = rt.gameObject.GetOrAdd<Button>();
             btn.targetGraphic = frame;
             var cb = btn.colors;
             cb.normalColor = Color.white;
@@ -222,7 +222,7 @@ namespace Hollowbrook.UI
                 float a = !btn.interactable ? 0f : down ? 0.22f : hover ? 0.12f : sel ? 0.08f : 0f;
                 var c = fill.color; c.a = a; fill.color = c;
             };
-            var et = btn.gameObject.AddComponent<EventTrigger>();
+            var et = btn.gameObject.GetOrAdd<EventTrigger>();
             void On(EventTriggerType t, Action fn)
             {
                 var e = new EventTrigger.Entry { eventID = t };
@@ -267,8 +267,8 @@ namespace Hollowbrook.UI
             _menuNote.text = "";
             _noteUntil = -1f;
             FitBackground();
-            if (CoreBootstrap.CreatedEventSystem != null && _newGameBtn != null)
-                CoreBootstrap.CreatedEventSystem.SetSelectedGameObject(_newGameBtn.gameObject);
+            if (GameCore.CreatedEventSystem != null && _newGameBtn != null)
+                GameCore.CreatedEventSystem.SetSelectedGameObject(_newGameBtn.gameObject);
             if (_glitch == null) _glitch = StartCoroutine(LogoGlitchLoop());
             if (_ambient == null) _ambient = StartCoroutine(AmbientLoop());
         }

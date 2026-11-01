@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using Hollowbrook.UI;
@@ -23,7 +23,7 @@ namespace Hollowbrook.Checkpoint
             // The student file: a draggable window, opened only by pulling it from the
             // floor-files drawer.
             var recGo = UIFactory.NewUI(_desk, "record");
-            var rec = recGo.gameObject.AddComponent<Hollowbrook.UI.HotRectImage>();
+            var rec = recGo.gameObject.GetOrAdd<Hollowbrook.UI.HotRectImage>();
             rec.sprite = ProceduralArt.Get("record_sheet");
             rec.raycastTarget = true;   // the file window grabs the pointer - by its header
             L.Place(rec.rectTransform, new L.Region(16, 168, 320, 290));
@@ -31,7 +31,7 @@ namespace Hollowbrook.Checkpoint
             // the sheet's body stays click-through and the rows, tabs and cabinet under the
             // paper keep working while you read (the X button keeps its own raycast).
             rec.HotRectTopLeft = new Rect(0f, 0f, 320f, 30f);
-            rec.gameObject.AddComponent<RectMask2D>();   // rows can never spill off the sheet
+            rec.gameObject.GetOrAdd<RectMask2D>();   // rows can never spill off the sheet
             _recHeader = UIFactory.Label(rec.rectTransform, "header", "STUDENT RECORD - FORM 11-C", 12,
                 new Color(0.9f, 0.9f, 0.88f), TextAnchor.MiddleCenter);
             L.Place(_recHeader.rectTransform, L.Inner.RecordHeader);
@@ -53,7 +53,7 @@ namespace Hollowbrook.Checkpoint
             // draggable inside the left/centre zone only: the file can never cover the stamps
             var fileBounds = UIFactory.NewUI(_desk, "filebounds");
             UIFactory.PlaceTL(fileBounds, 0, 0, 960, 720);
-            var fileDrag = rec.gameObject.AddComponent<DragPaper>();
+            var fileDrag = rec.gameObject.GetOrAdd<DragPaper>();
             fileDrag.Init(fileBounds, -0.6f);
             fileDrag.SetHome(new Vector2(16f, 168f));   // left column under the cabinet
             rec.gameObject.SetActive(false);   // opens only by pulling a file at the station
@@ -141,9 +141,9 @@ namespace Hollowbrook.Checkpoint
             // back with their tilt on drop. Dropping the ID at the window hands it back -
             // there is no scanner, verification is manual (documents, floor files,
             // questions).
-            var recordDrag = _recordGo.AddComponent<DragPaper>();
+            var recordDrag = _recordGo.GetOrAdd<DragPaper>();
             recordDrag.Init(_desk, -0.6f);
-            var idDrag = _idCardGo.AddComponent<DragPaper>();
+            var idDrag = _idCardGo.GetOrAdd<DragPaper>();
                         idDrag.Init(_desk, 0.8f);
             // the card body is deliberately NOT a button: it drags, it does not flip.
             // The flip belongs to the black spine alone (see SpineHandle above).
@@ -180,7 +180,7 @@ namespace Hollowbrook.Checkpoint
         private static Button SpineHandle(Image spine, System.Action onFlip)
         {
             spine.raycastTarget = true;
-            var b = spine.gameObject.AddComponent<Button>();
+            var b = spine.gameObject.GetOrAdd<Button>();
             b.targetGraphic = spine;
             b.transition = Selectable.Transition.ColorTint;
             var cb = b.colors;
@@ -190,7 +190,7 @@ namespace Hollowbrook.Checkpoint
             cb.fadeDuration = 0.10f;
             b.colors = cb;
             if (onFlip != null) b.onClick.AddListener(() => onFlip());
-            spine.gameObject.AddComponent<HoverCursor>();
+            spine.gameObject.GetOrAdd<HoverCursor>();
             return b;
         }
 

@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using UnityEngine;
@@ -10,7 +10,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    // Credits sheet. The text comes from CreditsData. Created by MenuSceneBootstrap.
+    // Credits sheet. The text comes from CreditsData. Created by MenuScene.
     public class CreditsView : MonoBehaviour, IScreenView
     {
         private GameRoot _gameRoot;

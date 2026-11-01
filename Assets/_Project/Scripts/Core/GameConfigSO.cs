@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Hollowbrook.Core
 {
     [CreateAssetMenu(fileName = "GameConfig", menuName = "ShowMeYourID/Game Config")]
-    // Tuning knobs editable in one asset. Loaded by CoreBootstrap.
+    // Tuning knobs editable in one asset. Loaded by GameCore.
     public class GameConfigSO : ScriptableObject
     {
         [Header("Checkpoint pacing")]

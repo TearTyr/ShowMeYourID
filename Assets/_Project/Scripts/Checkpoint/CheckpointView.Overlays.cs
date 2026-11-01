@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using Hollowbrook.UI;
@@ -43,7 +43,7 @@ namespace Hollowbrook.Checkpoint
             var go = goRt.gameObject;
             L.Place(goRt, L.FullDesk);
             var dim = UIFactory.Dimmer(goRt, "dim", 0.66f);
-            var dimClose = dim.gameObject.AddComponent<Button>();   // a click outside the paper closes it
+            var dimClose = dim.gameObject.GetOrAdd<Button>();   // a click outside the paper closes it
             dimClose.targetGraphic = dim;
             dimClose.transition = Selectable.Transition.None;
             dimClose.onClick.AddListener(() => { go.SetActive(false); _gameRoot.Audio.PlaySfx("sfx_ui_close", 0.5f); });

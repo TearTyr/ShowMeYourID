@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using Hollowbrook.UI;
@@ -11,7 +11,7 @@ using L = Hollowbrook.Checkpoint.CheckpointLayout;
 
 namespace Hollowbrook.Checkpoint
 {
-    // The inspection desk: papers, questions, stamps, banners. Created by CheckpointSceneBootstrap.
+    // The inspection desk: papers, questions, stamps, banners. Created by DeskScene.
     // Every element lives in one fixed 1280x720 DeskFrame and is placed only through the
     // CheckpointLayout grid - see desk_layout_wireframe.svg for the approved design.
     public partial class CheckpointView : MonoBehaviour, IScreenView
@@ -33,7 +33,7 @@ namespace Hollowbrook.Checkpoint
         public VisitorData CurrentVisitor => _current;
 
         // The queue itself lives in GameRoot (persistent run state); the view only
-        // presents it. Queue is null-safe so bootstraps without a run stay quiet.
+        // presents it. Queue is null-safe so scenes without a run stay quiet.
         private CheckpointQueue Queue => _gameRoot != null ? _gameRoot.Queue : null;
 
         private ShiftDef _shift;
@@ -104,7 +104,7 @@ namespace Hollowbrook.Checkpoint
             vig.color = new Color(1f, 1f, 1f, 0.55f);
 
             _desk = L.DeskFrame(_root, "DeskFrame");
-            _audit = _desk.gameObject.AddComponent<DeskLayoutAudit>();
+            _audit = _desk.gameObject.GetOrAdd<DeskLayoutAudit>();
 
             BuildTopBar();
             BuildFileCabinet();    // floor-files station + the physical pull drawer...
@@ -500,7 +500,7 @@ namespace Hollowbrook.Checkpoint
         internal void RefreshHud()
         {
             if (_gameRoot == null) return;
-            // Bootstrap builds the desk BEFORE the HUD, so ApplyKitSkin could not tint the
+            // The scene set up builds the desk BEFORE the HUD, so ApplyKitSkin could not tint the
             // live sanity meter at Init - land it lazily on the first refresh where the HUD exists.
             if (_kitOn && !_kitSanityApplied && _gameRoot.HUD != null)
             {

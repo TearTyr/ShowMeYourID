@@ -1,5 +1,5 @@
 using System.Collections;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.UI;
 using Hollowbrook.Logic;
@@ -8,7 +8,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.Horror
 {
-    // Stingers and jumpscares with accessibility guards. Created by each scene bootstrap.
+    // Stingers and jumpscares with accessibility guards. Lives in each scene file, connected by the scene script.
     public class ScareSystem : MonoBehaviour
     {
         private GameRoot _gameRoot;
@@ -26,19 +26,19 @@ namespace Hollowbrook.Horror
 
             var blackRt = UIFactory.NewUI(_canvas.transform, "Black");
             UIFactory.AnchorsFull(blackRt);
-            _black = blackRt.gameObject.AddComponent<Image>();
+            _black = blackRt.gameObject.GetOrAdd<Image>();
             _black.color = new Color(0, 0, 0, 0f);
             _black.raycastTarget = false;
 
             var faceRt = UIFactory.NewUI(_canvas.transform, "Face");
             UIFactory.Anchor(faceRt, new Vector2(0.5f, 0.5f), new Vector2(560, 640), Vector2.zero);
-            _face = faceRt.gameObject.AddComponent<Image>();
+            _face = faceRt.gameObject.GetOrAdd<Image>();
             _face.color = new Color(1, 1, 1, 0f);
             _face.raycastTarget = false;
 
             var flashRt = UIFactory.NewUI(_canvas.transform, "Flash");
             UIFactory.AnchorsFull(flashRt);
-            _flash = flashRt.gameObject.AddComponent<Image>();
+            _flash = flashRt.gameObject.GetOrAdd<Image>();
             _flash.sprite = ProceduralArt.Get("flash");
             _flash.color = new Color(1, 1, 1, 0f);
             _flash.raycastTarget = false;

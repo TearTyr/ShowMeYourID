@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Hollowbrook.Bootstrap;
+using Hollowbrook;
+using Hollowbrook.Scenes;
 using Hollowbrook.Checkpoint;
 using Hollowbrook.Core;
 using Hollowbrook.Horror;
@@ -15,7 +16,7 @@ using L = Hollowbrook.Checkpoint.CheckpointLayout;
 namespace FlowCheck
 {
     // Drives the real NEW GAME path headlessly and prints the [Flow] breadcrumb chain.
-    // SceneManager.LoadScene is a no-op in the stubs, so the scene bootstrap Awake is
+    // SceneManager.LoadScene is a no-op in the stubs, so the scene script Awake is
     // invoked by hand exactly as Unity would run it after the load completes.
     internal static class Program
     {
@@ -62,11 +63,11 @@ namespace FlowCheck
             if (args.Length > 0 && args[0].StartsWith("--dump-sprites="))
             {
                 // the procedural sprites are painted while the desk builds, so build first
-                MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore());
+                MenuScene.Build(GameCore.EnsureCore());
                 var bootRoot = GameRoot.Instance;
                 bootRoot.MainMenu.transform.Find("buttons").Find("NEW GAME")
                     .GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-                CheckpointSceneBootstrap.Build(bootRoot);
+                DeskScene.Build(bootRoot);
                 for (int i = 0; i < 8 && bootRoot.Dialogue != null && bootRoot.Dialogue.IsActive; i++)
                     bootRoot.Dialogue.Advance();
                 DumpSprites(args[0].Substring("--dump-sprites=".Length));
@@ -78,7 +79,7 @@ namespace FlowCheck
                 return;
             }
             Console.WriteLine("== NEW GAME flow, headless ==");
-            MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore());
+            MenuScene.Build(GameCore.EnsureCore());
             var root = GameRoot.Instance;
             Check(root != null && root.State == AppViewState.MainMenu, "menu boots");
 
@@ -91,7 +92,7 @@ namespace FlowCheck
             root.Config.queueBusyHurryMultiplier = 1f;
 
             // what Unity does after SceneManager.LoadScene: the new scene's bootstrap Awake
-            CheckpointSceneBootstrap.Build(root);
+            DeskScene.Build(root);
 
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++)
                 root.Dialogue.Advance();
@@ -153,11 +154,12 @@ namespace FlowCheck
             Console.WriteLine("== one persistent core across the scene chain ==");
             Check(ReferenceEquals(root, GameRoot.Instance),
                   "I-02: exactly one GameRoot after menu->desk->school->desk");
-            MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore());
+            MenuScene.Build(GameCore.EnsureCore());
             Check(ReferenceEquals(root, GameRoot.Instance),
                   "I-02: re-booting a scene never creates a second core");
 
             IssueOneProofs(root);
+            SceneReuseProof(root);
             ShiftFailureProof(root);
             Night6Proof(root);
             AdminTalkProof(root);
@@ -166,6 +168,93 @@ namespace FlowCheck
 
             Console.WriteLine(_failures == 0 ? "== FLOW CHAIN COMPLETE ==" : "== " + _failures + " CHECK(S) FAILED ==");
             Environment.Exit(_failures == 0 ? 0 : 1);
+        }
+
+        // --------------------------------------------- scenes that already hold their screens
+        // A scene set up in the editor holds its screens as objects. Setting it up again must find
+        // them (no copies), keep what a designer changed in the scene file, and leave everything
+        // else following the code.
+        private static int CountAll(Transform t)
+        {
+            int n = 1;
+            foreach (Transform c in t) n += CountAll(c);
+            return n;
+        }
+
+        private static void SceneReuseProof(GameRoot root)
+        {
+            Console.WriteLine("== scenes that hold their screens: no copies, designer changes kept ==");
+
+            // ---- the menu scene, set up twice into the same root
+            GameCore.ExistingRootForTests = null;
+            MenuScene.BuildContent(root);
+            var rootGo = GameCore.CurrentSceneRoot;
+            int first = CountAll(rootGo.transform);
+            Check(first > 20 && !SceneBuild.Active, "SC: the menu scene is built from nothing (" + first + " objects)");
+            var edits = rootGo.GetOrAdd<SceneEdits>();
+            edits.StoreBaseline(rootGo.transform);
+            Check(edits.IsBaked && edits.Baseline.Count > 20, "SC: the baseline stores what the code made (" + edits.Baseline.Count + " objects)");
+
+            // nothing changed: the same code run again finds everything and changes nothing
+            GameCore.ExistingRootForTests = rootGo;
+            MenuScene.BuildContent(root);
+            Check(CountAll(rootGo.transform) == first, "SC: setting the scene up again makes no copies (" + CountAll(rootGo.transform) + " vs " + first + ")");
+            Check(GameCore.CurrentSceneRoot == rootGo, "SC: it used the root the scene already held");
+            Check(SceneEdits.Begin(rootGo).Count == 0, "SC: an untouched scene has no changes to keep");
+
+            // a designer moves a button, re-texts a label, recolours the logo and hides a small thing
+            var newGame = FindDeep(rootGo.transform, "NEW GAME").GetComponent<RectTransform>();
+            var contBtn = FindDeep(rootGo.transform, "CONTINUE").GetComponent<RectTransform>();
+            Vector2 contBefore = contBtn.anchoredPosition;
+            Vector2 newGameBefore = newGame.anchoredPosition;
+            newGame.anchoredPosition = newGameBefore + new Vector2(37f, -11f);
+            var newGameLabel = newGame.Find("label").GetComponent<UnityEngine.UI.Text>();
+            newGameLabel.text = "BEGIN";
+            var logoImg = FindDeep(rootGo.transform, "logo").GetComponent<UnityEngine.UI.Image>();
+            logoImg.color = new Color(0.2f, 0.9f, 0.3f, 1f);
+            var hideMe = FindDeep(rootGo.transform, "icon");
+            hideMe.gameObject.SetActive(false);
+            // looking at a whole screen in the editor must not leak into the game
+            var viewRoot = FindDeep(rootGo.transform, "SettingsView").gameObject;
+            viewRoot.SetActive(true);
+            int plan = SceneEdits.Begin(rootGo).Count;
+            Check(plan == 4, "SC: four changes are found in the scene file (found " + plan + ")");
+
+            MenuScene.BuildContent(root);
+            Check(CountAll(rootGo.transform) == first, "SC: still no copies after a change");
+            Check((newGame.anchoredPosition - (newGameBefore + new Vector2(37f, -11f))).magnitude < 0.01f,
+                "SC: the moved button stays where the designer put it");
+            Check(newGameLabel.text == "BEGIN", "SC: the re-texted label keeps its text");
+            Check(Mathf.Abs(logoImg.color.g - 0.9f) < 0.01f, "SC: the recoloured logo keeps its colour");
+            Check(!hideMe.gameObject.activeSelf, "SC: the hidden object stays hidden");
+            Check((contBtn.anchoredPosition - contBefore).magnitude < 0.01f,
+                "SC: an object nobody touched still follows the code");
+            Check(!viewRoot.activeSelf, "SC: a whole screen ticked on in the editor is still hidden in the game");
+
+            // ---- the desk scene is much bigger: the same two checks
+            GameCore.ExistingRootForTests = null;
+            DeskScene.BuildContent(root);
+            var deskRoot = GameCore.CurrentSceneRoot;
+            int deskFirst = CountAll(deskRoot.transform);
+            deskRoot.GetOrAdd<SceneEdits>().StoreBaseline(deskRoot.transform);
+            Check(SceneEdits.Begin(deskRoot).Count == 0, "SC: an untouched desk has nothing to keep");
+            GameCore.ExistingRootForTests = deskRoot;
+            DeskScene.BuildContent(root);
+            int deskSecond = CountAll(deskRoot.transform);
+            Check(deskSecond == deskFirst, "SC: the desk scene makes no copies either (" + deskSecond + " vs " + deskFirst + ")");
+            GameCore.ExistingRootForTests = null;
+
+            // ---- and the patrol screens (the world is built from code, not held by the scene)
+            PatrolScene.BuildContent(root);
+            var patrolRoot = GameCore.CurrentSceneRoot;
+            Check(FindDeep(patrolRoot.transform, "World") == null, "SC: the patrol world is not saved in the scene");
+            int patrolFirst = CountAll(patrolRoot.transform);
+            GameCore.ExistingRootForTests = patrolRoot;
+            PatrolScene.BuildContent(root);
+            Check(CountAll(patrolRoot.transform) == patrolFirst, "SC: the patrol screens make no copies (" + patrolFirst + ")");
+            GameCore.ExistingRootForTests = null;
+            Check(!SceneBuild.Active, "SC: setting scenes up always ends cleanly");
+            FreshGame(root);   // leave a live game for whatever runs next
         }
 
         // --------------------------------------------- night 6, the Challenge
@@ -200,7 +289,7 @@ namespace FlowCheck
 
             // start it
             root.StartNewGame(GameMode.Challenge);
-            CheckpointSceneBootstrap.Build(root);
+            DeskScene.Build(root);
             for (int i = 0; i < 12 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
             Check(root.Session.Mode == GameMode.Challenge && root.Session.CurrentShift == 6 &&
                   root.CurrentShiftDef.Number == 6 && root.CurrentShiftDef.HasAdministrator,
@@ -253,7 +342,7 @@ namespace FlowCheck
 
             // fainting is the Lose, as on night 5
             root.StartNewGame(GameMode.Challenge);
-            CheckpointSceneBootstrap.Build(root);
+            DeskScene.Build(root);
             for (int i = 0; i < 12 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
             ClickStickyNote(root);
             root.Session.Sanity = 0f;
@@ -311,7 +400,7 @@ namespace FlowCheck
             // a blackout on patrol goes to the main menu the same way
             FreshGame(root); ClickStickyNote(root);
             root.EnterExploration();
-            SchoolSceneBootstrap.Build(root);        // what Unity does after LoadScene(School)
+            PatrolScene.Build(root);        // what Unity does after LoadScene(School)
             Check(root.State == AppViewState.Exploration, "FAIL: (patrol is live for the blackout proof)");
             root.Session.Sanity = 0f;
             Time.deltaTime = 0.5f;
@@ -1401,7 +1490,7 @@ namespace FlowCheck
                 Check(System.IO.File.Exists(png + ".meta"),
                     "SP: the override has its .meta, so Unity imports it on the next open");
             }
-            Check(Hollowbrook.Bootstrap.ProceduralArt.Get("stamp_allow") != null,
+            Check(Hollowbrook.Scenes.ProceduralArt.Get("stamp_allow") != null,
                 "SP: the stamp key still resolves (asset override wins in-editor, painter is the fallback)");
         }
 
@@ -1998,7 +2087,7 @@ namespace FlowCheck
                 "P11: PersistRun writes the started queue snapshot (cursor " + root.Session.QueueState.RosterCursor + ")");
             root.QuitToMenu(true);
             root.ContinueGame();
-            CheckpointSceneBootstrap.Build(root);
+            DeskScene.Build(root);
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
             var sticky = FindDeep(root.Checkpoint.transform, "StickyNoteOverlay");
             Check(sticky != null && !sticky.gameObject.activeSelf,
@@ -2222,13 +2311,13 @@ namespace FlowCheck
             cp.GoPatrol();
             Check(root.State == AppViewState.Checkpoint, "Q7: Patrol stays shut while students are still to come");
             root.EnterExploration();
-            SchoolSceneBootstrap.Build(root);                      // what Unity does after LoadScene(School)
+            PatrolScene.Build(root);                      // what Unity does after LoadScene(School)
             Check(root.State == AppViewState.Exploration, "Q7: patrol started");
             Check(root.Queue.Started && root.Queue.RosterCursor == 2 && root.Queue.ArrivalCount == 2 &&
                   Math.Abs(root.Queue.TimerSeconds - timerBeforePatrol) < 0.0001f,
                   "Q7: queue state frozen and intact while off-desk (timer never advanced)");
             root.ReturnToCheckpoint();
-            CheckpointSceneBootstrap.Build(root);
+            DeskScene.Build(root);
             cp = root.Checkpoint;
             Check(!FindDeep(cp.transform, "StickyNoteOverlay").gameObject.activeSelf, "Q7: returning never re-shows the note");
             Check(cp.CurrentVisitor == null, "Q7: no visitor duplicated on return");
@@ -2249,7 +2338,7 @@ namespace FlowCheck
             root.TogglePause(true);
             root.QuitToMenu(true);                                 // saves at the quit boundary
             root.ContinueGame();
-            CheckpointSceneBootstrap.Build(root);
+            DeskScene.Build(root);
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
             cp = root.Checkpoint;
             Check(!FindDeep(cp.transform, "StickyNoteOverlay").gameObject.activeSelf, "Q8: a restored shift shows no note");
@@ -2284,7 +2373,7 @@ namespace FlowCheck
             Check(root.State == AppViewState.MainMenu, "Q10: clocking out lands on the main menu");
             root.QuitToMenu(true);
             root.ContinueGame();
-            CheckpointSceneBootstrap.Build(root);
+            DeskScene.Build(root);
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
             cp = root.Checkpoint;                      // the rebuild created a fresh desk view
             Check(root.Session.CurrentShift == 2, "Q10: CONTINUE after clock-out starts night 2");
@@ -2344,7 +2433,7 @@ namespace FlowCheck
             Console.WriteLine("== SETTINGS modal proofs (Phase 10 + 11.5, headless) ==");
 
             root.BootToMainMenu();
-            MenuSceneBootstrap.Build(root);            // what Unity does after LoadScene(MainMenu)
+            MenuScene.Build(root);            // what Unity does after LoadScene(MainMenu)
             var settingsBtn = root.MainMenu.transform.Find("buttons").Find("SETTINGS");
             Check(settingsBtn != null, "S1: the menu SETTINGS button exists");
             settingsBtn.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
@@ -2443,7 +2532,7 @@ namespace FlowCheck
         private static void FreshGame(GameRoot root)
         {
             root.StartNewGame(GameMode.Normal);
-            CheckpointSceneBootstrap.Build(root);        // what Unity does after LoadScene(Hollowbrook)
+            DeskScene.Build(root);        // what Unity does after LoadScene(Hollowbrook)
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
         }
 
@@ -2520,7 +2609,7 @@ namespace FlowCheck
             System.IO.File.WriteAllText(path, before);
 
             root.StartNewGame(GameMode.Normal);
-            CheckpointSceneBootstrap.Build(root);
+            DeskScene.Build(root);
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
             ClickStickyNote(root);
             var cp = root.Checkpoint;
@@ -2608,13 +2697,13 @@ namespace FlowCheck
 
             // a fresh normal run, then patrol - through the real scene handoffs the game uses.
             root.StartNewGame(GameMode.Normal);
-            CheckpointSceneBootstrap.Build(root);
+            DeskScene.Build(root);
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
             Check(root.State == AppViewState.Checkpoint, "W0: a fresh run reaches the desk");
             Check(root.Session.Pool.Pending == 1, "W0: night 1 seeds exactly one outstanding anomaly");
 
             root.EnterExploration();
-            SchoolSceneBootstrap.Build(root);      // what Unity does after LoadScene(School)
+            PatrolScene.Build(root);      // what Unity does after LoadScene(School)
             Check(root.State == AppViewState.Exploration, "W0: patrol starts in Exploration");
             var views = root.Views;
             Check(views != null && views.Current != null && views.Current.Id == RoomId.Hallway, "W0: patrol starts in the hallway");
@@ -3753,7 +3842,7 @@ namespace FlowCheck
                 $"AM: the manifest covers the whole pipeline ({artRows.Count} art, {audioRows.Count} audio, {fontRows.Count} font rows)");
 
             // art rows == the painter's keys + the face pairs, exactly
-            var codeArt = new List<string>(Hollowbrook.Bootstrap.ProceduralArt.AllKeys);
+            var codeArt = new List<string>(Hollowbrook.Scenes.ProceduralArt.AllKeys);
             for (int i = 1; i <= Content.TotalStudents; i++)
             {
                 codeArt.Add("char_student_" + i.ToString("D2"));
@@ -3762,13 +3851,13 @@ namespace FlowCheck
             codeArt.Add(Hollowbrook.Logic.FaceAssets.AdminKey);
             codeArt.Add(Hollowbrook.Logic.FaceAssets.AdminWindowKey);
             codeArt.AddRange(SecurityKitKeys);   // the owner's SecurityRoom kit rows
-            codeArt.AddRange(Hollowbrook.Bootstrap.ProceduralArt.MainMenuKitKeys);   // the Main Menu kit rows
+            codeArt.AddRange(Hollowbrook.Scenes.ProceduralArt.MainMenuKitKeys);   // the Main Menu kit rows
             Check(SameSet(artRows, codeArt, out string artDiff),
                 "AM: every art row is a real procedural key and every key has a row" +
                 (artDiff.Length > 0 ? " (diff: " + artDiff + ")" : ""));
 
             // audio rows == the synth's keys, exactly
-            Check(SameSet(audioRows, new List<string>(Hollowbrook.Bootstrap.ProceduralAudio.AllKeys),
+            Check(SameSet(audioRows, new List<string>(Hollowbrook.Scenes.ProceduralAudio.AllKeys),
                   out string audioDiff),
                 "AM: every audio row is a real synth key and every key has a row" +
                 (audioDiff.Length > 0 ? " (diff: " + audioDiff + ")" : ""));
@@ -3776,9 +3865,9 @@ namespace FlowCheck
             // every art key resolves to its own sprite (a missing case would fall back to solid)
             bool resolves = true;
             string badKey = "";
-            foreach (var k in Hollowbrook.Bootstrap.ProceduralArt.AllKeys)
+            foreach (var k in Hollowbrook.Scenes.ProceduralArt.AllKeys)
             {
-                var sp = Hollowbrook.Bootstrap.ProceduralArt.Get(k);
+                var sp = Hollowbrook.Scenes.ProceduralArt.Get(k);
                 if (sp == null || sp.name != k) { resolves = false; badKey = k; break; }
             }
             Check(resolves, "AM: every art key paints its own sprite (no fallback squares)" +
@@ -3787,9 +3876,9 @@ namespace FlowCheck
             // every audio key resolves to its own clip
             bool audioOk = true;
             string badAudio = "";
-            foreach (var k in Hollowbrook.Bootstrap.ProceduralAudio.AllKeys)
+            foreach (var k in Hollowbrook.Scenes.ProceduralAudio.AllKeys)
             {
-                var clip = Hollowbrook.Bootstrap.ProceduralAudio.Get(k);
+                var clip = Hollowbrook.Scenes.ProceduralAudio.Get(k);
                 if (clip == null || clip.name != k) { audioOk = false; badAudio = k; break; }
             }
             Check(audioOk, "AM: every audio key synthesises its own clip (no silent falls-through)" +
@@ -3993,13 +4082,13 @@ namespace FlowCheck
             Check(!Btn(root, "endshift").interactable, "HUNT: END SHIFT is not");
             root.QuitToMenu(true);
             root.ContinueGame();
-            CheckpointSceneBootstrap.Build(root);
+            DeskScene.Build(root);
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
             Check(root.HuntReady && root.State == AppViewState.Checkpoint, "HUNT: Continue returns to the desk, still waiting");
             Check(root.Checkpoint.CurrentVisitor == null && !root.Checkpoint.WindowOpen, "HUNT: and nobody is back at the window");
             root.Checkpoint.GoPatrol();
             Check(root.HuntActive, "HUNT: clicking Patrol starts it");
-            SchoolSceneBootstrap.Build(root);                       // what Unity does after LoadScene(School)
+            PatrolScene.Build(root);                       // what Unity does after LoadScene(School)
             var views = root.Views;
             Check(root.State == AppViewState.Exploration && views.Hunt != null && views.Hunt.Running,
                 "HUNT: the radio call ends in the school and the hunt is running");
@@ -4115,14 +4204,14 @@ namespace FlowCheck
             string rootDir = RepoRoot();
             string kitDir = rootDir == null ? null :
                 System.IO.Path.Combine(rootDir, "Assets/_Project/Resources/Art/UI/MainMenu");
-            string[] keys = Hollowbrook.Bootstrap.ProceduralArt.MainMenuKitKeys;
+            string[] keys = Hollowbrook.Scenes.ProceduralArt.MainMenuKitKeys;
             bool shipped = true, resolves = true;
             string missing = "";
             foreach (var k in keys)
             {
                 if (kitDir == null || !System.IO.File.Exists(System.IO.Path.Combine(kitDir, k + ".png")))
                 { shipped = false; missing = k; break; }
-                var sp = Hollowbrook.Bootstrap.ProceduralArt.Get(k);
+                var sp = Hollowbrook.Scenes.ProceduralArt.Get(k);
                 if (sp == null || sp.name != k) { resolves = false; missing = k; break; }
             }
             Check(shipped, "MKIT: all " + keys.Length + " kit sprites ship under Resources/Art/UI/MainMenu" +
@@ -4195,7 +4284,7 @@ namespace FlowCheck
             {
                 if (kitDir == null || !System.IO.File.Exists(System.IO.Path.Combine(kitDir, k + ".png")))
                 { shipped = false; missing = k; break; }
-                var sp = Hollowbrook.Bootstrap.ProceduralArt.Get(k);
+                var sp = Hollowbrook.Scenes.ProceduralArt.Get(k);
                 if (sp == null || sp.name != k) { resolves = false; missing = k; break; }
             }
             Check(shipped, "KIT: all " + keys.Length + " kit sprites ship under Resources/Art/UI/SecurityDesk" +
@@ -4368,7 +4457,7 @@ namespace FlowCheck
         {
             UnityEngine.Screen.width = w;
             UnityEngine.Screen.height = h;
-            MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore());
+            MenuScene.Build(GameCore.EnsureCore());
             var root = GameRoot.Instance;
             // pose the ambience at rest: the reference shows the menu between flickers, and
             // the stub coroutine pump can otherwise freeze a 0.55 s flicker mid-pulse
@@ -4406,14 +4495,14 @@ namespace FlowCheck
 
         private static void DumpScreen(string path, string state = "occupied")
         {
-            MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore());
+            MenuScene.Build(GameCore.EnsureCore());
             var root = GameRoot.Instance;
             root.Config.queueArrivalMinSeconds = 3f;
             root.Config.queueArrivalMaxSeconds = 5f;
             root.Config.queueBusyHurryMultiplier = 1f;
             var newGame = root.MainMenu.transform.Find("buttons").Find("NEW GAME");
             newGame.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            CheckpointSceneBootstrap.Build(root);
+            DeskScene.Build(root);
             if (state == "intro")
             {
                 // the night card + the intro dialogue, exactly as the shift opens
@@ -4547,7 +4636,7 @@ namespace FlowCheck
         // cs = the product of the ancestors' localScale: a node's own sizeDelta and
         // anchoredPosition live in its parent's LOCAL units, so they draw multiplied by it
         // (the scaled card/slip art layers keep their design space this way).
-        // Headless sprite export: every PROCEDURAL sprite the bootstrap paints (vignette,
+        // Headless sprite export: every PROCEDURAL sprite the scene set up paints (vignette,
         // desk wash, faces, papers...) as raw RGBA, so the preview renderer can show the
         // same pixels the editor would instead of a flat stand-in colour.
         private static void DumpSprites(string dir)
@@ -4555,9 +4644,9 @@ namespace FlowCheck
             System.IO.Directory.CreateDirectory(dir);
             var manifest = new System.Text.StringBuilder("{");
             bool first = true;
-            foreach (var key in Hollowbrook.Bootstrap.ProceduralArt.CachedKeys)
+            foreach (var key in Hollowbrook.Scenes.ProceduralArt.CachedKeys)
             {
-                if (!Hollowbrook.Bootstrap.ProceduralArt.TryGet(key, out var sp)) continue;
+                if (!Hollowbrook.Scenes.ProceduralArt.TryGet(key, out var sp)) continue;
                 var tex = sp != null ? sp.texture : null;
                 var px = tex != null ? tex.GetPixels() : null;
                 if (px == null || tex.width < 1 || tex.height < 1) continue;
@@ -4702,7 +4791,7 @@ namespace FlowCheck
         private static void DumpDrawer(string dir)
         {
             System.IO.Directory.CreateDirectory(dir);
-            MenuSceneBootstrap.Build(CoreBootstrap.EnsureCore());
+            MenuScene.Build(GameCore.EnsureCore());
             var root = GameRoot.Instance;
             root.Config.queueArrivalMinSeconds = 3f;
             root.Config.queueArrivalMaxSeconds = 5f;
@@ -4711,7 +4800,7 @@ namespace FlowCheck
             // runs the queued action - skipping the click leaves the run in MainMenu
             var newGame = root.MainMenu.transform.Find("buttons").Find("NEW GAME");
             newGame.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            CheckpointSceneBootstrap.Build(root);
+            DeskScene.Build(root);
             int adv = 0;
             while (root.Dialogue != null && root.Dialogue.IsActive && adv++ < 64)
                 root.Dialogue.Advance();

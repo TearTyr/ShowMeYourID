@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Hollowbrook.Audio;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Checkpoint;
 using Hollowbrook.Horror;
 using Hollowbrook.Logic;
@@ -32,7 +32,7 @@ namespace Hollowbrook.Core
                 Audio.PlayMusic(MusicForRoom(room));
                 if (HuntActive && Views != null) Views.StartAdminHunt(BuildHuntTuning(), Session.Seed ^ 0x4A0B);
             });
-            Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.School);
+            Hollowbrook.Scenes.SceneRouter.Load(Hollowbrook.Scenes.SceneRouter.School);
         }
 
         /// <summary>Is there a standing anomaly in this peek room right now? Which rooms have one is
@@ -109,7 +109,7 @@ namespace Hollowbrook.Core
                 Audio.PlayMusic("checkpoint");
                 if (Checkpoint != null) Checkpoint.ResumeRun();
             });
-            Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
+            Hollowbrook.Scenes.SceneRouter.Load(Hollowbrook.Scenes.SceneRouter.Checkpoint);
         }
 
         public void OpenMap()

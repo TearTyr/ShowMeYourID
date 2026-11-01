@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Hollowbrook.Audio;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Checkpoint;
 using Hollowbrook.Horror;
 using Hollowbrook.Logic;
@@ -11,7 +11,7 @@ using UnityEngine;
 namespace Hollowbrook.Core
 {
     /// <summary>Central game orchestrator (the "root"). Owns services, the run session and
-    /// explicit references to every view - assigned once by CoreBootstrap + the scene bootstraps.
+    /// explicit references to every view - assigned once by GameCore + the scene scripts.
     /// Gameplay code never uses GameObject.Find; it goes through this class or the EventBus.</summary>
     public partial class GameRoot : MonoBehaviour
     {
@@ -45,7 +45,7 @@ namespace Hollowbrook.Core
         public CheckpointQueue Queue { get; private set; } = new CheckpointQueue();
         private bool _continuePending;
 
-        // ---- views (explicit references, set by the per-scene bootstraps) ----
+        // ---- views (explicit references, set by the per-scene scripts) ----
         public Camera MainCamera;
         public ViewManager Views;
         public CheckpointView Checkpoint;
@@ -88,7 +88,7 @@ namespace Hollowbrook.Core
         private float _queuedAt;
         private bool _handshakeArmed;
 
-        // Safety net: if a scene load never runs its bootstrap (missing bootstrap component,
+        // Safety net: if a scene load never runs its scene script (missing scene component,
         // scene not in Build Settings), the queued start action is never consumed and the
         // player would stare at a dead screen. After the window we say exactly that and go
         // back to the menu. Do not remove: this is the only detector for that failure.
@@ -100,10 +100,10 @@ namespace Hollowbrook.Core
             _queuedSceneAction = null;
             Debug.LogError("[GameRoot] scene handshake FAILED: the queued start action was never " +
                 "consumed. Usual causes: target scene not enabled in Build Settings, or its " +
-                "bootstrap component missing / stale script GUID (Tools/generate_meta.py pins them).");
+                "scene component missing / stale script GUID (Tools/generate_meta.py pins them).");
             Bus.Publish(GameEvent.Of(EventIds.Notification,
-                "The game scene failed to start. Check Build Settings / scene bootstrap."));
-            Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Menu);
+                "The game scene failed to start. Check Build Settings / the scene script."));
+            Hollowbrook.Scenes.SceneRouter.Load(Hollowbrook.Scenes.SceneRouter.Menu);
         }
 
         private const float HandshakeTimeoutSeconds = 3.5f;
@@ -149,10 +149,11 @@ namespace Hollowbrook.Core
         {
             Instance = this;
             Bus = bus; Config = config; Saves = saves; Settings = settings; Audio = audio;
-            DontDestroyOnLoad(gameObject);
+            // (while the editor sets a scene up there is no game to keep alive, and no screen to resize)
+            if (Application.isPlaying) DontDestroyOnLoad(gameObject);
             // One boot-time application of the stored display preference. Missing or unusable
             // preferences are cleared inside; the launcher default otherwise stands.
-            settings.ApplyStoredDisplay();
+            if (Application.isPlaying) settings.ApplyStoredDisplay();
             Bus.Subscribe(EventIds.SettingsChanged, e =>
             {
                 UIFactory.ApplyTextScale(Settings.TextScaleMultiplier);
@@ -317,7 +318,7 @@ namespace Hollowbrook.Core
                 PersistRun();
             }
             if (Views != null) Views.HideWorld();
-            Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Menu);
+            Hollowbrook.Scenes.SceneRouter.Load(Hollowbrook.Scenes.SceneRouter.Menu);
         }
 
         /// <summary>True while a run is actually in progress - the menu's blank session
@@ -346,8 +347,8 @@ namespace Hollowbrook.Core
             if (Instance == this) Instance = null;
             Time.timeScale = 1f;
             // the procedural atlases are native allocations: release them with the core
-            Hollowbrook.Bootstrap.ProceduralArt.ClearCache();
-            Hollowbrook.Bootstrap.ProceduralAudio.ClearCache();
+            Hollowbrook.Scenes.ProceduralArt.ClearCache();
+            Hollowbrook.Scenes.ProceduralAudio.ClearCache();
         }
     }
 }

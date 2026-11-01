@@ -108,7 +108,7 @@ namespace Hollowbrook.Core
         private void FinishHuntedNight()
         {
             QueueSceneAction(FinishShift);
-            Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
+            Hollowbrook.Scenes.SceneRouter.Load(Hollowbrook.Scenes.SceneRouter.Checkpoint);
         }
 
         /// <summary>He caught the player too many times and reached the server room.</summary>

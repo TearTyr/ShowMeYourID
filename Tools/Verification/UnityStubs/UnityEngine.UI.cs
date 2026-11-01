@@ -460,7 +460,7 @@ namespace UnityEngine.EventSystems
     public class EventSystem : Behaviour
     {
         // real Unity assigns this on Awake; the stub assigns on construction so headless
-        // harnesses that build a bootstrap (CoreBootstrap) get a live EventSystem for free.
+        // harnesses that set a scene up (GameCore) get a live EventSystem for free.
         public EventSystem() { current = this; }
         public static EventSystem current { get; set; }
         public GameObject currentSelectedGameObject;

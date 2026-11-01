@@ -1,15 +1,23 @@
 # Architecture, in one page
 
-**Services (built once by `CoreBootstrap.EnsureCore`, live across scenes):** `GameRoot` (the run:
+**Services (built once by `GameCore.EnsureCore`, live across scenes):** `GameRoot` (the run:
 session, shift flow, state, references to every view; split into `GameRoot.cs`, `.Shifts`,
 `.Patrol`, `.Endings`, `.Saving`, `.Hunt`), `EventBus` (string-id pub/sub), `SettingsSystem`
 (PlayerPrefs preferences + the one place Screen mode is written), `SaveSystem` (checksummed text
 save), `AudioDirector` (all sound; captions fire from inside PlaySfx).
 
-**Scenes:** each `.unity` holds one bootstrap component that builds everything in code.
-`Assets/_Project/Editor/ProjectSetup.cs` (editor only) is the Hollowbrook menu: it repairs the scenes,
-Build Settings, art import settings and `GameConfig.asset`. It does not bake the screens into the
-scene files, because button clicks and the generated pictures cannot be saved there.
+**Scenes:** each `.unity` holds its screens as real objects under a `SceneRoot_<scene>` object, plus one
+start script (`MenuScene`, `DeskScene`, `PatrolScene`). The screen code is "find or make": when a
+scene starts, `UIFactory.NewUI`, `GameCore.NewCanvas` and `GameCore.NewObject` first look for the object
+in the scene (`SceneBuild.Reuse`) and only make it when it is missing, and `GetOrAdd<T>` does the same
+for components. So an unbaked scene still works. `SceneEdits` (on the scene root) stores a baseline of
+what the code made when the tool filled the scene; at load it compares the scene with the baseline,
+lets the code run, then puts the designer's differences back (rect, colour, picture, text, font size, an
+object hidden inside a screen). `Assets/_Project/Editor/ProjectSetup.cs` (editor only, the Hollowbrook
+menu) fills the scenes by running the same code in the editor, saves code painted pictures as png files
+in `SceneArt`, repairs Build Settings, art import settings and `GameConfig.asset`, and has the Check and
+Rebuild From Scratch commands. Button clicks are wired in code, not in the Inspector. The patrol world is
+not baked. Every `MonoBehaviour` that sits in a scene must live in a file named like the class.
 `MainMenu.unity` -> menu + overlay sheets. `Hollowbrook.unity` -> the desk (CheckpointView) plus
 HUD/dialogue/map/results/endings. `School.unity` -> rooms, player, flashlight rig, anomalies, the
 administrator hunt. The core survives loads via DontDestroyOnLoad; per-scene roots are destroyed
@@ -44,12 +52,12 @@ canon roster behind the cabinet) is always the truth. A defect changes the CARD,
 or the spoken classroom answer so it disagrees with the file. Legitimate students always match
 exactly; every anomaly has at least one tell the tests prove. Faces: the ID always shows the real
 student's art; the window shows another student's face only on a `PhotoMismatch`, and the
-`_anomaly` art only on a `PhotoSubtleMismatch` (`GameLogic/FaceAssets`, `Bootstrap/FaceArt`).
+`_anomaly` art only on a `PhotoSubtleMismatch` (`GameLogic/FaceAssets`, `Generated/FaceArt`).
 
 **Intro -> checkpoint:** NEW GAME queues `BeginShift` then loads Hollowbrook; the new scene's
-bootstrap Awake builds views and calls `RunQueuedSceneAction`; `BeginShift` shows the Loading card,
+scene script's Awake sets the views up and calls `RunQueuedSceneAction`; `BeginShift` shows the Loading card,
 plays intro dialogue, and on the last click sets state Checkpoint and calls `BeginRun`, which
-attaches the desk to `GameRoot.Queue`. If the bootstrap never runs, `CheckSceneHandshake` logs and
+attaches the desk to `GameRoot.Queue`. If the scene script never runs, `CheckSceneHandshake` logs and
 returns to the menu after 3.5 s.
 
 **Night 5 - the administrator:** at the window, `GameLogic/AdminTalk` (pure) is a short topic list
@@ -85,5 +93,5 @@ scales, and `UI/MapView` only applies those numbers.
 `RoomBuilder` that calls `Session.DiscoverClue(key)`.
 **Add an anomaly behavior:** add an `AnomalyBehaviorKind` value and one branch in
 `WanderingAnomaly.MoveBehavior`.
-**Add a view:** create the class implementing `IScreenView`, then `CoreBootstrap.CreateView<T>` in
-the scene bootstrap that should own it and a field on GameRoot.
+**Add a view:** create the class implementing `IScreenView`, then `GameCore.CreateView<T>` in
+the scene script that should own it and a field on GameRoot.

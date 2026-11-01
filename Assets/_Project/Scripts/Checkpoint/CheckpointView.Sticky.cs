@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using Hollowbrook.UI;
@@ -61,7 +61,7 @@ namespace Hollowbrook.Checkpoint
                 new Color(0.55f, 0.12f, 0.14f), TextAnchor.MiddleCenter);
             L.Place(cta.rectTransform, L.Inner.StickyCta);
 
-            _stickyButton = panel.gameObject.AddComponent<Button>();
+            _stickyButton = panel.gameObject.GetOrAdd<Button>();
             _stickyButton.targetGraphic = panel.GetComponent<Image>();
             _stickyButton.onClick.AddListener(OnStickyClicked);
             _stickyRoot = rootRt.gameObject;

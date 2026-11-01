@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Hollowbrook.Logic;
 using UnityEngine;
 
-namespace Hollowbrook.Bootstrap
+namespace Hollowbrook.Scenes
 {
     // Desk papers and stamps: clipboard, note paper, ALLOW/REJECT stamps, check/cross icons.
     public static partial class ProceduralArt

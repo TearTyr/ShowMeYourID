@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Hollowbrook.Logic;
 using UnityEngine;
 
-namespace Hollowbrook.Bootstrap
+namespace Hollowbrook.Scenes
 {
     // World props: doors, lockers, desks, cabinets, fixtures, the flashlight cone and lamp glow.
     public static partial class ProceduralArt

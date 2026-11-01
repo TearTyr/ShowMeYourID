@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using Hollowbrook.UI;
@@ -111,7 +111,7 @@ namespace Hollowbrook.Checkpoint
             // the placed card rect (not the stretched container) is the physical object;
             // scaled down so it rests small on the counter edge
             rt.localScale = new Vector3(0.6f, 0.6f, 1f);
-            var offerDrag = rt.gameObject.AddComponent<DragPaper>();
+            var offerDrag = rt.gameObject.GetOrAdd<DragPaper>();
             offerDrag.Init(_desk, 0f);
             offerDrag.ReturnsHome = true;
             offerDrag.OnDropped = center => { if (center.y >= 420f) TakeIdAt(center); };
@@ -133,7 +133,7 @@ namespace Hollowbrook.Checkpoint
             L.Place(slipRt, L.CounterSlip);
             slipRt.localScale = Vector3.one;   // readable at the counter, clear of the frame
             slipRt.localEulerAngles = new Vector3(0, 0, L.TiltSlip);
-            var slipSurface = slipRt.gameObject.AddComponent<UnityEngine.UI.Image>();
+            var slipSurface = slipRt.gameObject.GetOrAdd<UnityEngine.UI.Image>();
             slipSurface.color = new Color(0f, 0f, 0f, 0f);
             slipSurface.raycastTarget = true;   // the container owns the pointer
             var slipArtRt = UIFactory.NewUI(slipRt, "slipart");
@@ -153,7 +153,7 @@ namespace Hollowbrook.Checkpoint
             // TryStampOnDrop / StampPlacement
             _slipGo = slipRt.gameObject;
             if (_papersLayer != null) _slipGo.transform.SetParent(_papersLayer.transform, false);
-            var slipDrag = _slipGo.AddComponent<DragPaper>();
+            var slipDrag = _slipGo.GetOrAdd<DragPaper>();
             slipDrag.Init(_desk, 1.2f);
             // the slip is ONLY draggable: never flips, never inspects (Inspectable stays off).
             // A tap on the counter slip takes it.

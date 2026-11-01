@@ -23,7 +23,7 @@ a district administrator, and turning him away is only the start.
    the Build Settings list, the art import settings and `GameConfig.asset`, and only touches what is
    broken. **Hollowbrook > Check Project** just reports.
 3. Press **Play**. The first scene is `Assets/_Project/Scenes/MainMenu.unity`. Each of the three
-   scenes holds one bootstrap object that builds everything in code.
+   scenes holds its screens as real objects (put there by the setup tool) that you can edit.
 4. Windows build: `File > Build Settings > Windows > Build` (the three scenes are already listed).
 
 The game ships painted art for the desk, the menu, the hallway, the classrooms, the comfort room
@@ -100,7 +100,7 @@ night: quitting it ends it, and it never touches your story save. The numbers ar
 
 ```
 Assets/_Project/
-  Scenes/                 MainMenu, Hollowbrook (the desk), School (patrol) - one bootstrap each
+  Scenes/                 MainMenu, Hollowbrook (the desk), School (patrol) - hold their screens
   Editor/                 ProjectSetup: the Hollowbrook menu (one click setup and check), editor only
   Resources/              GameConfig.asset (tuning), Audio/ drop-in files
     Art/                  Characters/, UI/ (SecurityDesk, MainMenu) and Environment/ (Hallway, Rooms,
@@ -112,7 +112,8 @@ Assets/_Project/
     World/                patrol: rooms, player, flashlight, peek lamp, anomalies, the hunt
     Horror/               anomalies, sanity, scares, hallucinations
     UI/                   menus, HUD, dialogue, map, results, endings
-    Bootstrap/            one script per scene that builds it, plus procedural art and audio
+    Scenes/               one start script per scene, plus the find or make helpers (SceneBuild, SceneEdits)
+    Generated/            procedural art and audio (painted in code when no file exists)
     Audio/                music and effects
 Art/                      source art for the prep scripts (the current kit is "UI and Design Assets")
 Tools/                    test, check and art prep tools (not part of the game build)

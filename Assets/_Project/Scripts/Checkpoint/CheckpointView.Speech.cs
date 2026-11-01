@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using Hollowbrook.UI;
@@ -46,7 +46,7 @@ namespace Hollowbrook.Checkpoint
             _bubbleText = UIFactory.Label(_bubblePanel, "bubbletext", "", 13,
                 UIFactory.NsInk, TextAnchor.UpperLeft);
             _bubbleText.font = UIFactory.UiFontBold;
-            _bubblePanel.gameObject.AddComponent<RectMask2D>();   // text can never spill the paper
+            _bubblePanel.gameObject.GetOrAdd<RectMask2D>();   // text can never spill the paper
 
             // the tail rides ON TOP of the panel's left border (later sibling) so its
             // borderless base melts into the bubble - tip points at the visitor's face

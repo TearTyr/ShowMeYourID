@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Hollowbrook.Bootstrap
+namespace Hollowbrook.Scenes
 {
     // Synthesises every clip in code; real files in Resources/Audio win if present.
     public static class ProceduralAudio

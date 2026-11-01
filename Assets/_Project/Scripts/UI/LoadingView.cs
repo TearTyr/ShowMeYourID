@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using UnityEngine;
@@ -10,7 +10,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    // The black NIGHT title card behind intro dialogue. Created by each scene bootstrap.
+    // The black NIGHT title card behind intro dialogue. Lives in each scene file, connected by the scene script.
     // PlayNightTitle fades the card's words in slowly, holds them, then hands over to the
     // dialogue box - a click skips ahead.
     public class LoadingView : MonoBehaviour, IScreenView
@@ -32,7 +32,7 @@ namespace Hollowbrook.UI
             _sub = UIFactory.Label(_bg.transform, "sub", "HOLLOWBROOK COLLEGE - NIGHT CUSTODIAN PROGRAM", 15, UIFactory.InkFaint, TextAnchor.MiddleCenter);
             UIFactory.Anchor(_sub.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(900, 30), new Vector2(0, -30));
             // a click anywhere on the card skips the title (only live while a title is playing)
-            var skip = _bg.AddComponent<Button>();
+            var skip = _bg.GetOrAdd<Button>();
             skip.targetGraphic = _bg.GetComponent<Image>();
             skip.transition = Selectable.Transition.None;
             skip.onClick.AddListener(SkipTitle);

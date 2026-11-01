@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using Hollowbrook.UI;
@@ -185,7 +185,7 @@ namespace Hollowbrook.Checkpoint
             var rt = UIFactory.NewUI(_talkOptRoot, "opt_" + opt.Id);
             L.Place(rt, new L.Region(L.InnerAdminTalk.Opt.X, L.InnerAdminTalk.OptY0 + row * L.InnerAdminTalk.OptStep,
                 L.InnerAdminTalk.Opt.W, L.InnerAdminTalk.OptH));
-            var bg = rt.gameObject.AddComponent<Image>();
+            var bg = rt.gameObject.GetOrAdd<Image>();
             bg.color = new Color(0.10f, 0.10f, 0.115f);
             bg.raycastTarget = true;
             var label = UIFactory.Label(rt, "label", AdminTalk.Resolve(opt.Label, ctx), 11,
@@ -195,7 +195,7 @@ namespace Hollowbrook.Checkpoint
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.verticalOverflow = VerticalWrapMode.Truncate;
             UIFactory.PlaceTL(label.rectTransform, 8, 0, L.InnerAdminTalk.Opt.W - 16, L.InnerAdminTalk.OptH);
-            var btn = rt.gameObject.AddComponent<Button>();
+            var btn = rt.gameObject.GetOrAdd<Button>();
             btn.targetGraphic = bg;
             btn.transition = Selectable.Transition.ColorTint;
             var cb = btn.colors;
@@ -206,7 +206,7 @@ namespace Hollowbrook.Checkpoint
             btn.colors = cb;
             string captured = opt.Id;
             btn.onClick.AddListener(() => ChooseAdminTalkOption(captured));
-            rt.gameObject.AddComponent<HoverCursor>();
+            rt.gameObject.GetOrAdd<HoverCursor>();
             return btn;
         }
 

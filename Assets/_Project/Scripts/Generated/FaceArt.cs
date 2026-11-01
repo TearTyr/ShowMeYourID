@@ -1,7 +1,7 @@
 using Hollowbrook.Logic;
 using UnityEngine;
 
-namespace Hollowbrook.Bootstrap
+namespace Hollowbrook.Scenes
 {
     // Chooses the sprites for the window face and the ID photo: the face art when the visitor
     // maps to one, otherwise the procedural portrait painter. One decision point, so the window

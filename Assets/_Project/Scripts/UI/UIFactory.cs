@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Hollowbrook.Scenes;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -77,10 +78,18 @@ namespace Hollowbrook.UI
         public static Canvas CreateRootCanvas(string name, int sortingOrder, int refW, int refH)
         {
             var go = new GameObject(name, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            var canvas = go.GetComponent<Canvas>();
+            return ConfigureRootCanvas(go, sortingOrder, refW, refH);
+        }
+
+        /// <summary>Make a GameObject a screen canvas: adds what is missing and sets the standard values.
+        /// Used for new canvases and for the ones a scene already holds.</summary>
+        public static Canvas ConfigureRootCanvas(GameObject go, int sortingOrder, int refW, int refH)
+        {
+            var canvas = go.GetOrAdd<Canvas>();
+            go.GetOrAdd<GraphicRaycaster>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = sortingOrder;
-            var scaler = go.GetComponent<CanvasScaler>();
+            var scaler = go.GetOrAdd<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;  // explicit: AspectMatchGuard drives matchWidthOrHeight
             scaler.referenceResolution = new Vector2(refW, refH);
@@ -90,6 +99,9 @@ namespace Hollowbrook.UI
 
         public static RectTransform NewUI(Transform parent, string name)
         {
+            // a scene that already holds this object (see SceneBuild) gets it back instead of a copy
+            var held = SceneBuild.Reuse(parent, name) as RectTransform;
+            if (held != null) return held;
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
             return (RectTransform)go.transform;
@@ -136,7 +148,7 @@ namespace Hollowbrook.UI
         // A plain stretched Image on an existing GameObject (transition fades, dimmers).
         public static Image FullImage(GameObject go, Color c)
         {
-            var img = go.AddComponent<Image>();
+            var img = go.GetOrAdd<Image>();
             img.color = c;
             NewRect(go);
             return img;
@@ -181,7 +193,7 @@ namespace Hollowbrook.UI
         {
             var host = NewUI(parent, name);
             PlaceTL(host, x, y, w, h);
-            host.gameObject.AddComponent<RectMask2D>();
+            host.gameObject.GetOrAdd<RectMask2D>();
             var t = Label(host, "text", "", fontSize, color, align);
             t.verticalOverflow = VerticalWrapMode.Overflow;
             if (!scroll)
@@ -205,10 +217,10 @@ namespace Hollowbrook.UI
         // text grow past the viewport so there is something to scroll.
         private static void MakeScrollable(RectTransform host, Text t, float viewportH)
         {
-            var catcher = host.gameObject.AddComponent<Image>();
+            var catcher = host.gameObject.GetOrAdd<Image>();
             catcher.color = new Color(0f, 0f, 0f, 0f);
             catcher.raycastTarget = true;                       // drag source for the ScrollRect
-            var sr = host.gameObject.AddComponent<ScrollRect>();
+            var sr = host.gameObject.GetOrAdd<ScrollRect>();
             sr.horizontal = false;
             sr.vertical = true;
             sr.movementType = ScrollRect.MovementType.Clamped;
@@ -218,7 +230,7 @@ namespace Hollowbrook.UI
             trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
             trt.sizeDelta = new Vector2(0f, viewportH);
             t.raycastTarget = true;
-            var fitter = trt.gameObject.AddComponent<ContentSizeFitter>();
+            var fitter = trt.gameObject.GetOrAdd<ContentSizeFitter>();
             fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             sr.content = trt;
@@ -227,7 +239,7 @@ namespace Hollowbrook.UI
         public static Image Panel(Transform parent, string name, Color color)
         {
             var rt = NewUI(parent, name);
-            var img = rt.gameObject.AddComponent<Image>();
+            var img = rt.gameObject.GetOrAdd<Image>();
             img.color = color;
             img.raycastTarget = true;
             return img;
@@ -259,7 +271,7 @@ namespace Hollowbrook.UI
             TextAnchor anchor = TextAnchor.UpperLeft)
         {
             var rt = NewUI(parent, name);
-            var t = rt.gameObject.AddComponent<Text>();
+            var t = rt.gameObject.GetOrAdd<Text>();
             t.font = GameFont;
             t.text = text ?? "";
             t.color = color;
@@ -310,18 +322,18 @@ namespace Hollowbrook.UI
             rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.sizeDelta = new Vector2(width, height);
-            var border = rt.gameObject.AddComponent<Image>();
+            var border = rt.gameObject.GetOrAdd<Image>();
             border.color = danger ? Accent : Border;
             var innerRt = NewUI(rt, "bg");
             innerRt.anchorMin = Vector2.zero; innerRt.anchorMax = Vector2.one;
             innerRt.offsetMin = new Vector2(2, 2); innerRt.offsetMax = new Vector2(-2, -2);
-            var inner = innerRt.gameObject.AddComponent<Image>();
+            var inner = innerRt.gameObject.GetOrAdd<Image>();
             inner.color = danger ? new Color(0.16f, 0.05f, 0.06f) : PanelAlt;
 
             var txt = Label(innerRt, "label", label, 20, danger ? AccentBright : Ink, TextAnchor.MiddleCenter);
             Anchor(txt.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(width - 12, height - 8), Vector2.zero);
 
-            var btn = rt.gameObject.AddComponent<Button>();
+            var btn = rt.gameObject.GetOrAdd<Button>();
             btn.targetGraphic = inner;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
             return btn;
@@ -360,7 +372,7 @@ namespace Hollowbrook.UI
             // Dim the whole button instead of repainting its fill: round decision buttons carry
             // custom paper/ink colours that a generic disabled colour would destroy.
             var cg = b.GetComponent<CanvasGroup>();
-            if (cg == null) cg = b.gameObject.AddComponent<CanvasGroup>();
+            if (cg == null) cg = b.gameObject.GetOrAdd<CanvasGroup>();
             cg.alpha = on ? 1f : 0.45f;
         }
 
@@ -408,7 +420,7 @@ namespace Hollowbrook.UI
                 new Vector2(trackX + trackW + valW / 2f, 0));
             val.raycastTarget = false;
 
-            var slider = row.gameObject.AddComponent<Slider>();
+            var slider = row.gameObject.GetOrAdd<Slider>();
             slider.fillRect = fill;
             slider.handleRect = handle;
             slider.minValue = 0f; slider.maxValue = 1f;
@@ -432,7 +444,7 @@ namespace Hollowbrook.UI
             UnityEngine.Events.UnityAction exit)
         {
             if (go == null) return;
-            var et = go.AddComponent<EventTrigger>();
+            var et = go.GetOrAdd<EventTrigger>();
             var on = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
             on.callback.AddListener(_ => { if (enter != null) enter(); });
             et.triggers.Add(on);
@@ -446,7 +458,7 @@ namespace Hollowbrook.UI
             bool forceW = false, bool forceH = false)
         {
             var rt = NewUI(parent, name);
-            var g = rt.gameObject.AddComponent<VerticalLayoutGroup>();
+            var g = rt.gameObject.GetOrAdd<VerticalLayoutGroup>();
             g.spacing = spacing;
             g.childAlignment = align;
             g.childControlWidth = controlW;
@@ -460,7 +472,7 @@ namespace Hollowbrook.UI
             float minW = -1, float minH = -1)
         {
             var le = rt.gameObject.GetComponent<LayoutElement>();
-            if (le == null) le = rt.gameObject.AddComponent<LayoutElement>();
+            if (le == null) le = rt.gameObject.GetOrAdd<LayoutElement>();
             le.preferredWidth = prefW; le.preferredHeight = prefH;
             le.minWidth = minW; le.minHeight = minH;
             return le;
@@ -531,7 +543,7 @@ namespace Hollowbrook.UI
         public static Image Img(Transform parent, string name, Sprite sprite, Color? color = null, bool raycast = false)
         {
             var rt = NewUI(parent, name);
-            var img = rt.gameObject.AddComponent<Image>();
+            var img = rt.gameObject.GetOrAdd<Image>();
             img.sprite = sprite;
             img.color = color ?? Color.white;
             img.raycastTarget = raycast;
@@ -541,7 +553,7 @@ namespace Hollowbrook.UI
         public static CanvasGroup Group(GameObject go)
         {
             var g = go.GetComponent<CanvasGroup>();
-            if (g == null) g = go.AddComponent<CanvasGroup>();
+            if (g == null) g = go.GetOrAdd<CanvasGroup>();
             return g;
         }
 

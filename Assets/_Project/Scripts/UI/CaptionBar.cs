@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using UnityEngine;
@@ -10,7 +10,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    // Subtitle line for important sounds. Created by each scene bootstrap.
+    // Subtitle line for important sounds. Lives in each scene file, connected by the scene script.
     public class CaptionBar : MonoBehaviour, IScreenView
     {
         private GameRoot _gameRoot;

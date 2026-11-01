@@ -8,7 +8,7 @@ namespace UnityEngine.SceneManagement
     public static class SceneManager
     {
         // In headless runs, EngineSmoke installs SceneLoadBridge.SceneLoadHook to simulate
-        // scene loads (real Unity loads the scene and runs its bootstrap objects' Awake).
+        // scene loads (real Unity loads the scene and runs its scene scripts' Awake).
         public static void LoadScene(string sceneName) => LoadScene(sceneName, LoadSceneMode.Single);
         public static void LoadScene(string sceneName, LoadSceneMode mode)
         {

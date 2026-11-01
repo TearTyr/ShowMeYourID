@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using Hollowbrook.UI;
@@ -116,7 +116,7 @@ namespace Hollowbrook.Checkpoint
             // and the pulled drawer can never paint at once.
             var frontRt = UIFactory.NewUI(station.rectTransform, "cabfront");
             UIFactory.PlaceTL(frontRt, CabFrontX, CabFrontY, CabFrontW, CabFrontH);
-            _cabFront = frontRt.gameObject.AddComponent<CanvasGroup>();
+            _cabFront = frontRt.gameObject.GetOrAdd<CanvasGroup>();
             _cabFront.blocksRaycasts = false;   // the station's pull button owns every click
             // recess shadow above the front: the face sits IN the carcass, not on it
             var recess = UIFactory.Img(frontRt, "cabrecess", ProceduralArt.Get("solid_white"),
@@ -147,12 +147,12 @@ namespace Hollowbrook.Checkpoint
             // the pull: one Button on the cabinet front (no colour tint of its own - the
             // handle brightens instead, so the front never flashes), plus the hand cursor and
             // a hover sense so the handle reads as "grip me" before the drawer ever moves.
-            var pull = station.gameObject.AddComponent<Button>();
+            var pull = station.gameObject.GetOrAdd<Button>();
             pull.targetGraphic = _stationInk;
             pull.transition = Selectable.Transition.None;
             pull.onClick.AddListener(ToggleDrawer);
-            station.gameObject.AddComponent<HoverCursor>();
-            var stationHover = station.gameObject.AddComponent<HoverSense>();
+            station.gameObject.GetOrAdd<HoverCursor>();
+            var stationHover = station.gameObject.GetOrAdd<HoverSense>();
             stationHover.OnEnter = () => SetHandleLit(true);
             stationHover.OnExit = () => SetHandleLit(false);
 
@@ -161,14 +161,14 @@ namespace Hollowbrook.Checkpoint
             // cavity -> body -> front so the front always covers a shut drawer.
             var slot = UIFactory.BorderedPanel(_desk, "filedrawer", CavityInk, UIFactory.Border, 2);
             Reg("filedrawer", slot, L.FileDrawer);
-            slot.gameObject.AddComponent<RectMask2D>();
+            slot.gameObject.GetOrAdd<RectMask2D>();
             _drawerBox = slot.gameObject;
 
             // the pull depth follows the mouth: shut = fully behind the front lip
             DrawerMotion.TravelPx = L.FileDrawer.H - L.Inner.DrawerLipH;
             _drawerBody = UIFactory.NewUI(slot, "drawerbody");
             UIFactory.PlaceTL(_drawerBody, 0f, 0f, L.FileDrawer.W, L.FileDrawer.H);
-            var bodyInk = _drawerBody.gameObject.AddComponent<Image>();
+            var bodyInk = _drawerBody.gameObject.GetOrAdd<Image>();
             bodyInk.sprite = ProceduralArt.Get("rough_panel_dark");
             bodyInk.color = DrawerBodyInk;
             bodyInk.raycastTarget = false;
@@ -191,7 +191,7 @@ namespace Hollowbrook.Checkpoint
             // the worn front panel: built after the body so it covers the mouth when shut,
             // and it rides out a few pixels with the body (the handle you actually pull)
             _drawerFront = UIFactory.NewUI(slot, "drawerfront");
-            var frontInk = _drawerFront.gameObject.AddComponent<Image>();
+            var frontInk = _drawerFront.gameObject.GetOrAdd<Image>();
             frontInk.sprite = ProceduralArt.Get("rough_panel_dark");
             frontInk.color = DrawerFrontInk;
             frontInk.raycastTarget = false;   // clicks fall through to the cabinet's pull
@@ -224,11 +224,11 @@ namespace Hollowbrook.Checkpoint
         private static Button FolderTab(Transform parent, string name, string label, System.Action onClick)
         {
             var rt = UIFactory.NewUI(parent, name);
-            var img = rt.gameObject.AddComponent<Image>();
+            var img = rt.gameObject.GetOrAdd<Image>();
             img.sprite = ProceduralArt.Get("folder_tab");
             img.color = FolderIdle;
             img.raycastTarget = true;
-            var btn = rt.gameObject.AddComponent<Button>();
+            var btn = rt.gameObject.GetOrAdd<Button>();
             btn.targetGraphic = img;
             btn.transition = Selectable.Transition.ColorTint;
             var cb = btn.colors;
@@ -522,7 +522,7 @@ namespace Hollowbrook.Checkpoint
                 L.Place(rowRt, new L.Region(L.Inner.FileRowX, rowY, L.Inner.FileRowW, L.Inner.FileRowH));
                 var pillRt = UIFactory.NewUI(rowRt, "pill");
                 UIFactory.PlaceTL(pillRt, 0f, 0f, L.Inner.FileRowPillW, L.Inner.FileRowH);
-                var bg = pillRt.gameObject.AddComponent<Image>();
+                var bg = pillRt.gameObject.GetOrAdd<Image>();
                 bg.color = canonIdx == _selectedCanon ? FileRowSel : FileRowIdle;
                 // the pill IS the row's click and hover surface (the Button's targetGraphic):
                 // with the raycast off here no pointer event ever reached the row in play -
@@ -548,7 +548,7 @@ namespace Hollowbrook.Checkpoint
                 // the registry number is part of the visible row, so it is part of the row's
                 // hit area: clicking the id pulls the same file as clicking the name pill
                 idl.raycastTarget = true;
-                var btn = rowRt.gameObject.AddComponent<Button>();
+                var btn = rowRt.gameObject.GetOrAdd<Button>();
                 btn.targetGraphic = bg;   // the pill is the row's click and hover surface
                 btn.transition = Selectable.Transition.ColorTint;
                 var cb = btn.colors;
@@ -561,7 +561,7 @@ namespace Hollowbrook.Checkpoint
                 btn.onClick.AddListener(() => OpenCanonFile(ci));
                 // one CanvasGroup per file: the whole row (ink, manila edge, both labels)
                 // emerges together, and it cannot be clicked before it has arrived
-                var cg = rowRt.gameObject.AddComponent<CanvasGroup>();
+                var cg = rowRt.gameObject.GetOrAdd<CanvasGroup>();
                 cg.interactable = true;
                 _fileRowInks.Add(bg);
                 _fileRowCanon.Add(canonIdx);

@@ -1,12 +1,12 @@
 using System.Collections;
 using System.Collections.Generic;
 using Hollowbrook.Core;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using UnityEngine;
 
 namespace Hollowbrook.Audio
 {
-    // Plays every sound and music bed; also emits captions. Created by CoreBootstrap.
+    // Plays every sound and music bed; also emits captions. Created by GameCore.
     public class AudioDirector : MonoBehaviour
     {
         private EventBus _bus;

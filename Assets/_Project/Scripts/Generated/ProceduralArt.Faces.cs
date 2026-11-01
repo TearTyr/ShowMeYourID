@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Hollowbrook.Logic;
 using UnityEngine;
 
-namespace Hollowbrook.Bootstrap
+namespace Hollowbrook.Scenes
 {
     // Faces and papers of the inspection: portraits, custodian, anomalies, ID card, record sheet.
     public static partial class ProceduralArt

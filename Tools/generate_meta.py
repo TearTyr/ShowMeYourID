@@ -11,9 +11,9 @@ PINNED = {
     "Assets/_Project/Scenes/Hollowbrook.unity": "1f4e0c8a3b2d4e6f8a0b1c2d3e4f5a6b",
     "Assets/_Project/Scenes/MainMenu.unity": "2a4e0c8a3b2d4e6f8a0b1c2d3e4f5a6b",
     "Assets/_Project/Scenes/School.unity": "3f4e0c8a3b2d4e6f8a0b1c2d3e4f5a6b",
-    "Assets/_Project/Scripts/Bootstrap/MenuSceneBootstrap.cs": "0b1b2c3d4e5f60718293a4b5c6d7e8f9",
-    "Assets/_Project/Scripts/Bootstrap/CheckpointSceneBootstrap.cs": "0c1b2c3d4e5f60718293a4b5c6d7e8f9",
-    "Assets/_Project/Scripts/Bootstrap/SchoolSceneBootstrap.cs": "0d1b2c3d4e5f60718293a4b5c6d7e8f9",
+    "Assets/_Project/Scripts/Scenes/MenuScene.cs": "0b1b2c3d4e5f60718293a4b5c6d7e8f9",
+    "Assets/_Project/Scripts/Scenes/DeskScene.cs": "0c1b2c3d4e5f60718293a4b5c6d7e8f9",
+    "Assets/_Project/Scripts/Scenes/PatrolScene.cs": "0d1b2c3d4e5f60718293a4b5c6d7e8f9",
 }
 
 def guid_for(rel):
@@ -179,7 +179,7 @@ def main():
         mp = os.path.join(ROOT, rel + ".meta")
         assert os.path.exists(mp), "missing pinned meta: " + mp
         assert g in open(mp).read(), "wrong guid in " + mp
-    print("pinned GUIDs verified (scene <-> GameBootstrap, build settings <-> scene)")
+    print("pinned GUIDs verified (scene <-> scene scripts, build settings <-> scene)")
 
 if __name__ == "__main__":
     main()

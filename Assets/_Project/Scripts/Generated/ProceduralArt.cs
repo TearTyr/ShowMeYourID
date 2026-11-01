@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Hollowbrook.Logic;
 using UnityEngine;
 
-namespace Hollowbrook.Bootstrap
+namespace Hollowbrook.Scenes
 {
     // Paints every sprite in code; real files in Resources/Art win if present.
     // This file holds the cache, the key switch and the shared pixel helpers; the painters
@@ -55,6 +55,21 @@ namespace Hollowbrook.Bootstrap
                 { "prop_clock", 524f }, { "token", 1154f },
             };
 
+        /// <summary>Pixels per unit a file picture is drawn at (the editor sets its import to match).</summary>
+        public static float FilePpuFor(string key)
+        {
+            float ppu;
+            if (FilePpus.TryGetValue(key, out ppu)) return ppu;
+            return key.EndsWith("_bg") ? WorldPpu : UiPpu;
+        }
+
+        /// <summary>The 9-slice border (left, bottom, right, top in pixels) of a file picture, if it has one.</summary>
+        public static Vector4 FileBorderFor(string key)
+        {
+            Vector4 border;
+            return FileBorders.TryGetValue(key, out border) ? border : Vector4.zero;
+        }
+
         /// <summary>True when a real file (or a cached sprite) exists for the key - callers that
         /// have their own painter use this to fall back instead of showing a broken image.</summary>
         // The art folders under Resources/Art, in the order they are searched. A key is the
@@ -82,6 +97,9 @@ namespace Hollowbrook.Bootstrap
             }
             return null;
         }
+
+        /// <summary>True when this key's sprite came from a picture file (not painted by the code).</summary>
+        public static bool IsFileBacked(string key) => FileBacked.Contains(key);
 
         /// <summary>Every cached sprite key - the headless sprite export walks this.</summary>
         public static System.Collections.Generic.IEnumerable<string> CachedKeys => Cache.Keys;
@@ -464,12 +482,12 @@ namespace Hollowbrook.Bootstrap
                     // kit/drop-in sprite: the texture belongs to the imported asset - releasing
                     // it is forbidden (and wrong: the next session reloads the same asset).
                     // Only the Sprite.Create wrapper is ours, so only that gets destroyed.
-                    UnityEngine.Object.Destroy(spr);
+                    GameCore.Kill(spr);
                     continue;
                 }
                 // procedural sprite: texture and wrapper were both allocated here - free both.
-                if (spr.texture != null) UnityEngine.Object.Destroy(spr.texture);
-                UnityEngine.Object.Destroy(spr);
+                if (spr.texture != null) GameCore.Kill(spr.texture);
+                GameCore.Kill(spr);
             }
             Cache.Clear();
             FileBacked.Clear();

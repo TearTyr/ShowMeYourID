@@ -12,9 +12,17 @@ using System.Collections.Generic;
 namespace UnityEngine
 {
     // ---- core object model -------------------------------------------------
+    [Flags]
+    public enum HideFlags
+    {
+        None = 0, HideInHierarchy = 1, HideInInspector = 2, DontSaveInEditor = 4, NotEditable = 8,
+        DontSaveInBuild = 16, DontUnloadUnusedAsset = 32, DontSave = 52, HideAndDontSave = 61,
+    }
+
     public class Object
     {
         public string name = "";
+        public HideFlags hideFlags = HideFlags.None;
         internal bool destroyed;
         // Set on stand-ins fabricated by Resources.Load: they represent IMPORTED ASSETS on
         // disk. The real engine refuses to Destroy those (editor and builds alike) and logs
@@ -250,7 +258,11 @@ namespace UnityEngine
         public static GameObject Find(string n) => null; // gameplay code must not use this
     }
 
-    public struct Scene { public string name; public bool isLoaded; }
+    public struct Scene
+    {
+        public string name; public bool isLoaded;
+        public GameObject[] GetRootGameObjects() => new GameObject[0];   // the stub scene holds nothing yet
+    }
 
     // scene management stub: tests install SceneLoadHook to simulate SceneManager.LoadScene
     public static class SceneLoadBridge { public static System.Action<string> SceneLoadHook; }
@@ -358,6 +370,7 @@ namespace UnityEngine
         public static string persistentDataPath { get; set; } = "/tmp/smyid-persistent";
         public static string dataPath { get; set; } = "/tmp/smyid-data";
         public static bool isEditor = false;
+        public static bool isPlaying = true;   // the headless proofs play the game
         public static RuntimePlatform platform = RuntimePlatform.LinuxPlayer;
         public static int targetFrameRate = 60;
         public static bool runInBackground = true;

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Hollowbrook.Logic;
 using UnityEngine;
 
-namespace Hollowbrook.Bootstrap
+namespace Hollowbrook.Scenes
 {
     // Room and menu backdrops: menu bg, hallway, classrooms, security office, facade, frames.
     public static partial class ProceduralArt

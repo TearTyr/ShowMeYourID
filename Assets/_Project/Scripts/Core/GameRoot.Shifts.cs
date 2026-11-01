@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Hollowbrook.Audio;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Checkpoint;
 using Hollowbrook.Horror;
 using Hollowbrook.Logic;
@@ -28,7 +28,7 @@ namespace Hollowbrook.Core
 
             // the Challenge is night 6 on its own: it never touches the story save (see PersistRun)
             QueueSceneAction(() => BeginShift(mode == GameMode.Challenge ? ShiftPlan.Night6Number : 1));
-            Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
+            Hollowbrook.Scenes.SceneRouter.Load(Hollowbrook.Scenes.SceneRouter.Checkpoint);
         }
 
         public void ContinueGame()
@@ -53,7 +53,7 @@ namespace Hollowbrook.Core
                 BeginShift(shift, resumeFrom, isResume);
                 if (isResume) RemapAdmittedToRoster();
             });
-            Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
+            Hollowbrook.Scenes.SceneRouter.Load(Hollowbrook.Scenes.SceneRouter.Checkpoint);
         }
 
         /// <summary>Normal mode: prepare and enter a shift. Roster generation replays earlier
@@ -212,7 +212,7 @@ namespace Hollowbrook.Core
             Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));
             Audio.PlayMusic("checkpoint");
             Debug.Log("[Flow] intro shown (loading=" + (Loading != null) + " dialogue=" + (Dialogue != null) + ")");
-            if (Dialogue == null) Debug.LogError("[GameRoot] intro: Dialogue view NULL - check scene bootstrap view creation.");
+            if (Dialogue == null) Debug.LogError("[GameRoot] intro: Dialogue view NULL - check the scene set up.");
             if (Loading == null) Debug.LogError("[GameRoot] intro: Loading view NULL - no NIGHT backdrop will show.");
             if (Checkpoint == null) Debug.LogError("[GameRoot] intro: Checkpoint view NULL - the desk cannot start.");
             // the night title fades in slowly on the black card FIRST, and only then does the

@@ -10,7 +10,7 @@ namespace Hollowbrook.UI
     // The Options modal: audio only - MASTER / MUSIC / SFX and a way out.
     // Display, accessibility and data-reset live in SettingsSystem/PlayerPrefs and their
     // other entry points (boot-time ApplyStoredDisplay, the menu's F2×3 reset); this sheet
-    // deliberately exposes just the three volumes. Created by each scene bootstrap and
+    // deliberately exposes just the three volumes. Lives in each scene file and
     // opened through GameRoot.OpenSettings from the main menu or the pause menu - the
     // LeftSheet dimmer blocks clicks behind it, Escape/BACK close it, and closing returns
     // to whatever was underneath (pause stays paused; the menu stays the menu).
