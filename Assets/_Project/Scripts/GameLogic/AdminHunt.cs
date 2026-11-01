@@ -111,12 +111,13 @@ namespace Hollowbrook.Logic
             SurviveLeft = tuning.SurviveSeconds;
         }
 
-        /// <summary>He starts walking.</summary>
-        public HuntEvent Start()
+        /// <summary>He starts walking. A hunt that was left half way starts with the catches it had and
+        /// the dawn clock where it stood, never with more time than a fresh one.</summary>
+        public HuntEvent Start(int catches = 0, float surviveLeft = -1f)
         {
             Repels = 0;
-            Catches = 0;
-            SurviveLeft = Tuning.SurviveSeconds;
+            Catches = Math.Max(0, Math.Min(catches, Tuning.CatchesToLose - 1));
+            SurviveLeft = surviveLeft > 0f ? Math.Min(surviveLeft, Tuning.SurviveSeconds) : Tuning.SurviveSeconds;
             return BeginStalking();
         }
 

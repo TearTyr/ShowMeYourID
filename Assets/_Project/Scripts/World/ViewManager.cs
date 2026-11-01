@@ -218,7 +218,7 @@ namespace Hollowbrook.World
 
         /// <summary>Night 5, after the DENY stamp: start the administrator hunt. Whatever was
         /// roaming is dismissed so the hunt is the only threat in the building.</summary>
-        public void StartAdminHunt(HuntTuning tuning, int seed)
+        public void StartAdminHunt(HuntTuning tuning, int seed, int catches = 0, float surviveLeft = -1f)
         {
             if (Hunt == null)
             {
@@ -227,7 +227,7 @@ namespace Hollowbrook.World
                 Hunt = go.AddComponent<AdminHuntDirector>();
             }
             _spawner.DiscardLive();
-            Hunt.Begin(_gameRoot, this, tuning, seed);
+            Hunt.Begin(_gameRoot, this, tuning, seed, catches, surviveLeft);
         }
 
         public void StopAdminHunt()

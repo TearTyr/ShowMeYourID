@@ -41,7 +41,7 @@ namespace Hollowbrook.World
         public AdminHunt Model => _hunt;
         public GameObject Figure => _figure;
 
-        public void Begin(GameRoot root, ViewManager views, HuntTuning tuning, int seed)
+        public void Begin(GameRoot root, ViewManager views, HuntTuning tuning, int seed, int catches = 0, float surviveLeft = -1f)
         {
             _root = root;
             _views = views;
@@ -51,7 +51,7 @@ namespace Hollowbrook.World
             BuildFigure();
             Running = true;
             if (_views.Flashlight != null) _views.Flashlight.Recharge();
-            React(_hunt.Start());
+            React(_hunt.Start(catches, surviveLeft));
         }
 
         public void Stop()

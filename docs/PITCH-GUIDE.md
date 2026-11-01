@@ -24,7 +24,7 @@ opening Unity.
 
 ## 2. One night, step by step
 
-1. Menu: NEW GAME. `GameRoot.StartNewGame` makes a fresh `GameSession` with a fixed seed and loads
+1. Menu: NEW GAME. `GameRoot.StartNewGame` makes a fresh `GameSession` with a random seed (see `GameRules`) and loads
    the desk scene.
 2. `BeginShift` builds the night: the roster of visitors comes from `RosterFactory`, the rules for
    that night come from `ShiftPlan`, and an intro plays.
@@ -60,7 +60,7 @@ About 115 scripts and 20,000 lines of C#. You do not need all of them. These twe
 |---|---|---|
 | 1 | `Core/GameRoot.cs` (and its parts `.Shifts`, `.Patrol`, `.Endings`, `.Hunt`, `.Saving`) | The one object that lives across all scenes. It owns the run, the save, the audio, and a link to every screen. It is one class split into files by topic. |
 | 2 | `GameLogic/GameSession.cs` | Everything that has happened this run: night, sanity, score, breaches, the administrator state. This is what gets saved. |
-| 3 | `GameLogic/ShiftPlan.cs` | The five nights as data: visitors 4, 6, 7, 8 and 0, anomalies 1, 2, 3, 4 and 0, plus the rule note and what tricks are allowed each night. Night 6 is defined here too. |
+| 3 | `GameLogic/ShiftPlan.cs` | The five nights as data: visitors 4, 6, 7, 8 and 0, anomalies 2, 3, 4, 5 and 0, plus the rule note and what tricks are allowed each night. Night 6 is defined here too. |
 | 4 | `GameLogic/RosterFactory.cs` | Makes the visitors for a night. Honest students come from 7 canon identities. Anomalies copy a student and then get "defects" (a wrong year, an expired ID, a swapped photo). |
 | 5 | `GameLogic/IdRules.cs` | The rulebook for the papers. It checks 13 kinds of defect (expired, bad ID format, photo mismatch, duplicate ID and so on). |
 | 6 | `GameLogic/CheckpointQueue.cs` | The waiting line: arrival timer, who is waiting, who is at the window, and what happens if the line overruns. |
@@ -86,7 +86,8 @@ answer disagrees with the file). You have 2 questions per student out of 4, so y
 Year unlocks after you flip the ID, status after you open the file.
 
 ### Fairness and repeatability
-The night is built from a fixed seed (`20261102`). `RosterFactory` replays earlier nights to reach
+A new game gets a random seed, saved with the run (the `Random Seed` setting in `GameConfig` can be
+turned off for a repeatable run). `RosterFactory` replays earlier nights to reach
 the same state, so a saved game can rebuild the exact same visitors without storing them. That is
 how Continue works mid-night.
 
@@ -100,7 +101,15 @@ night with a penalty. On night 5 it is the Lose ending.
 Clocking out with an anomaly let in finishes the night, and the next night starts worse (less
 sanity, a drain stack, an anomaly already roaming), and the intro says why. A blackout means you
 did not finish, so Continue puts you back at the start of that same night with the same penalty.
-Losing night 5 or night 6 offers RETRY on the ending screen.
+Losing night 5 or night 6 offers RETRY on the ending screen. The start of every night is also kept in
+its own file (`hollowbrook_nightstart.txt`), so a retry is always the true start of the night, even
+after quitting and Continuing half way through.
+
+### Where the numbers live
+Nothing about the rules is buried in the code. `GameLogic/GameRules.cs` holds each number once, and
+`GameRules.Tables.cs` holds the five nights and the seven students as rows. The `GameConfig` asset
+owns the live copy, so a designer changes them in the Inspector. Adding a night or a student is
+adding a row.
 
 ### Patrol and the flashlight
 The hallway is dark. The flashlight is a cone: `BeamGeometry` (pure maths) decides what the beam
@@ -179,9 +188,11 @@ setup tool only runs inside Unity. Those parts were checked by playing in the ed
 Rules and screens are separate. The rules are plain C# that answers questions, the screens draw the
 answers. That makes the game testable and the art swappable.
 
-**Why a seed and not random each time?**
-So a night can be rebuilt exactly. Saving only needs a few numbers, not the whole roster, and our
-tests can replay the same night and get the same result.
+**Is the game random, or the same every time?**
+Every new game is different: the seed is random. But the seed is saved with the run, so a night can
+be rebuilt exactly. Saving only needs a few numbers, not the whole roster, and tests can fix the seed
+to replay the same night and get the same result. `RosterFactory` also makes every student take a turn
+as an anomaly (whoever has been one the fewest times goes next), so nobody is skipped in a run.
 
 **How does the game decide someone is an anomaly?**
 `RosterFactory` picks which visitors are anomalies for the night and gives them defects. `IdRules`
@@ -248,7 +259,7 @@ Storyboard Clarence Manalo.)
 |---|---|
 | Nights | 5 (story) plus Night 6 (Challenge) |
 | Visitors per night | 4, 6, 7, 8, then only the administrator |
-| Anomalies at the window | 1, 2, 3, 4 |
+| Anomalies at the window | 2, 3, 4, 5 (of 4, 6, 7, 8) |
 | Questions | 4 exist, 2 allowed per student |
 | Defect types | 13 |
 | Students | 7 illustrated canon identities |
@@ -257,7 +268,7 @@ Storyboard Clarence Manalo.)
 | Sanity stages | Stable 70+, Uneasy 40+, Shaken 15+, Breaking below |
 | Hunt | 3 catches (2 on Night 6), 210 s to dawn, lamp hold 1.8 s, flash within 2.6 s |
 | Flashlight | Sweep range 12, Focus range 15, all in `GameConfig` |
-| Seed | 20261102 |
+| Seed | random for each new game (`GameRules.RandomSeed`; fixed value 20261102 when off) |
 | Tests | about 63,000 rules checks, about 1,200 flow checks, plus the real Unity compile |
 
 ## 10. A study plan (about 4 short sessions)

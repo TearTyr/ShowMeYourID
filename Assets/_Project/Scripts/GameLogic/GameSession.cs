@@ -52,6 +52,9 @@ namespace Hollowbrook.Logic
         // After the DENY stamp the administrator hunts through the school (see AdminHunt).
         // Won = he was driven off; Lost = he reached the server door.
         public HuntState Hunt = HuntState.None;
+        // Where a hunt that was left half way stands, so quitting and Continuing is no free escape.
+        public int HuntCatches;
+        public float HuntSecondsLeft = -1f;     // -1 = the hunt has not been left yet
         // The Shift-5 conversation: where it stands, which one-shots were spent, the tactic
         // counters. Encoded into the save as one invariant string (see SaveFormat "adminTalk").
         // It carries no mechanical power - no clues, no budget, no verdict - so resuming it
@@ -205,6 +208,8 @@ namespace Hollowbrook.Logic
             AdminRejected = false;
             AdminTalk = new AdminTalkState();
             Hunt = HuntState.None;
+            HuntCatches = 0;
+            HuntSecondsLeft = -1f;
             RunFinished = false;
         }
 

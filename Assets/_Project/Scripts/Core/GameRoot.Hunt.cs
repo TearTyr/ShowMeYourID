@@ -55,6 +55,8 @@ namespace Hollowbrook.Core
         {
             if (Session.Hunt != HuntState.None) return;
             Session.Hunt = HuntState.Ready;
+            Session.HuntCatches = 0;
+            Session.HuntSecondsLeft = -1f;
             SetObjective("He is inside the school. Press PATROL when you are ready.");
             PersistRun();
         }

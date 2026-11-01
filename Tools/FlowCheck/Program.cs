@@ -65,6 +65,7 @@ namespace FlowCheck
                 // the procedural sprites are painted while the desk builds, so build first
                 MenuScene.Build(GameCore.EnsureCore());
                 var bootRoot = GameRoot.Instance;
+                bootRoot.Saves.Delete();   // NEW GAME asks first when a game is in progress
                 bootRoot.MainMenu.transform.Find("buttons").Find("NEW GAME")
                     .GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
                 DeskScene.Build(bootRoot);
@@ -84,6 +85,7 @@ namespace FlowCheck
             GameRules.Current.RandomSeed = false;   // these proofs need the same run every time
             Check(root != null && root.State == AppViewState.MainMenu, "menu boots");
 
+            root.Saves.Delete();   // NEW GAME asks first when a game is in progress, so start with none
             var newGame = root.MainMenu.transform.Find("buttons").Find("NEW GAME");
             newGame.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Console.WriteLine("  ..clicked NEW GAME..");
@@ -163,6 +165,7 @@ namespace FlowCheck
             SceneReuseProof(root);
             ShiftFailureProof(root);
             RetryProof(root);
+            MoreFlawsProof(root);
             Night6Proof(root);
             AdminTalkProof(root);
             AdminHuntProof(root);
@@ -4651,6 +4654,7 @@ namespace FlowCheck
             root.Config.queueArrivalMinSeconds = 3f;
             root.Config.queueArrivalMaxSeconds = 5f;
             root.Config.queueBusyHurryMultiplier = 1f;
+            root.Saves.Delete();   // NEW GAME asks first when a game is in progress, so start with none
             var newGame = root.MainMenu.transform.Find("buttons").Find("NEW GAME");
             newGame.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             DeskScene.Build(root);
@@ -4949,6 +4953,7 @@ namespace FlowCheck
             root.Config.queueBusyHurryMultiplier = 1f;
             // the real path: NEW GAME queues BeginShift, THEN the checkpoint scene boots and
             // runs the queued action - skipping the click leaves the run in MainMenu
+            root.Saves.Delete();   // NEW GAME asks first when a game is in progress, so start with none
             var newGame = root.MainMenu.transform.Find("buttons").Find("NEW GAME");
             newGame.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             DeskScene.Build(root);

@@ -210,5 +210,69 @@ namespace FlowCheck
                 "SAVE: erasing the data removes the night start too");
             FreshGame(root);   // leave a live game for whatever runs next
         }
+
+        // Other leaks found while playing the game through: a click that erased a run, and a quit that
+        // erased a hunt's catches.
+        private static void MoreFlawsProof(GameRoot root)
+        {
+            Console.WriteLine("== more flaws: NEW GAME asks first, a hunt cannot be escaped by quitting ==");
+            string loaded = null;
+            SceneLoadBridge.SceneLoadHook = name => loaded = name;
+            FreshGame(root);
+            ClickStickyNote(root);
+            root.Session.Score = 777;
+            root.PersistRun();
+            MenuScene.Build(root);
+            var newGame = root.MainMenu.transform.Find("buttons").Find("NEW GAME").GetComponent<UnityEngine.UI.Button>();
+            loaded = null;
+            newGame.onClick.Invoke();
+            Check(root.Confirm.IsOpen && loaded == null, "NEWGAME: with a game in progress, the button asks first and loads nothing");
+            Check(root.Saves.Read().Session.Score == 777, "NEWGAME: ...and the save is untouched");
+            FindDeep(root.Confirm.transform, "no").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(!root.Confirm.IsOpen && loaded == null && root.Saves.Read().Session.Score == 777, "NEWGAME: NO changes nothing");
+            newGame.onClick.Invoke();
+            FindDeep(root.Confirm.transform, "yes").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(loaded == SceneRouter.Checkpoint && root.Session.Score == 0, "NEWGAME: YES starts the new game");
+            DeskScene.Build(root);
+            AdvanceDialogue(root);
+            root.Saves.Delete();
+            MenuScene.Build(root);
+            newGame = root.MainMenu.transform.Find("buttons").Find("NEW GAME").GetComponent<UnityEngine.UI.Button>();
+            loaded = null;
+            newGame.onClick.Invoke();
+            Check(!root.Confirm.IsOpen && loaded == SceneRouter.Checkpoint, "NEWGAME: with nothing to lose it starts straight away");
+            DeskScene.Build(root);
+            AdvanceDialogue(root);
+            SceneLoadBridge.SceneLoadHook = null;
+
+            // quit in the middle of the hunt and Continue: the catches and the clock are where they were
+            ReachNight(root, ShiftPlan.TotalShifts);
+            ClickStickyNote(root);
+            root.Checkpoint.Stamp(Verdict.Reject);
+            HandBack(root, true, true);
+            AdvanceDialogue(root);
+            root.Checkpoint.GoPatrol();
+            PatrolScene.Build(root);
+            var hunt = root.Views.Hunt.Model;
+            for (int frame = 0; frame < 6000 && hunt.Catches < 1 && !hunt.Finished; frame++) WorldFrame(root, 0.1f);
+            Check(hunt.Catches == 1 && !hunt.Finished, "HUNTSAVE: (he caught the player once)");
+            float left = hunt.SurviveLeft;
+            root.QuitToMenu(true);
+            var saved = root.Saves.Read();
+            Check(saved.Session.HuntCatches == 1 && Mathf.Abs(saved.Session.HuntSecondsLeft - left) < 0.01f,
+                "HUNTSAVE: quitting saves the catches and the dawn clock");
+            root.ContinueGame();
+            DeskScene.Build(root);
+            AdvanceDialogue(root);
+            PatrolScene.Build(root);
+            hunt = root.Views.Hunt.Model;
+            Check(hunt.Catches == 1, "HUNTSAVE: Continue brings the catch back, it is no free escape (" + hunt.Catches + ")");
+            Check(hunt.SurviveLeft <= left + 0.01f && hunt.SurviveLeft > left - 5f, "HUNTSAVE: ...and the dawn clock where it stood");
+            Check(hunt.Phase == HuntPhase.Stalking, "HUNTSAVE: he starts walking again, nothing instant");
+            for (int frame = 0; frame < 20000 && !hunt.Finished; frame++) WorldFrame(root, 0.1f);
+            Check(hunt.Phase == HuntPhase.Lost && hunt.Catches == hunt.Tuning.CatchesToLose,
+                "HUNTSAVE: doing nothing now loses after the remaining catches only");
+            FreshGame(root);
+        }
     }
 }

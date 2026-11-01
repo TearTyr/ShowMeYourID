@@ -30,7 +30,7 @@ namespace Hollowbrook.Core
                 Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));
                 if (Views != null) Views.EnterRoom(room);
                 Audio.PlayMusic(MusicForRoom(room));
-                if (HuntActive && Views != null) Views.StartAdminHunt(BuildHuntTuning(), Session.Seed ^ 0x4A0B);
+                if (HuntActive && Views != null) Views.StartAdminHunt(BuildHuntTuning(), Session.Seed ^ 0x4A0B, Session.HuntCatches, Session.HuntSecondsLeft);
             });
             Hollowbrook.Scenes.SceneRouter.Load(Hollowbrook.Scenes.SceneRouter.School);
         }

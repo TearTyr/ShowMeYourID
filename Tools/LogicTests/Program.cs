@@ -203,6 +203,27 @@ namespace Hollowbrook.LogicTests
             Eq(caughtUnseen, 0, "timing out while the player peeks another room is not a catch");
             Check(followedRoom > 0, "...he goes to the room being peeked");
 
+            // a hunt left half way starts again where it was, and never with more than a fresh one
+            var resumed = new AdminHunt(tuning, 3);
+            resumed.Start(2, 40f);
+            Eq(resumed.Catches, 2, "a resumed hunt keeps its catches");
+            Check(Math.Abs(resumed.SurviveLeft - 40f) < 0.001f, "...and its dawn clock");
+            var cheated = new AdminHunt(tuning, 3);
+            cheated.Start(0, 99999f);
+            Check(cheated.SurviveLeft <= tuning.SurviveSeconds, "...never more time than a fresh hunt");
+            var nearEnd = new AdminHunt(tuning, 3);
+            nearEnd.Start(99, 40f);
+            Eq(nearEnd.Catches, tuning.CatchesToLose - 1, "...and never starts already lost");
+            var withHunt = new SaveGame();
+            withHunt.Session.Hunt = HuntState.Active;
+            withHunt.Session.HuntCatches = 2;
+            withHunt.Session.HuntSecondsLeft = 61.5f;
+            var back = SaveFormat.Deserialize(SaveFormat.Serialize(withHunt));
+            Check(back != null && back.Session.HuntCatches == 2 && Math.Abs(back.Session.HuntSecondsLeft - 61.5f) < 0.01f,
+                "the hunt's catches and clock survive the save file");
+            var plain = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame()));
+            Check(plain != null && plain.Session.HuntCatches == 0 && plain.Session.HuntSecondsLeft < 0f, "a save with no hunt reads back as none");
+
             // a player who IS looking at him and fails is caught: the hunt still bites
             var seen = new AdminHunt(tuning, 7);
             seen.Start();

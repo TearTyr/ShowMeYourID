@@ -88,7 +88,7 @@ namespace Hollowbrook.UI
                 {
                     Debug.Log("[Flow] NEW GAME clicked");
                     Click();
-                    _gameRoot.StartNewGame(GameMode.Normal);   // the only active gameplay entry
+                    _gameRoot.RequestNewGame(GameMode.Normal);   // asks first if a run would be erased
                 }, b => _newGameBtn = b, WideX, Wide1Y);
             WideButton(col, "CONTINUE", "CONTINUE", "menu_icon_continue",
                 new Vector2(45.33f, 45.33f), Vector2.zero, () => { Click(); _gameRoot.ContinueGame(); },

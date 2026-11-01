@@ -15,6 +15,16 @@ namespace Hollowbrook.Core
     // each file reads on its own; it is all still one class.
     public partial class GameRoot
     {
+        /// <summary>The NEW GAME button. A story run in progress would be overwritten, so it asks first.</summary>
+        public void RequestNewGame(GameMode mode)
+        {
+            bool overwrites = mode == GameMode.Normal && HasSave();
+            if (!overwrites || Confirm == null) { StartNewGame(mode); return; }
+            Confirm.Ask("START A NEW GAME?",
+                "You have a game in progress. Starting over erases it. Your records and unlocked endings are kept.",
+                () => StartNewGame(mode));
+        }
+
         public void StartNewGame(GameMode mode)
         {
             // carry meta records across runs
