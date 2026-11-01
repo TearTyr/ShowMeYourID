@@ -80,7 +80,7 @@ namespace Hollowbrook.World
                 return;
             }
 
-            int shift = _root.Session.Mode == GameMode.Normal ? _root.Session.CurrentShift : 3;
+            int shift = _root.Session.CurrentShift;
             if (_liveAnomaly != null) return;
 
             _spawnCooldown -= dt;

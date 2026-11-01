@@ -4,16 +4,29 @@ You know the Unity basics. This page tells you where things live and how to chan
 
 ## How the game is put together (the one idea you need)
 
-There is almost nothing set up by hand in the Unity Inspector. Each of the three scenes
-(`MainMenu`, `Hollowbrook`, `School`) holds **one empty object with a bootstrap script**. When you
-press Play, that script **builds the whole screen in code**. So when you want to change something,
-you change a script (or `GameConfig.asset`), not a scene.
+The three scenes (`MainMenu`, `Hollowbrook`, `School`) hold the **real objects** of the game: the
+canvases, every screen, every button and label. Open a scene, look in the Hierarchy under
+`SceneRoot_...`, and move, resize, recolour or re-text things in the Inspector like any Unity object.
 
-**One click setup:** the menu bar has **Hollowbrook > Set Up Project (one click)**. It makes sure the
-three scenes hold their bootstrap object, lists them in Build Settings (MainMenu first), sets the art
-to Sprite with room for the big pictures, creates `GameConfig.asset` if it is missing, and makes Play
-always start at the main menu. It only fixes what is broken, so click it any time something looks off.
-**Hollowbrook > Check Project** only reports. The code is `Assets/_Project/Editor/ProjectSetup.cs`.
+**One click setup:** the menu bar has **Hollowbrook > Set Up Project (one click)**. It fills the three
+scenes with those objects, lists them in Build Settings (MainMenu first), sets the art to Sprite at the
+size the game draws it, creates `GameConfig.asset` if it is missing, and makes Play always start at the
+main menu. It only adds what is missing and **never overwrites a change you made**, so click it any time
+something looks off. **Hollowbrook > Check Project** only reports. **Hollowbrook > Rebuild Scenes From
+Scratch** (asks first) throws a scene's contents away and fills it again, for a scene that is badly broken.
+The code is `Assets/_Project/Editor/ProjectSetup.cs`.
+
+Pictures the code paints (no file in `Resources/Art`) are saved by the tool as png files in
+`Assets/_Project/SceneArt`, so the scenes can point at real files.
+
+**What is kept when you press Play:** the game still runs its screen code (it connects the buttons and
+fills in the data), then puts back what you changed in the scene. Kept: position, size, colour, picture
+and text of an object, and hiding an object that sits on a screen. Not kept: renaming an object (the
+code finds things by name), and showing or hiding a whole screen (the game decides that). If you
+never ran the setup, the game still works: it builds the missing objects in code.
+
+**Not in the scene files:** things that only exist while playing (anomalies, papers on the desk, the
+administrator hunt) and the patrol world (rooms, doors, items), which is data built from code.
 
 - **Hollowbrook.unity** = the security booth desk (the inspection).
 - **School.unity** = the patrol (hallway, classrooms, flashlight, the administrator hunt).
@@ -53,6 +66,12 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | How long after a stamp until the next student | `GameConfig.asset` > `verdictBannerSeconds` |
 | Move something on the desk | `Checkpoint/CheckpointLayout.cs` (all desk positions are numbers here) |
 | Flashlight battery, beam size | `GameConfig.asset` (battery, beam), `World/FlashlightRig.cs` |
+| The peek lamp size | `World/PeekLight.cs` (`Radius`, `FocusRadius`) |
+| The hooded figure in the peek rooms (how long he flickers, the black, the fade back) | `World/PeekAnomaly.cs`, `GameConfig.asset` > `peekRepelSeconds` |
+| How big the sliding anomaly is and where it sits on the floor | `GameLogic/AnomalyBehaviorRules.cs` (`GroundCentreY`), `FilePpus` in `Generated/ProceduralArt.cs` |
+| Night 6 (the Challenge): his questions, how hard the hunt is | `GameLogic/AdminTalk.cs` (`n6_hub`), `GameConfig.asset` group **Night 6** |
+| The ten findings (the token is number 7) | `GameLogic/ClueRegistry.cs`, `World/RoomBuilder.cs` |
+| Move a button or change a label on a screen | open the scene, find it under `SceneRoot_...` and change it in the Inspector |
 | Sanity drain and recovery | `GameLogic/ShiftPlan.cs` > `SanityModel` |
 | Win and lose rules | `GameLogic/EndingRules.cs` |
 | Replace art or sound | drop a file in `Resources/Art/<key>.png` or `Resources/Audio/<key>.wav`; names in `docs/ASSET-MANIFEST.md` |
@@ -77,5 +96,4 @@ It cannot tell you how it looks, sounds or feels. Press Play for that.
 - Numbers that you might tune go in `GameConfig.asset`, not hidden in code.
 - Do not use `GameObject.Find`. Ask `GameRoot` for the thing.
 - Rules in `GameLogic/`, screens elsewhere.
-- Old reports and history are in `docs/archive/`. You never need them to work.
 - More detail in `ARCHITECTURE.md` and `STYLE.md`.

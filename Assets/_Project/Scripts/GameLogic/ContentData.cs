@@ -183,27 +183,6 @@ namespace Hollowbrook.Logic
         public bool ExplorationFocus;    // shift 4 nudges investigation
     }
 
-    [Serializable]
-    public class RuleMutationDef
-    {
-        public string Key;
-        public string RuleText;       // printed on the paper note while active
-
-        public RuleMutationDef(string key, string text) { Key = key; RuleText = text; }
-
-        public bool ForcesReject(VisitorData v)
-        {
-            switch (Key)
-            {
-                case "no_transferees": return !v.IsAnomaly && v.IdIsTransferee;
-                case "fourth_year_curfew": return !v.IsAnomaly && v.IdYearLevel == 4;
-                case "strict_expiry": return !v.IsAnomaly && v.ExpirationDay - Content.ShiftDayNumber(v.ShiftNumber) <= 60;
-                case "odd_serials": return !v.IsAnomaly && IdRules.SerialOf(v.IdNumber) % 2 == 1;
-                default: return false;
-            }
-        }
-    }
-
     public static class Content
     {
         public const int TotalStudents = 7;           // one per illustrated character (char_student_01 to 07)
@@ -223,7 +202,7 @@ namespace Hollowbrook.Logic
 
         public static readonly string[] ShiftDates =
         {
-            "Mon · Nov 2", "Tue · Nov 3", "Wed · Nov 4", "Thu · Nov 5", "Fri · Nov 6",
+            "Mon · Nov 2", "Tue · Nov 3", "Wed · Nov 4", "Thu · Nov 5", "Fri · Nov 6", "Sat · Nov 7",
         };
 
         // The header board spells the night out in full (the reference header line):
@@ -231,7 +210,7 @@ namespace Hollowbrook.Logic
         public static readonly string[] ShiftDatesLong =
         {
             "MONDAY - NOVEMBER 2", "TUESDAY - NOVEMBER 3", "WEDNESDAY - NOVEMBER 4",
-            "THURSDAY - NOVEMBER 5", "FRIDAY - NOVEMBER 6",
+            "THURSDAY - NOVEMBER 5", "FRIDAY - NOVEMBER 6", "SATURDAY - NOVEMBER 7",
         };
 
         public static int ShiftDayNumber(int shift) => 1000 + shift; // arbitrary monotonic base
@@ -315,6 +294,14 @@ namespace Hollowbrook.Logic
             "Custodian. I'm the district administrator. I'll be taking control of this facility tonight.",
             "My credentials are in order. Badge and roster memo, as your instructions require.",
             "Open the checkpoint. That is an order from the district.",
+        };
+
+        // Night 6: he is back, and he is polite about it.
+        public static readonly string[] Night6AdminLines =
+        {
+            "Custodian. You remember me. I told you I do not give up.",
+            "The district sent me back with the same papers and a better offer. Make the right decision this time.",
+            "Open the checkpoint.",
         };
     }
 }

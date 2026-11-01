@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using UnityEngine;
@@ -10,7 +10,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    // The main menu, F2 reset and its ambience. Created by MenuSceneBootstrap.
+    // The main menu, F2 reset and its ambience. Created by MenuScene.
     //
     // Visual spec: Art/MainMenu/reference/main-menu-reference.png (2880x1620). The whole menu
     // is built from the owner's kit (Assets/_Project/Resources/Art/UI/MainMenu/menu_*.png, cut by
@@ -24,6 +24,7 @@ namespace Hollowbrook.UI
     {
         private GameRoot _gameRoot;
         private Button _continueBtn;
+        private Button _night6Btn;
         private Button _newGameBtn;
         private Image _shade, _bg, _logo;
         private Coroutine _glitch, _ambient;
@@ -39,9 +40,10 @@ namespace Hollowbrook.UI
         private const float WideX = 49.33f;                           // left edge of the column
         private const float Wide1Y = 68.44f;                          // NEW GAME top
         private const float Wide2Y = 179.56f;                         // CONTINUE top
+        private const float Wide3Y = 290.68f;                         // NIGHT 6 top
         private const float SqW = 71.11f, SqH = 72f;                  // 160x162 frame
         private const float SqY = 591.56f;                            // icon row top
-        private const float Sq1X = 48.44f, Sq2X = 134.67f, Sq3X = 218.67f, Sq4X = 302.67f;
+        private const float Sq1X = 48.44f, Sq2X = 134.67f, Sq3X = 218.67f;
         private const float LogoW = 543.11f, LogoH = 350.22f;         // 1222x788 plate
         private const float LogoRight = 322.22f;                      // centre offset from right
         private const float LogoTop = 223.11f;                        // centre offset from top
@@ -91,6 +93,20 @@ namespace Hollowbrook.UI
             WideButton(col, "CONTINUE", "CONTINUE", "menu_icon_continue",
                 new Vector2(45.33f, 45.33f), Vector2.zero, () => { Click(); _gameRoot.ContinueGame(); },
                 b => _continueBtn = b, WideX, Wide2Y);
+            // "NIGHT 3" under CONTINUE while it is hovered (only when there is a save to continue)
+            _nightHint = HintLabel(col, "night_hint", Wide2Y);
+            OnHover(_continueBtn, ShowNightHint, () => _nightHint.gameObject.SetActive(false));
+
+            // NIGHT 6 (the Challenge): opens once the story has been finished
+            WideButton(col, "NIGHT 6", "NIGHT 6", "menu_icon_newgame",
+                new Vector2(44.89f, 52f), new Vector2(0f, 0.9f), () =>
+                {
+                    Click();
+                    _gameRoot.StartNewGame(GameMode.Challenge);
+                }, b => _night6Btn = b, WideX, Wide3Y);
+            _night6Hint = HintLabel(col, "night6_hint", Wide3Y);
+            OnHover(_night6Btn, ShowNight6Hint, () => _night6Hint.gameObject.SetActive(false));
+
             SquareButton(col, "SETTINGS", "menu_icon_settings", new Vector2(49.33f, 49.33f),
                 new Vector2(0.9f, 0f), () => { Click(); _gameRoot.OpenSettings(); }, Sq1X, SqY);
             SquareButton(col, "EXIT", "menu_icon_exit", new Vector2(49.33f, 49.33f),
@@ -101,14 +117,6 @@ namespace Hollowbrook.UI
                 }, Sq2X, SqY);
             SquareButton(col, "CREDITS", "menu_icon_credits", new Vector2(49.33f, 33.78f),
                 new Vector2(0f, 1.78f), () => { Click(); _gameRoot.OpenCredits(); }, Sq3X, SqY);
-
-            // tokens from repelled anomalies are banked here; enough of them open the other modes
-            var tokens = SquareButton(col, "TOKENS", "token", new Vector2(44f, 44f), new Vector2(0f, 6f),
-                () => { Click(); OnTokensClicked(); }, Sq4X, SqY);
-            _tokenCount = UIFactory.Label(tokens.transform, "count", "0", 14, UIFactory.Ink, TextAnchor.MiddleCenter);
-            _tokenCount.font = UIFactory.UiFontBold;
-            _tokenCount.raycastTarget = false;
-            UIFactory.Anchor(_tokenCount.rectTransform, new Vector2(0.5f, 0f), new Vector2(SqW, 18f), new Vector2(0f, 13f));
 
             // transient messages (F2 reset arming / save erased) - empty means invisible
             _menuNote = UIFactory.Label(transform, "note", "", 14, new Color(1f, 1f, 1f, 0.75f),
@@ -125,26 +133,7 @@ namespace Hollowbrook.UI
         }
 
         private Text _menuNote;
-        private Text _tokenCount;
-
-        // What the save has banked (the session is not loaded yet on the menu).
-        private RecordsData SavedRecords()
-        {
-            var save = _gameRoot.Saves != null ? _gameRoot.Saves.Read() : null;
-            return save != null && save.Records != null ? save.Records : new RecordsData();
-        }
-
-        private void RefreshTokens()
-        {
-            if (_tokenCount != null) _tokenCount.text = SavedRecords().TokensBanked + "/" + RecordsData.TokensToUnlockModes;
-        }
-
-        private void OnTokensClicked()
-        {
-            var records = SavedRecords();
-            if (records.ModesUnlocked) { _gameRoot.SetState(AppViewState.ModeSelect); return; }
-            ShowNote("Repel anomalies on patrol and collect " + RecordsData.TokensToUnlockModes + " tokens to unlock Endless and Challenge.");
-        }
+        private Text _nightHint, _night6Hint;
 
         private static Sprite Kit(string key) => ProceduralArt.Get(key);
 
@@ -204,11 +193,11 @@ namespace Hollowbrook.UI
             frt.offsetMax = new Vector2(-3f, -3f);
             fill.raycastTarget = false;
 
-            var frame = rt.gameObject.AddComponent<Image>();
+            var frame = rt.gameObject.GetOrAdd<Image>();
             frame.sprite = Kit(frameKey);
             frame.color = Color.white;
 
-            var btn = rt.gameObject.AddComponent<Button>();
+            var btn = rt.gameObject.GetOrAdd<Button>();
             btn.targetGraphic = frame;
             var cb = btn.colors;
             cb.normalColor = Color.white;
@@ -233,7 +222,7 @@ namespace Hollowbrook.UI
                 float a = !btn.interactable ? 0f : down ? 0.22f : hover ? 0.12f : sel ? 0.08f : 0f;
                 var c = fill.color; c.a = a; fill.color = c;
             };
-            var et = btn.gameObject.AddComponent<EventTrigger>();
+            var et = btn.gameObject.GetOrAdd<EventTrigger>();
             void On(EventTriggerType t, Action fn)
             {
                 var e = new EventTrigger.Entry { eventID = t };
@@ -275,12 +264,11 @@ namespace Hollowbrook.UI
         {
             gameObject.SetActive(true);
             RefreshContinue();
-            RefreshTokens();
             _menuNote.text = "";
             _noteUntil = -1f;
             FitBackground();
-            if (CoreBootstrap.CreatedEventSystem != null && _newGameBtn != null)
-                CoreBootstrap.CreatedEventSystem.SetSelectedGameObject(_newGameBtn.gameObject);
+            if (GameCore.CreatedEventSystem != null && _newGameBtn != null)
+                GameCore.CreatedEventSystem.SetSelectedGameObject(_newGameBtn.gameObject);
             if (_glitch == null) _glitch = StartCoroutine(LogoGlitchLoop());
             if (_ambient == null) _ambient = StartCoroutine(AmbientLoop());
         }
@@ -295,7 +283,67 @@ namespace Hollowbrook.UI
 
         public void RefreshContinue()
         {
-            if (_continueBtn != null) UIFactory.SetButtonEnabled(_continueBtn, _gameRoot.HasSave());
+            if (_continueBtn == null) return;
+            bool on = _gameRoot.HasSave();
+            SetGrey(_continueBtn, on);
+            if (!on && _nightHint != null) _nightHint.gameObject.SetActive(false);
+            if (_night6Btn == null) return;
+            SetGrey(_night6Btn, _gameRoot.Night6Unlocked);
+            if (_night6Hint != null) _night6Hint.gameObject.SetActive(false);
+        }
+
+        // Really grey, not just see-through: the frame, icon and label all lose their colour.
+        private static void SetGrey(Button btn, bool on)
+        {
+            UIFactory.SetButtonEnabled(btn, on);
+            var tint = on ? Color.white : new Color(0.38f, 0.38f, 0.38f, 1f);
+            foreach (var g in btn.gameObject.GetComponentsInChildren<Graphic>(true))
+                if (g.name != "fill") g.color = tint;
+        }
+
+        // A small line in the gap under a wide button (shown while it is hovered).
+        private Text HintLabel(Transform parent, string name, float buttonTop)
+        {
+            var t = UIFactory.Label(parent, name, "", 18, UIFactory.Ink, TextAnchor.MiddleLeft);
+            t.font = UIFactory.TypeFont;
+            t.raycastTarget = false;
+            var rt = t.rectTransform;
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.sizeDelta = new Vector2(WideW, 20f);
+            rt.anchoredPosition = new Vector2(WideX + LabelPadLeft, -(buttonTop + WideH + 1f));
+            t.gameObject.SetActive(false);
+            return t;
+        }
+
+        internal void ShowNight6Hint()
+        {
+            if (_night6Hint == null) return;
+            _night6Hint.text = _gameRoot.Night6Unlocked ? "ONE NIGHT. HE IS BACK." : "FINISH THE STORY TO UNLOCK";
+            _night6Hint.gameObject.SetActive(true);
+        }
+
+        // The night the save will start (the save is read each time, so it is never stale).
+        internal void ShowNightHint()
+        {
+            if (_nightHint == null || !_gameRoot.HasSave()) return;
+            var save = _gameRoot.Saves.Read();
+            int night = Mathf.Clamp(save.Session.CurrentShift, 1, ShiftPlan.TotalShifts);
+            _nightHint.text = "NIGHT " + night;
+            _nightHint.gameObject.SetActive(true);
+        }
+
+        // Extra hover reactions on a button that Skin() already gave an EventTrigger.
+        private static void OnHover(Button btn, Action enter, Action exit)
+        {
+            var et = btn.GetComponent<EventTrigger>();
+            var onEnter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+            onEnter.callback.AddListener(_ => enter());
+            et.triggers.Add(onEnter);
+            var onExit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+            onExit.callback.AddListener(_ => exit());
+            et.triggers.Add(onExit);
         }
 
         private void Update()

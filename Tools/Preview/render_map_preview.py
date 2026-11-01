@@ -5,7 +5,7 @@ Why this exists: the Unity editor cannot run headlessly here, so "is the map cen
 are the rooms where the reference drawing puts them, do the labels fit?" would otherwise
 be answered by reading code. This tool parses the actual numbers out of
 Assets/_Project/Scripts/GameLogic/FloorPlan.cs and the actual layout maths out of
-Assets/_Project/Scripts/UI/ProgressionScreens.cs (constants only), applies the same
+Assets/_Project/Scripts/UI/MapView, ShiftResultsView, EndingView.cs (constants only), applies the same
 fit/centre formula the view applies, and draws the result - including a screen outline
 at several resolutions, so centring and clipping are visible rather than assumed.
 
@@ -20,7 +20,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PLAN_CS = os.path.join(ROOT, "Assets/_Project/Scripts/GameLogic/FloorPlan.cs")
 SHEET_CS = os.path.join(ROOT, "Assets/_Project/Scripts/GameLogic/MapSheetLayout.cs")
-MAP_CS = os.path.join(ROOT, "Assets/_Project/Scripts/UI/ProgressionScreens.cs")
+MAP_CS = os.path.join(ROOT, "Assets/_Project/Scripts/UI/MapView, ShiftResultsView, EndingView.cs")
 
 # ---------------------------------------------------------------- parse FloorPlan
 def parse_floor_plan(path):

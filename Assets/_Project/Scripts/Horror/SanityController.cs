@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.UI;
 using Hollowbrook.Logic;
@@ -10,7 +10,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.Horror
 {
-    // Sanity-driven screen effects. Created by each scene bootstrap.
+    // Sanity-driven screen effects. Lives in each scene file, connected by the scene script.
     public class SanityController : MonoBehaviour
     {
         private GameRoot _gameRoot;
@@ -28,14 +28,14 @@ namespace Hollowbrook.Horror
 
             var vigRt = UIFactory.NewUI(fxCanvas.transform, "Vignette");
             UIFactory.AnchorsFull(vigRt);
-            _vignette = vigRt.gameObject.AddComponent<Image>();
+            _vignette = vigRt.gameObject.GetOrAdd<Image>();
             _vignette.sprite = ProceduralArt.Get("vignette");
             _vignette.color = new Color(1, 1, 1, 0.25f);
             _vignette.raycastTarget = false;
 
             var disRt = UIFactory.NewUI(fxCanvas.transform, "Distortion");
             UIFactory.AnchorsFull(disRt);
-            _distortion = disRt.gameObject.AddComponent<Image>();
+            _distortion = disRt.gameObject.GetOrAdd<Image>();
             _distortion.sprite = ProceduralArt.Get("noise_overlay");
             _distortion.color = new Color(0.7f, 0.7f, 0.72f, 0f);
             _distortion.raycastTarget = false;
@@ -111,10 +111,7 @@ namespace Hollowbrook.Horror
             var visitor = _gameRoot.Checkpoint != null ? _gameRoot.Checkpoint.CurrentVisitor : null;
             if (visitor == null)
             {
-                float rate = session.Mode == GameMode.Normal
-                    ? SanityModel.SecurityRoomRecoveryPerSecond
-                    : SanityModel.SecurityRoomRecoveryPerSecond * 0.4f;
-                session.ApplySanity(rate * dt);
+                session.ApplySanity(SanityModel.SecurityRoomRecoveryPerSecond * dt);
                 return;
             }
             session.ApplySanity(-(SanityModel.DeskDrainPerSecond + ScaryExtraDrain(visitor.ClaimedName)) * dt);

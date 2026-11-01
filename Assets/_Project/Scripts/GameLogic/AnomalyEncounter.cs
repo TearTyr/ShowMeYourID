@@ -45,7 +45,7 @@ namespace Hollowbrook.Logic
     {
         public AnomalyState State;
         public bool JustExposed;    // transition into Exposed this tick (face-reveal feedback)
-        public bool JustRepelled;   // transition into Repelled this tick (retreat + token)
+        public bool JustRepelled;   // transition into Repelled this tick (retreat)
         public bool JustRecovered;  // Recovering finished: eligible to roam again
         public bool Threatening;    // inside threat range while not repelled/recovering
     }

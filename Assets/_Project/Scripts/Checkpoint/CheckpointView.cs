@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using Hollowbrook.UI;
@@ -11,7 +11,7 @@ using L = Hollowbrook.Checkpoint.CheckpointLayout;
 
 namespace Hollowbrook.Checkpoint
 {
-    // The inspection desk: papers, questions, stamps, banners. Created by CheckpointSceneBootstrap.
+    // The inspection desk: papers, questions, stamps, banners. Created by DeskScene.
     // Every element lives in one fixed 1280x720 DeskFrame and is placed only through the
     // CheckpointLayout grid - see desk_layout_wireframe.svg for the approved design.
     public partial class CheckpointView : MonoBehaviour, IScreenView
@@ -23,7 +23,6 @@ namespace Hollowbrook.Checkpoint
         private bool _kitOn;
         /// <summary>True once the HUD's live sanity meter got its kit tint (HUD is built after the desk).</summary>
         private bool _kitSanityApplied;
-        private const string BulletinShort = "⚠ DISTRICT BULLETIN - NEW RULE IN EFFECT · SEE RULES NOTE";
 
         private GameRoot _gameRoot;
         private RectTransform _root;
@@ -34,7 +33,7 @@ namespace Hollowbrook.Checkpoint
         public VisitorData CurrentVisitor => _current;
 
         // The queue itself lives in GameRoot (persistent run state); the view only
-        // presents it. Queue is null-safe so bootstraps without a run stay quiet.
+        // presents it. Queue is null-safe so scenes without a run stay quiet.
         private CheckpointQueue Queue => _gameRoot != null ? _gameRoot.Queue : null;
 
         private ShiftDef _shift;
@@ -46,8 +45,6 @@ namespace Hollowbrook.Checkpoint
 
         private Text _topLeft, _topClock, _topQueue;
         private string _lastClockText = "";
-        private Text _runStats;      // endless/challenge: score · streak · timer
-        private Text _mutationStrip; // challenge bulletin
         private GameObject _stickyRoot;
         private Button _stickyButton;
 
@@ -107,7 +104,7 @@ namespace Hollowbrook.Checkpoint
             vig.color = new Color(1f, 1f, 1f, 0.55f);
 
             _desk = L.DeskFrame(_root, "DeskFrame");
-            _audit = _desk.gameObject.AddComponent<DeskLayoutAudit>();
+            _audit = _desk.gameObject.GetOrAdd<DeskLayoutAudit>();
 
             BuildTopBar();
             BuildFileCabinet();    // floor-files station + the physical pull drawer...
@@ -125,9 +122,6 @@ namespace Hollowbrook.Checkpoint
             BuildAdminTalk();    // the Shift-5 conversation panel + its re-open bar
             ApplyKitSkin();      // the owner's SecurityRoom art, over the audited grid
 
-            _subscriptions.Add(_gameRoot.Bus.Subscribe(EventIds.RunTimerTick, e => OnRunTimerTick(e.Value)));
-            _subscriptions.Add(_gameRoot.Bus.Subscribe(EventIds.MutationChanged,
-                e => ShowBulletin(e.Payload<RuleMutationDef>())));
             gameObject.SetActive(false);
         }
 
@@ -186,7 +180,7 @@ namespace Hollowbrook.Checkpoint
 
         public void ResumeRun()
         {
-            _shift = ShiftPlan.Get(Mathf.Clamp(_gameRoot.Session.CurrentShift, 1, ShiftPlan.TotalShifts));
+            _shift = _gameRoot.CurrentShiftDef ?? ShiftPlan.Get(Mathf.Clamp(_gameRoot.Session.CurrentShift, 1, ShiftPlan.TotalShifts));
             ResetShiftState();
             Show();
 
@@ -196,8 +190,7 @@ namespace Hollowbrook.Checkpoint
         }
 
         // Shared start-of-shift reset for BeginRun (new game / continue) and ResumeRun
-        // (back from patrol): clear per-visitor state, re-post the challenge bulletin,
-        // and show the score strip only in endless/challenge.
+        // (back from patrol): clear per-visitor state.
         private void ResetShiftState()
         {
             _tonightsLog.Clear();
@@ -205,10 +198,6 @@ namespace Hollowbrook.Checkpoint
             _flowActive = true;
             _current = null;
             _verdictLocked = true;
-            if (_gameRoot.Session.Mode == GameMode.Challenge) ShowBulletin(_gameRoot.Session.ActiveMutation);
-            else ShowBulletin(null);
-            bool runMode = _gameRoot.Session.Mode != GameMode.Normal;
-            _runStats.gameObject.SetActive(runMode);
         }
 
         // Rebuilds what the player sees at the window from the persistent queue: a started
@@ -282,7 +271,6 @@ namespace Hollowbrook.Checkpoint
         {
             if (r.ToWindow != null)
             {
-                ExhibitionHintOnce();
                 PresentFromQueue(r.ToWindow, restoreAsked);
             }
             else if (r.ToLine != null)
@@ -307,13 +295,6 @@ namespace Hollowbrook.Checkpoint
                 // one consequence, one announcement: GameRoot owns both (toast + ending)
                 _gameRoot.TriggerQueueOverwhelmed();
             }
-        }
-
-        private void ExhibitionHintOnce()
-        {
-            if (_gameRoot.Config.exhibitionMode && _gameRoot.Session.Processed == 0 && _gameRoot.Session.CurrentShift == 1)
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    "EXHIBITION: photo and expiry first, then one question if in doubt."));
         }
 
         // A visitor reached the window (from the line or the clock): fresh inspection
@@ -361,7 +342,7 @@ namespace Hollowbrook.Checkpoint
             RefreshHud();              // tray/prompt state always matches the new visitor
         }
 
-        private float BannerSeconds => _gameRoot.Config.exhibitionMode ? _gameRoot.Config.exhibitionBannerSeconds : _gameRoot.Config.verdictBannerSeconds;
+        private float BannerSeconds => _gameRoot.Config.verdictBannerSeconds;
 
         public void GoPatrol()
         {
@@ -519,7 +500,7 @@ namespace Hollowbrook.Checkpoint
         internal void RefreshHud()
         {
             if (_gameRoot == null) return;
-            // Bootstrap builds the desk BEFORE the HUD, so ApplyKitSkin could not tint the
+            // The scene set up builds the desk BEFORE the HUD, so ApplyKitSkin could not tint the
             // live sanity meter at Init - land it lazily on the first refresh where the HUD exists.
             if (_kitOn && !_kitSanityApplied && _gameRoot.HUD != null)
             {
@@ -532,12 +513,6 @@ namespace Hollowbrook.Checkpoint
             RefreshDecisionButtons();
             RefreshStands();
             RefreshAdminTalk();
-        }
-
-        private void OnEnable()
-        {
-            if (_gameRoot != null && _runStats != null && _gameRoot.Session.Mode != GameMode.Normal)
-                _runStats.gameObject.SetActive(true);
         }
     }
 }

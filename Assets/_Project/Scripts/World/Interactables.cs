@@ -1,5 +1,5 @@
 using System;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using Hollowbrook.UI;
@@ -24,25 +24,6 @@ namespace Hollowbrook.World
         public virtual void Interact() { }
 
         public float DistanceTo(Vector3 p) => Mathf.Abs(p.x - AnchorX);
-    }
-
-    public class TokenPickup : Interactable
-    {
-        public void Init(GameRoot root, RoomInstance room, float x)
-        {
-            _gameRoot = root; Room = room; AnchorX = x;
-            Prompt = "Collect token [E]";
-            Art = GetComponent<SpriteRenderer>();
-        }
-
-        public override void Interact()
-        {
-            if (_gameRoot == null || _gameRoot.Session == null) return;
-            if (Room != null) Room.Interactables.Remove(this);
-            _gameRoot.AwardToken();
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*you pocket a token*", 2.4f, null));
-            Destroy(gameObject);
-        }
     }
 
     public class Doorway : Interactable
@@ -136,6 +117,12 @@ namespace Hollowbrook.World
                     _gameRoot.Scares.Stinger("clue_" + _clueKey, 0f); // sanity already applied by DiscoverClue
             }
             if (_gameRoot.Dialogue != null) _gameRoot.Dialogue.Play(lines, null);
+            if (_clueKey == ClueRegistry.TokenKey)
+            {
+                // picked up: it leaves the wall and the room, and stays gone for the whole run
+                if (Room != null) Room.Interactables.Remove(this);
+                Destroy(gameObject);
+            }
         }
 
         // The close up shown beside the text when the clue is inspected (null = no picture).
@@ -148,7 +135,7 @@ namespace Hollowbrook.World
                 case "board": return "inspect_noticeboard";
                 case "photo": return "inspect_photoframe";
                 case "clock": return "inspect_clock";
-                case "lostid": return "inspect_clipboard";
+                case "token": return "token";
                 default: return null;
             }
         }

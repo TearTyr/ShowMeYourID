@@ -62,9 +62,6 @@ def main():
         "sec_background_open":  "2. Background & Window/Background Open.png",
         "sec_background_close": "2. Background & Window/Background Close.png",
         "sec_light":            "2. Background & Window/Light.png",
-        "sec_window_open":      "2. Background & Window/Window Open.png",
-        "sec_window_close":     "2. Background & Window/Window Close.png",
-        "sec_upper_panel":      "3. Upper Panel/Upper Panel.png",
         "sec_upper_panel_bg":   "3. Upper Panel/Upper Panel BG.png",
     }
     for key, rel in FULL.items():

@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Hollowbrook.Core;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -15,7 +15,7 @@ namespace Hollowbrook.UI
         public string PortraitSpriteKey; // optional procedural portrait key
     }
 
-    // Click-through dialogue box with typewriter text. Created by each scene bootstrap.
+    // Click-through dialogue box with typewriter text. Lives in each scene file, connected by the scene script.
     public class DialogueView : MonoBehaviour, IScreenView
     {
         private GameRoot _gameRoot;
@@ -48,8 +48,8 @@ namespace Hollowbrook.UI
             // bubble's skin only: narration and student dialogue are two UI contexts.
             var panelRt = UIFactory.NewUI(transform, "panel_border");
             UIFactory.Anchor(panelRt, new Vector2(0.5f, 0f), new Vector2(940, 220), new Vector2(0, 202));
-            _panelGroup = panelRt.gameObject.AddComponent<CanvasGroup>();
-            var bar = panelRt.gameObject.AddComponent<Image>();
+            _panelGroup = panelRt.gameObject.GetOrAdd<CanvasGroup>();
+            var bar = panelRt.gameObject.GetOrAdd<Image>();
             var barSprite = ProceduralArt.Get("sec_caption_bar");
             if (barSprite != null) { bar.sprite = barSprite; bar.color = Color.white; }
             else bar.color = new Color(0.92f, 0.92f, 0.90f);   // no kit: plain paper stock
@@ -75,10 +75,10 @@ namespace Hollowbrook.UI
             UIFactory.Anchor(_continue.rectTransform, new Vector2(1, 0), new Vector2(40, 24), new Vector2(-84, 38));
             _continue.gameObject.SetActive(false);
 
-            var clickCatcher = panelRt.gameObject.AddComponent<Button>();
+            var clickCatcher = panelRt.gameObject.GetOrAdd<Button>();
             clickCatcher.targetGraphic = null;
             clickCatcher.onClick.AddListener(Advance);
-            var dimBtn = _dim.gameObject.AddComponent<Button>();
+            var dimBtn = _dim.gameObject.GetOrAdd<Button>();
             dimBtn.targetGraphic = _dim;
             dimBtn.onClick.AddListener(Advance);
 

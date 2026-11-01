@@ -1,4 +1,4 @@
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using UnityEngine;
@@ -36,8 +36,8 @@ namespace Hollowbrook.World
         private Vector3 _aimSmooth = Vector3.right;   // displayed aim (damped, never snaps)
         private float _dispRange, _dispHalfTan;       // displayed geometry (damped across modes)
         private float _coneWorldW = 8f, _coneWorldH = 4.5f;   // light_cone: 512x288 px @ 64 ppu
-        // ONE authoritative illumination pair: the stencil mask cuts the room darkness, the cone
-        // sprite paints the warm beam on top. The mask's alpha cutoff is dropped to 0.05 so the
+        // ONE authoritative illumination: the stencil mask cuts the room darkness (nothing is painted on
+        // top, the room's own art shows through). The mask's alpha cutoff is dropped to 0.05 so the
         // hole reaches into the cone sprite's faintest feather - the reveal edge lands where the
         // beam art is already almost transparent, which reads as a soft falloff with no second
         // layer, no rect artifacts and nothing that can desynchronise.
@@ -48,6 +48,10 @@ namespace Hollowbrook.World
         public void Init(GameRoot root, Camera cam, SpriteRenderer cone)
         {
             _gameRoot = root; _cam = cam; _cone = cone;
+            // Nothing is painted over the lit area: the beam only cuts a hole in the darkness (the
+            // stencil mask below), so what it lights is the room's own art, clear, like the peek lamp.
+            // The cone object stays: its sprite is the mask's shape and its transform is the beam.
+            if (cone != null) cone.enabled = false;
             if (cone != null && cone.sprite != null && cone.sprite.pixelsPerUnit > 0f)
             {
                 _coneWorldW = cone.sprite.rect.width / cone.sprite.pixelsPerUnit;
@@ -173,10 +177,7 @@ namespace Hollowbrook.World
 
             if (_mask != null) _mask.gameObject.SetActive(on);
             if (_cone != null) _cone.gameObject.SetActive(on);
-            // Focus concentrates: a tighter cone AND a hotter core tint; Sweep stays the wide,
-            // softer wash. Both still reveal the environment through mask hole + penumbra.
-            if (_cone != null)
-                _cone.color = new Color(1f, 0.96f, 0.85f, m == LightMode.Focus ? FocusTint : SweepTint);
+            // Focus is a tighter cone than Sweep, which stays the wide wash (see ParamsFor above).
             ScaleBeam();
             if (on) PlaceBeam();   // positioned before the frame is drawn, never a frame later
 
@@ -246,9 +247,6 @@ namespace Hollowbrook.World
                 _mask.transform.localEulerAngles = new Vector3(0f, 0f, angle);
             }
         }
-
-        private const float SweepTint = 0.30f;
-        private const float FocusTint = 0.42f;
 
         // Non-uniform scale maps the fixed cone sprite onto the mode's logical geometry:
         // length = Range, far-end half width = Range * tan(halfAngle). The mask AND the penumbra

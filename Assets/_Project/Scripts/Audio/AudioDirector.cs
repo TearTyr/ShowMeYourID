@@ -1,12 +1,12 @@
 using System.Collections;
 using System.Collections.Generic;
 using Hollowbrook.Core;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using UnityEngine;
 
 namespace Hollowbrook.Audio
 {
-    // Plays every sound and music bed; also emits captions. Created by CoreBootstrap.
+    // Plays every sound and music bed; also emits captions. Created by GameCore.
     public class AudioDirector : MonoBehaviour
     {
         private EventBus _bus;
@@ -19,6 +19,8 @@ namespace Hollowbrook.Audio
         private readonly List<EventSubscription> _subs = new List<EventSubscription>();
         private readonly HashSet<string> _missingWarned = new HashSet<string>();
 
+        // Only sounds the player cannot see the cause of. Desk sounds (stamps, scanner, intercom, bell)
+        // have no caption: the action is on screen, and the caption box only got in the way.
         private static readonly Dictionary<string, string> Captions = new Dictionary<string, string>
         {
             { "sfx_knock", "*KNOCK  KNOCK  KNOCK*" },
@@ -27,13 +29,7 @@ namespace Hollowbrook.Audio
             { "sfx_glitch", "*static crackles and snaps*" },
             { "sfx_flicker", "*the fluorescent light buzzes and stutters*" },
             { "sfx_heartbeat", "*your own heartbeat, too loud*" },
-            { "sfx_intercom", "*intercom static*" },
             { "sfx_alarm", "*alarm klaxon*" },
-            { "sfx_bell", "*shift bell*" },
-            { "sfx_stamp_reject", "*REJECTED - the stamp comes down*" },
-            { "sfx_stamp_allow", "*ALLOWED - the stamp comes down*" },
-            { "sfx_scan_error", "*scanner: error tone*" },
-            { "sfx_scan_ok", "*scanner: chirp*" },
             { "sfx_door", "*a door opens somewhere*" },
             { "music_anomaly", "*the air hums with something wrong*" },
         };

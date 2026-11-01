@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using Hollowbrook.UI;
@@ -18,8 +18,8 @@ namespace Hollowbrook.Checkpoint
     //  * the conversation state lives in Session.AdminTalk (this view keeps no copy);
     //  * a pick is final the moment it is clicked (_talkBusy), so a double click cannot take
     //    the same option twice;
-    //  * talking never stamps, never gives clues and never changes the score. The one
-    //    exception is REFUSE ENTRY, which is exactly the DENY stamp (RefuseAdminEntry);
+    //  * talking never stamps, never gives clues and never changes the score; only the DENY
+    //    stamp turns him away, and he can be questioned as often as the player likes;
     //  * he gets none of the student questions: the questions panel stays hidden while he is
     //    at the window, and the small map steps aside while the conversation is open.
     public partial class CheckpointView
@@ -93,6 +93,7 @@ namespace Hollowbrook.Checkpoint
                 AnswerClassroom = v != null ? v.ClassroomAnswer : "",
                 CluePhoto = ClueFound("photo"),
                 ClueCabinet = ClueFound("cabinet"),
+                Night6 = _gameRoot.Session.Mode == GameMode.Challenge,
             };
         }
 
@@ -117,8 +118,8 @@ namespace Hollowbrook.Checkpoint
             RefreshHud();
         }
 
-        /// <summary>Close the panel. <paramref name="final"/> ends the encounter for good (a
-        /// refusal, the "step back" option, or a verdict landing); otherwise the bar stays.</summary>
+        /// <summary>Close the panel. <paramref name="final"/> ends the encounter for good (a verdict
+        /// landing); otherwise the bar stays.</summary>
         internal void CloseAdminTalk(bool final)
         {
             _talkOpen = false;
@@ -184,9 +185,8 @@ namespace Hollowbrook.Checkpoint
             var rt = UIFactory.NewUI(_talkOptRoot, "opt_" + opt.Id);
             L.Place(rt, new L.Region(L.InnerAdminTalk.Opt.X, L.InnerAdminTalk.OptY0 + row * L.InnerAdminTalk.OptStep,
                 L.InnerAdminTalk.Opt.W, L.InnerAdminTalk.OptH));
-            var bg = rt.gameObject.AddComponent<Image>();
-            bool refuse = opt.Action == AdminTalkAction.Refuse;
-            bg.color = refuse ? new Color(0.22f, 0.07f, 0.07f) : new Color(0.10f, 0.10f, 0.115f);
+            var bg = rt.gameObject.GetOrAdd<Image>();
+            bg.color = new Color(0.10f, 0.10f, 0.115f);
             bg.raycastTarget = true;
             var label = UIFactory.Label(rt, "label", AdminTalk.Resolve(opt.Label, ctx), 11,
                 UIFactory.NsChalk, TextAnchor.MiddleLeft);
@@ -195,7 +195,7 @@ namespace Hollowbrook.Checkpoint
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.verticalOverflow = VerticalWrapMode.Truncate;
             UIFactory.PlaceTL(label.rectTransform, 8, 0, L.InnerAdminTalk.Opt.W - 16, L.InnerAdminTalk.OptH);
-            var btn = rt.gameObject.AddComponent<Button>();
+            var btn = rt.gameObject.GetOrAdd<Button>();
             btn.targetGraphic = bg;
             btn.transition = Selectable.Transition.ColorTint;
             var cb = btn.colors;
@@ -206,7 +206,7 @@ namespace Hollowbrook.Checkpoint
             btn.colors = cb;
             string captured = opt.Id;
             btn.onClick.AddListener(() => ChooseAdminTalkOption(captured));
-            rt.gameObject.AddComponent<HoverCursor>();
+            rt.gameObject.GetOrAdd<HoverCursor>();
             return btn;
         }
 
@@ -227,22 +227,7 @@ namespace Hollowbrook.Checkpoint
             var step = AdminTalk.Choose(st, BuildTalkContext(), optionId);
             PersistTalk();
             if (!step.Completed) { Speak(step, ShowOptions); return; }
-            CloseAdminTalk(true);
-            if (step.Action == AdminTalkAction.Refuse) RefuseAdminEntry();
-        }
-
-        /// <summary>REFUSE ENTRY: exactly what stamping DENY and handing the ID back does, in
-        /// one click. It goes through the same FinalizeIfReady path, so scoring, the hunt and
-        /// the save all behave identically to the physical stamp.</summary>
-        internal void RefuseAdminEntry()
-        {
-            if (!AdminAtWindow || _slipStamped) return;
-            _pendingVerdict = Verdict.Reject;
-            _slipStamped = true;
-            _backId = true;
-            PlaceStampMark(Verdict.Reject, new Vector2(100f, 60f));
-            _gameRoot.Audio.PlaySfx("sfx_stamp_reject", 0.8f);
-            FinalizeIfReady();
+            CloseAdminTalk(false);   // stepped back: the stamps are free, the bar and T bring the talk back
         }
 
         // His answer goes through the normal dialogue box (typewriter, click to continue).

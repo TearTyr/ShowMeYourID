@@ -5,8 +5,6 @@ namespace Hollowbrook.Core
         public const string StateChanged = "state.changed";
 
         public const string ObjectiveChanged = "objective.changed";// Text: objective line
-        public const string RunTimerTick = "run.timer_tick";       // Value: seconds left
-        public const string MutationChanged = "run.mutation";      // Data: RuleMutationDef
 
         public const string VerdictStamped = "visitor.verdict";    // Data: InspectionRules.Outcome
 
@@ -23,7 +21,6 @@ namespace Hollowbrook.Core
         public const string Notification = "ui.notification";
         public const string AnomalyCaught = "anomaly.caught";      // Text: toast message
         public const string AnomalyRevealed = "anomaly.revealed";    // Data: kind / "hallucination"
-        public const string TokenCollected = "anomaly.token";      // Value: tokens held this run
         public const string BatteryChanged = "light.battery";      // Value: 0..1 charge
         public const string AnomalyStateChanged = "anomaly.state"; // Data: AnomalyState name
     }

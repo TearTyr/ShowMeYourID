@@ -10,6 +10,7 @@ relative to each other. Names the game expects:
   char_admin.png / char_admin_glitch.png   the Night-5 administrator (the Director)
   char_guard_idle.png, char_guard_walk_a.png, char_guard_walk_b.png   the player's three poses
   char_anomaly.png   the roaming anomaly (Slide_Anomaly/Anomaly_Slide.png, cropped to its drawing)
+  char_hood.png      the hooded figure standing in the peek rooms (Hood_Figure_/Hood_Figure.png)
 Re-run whenever the art changes. New .png files still need a .meta (Tools/generate_meta.py).
 """
 import os
@@ -56,7 +57,19 @@ def prep_guard():
         im.crop(box).save(os.path.join(DST, name + ".png"))
 
 
+def prep_hood():
+    """The hooded figure is a small silhouette (90x152 px), so it is cropped to its drawing and
+    enlarged 4x with a smooth filter: the game then draws it about 3.2 units tall without
+    stair-stepped edges. If the artist sends a larger export, drop it in and re-run."""
+    im = load("Hood_Figure_/Hood_Figure.png")
+    im = im.crop(bbox(im))
+    im = im.resize((im.width * 4, im.height * 4), Image.LANCZOS)
+    im.save(os.path.join(DST, "char_hood.png"))
+    print("hood", im.size)
+
+
 def main():
+    prep_hood()
     pairs = [(a, b) for a, b in STUDENTS] + [ADMIN]
     crops = {}
     for pair in pairs:

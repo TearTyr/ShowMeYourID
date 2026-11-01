@@ -1,6 +1,6 @@
 namespace Hollowbrook.Logic
 {
-    public enum GameMode { Normal, Endless, Challenge }
+    public enum GameMode { Normal, Challenge }   // Challenge is Night 6
 
     public enum Verdict { None, Allow, Reject }
 
@@ -39,9 +39,9 @@ namespace Hollowbrook.Logic
 
     public enum AppViewState
     {
-        Boot, Loading, MainMenu, ModeSelect, Settings, Controls, Credits,
+        Boot, Loading, MainMenu, Settings, Controls, Credits,
         ShiftIntro, Checkpoint, Exploration, Map, Pause, ShiftResults,
-        Ending, EndlessResults,
+        Ending,
         RoomPeek,   // flashlight peek into a classroom from the doorway (no room entry)
     }
 }

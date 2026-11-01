@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Horror;
 using Hollowbrook.Logic;
@@ -99,7 +99,9 @@ namespace Hollowbrook.World
                     // hit boxes sit on the painted things: centre x, then height, width and size
                     AddClue(room, "chalkboard", 1.6f, floorY, "Chalkboard", null, 1.2f, 2.2f, 7.2f, 2.9f);
                     AddClue(room, "desk", 1.8f, floorY, "Front Desk", null, 0.8f, -0.6f, 4.4f, 2.2f);
-                    AddClue(room, "lostid", 6.0f, floorY, "Lost-and-Found Board", null, 0.2f, 2.2f, 1.2f, 1.8f);
+                    // the token hangs on the lost-and-found board until it is picked up (once, for good)
+                    if (!_root.Session.Clues.IsFound(ClueRegistry.TokenKey))
+                        AddClue(room, ClueRegistry.TokenKey, 6.0f, floorY, "Pocket Watch Token", "token", 3.9f, 2.2f, 1.2f, 1.8f);
                     room.PlayerSpawn = new Vector3(4.0f, 0, 0);
                     break;
                 }

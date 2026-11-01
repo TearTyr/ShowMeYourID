@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.UI;
 using Hollowbrook.Logic;
@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Hollowbrook.Horror
 {
-    // False entities at low sanity. Created by SchoolSceneBootstrap.
+    // False entities at low sanity. Created by PatrolScene.
     public class HallucinationSystem : MonoBehaviour
     {
         private GameRoot _gameRoot;

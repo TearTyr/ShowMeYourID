@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Hollowbrook.Core
 {
     [CreateAssetMenu(fileName = "GameConfig", menuName = "ShowMeYourID/Game Config")]
-    // Tuning knobs editable in one asset. Loaded by CoreBootstrap.
+    // Tuning knobs editable in one asset. Loaded by GameCore.
     public class GameConfigSO : ScriptableObject
     {
         [Header("Checkpoint pacing")]
@@ -16,10 +16,6 @@ namespace Hollowbrook.Core
         public float queueArrivalMinSeconds = 25f;
         [Tooltip("Upper bound of the randomized visitor arrival interval (Normal mode, night 1).")][Range(0.5f, 120f)]
         public float queueArrivalMaxSeconds = 30f;
-        [Tooltip("Endless/Challenge arrival interval bounds - those modes are score races and keep the fast clock.")][Range(0.5f, 60f)]
-        public float queueRunMinSeconds = 3f;
-        [Range(0.5f, 120f)]
-        public float queueRunMaxSeconds = 5f;
         [Tooltip("Normal mode: the arrival clock runs this much faster while the window is busy, so dawdling grows the line.")][Range(1f, 4f)]
         public float queueBusyHurryMultiplier = 2f;
         [Tooltip("Normal mode: seconds before the next student steps up when the window and the line are both empty.")][Range(0.5f, 30f)]
@@ -90,8 +86,12 @@ namespace Hollowbrook.Core
         [Header("Patrol")]
         [Tooltip("Seconds into a patrol before the first anomaly is guaranteed to appear.")][Range(2f, 60f)]
         public float anomalyFirstSpawnSeconds = 15f;
-        [Tooltip("Seconds the lit lamp must stay on the anomaly hiding in a peek room to drive it out.")][Range(0.3f, 6f)]
+        [Tooltip("The hooded figure in a peek room: seconds it flickers and jumps while the lamp dims, once the light is fully on it.")][Range(0.3f, 6f)]
         public float peekRepelSeconds = 1.5f;
+        [Tooltip("Seconds of full black after the flicker, while the figure is removed.")][Range(0.1f, 3f)]
+        public float peekBlackoutSeconds = 0.6f;
+        [Tooltip("Seconds the room takes to fade back in, with the figure gone.")][Range(0.5f, 6f)]
+        public float peekFadeBackSeconds = 2f;
 
         [Header("Administrator hunt (night 5, after the DENY stamp)")]
         [Tooltip("Times he can catch you before he reaches the server door and you lose.")][Range(1, 10)]
@@ -120,6 +120,28 @@ namespace Hollowbrook.Core
         public float huntCaughtSanity = 15f;
         [Tooltip("Sanity gained each time the light sends him away.")][Range(0f, 40f)]
         public float huntSanityPerRepel = 8f;
+
+        [Header("Night 6 - the Challenge (the same hunt, harder)")]
+        [Tooltip("Catches until he reaches the server door on night 6.")][Range(1, 10)]
+        public int night6CatchesToLose = 2;
+        [Tooltip("Seconds to survive until dawn on night 6.")][Range(30f, 900f)]
+        public float night6SurviveSeconds = 270f;
+        [Tooltip("Seconds taken off night 6 for every lie exposed.")][Range(0f, 60f)]
+        public float night6SecondsPerLie = 10f;
+        [Tooltip("Night 6 is never shorter than this.")][Range(30f, 600f)]
+        public float night6MinSurviveSeconds = 150f;
+        [Tooltip("How long he walks between stops on night 6 (min / max).")][Range(1f, 30f)]
+        public float night6StalkMinSeconds = 3f;
+        [Range(1f, 40f)]
+        public float night6StalkMaxSeconds = 6f;
+        [Tooltip("Seconds to find him in the room he stopped in, night 6.")][Range(3f, 30f)]
+        public float night6RoomSeconds = 8f;
+        [Tooltip("Seconds the lamp must stay on his head, night 6.")][Range(0.3f, 10f)]
+        public float night6RoomHoldSeconds = 2.4f;
+        [Tooltip("Seconds to flash him when he appears behind you, night 6.")][Range(1f, 8f)]
+        public float night6BehindSeconds = 1.9f;
+        [Tooltip("Seconds of beam on his face that count as a hit, night 6.")][Range(0.1f, 2f)]
+        public float night6BeamHitSeconds = 0.5f;
 
         [Header("Encounter - repel meter")]
         [Tooltip("Meter per second while Focus holds the anomaly's body (the only way to progress).")][Range(0.05f, 2f)]
@@ -168,13 +190,6 @@ namespace Hollowbrook.Core
         [Header("Horror pacing")]
         [Tooltip("Base chance per second that a wandering anomaly spawns in an entered room (shift-scaled).")]
         public float anomalySpawnChancePerSecond = 0.05f;
-
-        [Header("Exhibition (5-10 minute booth cut)")]
-        [Tooltip("One curated night (4 visitors, 1 anomaly) then the demo closes. Off = full five-shift story.")]
-        // shipping default is the FIVE-NIGHT story; the booth demo opts in via
-        // GameConfig.asset exhibitionMode: 1 or this flag in headless proofs
-        public bool exhibitionMode = false;
-        public float exhibitionBannerSeconds = 2.2f;
 
         [Header("Shift clock")]
         [Tooltip("In-story minutes per real second while a shift is running, in ANY scene.")]

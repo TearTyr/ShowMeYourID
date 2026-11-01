@@ -5,6 +5,25 @@ namespace Hollowbrook.Logic
     public static class ShiftPlan
     {
         public const int TotalShifts = 5;
+        /// <summary>The Challenge: a sixth night, unlocked by finishing the story. Not part of Build().</summary>
+        public const int Night6Number = 6;
+
+        /// <summary>The last night a mode can reach: 5 for the story, 6 for the Challenge.</summary>
+        public static int LastNight(GameMode mode) => mode == GameMode.Challenge ? Night6Number : TotalShifts;
+
+        public static ShiftDef Night6Def()
+        {
+            return new ShiftDef
+            {
+                Number = Night6Number, DateLabel = Content.ShiftDates[5],
+                VisitorCount = 0, AnomalyCount = 0, HasAdministrator = true,   // nobody else comes
+                Title = "He Does Not Give Up",
+                Objective = "The administrator is back. Same questions, new answers. Deny him again and survive until dawn: he is faster and more aggressive than ever.",
+                RuleNoteAddendum = "NIGHT 6 - District personnel present a STAFF BADGE. Badge and memo must match. If they do not, deny entry. He will ask you to make the right decision. You already know what it is.",
+                MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = true, DuplicateIdsAllowed = true,
+                ClassroomLieAllowed = true, ExplorationFocus = false,
+            };
+        }
 
         public static List<ShiftDef> Build()
         {
@@ -63,43 +82,12 @@ namespace Hollowbrook.Logic
             };
         }
 
-        public static ShiftDef ExhibitionDef()
-        {
-            return new ShiftDef
-            {
-                Number = 1,
-                DateLabel = Content.ShiftDates[0],
-                VisitorCount = 4, AnomalyCount = 1, HasAdministrator = false,
-                Title = "Exhibition Night",
-                Objective = "One short night: check the papers, ask when in doubt, stamp once. " +
-                            "One of the four is not a student - the papers or the voice will give it away.",
-                RuleNoteAddendum = "EXHIBITION - Verify: ID format (HB-YYYY-NNNN), photo vs the face at the " +
-                            "window, expiration, year, course, Regular/Transferee. Ask up to two " +
-                            "questions and check the answers against the card and the file.",
-                MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = false,
-                DuplicateIdsAllowed = false, ClassroomLieAllowed = true, ExplorationFocus = false,
-            };
-        }
-
         public static ShiftDef Get(int number)
         {
             var all = Build();
             foreach (var s in all) if (s.Number == number) return s;
             return null;
         }
-
-        public static readonly RuleMutationDef[] ChallengeMutations =
-        {
-            new RuleMutationDef("none", null),
-            new RuleMutationDef("no_transferees",
-                "TEMPORARY DISTRICT RULE: Transferees are not admitted on nights with active system audits. Reject all transferees."),
-            new RuleMutationDef("fourth_year_curfew",
-                "TEMPORARY DISTRICT RULE: Fourth-year students are under district curfew tonight. Reject all 4th Years."),
-            new RuleMutationDef("strict_expiry",
-                "TEMPORARY DISTRICT RULE: IDs expiring within 60 days are not accepted during audits. Reject them."),
-            new RuleMutationDef("odd_serials",
-                "TEMPORARY DISTRICT RULE: For tonight's serial audit, IDs with an ODD serial number are suspended. Reject them."),
-        };
     }
 
     public static class SanityModel
@@ -138,7 +126,5 @@ namespace Hollowbrook.Logic
         public const float RefillPerSecond = 2.5f;
 
         public static float Clamp(float v) => v < Min ? Min : (v > Max ? Max : v);
-
-        public static float DrainMultiplier(GameMode mode) => mode == GameMode.Challenge ? 2f : 1f;
     }
 }

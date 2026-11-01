@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Hollowbrook.Audio;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Checkpoint;
 using Hollowbrook.Horror;
 using Hollowbrook.Logic;
@@ -11,7 +11,7 @@ using UnityEngine;
 namespace Hollowbrook.Core
 {
     // GameRoot, part: starting and continuing a run, beginning a night, the checkpoint queue
-    // set-up, verdict bookkeeping and Endless/Challenge scoring. Split out of GameRoot.cs so
+    // set-up, verdict bookkeeping. Split out of GameRoot.cs so
     // each file reads on its own; it is all still one class.
     public partial class GameRoot
     {
@@ -21,42 +21,14 @@ namespace Hollowbrook.Core
             var old = Saves.Read();
             Records = old?.Records ?? new RecordsData();
 
-            int seed = mode == GameMode.Normal ? 20261102 : (int)(System.DateTime.UtcNow.Ticks & 0x7FFFFFFF);
+            int seed = 20261102;
             Session = new GameSession { Mode = mode, Seed = seed };
             _resolvedVisitorIndices.Clear();
-            _runRng = new GameRng(seed ^ 0x5EED);
             _continuePending = false;
-            EndlessProcessed = 0;
 
-            if (mode == GameMode.Normal)
-            {
-                QueueSceneAction(() => BeginShift(1));
-            }
-            else
-            {
-                StartRunMode(mode, seed);
-            }
-            Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
-        }
-
-        // Endless/Challenge: run timer, on-demand visitor source and the mode's intro.
-        private void StartRunMode(GameMode mode, int seed)
-        {
-            Session.RunTimer = EndlessRules.StartSeconds;
-            Roster = new RosterFactory(seed);
-            // run modes draw visitors on demand - the queue gets the same infinite source
-            Queue = new CheckpointQueue();
-            Queue.AttachRunSource(NextRunVisitor, BuildQueueTuning(), seed ^ 0x9E37);
-            var intro = mode == GameMode.Endless
-                ? new List<DialogueLine>
-                {
-                    new DialogueLine { Speaker = "DISPATCH", Text = "Endless watch. They keep coming until the clock beats you. Every anomaly you turn away buys you seconds." },
-                }
-                : new List<DialogueLine>
-                {
-                    new DialogueLine { Speaker = "DISPATCH", Text = "Challenge protocol: district rules change without warning, your nerves fray twice as fast, and every correct call is worth double." },
-                };
-            QueueSceneAction(() => PlayIntroThenCheckpoint(intro, null));
+            // the Challenge is night 6 on its own: it never touches the story save (see PersistRun)
+            QueueSceneAction(() => BeginShift(mode == GameMode.Challenge ? ShiftPlan.Night6Number : 1));
+            Hollowbrook.Scenes.SceneRouter.Load(Hollowbrook.Scenes.SceneRouter.Checkpoint);
         }
 
         public void ContinueGame()
@@ -72,26 +44,16 @@ namespace Hollowbrook.Core
             Records = save.Records;
             Settings.AdoptFromSaveIfFresh(save.Settings);
             _resolvedVisitorIndices.Clear();
-            _runRng = new GameRng(Session.Seed ^ 0x5EED);
             _continuePending = true;
-            if (Session.Mode == GameMode.Normal)
+            int shift = Mathf.Clamp(Session.CurrentShift, 1, ShiftPlan.TotalShifts);
+            int resumeFrom = save.Session.VisitorIndexAtSave;
+            QueueSceneAction(() =>
             {
-                int shift = Mathf.Clamp(Session.CurrentShift, 1, ShiftPlan.TotalShifts);
-                int resumeFrom = save.Session.VisitorIndexAtSave;
-                QueueSceneAction(() =>
-                {
-                    bool isResume = (save.Session.QueueState != null && save.Session.QueueState.Started) || resumeFrom > 0;
-                    BeginShift(shift, resumeFrom, isResume);
-                    if (isResume) RemapAdmittedToRoster();
-                });
-                Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
-            }
-            else
-            {
-                // Run modes only persist records; restart the mode fresh.
-                _continuePending = false;
-                StartNewGame(Session.Mode);
-            }
+                bool isResume = (save.Session.QueueState != null && save.Session.QueueState.Started) || resumeFrom > 0;
+                BeginShift(shift, resumeFrom, isResume);
+                if (isResume) RemapAdmittedToRoster();
+            });
+            Hollowbrook.Scenes.SceneRouter.Load(Hollowbrook.Scenes.SceneRouter.Checkpoint);
         }
 
         /// <summary>Normal mode: prepare and enter a shift. Roster generation replays earlier
@@ -100,7 +62,8 @@ namespace Hollowbrook.Core
         public void BeginShift(int number, int resumeFromVisitor = 0, bool isResume = false)
         {
             _resumeFromVisitor = resumeFromVisitor;
-            number = Mathf.Clamp(number, 1, ShiftPlan.TotalShifts);
+            number = Mathf.Clamp(number, 1, ShiftPlan.LastNight(Session.Mode));
+            string penaltyNote = isResume ? null : PenaltyNote();   // read before BeginNight pays and clears it
             Session.CurrentShift = number;
             PrepareShiftRoster(number, isResume);
             // a resume keeps the loaded night state: presentation log, admitted students
@@ -118,7 +81,7 @@ namespace Hollowbrook.Core
             _shiftMinutes = isResume ? Session.ShiftClockMinutes : 0f;
             if (!isResume) Session.ShiftClockMinutes = 0f;
             SetupShiftQueue(number, resumeFromVisitor);
-            PlayIntroThenCheckpoint(BuildShiftIntroLines(number), CurrentShiftDef);
+            PlayIntroThenCheckpoint(BuildShiftIntroLines(number, penaltyNote), CurrentShiftDef);
             _resumeFromVisitor = 0;
         }
 
@@ -129,8 +92,7 @@ namespace Hollowbrook.Core
             var plan = ShiftPlan.Build();
             Roster = new RosterFactory(Session.Seed);
             for (int i = 0; i < number - 1; i++) Roster.GenerateShift(plan[i]); // advance RNG deterministically
-            CurrentShiftDef = (Config != null && Config.exhibitionMode && number == 1)
-                ? ShiftPlan.ExhibitionDef() : plan[number - 1];
+            CurrentShiftDef = number == ShiftPlan.Night6Number ? ShiftPlan.Night6Def() : plan[number - 1];
             CurrentRoster = Roster.GenerateShift(CurrentShiftDef);
             // one shared pool: this shift's anomalies, outstanding until resolved.
             // Kinds derive from seed^shift (not the shared stream) so a resumed night
@@ -154,16 +116,34 @@ namespace Hollowbrook.Core
             }
         }
 
+        // What a failed night costs tonight, said out loud in the intro. Null after a clean night.
+        internal string PenaltyNote()
+        {
+            int severity = Session.PendingPenaltySeverity;
+            if (severity <= 0) return null;
+            int loss = Mathf.RoundToInt(ShiftFailureRules.StartSanityLoss(severity, Session.PendingPenaltyNight));
+            string cause = Session.LastShiftFailure == ShiftFailure.Blackout
+                ? "You blacked out at your post."
+                : "You clocked out with an anomaly let in.";
+            return cause + " Tonight you start with " + loss + " less sanity, and something is already walking the halls.";
+        }
+
         // The night's opening cards: title, objective and the rules addendum (plus the
         // Night-5 administrator warning).
-        private List<DialogueLine> BuildShiftIntroLines(int number)
+        private List<DialogueLine> BuildShiftIntroLines(int number, string penaltyNote)
         {
             var intro = new List<DialogueLine>
             {
                 new DialogueLine { Speaker = "NIGHT " + number + " - " + CurrentShiftDef.DateLabel.ToUpperInvariant(), Text = CurrentShiftDef.Title + ". " + CurrentShiftDef.Objective },
                 new DialogueLine { Speaker = "PAPER NOTE", Text = CurrentShiftDef.RuleNoteAddendum },
             };
-            if (number == 5)
+            if (!string.IsNullOrEmpty(penaltyNote))
+                intro.Add(new DialogueLine { Speaker = "LAST NIGHT", Text = penaltyNote });
+            if (number == ShiftPlan.Night6Number)
+            {
+                intro.Add(new DialogueLine { Speaker = "???", Text = "He said he would be back. He does not give up. Deny him again, and this time he will not be gentle. Only the light stops him." });
+            }
+            else if (number == 5)
             {
                 intro.Add(new DialogueLine { Speaker = "???", Text = "Tonight the district sends an administrator to 'take control'. Check the credentials like you would check anyone else's. Trust the evidence." });
             }
@@ -198,23 +178,13 @@ namespace Hollowbrook.Core
         {
             var t = new QueueTuning();
             if (Config == null) return t;
-            // Normal mode paces the night: a slow base clock that tightens every night and
-            // hurries only while the window is busy. Endless/Challenge keep the fast race
-            // clock and never hurry (their timer is the pressure).
-            bool normal = Session != null && Session.Mode == GameMode.Normal;
-            if (normal)
-            {
-                float scale = Mathf.Pow(Config.queueNightScale, Mathf.Max(0, Session.CurrentShift - 1));
-                t.ArrivalMinSeconds = Config.queueArrivalMinSeconds * scale;
-                t.ArrivalMaxSeconds = Config.queueArrivalMaxSeconds * scale;
-                t.BusyHurryMultiplier = Config.queueBusyHurryMultiplier;
-                t.NextStudentSeconds = Config.nextStudentSeconds;
-            }
-            else
-            {
-                t.ArrivalMinSeconds = Config.queueRunMinSeconds;
-                t.ArrivalMaxSeconds = Config.queueRunMaxSeconds;
-            }
+            // The night is paced by a slow base clock that tightens every night and
+            // hurries only while the window is busy.
+            float scale = Mathf.Pow(Config.queueNightScale, Mathf.Max(0, Session.CurrentShift - 1));
+            t.ArrivalMinSeconds = Config.queueArrivalMinSeconds * scale;
+            t.ArrivalMaxSeconds = Config.queueArrivalMaxSeconds * scale;
+            t.BusyHurryMultiplier = Config.queueBusyHurryMultiplier;
+            t.NextStudentSeconds = Config.nextStudentSeconds;
             t.PressureWarnAt = Config.queuePressureWarnAt;
             t.OverwhelmedAt = Config.queueOverwhelmedAt;
             t.MissingStudentChance = Config.missingStudentChance;
@@ -238,23 +208,18 @@ namespace Hollowbrook.Core
         private void PlayIntroThenCheckpoint(List<DialogueLine> intro, ShiftDef shift)
         {
             SetState(AppViewState.ShiftIntro);
-            ObjectiveText = shift != null ? shift.Objective :
-                (Session.Mode == GameMode.Endless ? "Survive the clock. Reject every anomaly." : "Survive the clock under shifting district rules.");
+            ObjectiveText = shift.Objective;
             Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));
             Audio.PlayMusic("checkpoint");
             Debug.Log("[Flow] intro shown (loading=" + (Loading != null) + " dialogue=" + (Dialogue != null) + ")");
-            if (Dialogue == null) Debug.LogError("[GameRoot] intro: Dialogue view NULL - check scene bootstrap view creation.");
+            if (Dialogue == null) Debug.LogError("[GameRoot] intro: Dialogue view NULL - check the scene set up.");
             if (Loading == null) Debug.LogError("[GameRoot] intro: Loading view NULL - no NIGHT backdrop will show.");
             if (Checkpoint == null) Debug.LogError("[GameRoot] intro: Checkpoint view NULL - the desk cannot start.");
             // the night title fades in slowly on the black card FIRST, and only then does the
             // dialogue box open over it (a click skips the title)
             System.Action startDialogue = () => PlayIntroDialogue(intro, shift);
             if (Loading != null)
-                Loading.PlayNightTitle(
-                    shift != null ? "NIGHT " + shift.Number
-                        : (Session.Mode == GameMode.Endless ? "ENDLESS WATCH" : "CHALLENGE PROTOCOL"),
-                    shift != null ? shift.DateLabel.ToUpperInvariant() : "HOLLOWBROOK COLLEGE - NIGHT CUSTODIAN PROGRAM",
-                    startDialogue);
+                Loading.PlayNightTitle("NIGHT " + shift.Number, shift.DateLabel.ToUpperInvariant(), startDialogue);
             else startDialogue();
         }
 
@@ -293,10 +258,7 @@ namespace Hollowbrook.Core
             Session.TonightLog.RecordFrom(visitor, "earlier tonight");
             _shiftMinutes += 240f / (CurrentRoster.Count + 1);
 
-            if (Session.Mode == GameMode.Endless || Session.Mode == GameMode.Challenge)
-                ApplyRunModeScoring(outcome);
-            else
-                Session.Score += outcome.Correct ? (outcome.WasAnomaly ? 100 : 50) : 0;
+            Session.Score += outcome.Correct ? (outcome.WasAnomaly ? 100 : 50) : 0;
 
             // atmosphere reacts to breaches
             if (outcome.AnomalyBreach && !outcome.WasAdministrator)
@@ -311,43 +273,6 @@ namespace Hollowbrook.Core
             {
                 TriggerEnding(eval);
             }
-        }
-
-        // Endless/Challenge bookkeeping per verdict: processed count, score, bought seconds
-        // and the challenge mutation wave.
-        private void ApplyRunModeScoring(InspectionRules.Outcome outcome)
-        {
-            Session.RunProcessed++;
-            EndlessProcessed = Session.RunProcessed;
-            Session.Score += ComputeRunScore(outcome);
-            float delta = Session.ApplyRunTimer(outcome);
-            if (HUD != null) HUD.Notify(delta >= 0 ? "+" + delta.ToString("0") + "s" : delta.ToString("0") + "s");
-            if (Session.Mode == GameMode.Challenge && Session.RunProcessed % ChallengeRules.VisitorsPerRuleWave == 0)
-                RollChallengeMutation();
-        }
-
-        private int ComputeRunScore(InspectionRules.Outcome o)
-        {
-            int baseScore = EndlessRules.ScoreFor(o, Session.Streak);
-            if (Session.Mode == GameMode.Challenge) baseScore = (int)(baseScore * ChallengeRules.ScoreMultiplier);
-            return baseScore;
-        }
-
-        private void RollChallengeMutation()
-        {
-            int wave = Session.RunProcessed / ChallengeRules.VisitorsPerRuleWave;
-            var m = ChallengeRules.RollMutation(wave, _runRng);
-            Session.ActiveMutationKey = m.Key;
-            Bus.Publish(GameEvent.Of(EventIds.MutationChanged, m));
-            Audio.PlaySfx("sfx_intercom");
-            Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*intercom crackles: new district bulletin*", 3f, null));
-        }
-
-        /// <summary>Endless/Challenge run generation (per-visitor, on demand).</summary>
-        public VisitorData NextRunVisitor()
-        {
-            if (Roster == null) Roster = new RosterFactory(Session.Seed);
-            return Roster.GenerateRunVisitor(Session.RunProcessed);
         }
     }
 }

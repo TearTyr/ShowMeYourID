@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Hollowbrook.Audio;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Checkpoint;
 using Hollowbrook.Horror;
 using Hollowbrook.Logic;
@@ -11,7 +11,7 @@ using UnityEngine;
 namespace Hollowbrook.Core
 {
     /// <summary>Central game orchestrator (the "root"). Owns services, the run session and
-    /// explicit references to every view - assigned once by CoreBootstrap + the scene bootstraps.
+    /// explicit references to every view - assigned once by GameCore + the scene scripts.
     /// Gameplay code never uses GameObject.Find; it goes through this class or the EventBus.</summary>
     public partial class GameRoot : MonoBehaviour
     {
@@ -37,7 +37,6 @@ namespace Hollowbrook.Core
         // The classroom being peeked into from the doorway (null when not peeking).
         // Set by EnterRoomPeek; cleared by ViewManager.ExitPeek when the step-back ends.
         public RoomId? PeekRoom { get; internal set; }
-        public int EndlessProcessed { get; private set; }
 
         /// <summary>The checkpoint arrival queue - persistent run state. Owned here (not by
         /// the desk view) so the waiting line, roster cursor, arrival timer and start gate
@@ -46,14 +45,13 @@ namespace Hollowbrook.Core
         public CheckpointQueue Queue { get; private set; } = new CheckpointQueue();
         private bool _continuePending;
 
-        // ---- views (explicit references, set by the per-scene bootstraps) ----
+        // ---- views (explicit references, set by the per-scene scripts) ----
         public Camera MainCamera;
         public ViewManager Views;
         public CheckpointView Checkpoint;
         public HUDView HUD;
         public DialogueView Dialogue;
         public MainMenuView MainMenu;
-        public ModeSelectView ModeSelect;
         public SettingsView SettingsScreen;
         public PauseView PauseScreen;
         public ControlsView ControlsScreen;
@@ -90,7 +88,7 @@ namespace Hollowbrook.Core
         private float _queuedAt;
         private bool _handshakeArmed;
 
-        // Safety net: if a scene load never runs its bootstrap (missing bootstrap component,
+        // Safety net: if a scene load never runs its scene script (missing scene component,
         // scene not in Build Settings), the queued start action is never consumed and the
         // player would stare at a dead screen. After the window we say exactly that and go
         // back to the menu. Do not remove: this is the only detector for that failure.
@@ -102,10 +100,10 @@ namespace Hollowbrook.Core
             _queuedSceneAction = null;
             Debug.LogError("[GameRoot] scene handshake FAILED: the queued start action was never " +
                 "consumed. Usual causes: target scene not enabled in Build Settings, or its " +
-                "bootstrap component missing / stale script GUID (Tools/generate_meta.py pins them).");
+                "scene component missing / stale script GUID (Tools/generate_meta.py pins them).");
             Bus.Publish(GameEvent.Of(EventIds.Notification,
-                "The game scene failed to start. Check Build Settings / scene bootstrap."));
-            Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Menu);
+                "The game scene failed to start. Check Build Settings / the scene script."));
+            Hollowbrook.Scenes.SceneRouter.Load(Hollowbrook.Scenes.SceneRouter.Menu);
         }
 
         private const float HandshakeTimeoutSeconds = 3.5f;
@@ -142,7 +140,6 @@ namespace Hollowbrook.Core
             }
         }
 
-        private GameRng _runRng;
         private int _resumeFromVisitor;
 
         // ---------------------------------------------------------------- lifecycle
@@ -152,10 +149,11 @@ namespace Hollowbrook.Core
         {
             Instance = this;
             Bus = bus; Config = config; Saves = saves; Settings = settings; Audio = audio;
-            DontDestroyOnLoad(gameObject);
+            // (while the editor sets a scene up there is no game to keep alive, and no screen to resize)
+            if (Application.isPlaying) DontDestroyOnLoad(gameObject);
             // One boot-time application of the stored display preference. Missing or unusable
             // preferences are cleared inside; the launcher default otherwise stands.
-            settings.ApplyStoredDisplay();
+            if (Application.isPlaying) settings.ApplyStoredDisplay();
             Bus.Subscribe(EventIds.SettingsChanged, e =>
             {
                 UIFactory.ApplyTextScale(Settings.TextScaleMultiplier);
@@ -169,7 +167,7 @@ namespace Hollowbrook.Core
         private void OnApplicationFocus(bool focused)
         {
             if (focused || Paused || Session == null) return;
-            if (State == AppViewState.MainMenu || State == AppViewState.ModeSelect) return;
+            if (State == AppViewState.MainMenu) return;
             TogglePause(true);
         }
 
@@ -178,7 +176,6 @@ namespace Hollowbrook.Core
             CheckSceneHandshake();
             if (Paused || Session == null) return;
             TickShiftClock();
-            TickRunCountdown();
             TickSanity();
         }
 
@@ -190,23 +187,6 @@ namespace Hollowbrook.Core
                 State == AppViewState.Map || State == AppViewState.RoomPeek)
             {
                 AdvanceShiftClock(ClampedDelta * (Config != null ? Config.clockMinutesPerSecond : 0.25f));
-            }
-        }
-
-        // Endless / Challenge countdown - only while actually inspecting (and only
-        // once the shift has begun; the sticky note must not burn run time).
-        private void TickRunCountdown()
-        {
-            bool runMode = Session.Mode == GameMode.Endless || Session.Mode == GameMode.Challenge;
-            if (!runMode || State != AppViewState.Checkpoint) return;
-            if (Dialogue == null || Dialogue.IsActive) return;
-            if (Queue == null || !Queue.Started) return;
-            Session.RunTimer -= ClampedDelta;   // clamped: a tab-out spike must not eat run time
-            Bus.Publish(GameEvent.Of(EventIds.RunTimerTick, Session.RunTimer));
-            if (Session.RunTimer <= 0f)
-            {
-                Session.RunTimer = 0f;
-                FinishRun();
             }
         }
 
@@ -230,9 +210,8 @@ namespace Hollowbrook.Core
         private void ApplyVisibility(AppViewState s)
         {
             if (VerboseFlow) Debug.Log("[Flow] ApplyVisibility " + s);
-            bool menu = s == AppViewState.MainMenu || s == AppViewState.ModeSelect;
+            bool menu = s == AppViewState.MainMenu;
             if (MainMenu != null) { if (s == AppViewState.MainMenu) MainMenu.Show(); else MainMenu.Hide(); }
-            if (ModeSelect != null) { if (s == AppViewState.ModeSelect) ModeSelect.Show(); else ModeSelect.Hide(); }
 
             bool inRun = s == AppViewState.Checkpoint || s == AppViewState.Exploration ||
                          s == AppViewState.ShiftIntro ||
@@ -252,7 +231,7 @@ namespace Hollowbrook.Core
             }
             if (MapScreen != null) { if (s == AppViewState.Map) MapScreen.Show(); else MapScreen.Hide(); }
             if (ShiftResults != null) { if (s == AppViewState.ShiftResults) ShiftResults.Show(); else ShiftResults.Hide(); }
-            if (Ending != null) { if (s == AppViewState.Ending || s == AppViewState.EndlessResults) Ending.Show(); else Ending.Hide(); }
+            if (Ending != null) { if (s == AppViewState.Ending) Ending.Show(); else Ending.Hide(); }
             if (Captions != null) { if (menu) Captions.Hide(); else Captions.Show(); }
         }
 
@@ -339,7 +318,7 @@ namespace Hollowbrook.Core
                 PersistRun();
             }
             if (Views != null) Views.HideWorld();
-            Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Menu);
+            Hollowbrook.Scenes.SceneRouter.Load(Hollowbrook.Scenes.SceneRouter.Menu);
         }
 
         /// <summary>True while a run is actually in progress - the menu's blank session
@@ -347,7 +326,7 @@ namespace Hollowbrook.Core
         private bool InRunProgress() =>
             Session != null && Session.Mode == GameMode.Normal && !Session.RunFinished &&
             Session.CompletedShifts < ShiftPlan.TotalShifts &&
-            State != AppViewState.MainMenu && State != AppViewState.ModeSelect && State != AppViewState.Boot;
+            State != AppViewState.MainMenu && State != AppViewState.Boot;
 
         public void QuitApplication()
         {
@@ -368,8 +347,8 @@ namespace Hollowbrook.Core
             if (Instance == this) Instance = null;
             Time.timeScale = 1f;
             // the procedural atlases are native allocations: release them with the core
-            Hollowbrook.Bootstrap.ProceduralArt.ClearCache();
-            Hollowbrook.Bootstrap.ProceduralAudio.ClearCache();
+            Hollowbrook.Scenes.ProceduralArt.ClearCache();
+            Hollowbrook.Scenes.ProceduralAudio.ClearCache();
         }
     }
 }

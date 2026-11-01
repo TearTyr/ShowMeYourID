@@ -23,7 +23,7 @@ a district administrator, and turning him away is only the start.
    the Build Settings list, the art import settings and `GameConfig.asset`, and only touches what is
    broken. **Hollowbrook > Check Project** just reports.
 3. Press **Play**. The first scene is `Assets/_Project/Scenes/MainMenu.unity`. Each of the three
-   scenes holds one bootstrap object that builds everything in code.
+   scenes holds its screens as real objects (put there by the setup tool) that you can edit.
 4. Windows build: `File > Build Settings > Windows > Build` (the three scenes are already listed).
 
 The game ships painted art for the desk, the menu, the hallway, the classrooms, the comfort room
@@ -50,10 +50,10 @@ Folder rules and naming are in [docs/ART-NAMING.md](docs/ART-NAMING.md), the ful
 7. **Patrol** (between visitors) - walk the hallway, peek into classrooms, find the ten findings.
    The hallway passes the rooms in the desk map's order: Security, Room 101, Room 202, CR-1, the
    sealed server room, CR-2. Every room is a peek (`E` at its door).
-   Each night needs one patrol: peek into Room 101, Room 202 and a CR, then END SHIFT. Only the hallway has roaming anomalies. The peek rooms hold standing ones that never move: hold the lit lamp on one to drive it out. In the hallway the guard only has a weak light around him, so sweep the flashlight, up at the ceiling and down at the floor too.
+   Each night needs one patrol: peek into Room 101, Room 202 and a CR, then END SHIFT. Only the hallway has roaming anomalies. The peek rooms hold a hooded figure that never moves, in some rooms each night: put the lit lamp fully on him and he flickers, the lamp dims and dies, and when the light slowly returns he is gone. It cannot be interrupted, and he never attacks. In the hallway the guard only has a weak light around him, so sweep the flashlight, up at the ceiling and down at the floor too.
 8. **Night 5** - no students, only the administrator. The student questions do not apply to him:
-   interrogate him (`T`), catch his lies, refuse him (**REFUSE ENTRY** or a DENY stamp), and he
-   forces his way in. Survive until dawn (see below).
+   interrogate him (`T`) as often as you like, catch his lies, turn him away with the DENY stamp, and he
+   forces his way in. He speaks only through the dialogue box. Survive until dawn (see below).
 
 ### Night 5: surviving the administrator
 
@@ -80,10 +80,14 @@ The numbers are in `GameConfig.asset` under "Administrator hunt".
 | Dialogue | click / `Space` / `Enter` / `E` |
 | Menu | `F2` ×3 erases save data (then confirm) |
 
-## Tokens
+## Night 6: the Challenge
 
-Repelled anomalies leave tokens behind. They are kept between runs and shown on the main menu.
-Three tokens open Endless and Challenge from the TOKENS button.
+Finish the story (the Win or the Secret ending) and the **NIGHT 6** button on the main menu opens.
+It is Night 5 again, harder: he comes back, says he does not give up and asks you to make the
+right decision. He has a new set of questions. Deny him again and the pursuit starts, with only 2
+catches allowed, shorter walks between stops, less time to find him and a longer night. It is one
+night: quitting it ends it, and it never touches your story save. The numbers are under "Night 6" in
+`GameConfig.asset`.
 
 ## Endings
 
@@ -96,7 +100,7 @@ Three tokens open Endless and Challenge from the TOKENS button.
 
 ```
 Assets/_Project/
-  Scenes/                 MainMenu, Hollowbrook (the desk), School (patrol) - one bootstrap each
+  Scenes/                 MainMenu, Hollowbrook (the desk), School (patrol) - hold their screens
   Editor/                 ProjectSetup: the Hollowbrook menu (one click setup and check), editor only
   Resources/              GameConfig.asset (tuning), Audio/ drop-in files
     Art/                  Characters/, UI/ (SecurityDesk, MainMenu) and Environment/ (Hallway, Rooms,
@@ -108,11 +112,12 @@ Assets/_Project/
     World/                patrol: rooms, player, flashlight, peek lamp, anomalies, the hunt
     Horror/               anomalies, sanity, scares, hallucinations
     UI/                   menus, HUD, dialogue, map, results, endings
-    Bootstrap/            one script per scene that builds it, plus procedural art and audio
+    Scenes/               one start script per scene, plus the find or make helpers (SceneBuild, SceneEdits)
+    Generated/            procedural art and audio (painted in code when no file exists)
     Audio/                music and effects
 Art/                      source art for the prep scripts (the current kit is "UI and Design Assets")
 Tools/                    test, check and art prep tools (not part of the game build)
-docs/                     GUIDE.md, GAMEPLAY-OVERVIEW.md, ART-NAMING.md, ASSET-MANIFEST.md, archive/
+docs/                     GUIDE.md, GAMEPLAY-OVERVIEW.md, ART-NAMING.md, ASSET-MANIFEST.md
 ```
 
 ## Checking your changes (no Unity needed)

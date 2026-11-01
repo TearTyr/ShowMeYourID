@@ -1,4 +1,4 @@
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using Hollowbrook.UI;
@@ -80,7 +80,7 @@ namespace Hollowbrook.Checkpoint
             if (_topLeft != null) _topLeft.color = UIFactory.NsChalk;   // white night line on the board
             var facade = FindImage(_desk, "facade");
             if (facade != null) Fade(facade);   // the kit glass paints the booth interior
-            // best-effort immediate tint; under the normal bootstrap order the HUD does not
+            // best-effort immediate tint; in the normal scene set up order the HUD does not
             // exist yet, and CheckpointView.RefreshHud lands it lazily on the first refresh.
             if (_gameRoot != null && _gameRoot.HUD != null) _gameRoot.HUD.ApplyKitSanity(true);
             SkinButton(FindButton(_desk, "pause"), null);   // kit pause block shows through

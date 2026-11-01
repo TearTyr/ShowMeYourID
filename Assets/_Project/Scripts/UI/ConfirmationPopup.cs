@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using UnityEngine;
@@ -10,7 +10,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    // Yes/No box used for exits and data reset. Created by each scene bootstrap.
+    // Yes/No box used for exits and data reset. Lives in each scene file, connected by the scene script.
     public class ConfirmationPopup : MonoBehaviour, IScreenView
     {
         private GameObject _root;

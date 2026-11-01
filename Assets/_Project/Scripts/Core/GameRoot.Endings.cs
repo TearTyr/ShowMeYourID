@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Hollowbrook.Audio;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Checkpoint;
 using Hollowbrook.Horror;
 using Hollowbrook.Logic;
@@ -21,22 +21,24 @@ namespace Hollowbrook.Core
 
         private EndingRules.Evaluation _endingAfterResults;
 
-        /// <summary>The END SHIFT button. Clocking out with an anomaly let in fails the night (black
-        /// screen, a face, the jumpscare) on nights 1-4; anything else just ends the shift.</summary>
+        /// <summary>The END SHIFT button. Clocking out with an anomaly let in fails the night on nights
+        /// 1-4: it is recorded and paid for the next night (and said in that night's intro), but there
+        /// is no scare. Scares belong to patrol and peeking.</summary>
         public void RequestEndShift()
         {
             bool failed = Session.Mode == GameMode.Normal && Session.CurrentShift < ShiftPlan.TotalShifts &&
                           Session.ShiftBreaches > 0;
-            if (failed) FailShift(ShiftFailure.Breach);
-            else FinishShift();
+            if (failed) Session.RecordShiftFailure(ShiftFailure.Breach);
+            FinishShift();
         }
 
         /// <summary>The sanity bar hit zero. Nights 1-4: the custodian blacks out and the shift ends.
         /// The final night is the unique one: a blackout there is the Lose result.</summary>
         public void OnSanityDepleted()
         {
-            if (ShiftFailing || Session.Mode != GameMode.Normal) return;
-            if (Session.CurrentShift < ShiftPlan.TotalShifts) { FailShift(ShiftFailure.Blackout); return; }
+            if (ShiftFailing) return;
+            if (Session.Mode == GameMode.Normal && Session.CurrentShift < ShiftPlan.TotalShifts)
+            { FailShift(ShiftFailure.Blackout); return; }
             ShiftFailing = true;
             var lose = new EndingRules.Evaluation
             {
@@ -46,8 +48,8 @@ namespace Hollowbrook.Core
             PlayFailure(() => { ShiftFailing = false; TriggerEnding(lose); });
         }
 
-        // A failed night (nights 1-4): record how and what it will cost, play the scene, then close
-        // the shift out, which goes straight back to the main menu.
+        // A blackout (nights 1-4): record it, play the scene, then close the shift out, which goes
+        // straight back to the main menu.
         private void FailShift(ShiftFailure kind)
         {
             if (ShiftFailing) return;
@@ -60,9 +62,11 @@ namespace Hollowbrook.Core
             });
         }
 
+        // The scare only plays out on patrol or in a peek. Fainting at the desk just ends the night.
         private void PlayFailure(System.Action then)
         {
-            if (Scares != null) Scares.FailureSequence(AnomalyBehaviorKind.Blink, then);
+            bool onPatrol = State == AppViewState.Exploration || State == AppViewState.RoomPeek;
+            if (Scares != null && onPatrol) Scares.FailureSequence(AnomalyBehaviorKind.Blink, then);
             else then();
         }
 
@@ -76,12 +80,9 @@ namespace Hollowbrook.Core
             PersistRun();
 
             var eval = Session.EvaluateEnding();
-            if (eval.Ending == EndingType.None && Config != null && Config.exhibitionMode && Session.CompletedShifts >= 1)
-            {
-                Session.Breaches += Session.Pool.Pending;         // booth night closes its books too
-                eval = EndingRules.EvaluateExhibition(Session);   // booth cut closes after one night
-            }
-            if (Config != null && Config.exhibitionMode && eval.Ending != EndingType.None) { TriggerEnding(eval); return; }
+
+            // night 6 is one night: straight to its ending
+            if (Session.Mode == GameMode.Challenge) { TriggerEnding(eval); return; }
 
             // nights 1 to 4 end straight at the main menu; Continue starts the next one
             if (Session.Mode == GameMode.Normal && Session.CurrentShift <= ShiftPlan.TotalShifts)
@@ -98,6 +99,18 @@ namespace Hollowbrook.Core
             Audio.PlayMusic("");
         }
 
+        /// <summary>Night 6 opens once the story has been finished (a Win or the Secret ending), read
+        /// from the save so it is right on the main menu too.</summary>
+        public bool Night6Unlocked
+        {
+            get
+            {
+                var save = Saves != null ? Saves.Read() : null;
+                var seen = save != null && save.Records != null ? save.Records.EndingsSeen : null;
+                return seen != null && (seen.Contains("win") || seen.Contains("secret"));
+            }
+        }
+
         public void AdvanceToNextShift()
         {
             if (_endingAfterResults != null)
@@ -111,17 +124,6 @@ namespace Hollowbrook.Core
             BeginShift(Session.CurrentShift);
         }
 
-        public void FinishRun() // endless/challenge time-out
-        {
-            if (Session.Mode == GameMode.Endless && Session.Score > Records.EndlessBest) Records.EndlessBest = Session.Score;
-            if (Session.Mode == GameMode.Challenge && Session.Score > Records.ChallengeBest) Records.ChallengeBest = Session.Score;
-            Session.RunFinished = true;
-            PersistRun();
-            SetState(AppViewState.EndlessResults);
-            if (Ending != null) Ending.PopulateRunResults(Session, Records);
-            Audio.PlayMusic(Session.Score > 0 ? "end_win" : "end_lose");
-        }
-
         public void TriggerEnding(EndingRules.Evaluation eval)
         {
             if (Ending == null)
@@ -129,11 +131,11 @@ namespace Hollowbrook.Core
                 // the ending screen lives in the desk scene: go there first (e.g. a blackout on patrol)
                 if (Views != null) Views.StopAdminHunt();
                 QueueSceneAction(() => TriggerEnding(eval));
-                Hollowbrook.Bootstrap.SceneRouter.Load(Hollowbrook.Bootstrap.SceneRouter.Checkpoint);
+                Hollowbrook.Scenes.SceneRouter.Load(Hollowbrook.Scenes.SceneRouter.Checkpoint);
                 return;
             }
             string key = eval.Ending == EndingType.Secret ? "secret" : (eval.Ending == EndingType.Win ? "win" : "lose");
-            if (eval.ReasonKey != "exhibition" && !Records.EndingsSeen.Contains(key)) Records.EndingsSeen.Add(key);
+            if (Session.Mode == GameMode.Normal && !Records.EndingsSeen.Contains(key)) Records.EndingsSeen.Add(key);
             Session.RunFinished = true;
             PersistRun();
             SetState(AppViewState.Ending);

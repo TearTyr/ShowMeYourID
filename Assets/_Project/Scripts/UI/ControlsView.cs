@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using UnityEngine;
@@ -10,7 +10,7 @@ using UnityEngine.UI;
 
 namespace Hollowbrook.UI
 {
-    // Static key-reference sheet. Created by each scene bootstrap.
+    // Static key-reference sheet. Lives in each scene file, connected by the scene script.
     public class ControlsView : MonoBehaviour, IScreenView
     {
         private GameRoot _gameRoot;

@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
 using Hollowbrook.UI;
@@ -22,7 +22,7 @@ namespace Hollowbrook.Checkpoint
         {
             var qPanel = UIFactory.BorderedPanel(_desk, "qpanel", UIFactory.Paper, UIFactory.Border, 2);
             Reg("questions", qPanel, L.Questions);
-            qPanel.gameObject.AddComponent<RectMask2D>();
+            qPanel.gameObject.GetOrAdd<RectMask2D>();
             var qHead = UIFactory.Label(qPanel, "head", "QUESTIONS", 22, UIFactory.NsChalk, TextAnchor.MiddleLeft);
             qHead.font = UIFactory.UiFontCondensed;   // the board's chunky condensed face
             qHead.horizontalOverflow = HorizontalWrapMode.Overflow;
@@ -137,12 +137,12 @@ namespace Hollowbrook.Checkpoint
         private Button PaperProp(string name, string kitKey, System.Action onClick, L.Region r, float tilt)
         {
             var rt = UIFactory.NewUI(_desk, name);
-            var img = rt.gameObject.AddComponent<UnityEngine.UI.Image>();
+            var img = rt.gameObject.GetOrAdd<UnityEngine.UI.Image>();
             var sp = ProceduralArt.Get(kitKey);
             if (sp != null) { img.sprite = sp; img.color = Color.white; }
             else img.color = UIFactory.Paper;
             img.raycastTarget = true;
-            var b = rt.gameObject.AddComponent<UnityEngine.UI.Button>();
+            var b = rt.gameObject.GetOrAdd<UnityEngine.UI.Button>();
             b.targetGraphic = img;
             b.onClick.AddListener(() => onClick());
             L.Place(rt, r);
@@ -202,7 +202,7 @@ namespace Hollowbrook.Checkpoint
             Reg(goName, panel.rectTransform, region);
             // NO word over the artwork: the stamp illustration stays clean ink. The
             // verdict is told by the stamp's own colour and the check/cross badge on its head.
-            var drag = panel.gameObject.AddComponent<DragPaper>();
+            var drag = panel.gameObject.GetOrAdd<DragPaper>();
             drag.Init(_desk, 0f);
             drag.ReturnsHome = true;                 // stamps live in the tray
             drag.OnPickedUp = () => SetSlipGlow(true);    // the slip lights up: that is where it goes
@@ -349,8 +349,7 @@ namespace Hollowbrook.Checkpoint
             if (_current == null || _verdictLocked || !_documentsTaken) return;
             if (Queue != null && Queue.Collapsed) return;   // the line overran the checkpoint - verdicts are dead
             _verdictLocked = true; // §2.4 - decisions are permanent
-            var mutation = _gameRoot.Session.Mode == GameMode.Challenge ? _gameRoot.Session.ActiveMutation : null;
-            var outcome = InspectionRules.Apply(_current, verdict, mutation);
+            var outcome = InspectionRules.Apply(_current, verdict);
 
             // the thud already played when the stamp landed; hand-back owns its own sound
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VerdictStamped, outcome));
@@ -407,7 +406,7 @@ namespace Hollowbrook.Checkpoint
                 var rt = UIFactory.NewUI(transform, "deny_dim");
                 rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
                 rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
-                _denyDim = rt.gameObject.AddComponent<Image>();
+                _denyDim = rt.gameObject.GetOrAdd<Image>();
                 _denyDim.raycastTarget = false;
             }
             _denyDim.color = new Color(0f, 0f, 0f, alpha);

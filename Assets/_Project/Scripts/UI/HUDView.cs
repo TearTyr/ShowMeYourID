@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Hollowbrook.Bootstrap;
+using Hollowbrook.Scenes;
 using Hollowbrook.Checkpoint;
 using Hollowbrook.Core;
 using Hollowbrook.Logic;
@@ -9,7 +9,7 @@ using L = Hollowbrook.Checkpoint.CheckpointLayout;
 
 namespace Hollowbrook.UI
 {
-    // Sanity, light battery, findings, prompts. Created by each scene bootstrap.
+    // Sanity, light battery, findings, prompts. Lives in each scene file, connected by the scene script.
     // Lives in its own fixed 1280x720 frame so the top-bar meters sit in the same grid slots
     // as the desk underneath - at every aspect ratio.
     public class HUDView : MonoBehaviour, IScreenView
@@ -67,7 +67,7 @@ namespace Hollowbrook.UI
         {
             _gameRoot = root;
             _frame = L.DeskFrame(transform, "HudFrame");
-            var audit = _frame.gameObject.AddComponent<DeskLayoutAudit>();
+            var audit = _frame.gameObject.GetOrAdd<DeskLayoutAudit>();
 
             var barBg = UIFactory.BorderedPanel(_frame, "sanitybg", UIFactory.PanelBase, UIFactory.Border, 2);
             // the SecurityRoom kit paints the sanity bar's furniture on the desk canvas; the HUD
@@ -128,9 +128,9 @@ namespace Hollowbrook.UI
             bandRt.pivot = new Vector2(0.5f, 0f);
             bandRt.offsetMin = new Vector2(0f, 0f);
             bandRt.offsetMax = new Vector2(0f, 44f);
-            var bandImg = bandRt.gameObject.AddComponent<Image>();
+            var bandImg = bandRt.gameObject.GetOrAdd<Image>();
             bandImg.color = new Color(1f, 1f, 1f, 0.05f);
-            var bandBtn = bandRt.gameObject.AddComponent<Button>();
+            var bandBtn = bandRt.gameObject.GetOrAdd<Button>();
             bandBtn.targetGraphic = bandImg;
             bandBtn.onClick.AddListener(() => _gameRoot.ExitRoomPeek());
             var bandCap = UIFactory.Label(bandRt, "cap", "STEP BACK TO THE HALLWAY  [S]", 13,
@@ -156,7 +156,6 @@ namespace Hollowbrook.UI
             }));
             _subs.Add(root.Bus.Subscribe(EventIds.Notification, e => Notify(e.Text)));
             _subs.Add(root.Bus.Subscribe(EventIds.ClueDiscovered, e => RefreshFindings()));
-            _subs.Add(root.Bus.Subscribe(EventIds.TokenCollected, e => RefreshFindings()));
             _subs.Add(root.Bus.Subscribe(EventIds.BatteryChanged, e => { SetBattery(e.Value); RefreshRoom(); }));
             _subs.Add(root.Bus.Subscribe(EventIds.RoomEntered, e => RefreshRoom()));
             _subs.Add(root.Bus.Subscribe(EventIds.LightModeChanged, e => RefreshRoom()));
@@ -259,8 +258,7 @@ namespace Hollowbrook.UI
         {
             if (_gameRoot.Session == null) return;
             _findings.text = "FINDINGS " + _gameRoot.Session.Clues.FoundCount + "/10" +
-                             (_gameRoot.Session.Clues.OrderIntact ? "" : "  (order broken)") +
-                             (_gameRoot.Session.TokensCollected > 0 ? "  ·  TOKENS " + _gameRoot.Session.TokensCollected : "");
+                             (_gameRoot.Session.Clues.OrderIntact ? "" : "  (order broken)");
         }
 
         public void RefreshRoom()

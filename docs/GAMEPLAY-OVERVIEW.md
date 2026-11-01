@@ -4,7 +4,7 @@
 box opens on black, then fades -> the black lifts off the shut booth -> **sticky note ("CLICK TO
 BEGIN", on night 1 the how to play card)** -> the shutter opens for the first student ->
 **checkpoint desk** <-> **patrol** (hallway + 2 classrooms) -> shift results -> next
-night -> ending. Exhibition build (`exhibitionMode` in GameConfig) = one curated night.
+night -> ending.
 
 **The line:** an **arrival clock** (25-30 s on night 1, x0.8 each night, double speed while the
 window is busy) walks the roster up to the booth. If the window is busy they queue in the yard.
@@ -51,20 +51,21 @@ dark. The doors follow the desk map: Security, Room 101, Room 202, CR-1, the sea
 (FloorPlan.cs draws the hallway and both maps). The **flashlight** points at the cursor (`F` sweep
 on/off, `Q` focus, `L` off). While it is lit it turns the guard to face it; while it is off he faces
 the way he walks. **One patrol cycle** is required before END SHIFT: peek into Room 101, Room 202 and
-a CR (either one). **Anomalies** roam the hallway only, from night 1, with one guaranteed about 15 seconds into each patrol: hold the Focus beam on it to repel it, and it drops a token. The guard carries only a weak light, so what is ahead of him is black until the flashlight finds it: sweep it along the walls, up at the ceiling and down at the floor. Every room is a
+a CR (either one). **Anomalies** (small, crouched things that slide along the floor, one hangs from the ceiling) roam the hallway only, from night 1, with one guaranteed about 15 seconds into each patrol: hold the Focus beam on it to repel it, and it is gone for a while. The guard carries only a weak light, so what is ahead of him is black until the flashlight finds it: sweep it along the walls, up at the ceiling and down at the floor. Every room is a
 **peek** from its door: a black cover with a hole that follows the mouse shows the room behind it
 (`F` on/off, `Q` wide/tight). `E` selects what the lit lamp is on, nothing else; `S` or the bottom
-edge steps back. The peek rooms hold **standing anomalies** that never move, in some rooms each night and always at least one: hold the lit lamp on one for 1.5 seconds to drive it out. A room does not count for the cycle until its anomaly is gone, and standing ones leave no token. Besides the clues there
+edge steps back. The peek rooms hold a **hooded figure** that stands perfectly still, in some rooms each night and always at least one. Put the lit lamp fully on him (the cursor on his body) and he starts to flicker around while the lamp dims and flickers, then everything goes black, and a slow fade brings the room back with him gone. Once started it always plays to the end and the lamp, `E` and stepping back are locked meanwhile. He never attacks. The peek lamp is about 1.3x smaller than it was. The patrol flashlight no longer paints a yellow cone: it clears the darkness, so the room shows its own art, like the peek lamp. A room does not count for the cycle until its anomaly is gone,. Besides the clues there
 are things to inspect: the patrol clipboard, the lockers, and each CR's mirror, sinks and stalls.
-Tokens are banked between runs and 3 open Endless and Challenge on the main menu. Ten clues, found
+The pocket watch token on Room 101's lost-and-found board is one of the ten: it is picked up when
+inspected (once) and is gone for good, with no other use. Ten clues, found
 in order, open the secret ending.
 
 **Night 5 - the administrator:** no students and no roaming anomalies, only him, with a staff badge
 and a roster memo that do not match. The four student questions are gone. `T` opens the
 interrogation: his badge name, the number, his face, his first stop, and any evidence you found.
 Each answer has a follow-up that catches him out, and every **lie exposed** takes 15 seconds off the
-night (it can never be shorter than 120 seconds). Talking never stamps. **REFUSE ENTRY** = the DENY
-stamp. Allowing him in loses at once.
+night (it can never be shorter than 120 seconds). Talking never stamps, and you can ask him anything again and again. Only the DENY stamp turns him
+away (there is no refuse button). He speaks only through the dialogue box. Allowing him in loses at once.
 
 **The hunt (after the DENY):** the window closes, the booth dims and flickers, and he says he'll be
 back and leaves. The security game is over and only Patrol works; the hunt starts when it is clicked.
@@ -76,12 +77,22 @@ you are thrown back. **3 catches** = he reaches the server door (lose). Survive 
 The security door is locked and every phase has a time limit, so it cannot get stuck. Quit + CONTINUE
 restarts the hunt, or returns to the desk if it has not started.
 
+**Night 6 (the Challenge):** opens on the main menu after the story's Win or Secret ending. He is back
+and says he does not give up; he asks for the right decision and has a new set of questions. DENY him
+again and the pursuit starts, harder: 2 catches, shorter stalks, less time to react, a longer night.
+Surviving to dawn is its own ending. It is one night and never touches the story save.
+
 **End of a night:** nights 1 to 4, won or failed, go straight to the main menu; CONTINUE starts the
-next one. Night 5 shows the results, then the ending.
+next one. Night 5 shows the results, then the ending. A failed night (an anomaly let in, or a
+blackout) has no scare at the desk: the next night's intro says what it costs. Scares only happen on
+patrol and in peeks.
 
 **Endings:** Surviving Hollowbrook (5 nights + dawn on the last) / Another Custodian
 (3 breaches, 3 false rejections, the line overruns, the administrator let in, or three catches on night 5) /
 The Truth Behind Hollowbrook (10 clues in order, dawn reached).
+
+**Main menu:** CONTINUE is dark grey and dead when there is no save. With a save, hovering it shows
+`NIGHT n` under the button.
 
 **Options:** SETTINGS is an audio-only modal (MASTER / MUSIC / SFX), usable from the menu and the
 pause menu. Display, accessibility and the data reset (`F2` x3) live in `SettingsSystem`.
