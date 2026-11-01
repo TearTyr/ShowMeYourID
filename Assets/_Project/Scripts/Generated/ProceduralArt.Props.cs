@@ -45,20 +45,6 @@ namespace Hollowbrook.Scenes
             }
         }
 
-        private static Sprite MakeLampGlow(int d)
-        {
-            var c = new Canvas2D(d, d);
-            float half = d / 2f;
-            for (int y = 0; y < d; y++)
-                for (int x = 0; x < d; x++)
-                {
-                    float dist = Mathf.Sqrt((x - half) * (x - half) + (y - half) * (y - half)) / half;
-                    float a = Mathf.Clamp01(1f - dist);
-                    c.Px[y * d + x] = new Color(1f, 0.97f, 0.88f, a * a * 0.85f);
-                }
-            return c.ToSprite("lamp_glow", UiPpu);
-        }
-
         // The peek's cover: black, with a soft round hole in the middle that shows what is behind it.
         private static Sprite MakePeekHole(int d)
         {

@@ -43,7 +43,7 @@ namespace Hollowbrook.Checkpoint
         private bool _verdictLocked = true;
         private bool _flowActive;
 
-        private Text _topLeft, _topClock, _topQueue;
+        private Text _topLeft, _topClock;
         private string _lastClockText = "";
         private GameObject _stickyRoot;
         private Button _stickyButton;

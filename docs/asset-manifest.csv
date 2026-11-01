@@ -17,7 +17,6 @@ desk_bg,art,ui-bg,P0,procedural,PNG,"PNG 640x360 px @100 ppu (stretched), radial
 folder_tab,art,desk-doc,P0,procedural,PNG,"PNG RGBA 304x26 px @100 ppu, manila tab with poking-up strip on top",CheckpointView drawer (1ST/2ND floor tabs),
 hall_depth,art,world-bg,P0,procedural,PNG,"PNG RGBA, ALPHA-ONLY black radial falloff (see HallwayDarkness.DepthAt), native px = shroud world size x10",hallway limited visibility,must stay alpha-graded or the pool breaks
 id_card_frame,art,desk-doc,P0,procedural,PNG,PNG RGBA 320x220 px @100 ppu (prints 1:1 in the desk grid); photo slot + 6 text rows are drawn ON TOP by code - deliver the blank card art only,"CheckpointView (ID card, offered card)",hollow frame with black spine area left dark
-lamp_glow,art,fx,P0,procedural,PNG,"PNG RGBA 128x128 px, radial warm glow (peek lamp + mask)",PeekLight,
 light_cone,art,fx,P0,procedural,PNG,"PNG RGBA 512x288 px @64 ppu, the beam wedge: hot at the lamp, gone at the reach, feathered shoulders (BeamProfile bakes it)",FlashlightRig cone + stencil mask,mask alpha-cutoff 0.05 depends on the feather - keep the falloff
 menu_background,art,kit,P0,shipped-kit,PNG,full-frame 2880x1620 corridor backdrop (cover-cropped by MainMenuView.FitBackground),MainMenuView (main menu composite per Art/Old/MainMenu/reference),
 menu_frame_square,art,kit,P0,shipped-kit,PNG,cropped 160x162 white outline: SETTINGS / EXIT / CREDITS button frame,MainMenuView (main menu composite per Art/Old/MainMenu/reference),
@@ -57,10 +56,8 @@ stamp_allow,art,desk-doc,P0,temp-shipped,PNG,"PNG RGBA square ~150 px @100 ppu, 
 stamp_reject,art,desk-doc,P0,procedural,PNG,"PNG RGBA square ~150 px @100 ppu, DENY rubber stamp mark",CheckpointView stamp tray + slip mark,"pair of stamp_allow: same weight, same tilt language"
 bubble_tail,art,desk-doc,P1,procedural,PNG,"PNG RGBA 48x40 px @100 ppu, comic-bubble tail pointing left",CheckpointView speech bubble,
 circle_paper,art,functional,P1,code-drawn,PNG,110 px flat paper circle (ID back seal),CheckpointView ID back,
-clipboard,art,desk-doc,P1,procedural,PNG,PNG RGBA 370x490 px @100 ppu,reserve (overlay variant),
 hood_figure,art,character,P1,procedural,PNG,"PNG RGBA 24x48 px @100 ppu, waiting-line silhouette for the queue stands",CheckpointView stands,
 menu_icon_credits,art,kit,P1,shipped-kit,PNG,cropped theatre-masks icon inside the third square,MainMenuView (main menu composite per Art/Old/MainMenu/reference),
-note_paper,art,desk-doc,P1,procedural,PNG,"PNG RGBA 390x300 px @100 ppu, sticky/notice paper",reserve (overlay variant),
 sec_arrow_right,art,kit,P1,shipped-kit,PNG,cropped chevron: the asked-mark on question rows,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 map_paper,art,map,P2,procedural,PNG,"PNG RGBA 940x440 px @100 ppu, aged/stained/folded sheet with red district stamp; ROOM OUTLINES ARE DRAWN BY CODE ON TOP - deliver blank paper only",MapView sheet,owner's hand-drawn reference can replace this file 1:1
 map_room,art,map,P2,procedural,PNG,"PNG RGBA 160x120 px @100 ppu, wobbly double-stroked room outline, transparent centre (stretched per room)",MapView rooms,
@@ -69,24 +66,17 @@ prop_clock,art,world-prop,P2,procedural,PNG,"PNG RGBA 112x112 px @64 ppu, wall c
 sec_log_paper,art,kit,P2,shipped-kit,PNG,cropped tilted paper: TONIGHT'S LOG overlay skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 sec_rules_paper,art,kit,P2,shipped-kit,PNG,cropped tilted paper: RULES NOTE overlay skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 token,art,world-prop,P2,procedural,PNG,"PNG RGBA 28x28 px @64 ppu, pocket-watch token: finding 7 in Room 101 (one use interactable)",RoomBuilder (Room 101),
-camera_frame,art,reserve,P3,procedural,PNG,"PNG RGBA 252x150, viewfinder corners",reserve (retired scanner),keep unshipped unless the scanner returns
 char_admin,art,face,P3,missing,PNG,"PNG RGBA 512x640, district administrator: formal coat, briefcase, smile that arrives late - badge photo",Night-5 administrator ID badge,FaceAssets.AdminKey (new this pass)
 char_admin_glitch,art,face,P3,missing,PNG,"PNG RGBA 512x640, same administrator, a half-second wrong (the window tell)",Night-5 administrator at the window,FaceAssets.AdminWindowKey (new this pass)
-circle_dark,art,functional,P3,code-drawn,PNG,110 px flat dark circle,reserve,
 cursor_hand,art,functional,P3,code-drawn,PNG,24 px hand cursor,HoverCursor,
 face_placeholder,art,face,P3,code-drawn,PNG,PNG RGBA 168x208 px @100 ppu (only ever shown if a face asset is missing),CheckpointView window/card fallback,functional fallback - do not retire
 flash,art,fx,P3,procedural,PNG,PNG RGBA 256x256 white radial,scare flash,
-icon_check,art,functional,P3,code-drawn,PNG,square check icon,reserve,
-icon_x,art,functional,P3,code-drawn,PNG,square cross icon,reserve,
 map_door,art,map,P3,procedural,PNG,"PNG RGBA 24x20 px @100 ppu, doorway gap with an open leaf",MapView doorways,
-menu_bg,art,ui-bg,P3,procedural,PNG,"PNG 1280x720 px @100 ppu, main-menu corridor with the pale eye-glint",MainMenuView,
 noise_overlay,art,fx,P3,procedural,PNG,PNG RGBA 256x256 tileable grain,desk grain / glitch flash,
 rough_circle,art,functional,P3,code-drawn,PNG,"110 px rough ink circle (map YOU marker, seals)","MapView, ID back seal",
-rough_panel,art,functional,P3,code-drawn,PNG,256x192 rough paper panel,reserve,
 school_facade,art,ui-bg,P3,procedural,PNG,"PNG RGBA 440x296 px @100 ppu, the college seen through the window glass",CheckpointView window,
 solid_white,art,functional,P3,code-drawn,PNG,"4x4 flat quad, 1x1 world unit - every placeholder/meter is built from it","world quads, HUD, map dots",do NOT ship a file for this key
 vignette,art,fx,P3,procedural,PNG,"PNG RGBA 512x384, edge darkening",desk + menu wash,
-window_frame,art,reserve,P3,procedural,PNG,PNG RGBA 470x316 flat frame,reserve,
 music_checkpoint,audio,music,P0,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","2-4 min loop, the desk: quiet room tone, pencil, clock",AudioDirector.PlayMusic(context) -> music_<context>,the longest-running bed in the game
 music_hallway,audio,music,P0,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","2-3 min loop, patrol corridor",AudioDirector.PlayMusic(context) -> music_<context>,
 sfx_bell,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,"distant school bell, one strike, dead room",ProceduralAudio / AudioDirector.PlaySfx,

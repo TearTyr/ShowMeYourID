@@ -8,7 +8,7 @@ night -> ending.
 
 **The line:** an **arrival clock** (25-30 s on night 1, x0.8 each night, double speed while the
 window is busy) walks the roster up to the booth. If the window is busy they queue in the yard.
-The top bar reads `WAITING n  ·  n TO GO TONIGHT`. After your verdict, the oldest waiter steps up
+Nothing on the desk says how many visitors are left tonight; the waiting line is only the hooded figures at the sides. After your verdict, the oldest waiter steps up
 right away. Patrol **pauses** the clock and nothing is lost across the scene switch; quit +
 CONTINUE restores the window visitor, the line order and the arrival timer. Line pressure
 (warning at 5, overrun at 7) is switched off in the current build (`queuePressureWarnAt` /
@@ -22,6 +22,13 @@ radio reports a roll-call discrepancy, and the absence is permanent.
 **speech bubble beside their head** and stay until the next line. On the desk: the FLOOR FILES
 cabinet (pick Room 101 or Room 202, A-Z files), the **ID card** and **paper slip** (already on your
 desk), the **rules note** and **tonight's log** (with ID numbers), and the **questions panel**.
+
+- **The night security log:** the log paper has three boxes, STUDENT ENCOUNTERS, ANOMALIES DETECTED and
+  SECURITY INCIDENTS. Left click a box to count up, right click to count down (0 to 99). It is only a
+  record for the experience: nothing reads the numbers, nothing is scored, and each night starts clean.
+  The numbers are saved with the night. The boxes are objects under `OverlayLog/paper` in the Hollowbrook
+  scene, so when the paper art changes they can be moved to fit (positions are fractions of the picture,
+  `LogBoxCentres` in `CheckpointView.Overlays.cs`).
 
 - **The four questions:** your course, your year, regular or transferee, first classroom (buttons
   or keys `1` to `4`). You can ask only **2 per student** (the panel shows `2/2`), so choose. Year
