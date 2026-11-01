@@ -9,6 +9,12 @@ There is almost nothing set up by hand in the Unity Inspector. Each of the three
 press Play, that script **builds the whole screen in code**. So when you want to change something,
 you change a script (or `GameConfig.asset`), not a scene.
 
+**One click setup:** the menu bar has **Hollowbrook > Set Up Project (one click)**. It makes sure the
+three scenes hold their bootstrap object, lists them in Build Settings (MainMenu first), sets the art
+to Sprite with room for the big pictures, creates `GameConfig.asset` if it is missing, and makes Play
+always start at the main menu. It only fixes what is broken, so click it any time something looks off.
+**Hollowbrook > Check Project** only reports. The code is `Assets/_Project/Editor/ProjectSetup.cs`.
+
 - **Hollowbrook.unity** = the security booth desk (the inspection).
 - **School.unity** = the patrol (hallway, classrooms, flashlight, the administrator hunt).
 - **GameRoot** (in `Scripts/Core`) is the one object that lives across scenes. It holds the run,
