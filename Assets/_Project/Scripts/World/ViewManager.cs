@@ -280,7 +280,7 @@ namespace Hollowbrook.World
             SetPlayerVisible(false);   // the guard stays in the hallway behind the peek
             if (Current != null && Current.Light != null) Current.Light.EnterPeek(true);
             EnsurePeekLight();
-            _peekLight.Enter(Current, Hunt != null && Hunt.Running);   // the hunt starts the lamp ON
+            _peekLight.Enter(Current);   // every peek starts with the lamp ON, so what waits in the room reacts at once
             if (_gameRoot.PeekAnomalyIn(id))
                 _peekAnomaly = PeekAnomaly.Place(_gameRoot, Current, _peekLight, _gameRoot.Session.Seed + _gameRoot.Session.CurrentShift * 131 + (int)id * 53);
             _cam.transform.position = new Vector3(0f, 0f, -10f);   // frozen frame of the room
@@ -303,6 +303,7 @@ namespace Hollowbrook.World
             _peekExiting = false;
             _gameRoot.PeekRoom = null;
             _gameRoot.SetState(AppViewState.Exploration);
+            foreach (var a in _anomalies.ToArray()) a.CalmAfterPeek();
             yield return FadeTo(0f, 0.34f);
             Transitioning = false;
         }

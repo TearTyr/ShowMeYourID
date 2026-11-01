@@ -40,6 +40,7 @@ namespace Hollowbrook.LogicTests
             IdRulesTests();
             ContentTests();
             ShiftPlanTests();
+            HuntFairnessTests();
             EveryStudentTurnsTests();
             RulesAreLiveTests();
             ClueRegistryTests();
@@ -151,6 +152,89 @@ namespace Hollowbrook.LogicTests
         }
 
         // ------------------------------------------------------------ shift plan
+        // He never catches a player who is not looking at him: every catch comes from a visible approach.
+        private static void HuntFairnessTests()
+        {
+            Group("Hunt: no catch from something the player never saw");
+            var tuning = HuntTuning.Default;
+            tuning.RoomSeconds = 5f;
+            var inHall = new HuntInput { InHallway = true, PlayerRoom = RoomId.Hallway };
+            int caughtUnseen = 0, followedRoom = 0, followedBehind = 0;
+            for (int seed = 1; seed <= 300; seed++)
+            {
+                var hunt = new AdminHunt(tuning, seed);
+                hunt.Start();
+                int guard = 0;
+                // walk until he stops in a room (the player waits in the hallway)
+                while (hunt.Phase != HuntPhase.InRoom && !hunt.Finished && guard++ < 5000) hunt.Tick(0.1f, inHall);
+                if (hunt.Phase != HuntPhase.InRoom) continue;
+                RoomId his = hunt.Room;
+                // the room timer runs out with the player in the hallway
+                var ev = HuntEvent.None;
+                guard = 0;
+                while (hunt.Phase == HuntPhase.InRoom && guard++ < 200) ev |= hunt.Tick(0.1f, inHall);
+                if ((ev & HuntEvent.Caught) != 0) caughtUnseen++;
+                if (hunt.Phase == HuntPhase.Behind && (ev & HuntEvent.AppearedBehind) != 0) followedBehind++;
+            }
+            Eq(caughtUnseen, 0, "timing out while the player is in the hallway is not a catch");
+            Check(followedBehind > 0, "...he comes up behind them instead, where the beam can answer him");
+
+            for (int seed = 1; seed <= 300; seed++)
+            {
+                var hunt = new AdminHunt(tuning, seed);
+                hunt.Start();
+                int guard = 0;
+                while (hunt.Phase != HuntPhase.InRoom && !hunt.Finished && guard++ < 5000) hunt.Tick(0.1f, inHall);
+                if (hunt.Phase != HuntPhase.InRoom) continue;
+                RoomId his = hunt.Room;
+                RoomId other = his == RoomId.Classroom1 ? RoomId.Classroom2 : RoomId.Classroom1;
+                var peekOther = new HuntInput { Peeking = true, PlayerRoom = other };
+                var ev = HuntEvent.None;
+                guard = 0;
+                while (hunt.Phase == HuntPhase.InRoom && hunt.Room == his && guard++ < 200) ev |= hunt.Tick(0.1f, peekOther);
+                if ((ev & HuntEvent.Caught) != 0) caughtUnseen++;
+                if (hunt.Phase == HuntPhase.InRoom && hunt.Room == other && (ev & HuntEvent.EnteredRoom) != 0)
+                {
+                    followedRoom++;
+                    Check(hunt.PhaseTimer >= tuning.RoomSeconds - GameRules.Current.HuntFollowSeconds - 0.001f,
+                        "the follower has only a short time left to be found");
+                }
+            }
+            Eq(caughtUnseen, 0, "timing out while the player peeks another room is not a catch");
+            Check(followedRoom > 0, "...he goes to the room being peeked");
+
+            // a player who IS looking at him and fails is caught: the hunt still bites
+            var seen = new AdminHunt(tuning, 7);
+            seen.Start();
+            int steps = 0;
+            while (seen.Phase != HuntPhase.InRoom && steps++ < 5000) seen.Tick(0.1f, inHall);
+            var looking = new HuntInput { Peeking = true, PlayerRoom = seen.Room, OnTarget = false };
+            var seenEv = HuntEvent.None;
+            steps = 0;
+            while (seen.Phase == HuntPhase.InRoom && steps++ < 200) seenEv |= seen.Tick(0.1f, looking);
+            Check((seenEv & HuntEvent.Caught) != 0, "a player who sees him and cannot light his head is still caught");
+
+            // nobody is ever stuck: idle and wandering players both reach an end
+            for (int seed = 1; seed <= 100; seed++)
+            {
+                var idle = new AdminHunt(HuntTuning.Default, seed);
+                idle.Start();
+                for (int i = 0; i < 20000 && !idle.Finished; i++) idle.Tick(0.1f, inHall);
+                Check(idle.Finished, $"seed {seed}: a player who does nothing still reaches dawn or the door");
+                var rng = new GameRng(seed);
+                var wander = new AdminHunt(HuntTuning.Default, seed);
+                wander.Start();
+                var rooms = new[] { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 };
+                for (int i = 0; i < 20000 && !wander.Finished; i++)
+                {
+                    bool peek = rng.Chance(0.5f);
+                    wander.Tick(0.1f, new HuntInput { Peeking = peek, PlayerRoom = peek ? rooms[rng.NextInt(0, 4)] : RoomId.Hallway,
+                                                      InHallway = !peek, OnTarget = rng.Chance(0.3f), BeamOnFace = rng.Chance(0.3f) });
+                }
+                Check(wander.Finished, $"seed {seed}: a player moving at random still reaches an end");
+            }
+        }
+
         // Every student takes a turn, in every run. The owner's report: Raffy never turned in a whole game.
         private static void EveryStudentTurnsTests()
         {

@@ -100,10 +100,9 @@ namespace Hollowbrook.World
         private GameObject AddCover(string name, Vector3 pos, Vector2 size) =>
             RoomBuilder.Quad(transform, name, pos, WorldLayers.PeekCover, size, Color.black);
 
-        /// <summary>Begin a peek at the given room: the session goes live, the lamp stays
-        /// OFF - arriving in a classroom always means arriving dark, and only a deliberate
-        /// F lights it (one press; nothing was secretly pre-lit).</summary>
-        public void Enter(RoomInstance room, bool lampOn = false)
+        /// <summary>Begin a peek at the given room: the session goes live with the lamp ON
+        /// (F puts it out), so a standing anomaly reacts the moment the cursor finds it.</summary>
+        public void Enter(RoomInstance room, bool lampOn = true)
         {
             _room = room;
             _lastPrompt = "\0";
@@ -112,7 +111,7 @@ namespace Hollowbrook.World
             _dim = 0f;
             Active = true;
             gameObject.SetActive(true);
-            SetLit(lampOn, true);   // the hunt starts the lamp ON; every other peek starts dark
+            SetLit(lampOn, true);
             transform.position = Vector3.zero;
             _worldPoint = Vector3.zero;
             if (_gameRoot != null && !lampOn)

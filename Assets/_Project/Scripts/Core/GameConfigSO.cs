@@ -87,8 +87,8 @@ namespace Hollowbrook.Core
         public float beamTargetRadius = BeamGeometry.DefaultTargetRadius;
 
         [Header("Patrol")]
-        [Tooltip("Seconds into a patrol before the first anomaly is guaranteed to appear.")][Range(2f, 60f)]
-        public float anomalyFirstSpawnSeconds = 15f;
+        [Tooltip("Seconds into a patrol before the first anomaly appears. 0 = it is already waiting when the patrol starts.")][Range(0f, 60f)]
+        public float anomalyFirstSpawnSeconds = 0f;
         [Tooltip("The hooded figure in a peek room: seconds it flickers and jumps while the lamp dims, once the light is fully on it.")][Range(0.3f, 6f)]
         public float peekRepelSeconds = 1.5f;
         [Tooltip("Seconds of full black after the flicker, while the figure is removed.")][Range(0.1f, 3f)]

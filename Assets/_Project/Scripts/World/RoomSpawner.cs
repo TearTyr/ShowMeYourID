@@ -40,7 +40,7 @@ namespace Hollowbrook.World
             _root = root;
             _views = views;
             _rng = rng;
-            _spawnCooldown = root.Config != null ? root.Config.anomalyFirstSpawnSeconds : 15f;
+            _spawnCooldown = root.Config != null ? root.Config.anomalyFirstSpawnSeconds : 0f;
         }
 
         public void NoteBreach() { _anomaliesInside++; }
@@ -66,7 +66,7 @@ namespace Hollowbrook.World
             // on night 5 the administrator is the only thing in the building
             if (_root.HuntActive || (_root.CurrentShiftDef != null && _root.CurrentShiftDef.HasAdministrator))
             { _returnTimer = -1f; return; }
-            if (_root.Dialogue != null && _root.Dialogue.IsActive) { _spawnCooldown = Mathf.Max(_spawnCooldown, 2f); return; }
+            if (_root.Dialogue != null && _root.Dialogue.IsActive) return;   // the clock waits for the talking to end
 
             // a scheduled recovery is the continuation of an EXISTING threat, not ambient
             // spawning - it runs regardless of the shift gate below.
@@ -88,17 +88,18 @@ namespace Hollowbrook.World
             if (_sightingDue)
             {
                 _sightingDue = false;
-                _spawnCooldown = 4f;
+                _spawnCooldown = GameRules.Current.SpawnRollSeconds;
                 SpawnAnomaly(false);
                 return;
             }
 
-            float chance = _root.Config.anomalySpawnChancePerSecond * (0.6f + 0.2f * shift) *
-                           (1f + 0.35f * _anomaliesInside + 0.3f * (int)_root.Session.Breaches) *
-                           (_views.Current.Light != null && !_views.Current.Light.Lit ? 1.6f : 1f);
-            _spawnCooldown = 4f; // re-roll interval; chance is per-second so scale by 4
+            var rules = GameRules.Current;
+            float chance = _root.Config.anomalySpawnChancePerSecond * (rules.SpawnNightBase + rules.SpawnPerNight * shift) *
+                           (1f + rules.SpawnPerInside * _anomaliesInside + rules.SpawnPerBreach * (int)_root.Session.Breaches) *
+                           (_views.Current.Light != null && !_views.Current.Light.Lit ? rules.SpawnDarkScale : 1f);
+            _spawnCooldown = rules.SpawnRollSeconds;   // chance is per second, so a roll covers this many
             if (_rng == null) _rng = new GameRng(_root.Session.Seed + 31 + _root.Session.CurrentShift);
-            if (_rng.NextFloat() > chance * 4f) return;
+            if (_rng.NextFloat() > chance * rules.SpawnRollSeconds) return;
 
             SpawnAnomaly(false);
         }
@@ -116,7 +117,7 @@ namespace Hollowbrook.World
             if (_returnTimer < 0f) return;
             _returnTimer -= dt;
             if (_returnTimer > 0f) return;
-            if (_liveAnomaly != null) { _returnTimer = 4f; return; }  // wait for the stage to clear
+            if (_liveAnomaly != null) { _returnTimer = GameRules.Current.ReturnRetrySeconds; return; }  // wait for the stage to clear
             _returnTimer = -1f;
 
             SpawnKind(_returnKind, null);   // it comes back in the hallway
@@ -174,7 +175,7 @@ namespace Hollowbrook.World
             {
                 float d = float.IsNaN(playerX) ? 99f : Mathf.Abs(p.x - playerX);
                 if (d > bestD) { bestD = d; best = p; }
-                if (d >= 4f) return p;   // first comfortably distant point (rng-stable order)
+                if (d >= GameRules.Current.SpawnMinDistance) return p;   // first comfortably distant point (rng-stable order)
             }
             return best;
         }
