@@ -106,17 +106,17 @@ namespace Hollowbrook.Core
         [Tooltip("The night is never shorter than this, however many lies were exposed.")][Range(30f, 600f)]
         public float huntMinSurviveSeconds = 120f;
         [Tooltip("How long he walks between stops (min / max). The max halves by dawn.")][Range(1f, 30f)]
-        public float huntStalkMinSeconds = 5f;
+        public float huntStalkMinSeconds = 3f;
         [Range(1f, 40f)]
-        public float huntStalkMaxSeconds = 10f;
+        public float huntStalkMaxSeconds = 6f;
         [Tooltip("Seconds to find him in the room he stopped in.")][Range(3f, 30f)]
-        public float huntRoomSeconds = 12f;
+        public float huntRoomSeconds = 9f;
         [Tooltip("Seconds the lamp must stay on his head.")][Range(0.3f, 10f)]
         public float huntRoomHoldSeconds = 1.8f;
         [Tooltip("How close (world units) the cursor must be to his head.")][Range(0.3f, 3f)]
         public float huntHeadRadius = 1.0f;
         [Tooltip("Seconds to flash him when he appears behind you.")][Range(1f, 8f)]
-        public float huntBehindSeconds = 2.6f;
+        public float huntBehindSeconds = 2.2f;
         [Tooltip("Seconds of beam on his face that count as a hit.")][Range(0.1f, 2f)]
         public float huntBeamHitSeconds = 0.35f;
         [Tooltip("Sanity lost each time he catches you.")][Range(0f, 40f)]
@@ -134,15 +134,15 @@ namespace Hollowbrook.Core
         [Tooltip("Night 6 is never shorter than this.")][Range(30f, 600f)]
         public float night6MinSurviveSeconds = 150f;
         [Tooltip("How long he walks between stops on night 6 (min / max).")][Range(1f, 30f)]
-        public float night6StalkMinSeconds = 3f;
+        public float night6StalkMinSeconds = 2f;
         [Range(1f, 40f)]
-        public float night6StalkMaxSeconds = 6f;
+        public float night6StalkMaxSeconds = 4f;
         [Tooltip("Seconds to find him in the room he stopped in, night 6.")][Range(3f, 30f)]
-        public float night6RoomSeconds = 8f;
+        public float night6RoomSeconds = 6f;
         [Tooltip("Seconds the lamp must stay on his head, night 6.")][Range(0.3f, 10f)]
         public float night6RoomHoldSeconds = 2.4f;
         [Tooltip("Seconds to flash him when he appears behind you, night 6.")][Range(1f, 8f)]
-        public float night6BehindSeconds = 1.9f;
+        public float night6BehindSeconds = 1.6f;
         [Tooltip("Seconds of beam on his face that count as a hit, night 6.")][Range(0.1f, 2f)]
         public float night6BeamHitSeconds = 0.5f;
 

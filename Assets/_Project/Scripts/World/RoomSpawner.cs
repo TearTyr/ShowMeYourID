@@ -26,7 +26,7 @@ namespace Hollowbrook.World
         private GameRng _rng;
         private WanderingAnomaly _liveAnomaly;
         private float _spawnCooldown;
-        private bool _sightingDue = true;   // every patrol meets at least one
+        private int _guaranteedLeft;        // sightings every patrol is owed, whatever the dice say
         private int _anomaliesInside;
         private float _returnTimer = -1f;
         private AnomalyBehaviorKind _returnKind;
@@ -41,6 +41,7 @@ namespace Hollowbrook.World
             _views = views;
             _rng = rng;
             _spawnCooldown = root.Config != null ? root.Config.anomalyFirstSpawnSeconds : 0f;
+            _guaranteedLeft = GameRules.Current.PatrolMinAnomalies;
         }
 
         public void NoteBreach() { _anomaliesInside++; }
@@ -85,10 +86,11 @@ namespace Hollowbrook.World
 
             _spawnCooldown -= dt;
             if (_spawnCooldown > 0f) return;
-            if (_sightingDue)
+            if (_guaranteedLeft > 0)
             {
-                _sightingDue = false;
-                _spawnCooldown = GameRules.Current.SpawnRollSeconds;
+                // the clock only runs while nothing is live, so the next one comes after this one is gone
+                _guaranteedLeft--;
+                _spawnCooldown = GameRules.Current.PatrolNextAnomalySeconds;
                 SpawnAnomaly(false);
                 return;
             }

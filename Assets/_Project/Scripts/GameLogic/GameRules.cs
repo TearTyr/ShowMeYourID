@@ -35,11 +35,13 @@ namespace Hollowbrook.Logic
         public float HallucinationUneasy = 0.010f;      // chance per second at each stage
         public float HallucinationShaken = 0.035f;
         public float HallucinationBreaking = 0.080f;
-        public float SecurityRoomRecoveryPerSecond = 1.2f;  // resting at the desk
+        public float SecurityRoomRecoveryPerSecond = 0.5f;  // resting at the desk with the window empty (nights 1 to 4 only)
         public float DeskDrainPerSecond = 0.25f;        // a student at the window
-        public float DarknessDrainPerSecond = 0.3f;     // walking the dark hallway
-        public float RefillOnCorrect = 15f;             // a correct decision gives this much...
-        public float RefillPerSecond = 2.5f;            // ...at this speed
+        public float DarknessDrainPerSecond = 0.3f;     // walking the dark hallway, or peeking into a room
+        public float RefillOnCorrect = 8f;              // a correct decision gives this much...
+        public float RefillPerSecond = 1.5f;            // ...at this speed
+        public float FinalNightDrainPerSecond = 0.3f;   // night 5 and 6: sanity always drains, wherever you are
+        public float ChallengeDrainScale = 1.5f;        // ...and faster on night 6
 
         // ---- what a failed night costs the next one ----
         public int MaxSeverity = 5;
@@ -63,6 +65,8 @@ namespace Hollowbrook.Logic
         public float SpawnPerInside = 0.35f;            // ...more per anomaly inside the school...
         public float SpawnPerBreach = 0.3f;             // ...more per breach this run...
         public float SpawnDarkScale = 1.6f;             // ...and this many times more in the dark
+        public int PatrolMinAnomalies = 2;              // every patrol meets at least this many, dice or no dice
+        public float PatrolNextAnomalySeconds = 3f;     // the next guaranteed one comes this long after the last is gone
         public float SpawnMinDistance = 4f;             // never appears closer to the player than this
         public float ReturnRetrySeconds = 4f;           // a returning anomaly waits this long for space
 
@@ -76,6 +80,12 @@ namespace Hollowbrook.Logic
         public float HuntRetreatSeconds = 1.5f;         // harmless after he leaves
         public float HuntHoldDecayPerSecond = 0.5f;     // the lamp hold drains this fast when you let go
         public float HuntFollowSeconds = 5f;            // he followed you into this room: time to find him
+        public float HuntAmbushDelaySeconds = 1.2f;     // after you light him in a peek, he is behind you this long after you step out
+        public float HuntAmbushPatienceSeconds = 5f;    // ...and if you stay in the peek, he comes into your room after this long
+        // ---- marathon: nights follow each other without the menu ----
+        public float NightDimSeconds = 1.4f;            // the screen dims this long between one night and the next
+        // ---- the peek exit ----
+        public float PeekBandAlpha = 0.45f;             // how see-through the step-back button is (0 = invisible, 1 = solid)
 
         /// <summary>Rows of the Night table, as used by ShiftPlan.</summary>
         public ShiftDef[] Nights = DefaultNights();

@@ -205,9 +205,9 @@ namespace Hollowbrook.Checkpoint
             var drag = panel.gameObject.GetOrAdd<DragPaper>();
             drag.Init(_desk, 0f);
             drag.ReturnsHome = true;                 // stamps live in the tray
-            drag.OnPickedUp = () => SetSlipGlow(true);    // the slip lights up: that is where it goes
-            drag.OnDropped = center => { SetSlipGlow(false); TryStampOnDrop(center, verdict); };
-            drag.OnTapped = center => { SetSlipGlow(false); ToastDesk("DRAG THE STAMP ONTO THE SLIP."); };
+            drag.OnPickedUp = () => { SetSlipGlow(true); HoldStamp(idx, true); };    // the slip lights up: that is where it goes
+            drag.OnDropped = center => { SetSlipGlow(false); HoldStamp(idx, false); TryStampOnDrop(center, verdict); };
+            drag.OnTapped = center => { SetSlipGlow(false); HoldStamp(idx, false); ToastDesk("DRAG THE STAMP ONTO THE SLIP."); };
             _stampTints[idx] = panel;
             _stampBase[idx] = tint;
         }
@@ -299,15 +299,32 @@ namespace Hollowbrook.Checkpoint
             _slipBg.color = on ? new Color(1f, 0.97f, 0.72f) : SlipPaperColor;
         }
 
+        private bool _stampsLive;
+
         private void RefreshStamps(bool live)
         {
+            _stampsLive = live;
             for (int i = 0; i < 3; i++)
             {
                 if (_stampTints[i] == null) continue;
                 var c = _stampBase[i];
-                c.a = live ? 1f : 0.35f;             // dim tray until an inspection is live
+                float dim = live ? 1f : 0.35f;       // dim tray until an inspection is live
+                bool tray = _trayCircles[i] != null; // the tray picture is the round mark, the stamp only while held
+                c.a = tray ? (_stampHeld[i] ? 1f : 0f) : dim;
                 _stampTints[i].color = c;
+                if (tray)
+                {
+                    var cc = _trayCircles[i].color;
+                    cc.a = dim;
+                    _trayCircles[i].color = cc;
+                }
             }
+        }
+
+        private void HoldStamp(int idx, bool held)
+        {
+            _stampHeld[idx] = held;
+            RefreshStamps(_stampsLive);
         }
 
         // A normal night's patrol comes after the last student. Endless and Challenge never run dry.

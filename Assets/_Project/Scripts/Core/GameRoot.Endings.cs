@@ -147,11 +147,14 @@ namespace Hollowbrook.Core
             // night 6 is one night: straight to its ending
             if (Session.Mode == GameMode.Challenge) { TriggerEnding(eval); return; }
 
-            // nights 1 to 4 end straight at the main menu; Continue starts the next one
+            // nights 1 to 4 run on without the menu: the screen dims and the next night starts. The save
+            // above already holds the next night, so quitting during the dim and Continuing is safe.
             if (Session.Mode == GameMode.Normal && Session.CurrentShift <= ShiftPlan.TotalShifts)
             {
-                SetState(AppViewState.MainMenu);
-                QuitToMenu(false);
+                int next = Session.CurrentShift;
+                System.Action begin = () => BeginShift(next);
+                if (Loading != null) Loading.DimThen(GameRules.Current.NightDimSeconds, begin);
+                else begin();
                 return;
             }
 
