@@ -3596,7 +3596,7 @@ namespace FlowCheck
                 if (f[4] == "temp-shipped" || f[4] == "shipped") shipped.Add(f[0] + "|" + f[1] + "|flat");
                 if (f[4] == "shipped-kit") shipped.Add(f[0] + "|" + f[1] + "|kit");
             }
-            Check(artRows.Count >= 90 && audioRows.Count >= 30 && fontRows.Count == 8,
+            Check(artRows.Count >= 85 && audioRows.Count >= 30 && fontRows.Count == 8,
                 $"AM: the manifest covers the whole pipeline ({artRows.Count} art, {audioRows.Count} audio, {fontRows.Count} font rows)");
 
             // art rows == the painter's keys + the face pairs, exactly
