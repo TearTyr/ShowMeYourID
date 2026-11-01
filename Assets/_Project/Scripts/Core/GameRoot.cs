@@ -44,6 +44,9 @@ namespace Hollowbrook.Core
         /// runs while the desk is the active screen - patrol explicitly pauses the line.</summary>
         public CheckpointQueue Queue { get; private set; } = new CheckpointQueue();
         private bool _continuePending;
+        // The save as it was when the night began. A night that is failed (blackout, lost hunt) goes
+        // back to this, so Continue and RETRY play the same night again instead of moving on.
+        private SaveGame _nightStart;
 
         // ---- views (explicit references, set by the per-scene scripts) ----
         public Camera MainCamera;

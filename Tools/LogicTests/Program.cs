@@ -636,6 +636,11 @@ namespace Hollowbrook.LogicTests
             Check(!text.Contains((char)0x2014) && !text.Contains("procedurally"),
                   "the credits have no em dash and no stale 'generated at runtime' note");
             Check(text.Contains("Unity") && text.Contains("Bahnschrift"), "the credits thank the engine and the fonts");
+            bool storyboardOnlyClarence = false;
+            foreach (var sec in CreditsData.Team)
+                if (sec.Role == "STORYBOARD")
+                    storyboardOnlyClarence = sec.People.Length == 1 && sec.People[0] == "Clarence Manalo";
+            Check(storyboardOnlyClarence, "the storyboard credit is Clarence Manalo alone");
         }
 
         private static void InterviewRuleTests()
@@ -795,8 +800,36 @@ namespace Hollowbrook.LogicTests
             return h.Phase;
         }
 
+        // He goes for the player: behind them in the hallway, and in the room they peek into.
+        private static void HuntTargetingTests()
+        {
+            Group("AdminHunt - he goes for the player");
+            var tun = HuntTuning.Default;
+            int behind = 0, hallwayPicks = 0, sameRoom = 0, peekPicks = 0, otherRooms = 0;
+            for (int seed = 1; seed <= 400; seed++)
+            {
+                var inHall = new AdminHunt(tun, seed); inHall.Start();
+                var hall = new HuntInput { InHallway = true, PlayerRoom = RoomId.Hallway };
+                for (int i = 0; i < 4000 && inHall.Phase == HuntPhase.Stalking; i++) inHall.Tick(0.1f, hall);
+                hallwayPicks++;
+                if (inHall.Phase == HuntPhase.Behind) behind++;
+
+                var inPeek = new AdminHunt(tun, seed); inPeek.Start();
+                var peek = new HuntInput { Peeking = true, PlayerRoom = RoomId.Classroom2 };
+                for (int i = 0; i < 4000 && inPeek.Phase == HuntPhase.Stalking; i++) inPeek.Tick(0.1f, peek);
+                peekPicks++;
+                if (inPeek.Phase == HuntPhase.Behind) otherRooms += 1000;   // must never happen during a peek
+                else if (inPeek.Room == RoomId.Classroom2) sameRoom++;
+            }
+            Check(behind > hallwayPicks * 0.5, $"walking the hallway, he comes up behind the player most of the time ({behind}/{hallwayPicks})");
+            Check(otherRooms == 0, "...and never behind a player who is peeking");
+            Check(sameRoom > peekPicks * 0.4, $"peeking into a room, he is often in that very room ({sameRoom}/{peekPicks})");
+            Check(sameRoom < peekPicks * 0.8, "...but not every time, so the other rooms still matter");
+        }
+
         private static void AdminHuntTests()
         {
+            HuntTargetingTests();
             Group("AdminHunt - always ends, never stuck, fair stops");
             var tun = HuntTuning.Default;
             Check(tun.CatchesToLose >= 1 && tun.SurviveSeconds > 30f, "default tuning is sane");

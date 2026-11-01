@@ -9,7 +9,8 @@ namespace Hollowbrook.Logic
     // thing in the building, and you survive until dawn. Each time he stops he is somewhere new:
     //   - IN A ROOM (Room 101, Room 202, CR-1 or CR-2): peek in and keep the lamp on his head.
     //   - BEHIND YOU in the hallway: flash his face with the beam.
-    // Only the light stops him. Too slow and he catches you. CatchesToLose catches and he walks
+    // He goes for the player: he is likelier behind you in the hallway, and likelier in the room you
+    // are peeking into. Only the light stops him. Too slow and he catches you. CatchesToLose catches and he walks
     // to the server door.
     //
     // The hard rule: nobody can ever get stuck. The dawn clock always runs and every phase has
@@ -226,13 +227,28 @@ namespace Hollowbrook.Logic
             BeamHit = 0f;
         }
 
-        // He can be anywhere: most stops are one of the four rooms, the rest right behind you.
-        // Never the same place twice in a row, and never behind you during a peek.
+        // He goes for the player. In the hallway he comes up behind them more often than not; while the
+        // player peeks into a room he is as likely to be in that very room as anywhere else. Otherwise
+        // any of the four rooms. Never the same place twice in a row, and never behind you during a peek.
+        private const float BehindChance = 0.6f;       // in the hallway: right behind the player
+        private const float SameRoomChance = 0.5f;     // peeking: in the room the player is looking into
+
         private int PickSpot(HuntInput input)
         {
-            int pick = input.InHallway && _rng.Chance(0.35f) ? BehindYou : _rng.NextInt(0, Rooms.Length);
+            int pick = ChooseSpot(input);
             if (pick != _lastSpot) return pick;
             return pick == BehindYou ? _rng.NextInt(0, Rooms.Length) : (pick + 1) % Rooms.Length;
+        }
+
+        private int ChooseSpot(HuntInput input)
+        {
+            if (input.InHallway && _rng.Chance(BehindChance)) return BehindYou;
+            if (input.Peeking && _rng.Chance(SameRoomChance))
+            {
+                int here = System.Array.IndexOf(Rooms, input.PlayerRoom);
+                if (here >= 0) return here;
+            }
+            return _rng.NextInt(0, Rooms.Length);
         }
     }
 

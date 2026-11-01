@@ -54,12 +54,47 @@ namespace Hollowbrook.Core
         {
             if (ShiftFailing) return;
             ShiftFailing = true;
-            Session.RecordShiftFailure(kind);
             PlayFailure(() =>
             {
                 ShiftFailing = false;
-                FinishShift();
+                ReplayFailedNight(kind);
             });
+        }
+
+        // A night that was not finished is not over: the save goes back to the start of that night,
+        // with its penalty booked, and Continue plays it again.
+        private void ReplayFailedNight(ShiftFailure kind)
+        {
+            int breaches = Session.ShiftBreaches;
+            if (_nightStart != null) Session = _nightStart.Session;
+            Session.ShiftBreaches = breaches;      // the penalty counts what was let in
+            Session.RecordShiftFailure(kind);
+            Session.ShiftBreaches = 0;
+            Session.QueueState = null;
+            _shiftMinutes = 0f;
+            Queue = new CheckpointQueue();
+            PersistRun();
+            SetState(AppViewState.MainMenu);
+            QuitToMenu(false);
+        }
+
+        // Called when a night begins. A fresh night is written to the save at once and remembered; a
+        // resumed night remembers the save it was loaded from.
+        private void RememberNightStart(bool isResume)
+        {
+            if (Session.Mode != GameMode.Normal || isResume) return;
+            PersistRun();
+            _nightStart = Saves.Read();
+        }
+
+        // The run is lost, but the night is not: the save goes back to the start of the night that was
+        // lost (with the records from now), so Continue offers that same night again.
+        private void SaveLostNight()
+        {
+            if (Session.Mode != GameMode.Normal || _nightStart == null) { PersistRun(); return; }
+            _nightStart.Records = Records;
+            _nightStart.Settings = Settings.Current.Clone();
+            Saves.Write(_nightStart);
         }
 
         // The scare only plays out on patrol or in a peek. Fainting at the desk just ends the night.
@@ -137,7 +172,7 @@ namespace Hollowbrook.Core
             string key = eval.Ending == EndingType.Secret ? "secret" : (eval.Ending == EndingType.Win ? "win" : "lose");
             if (Session.Mode == GameMode.Normal && !Records.EndingsSeen.Contains(key)) Records.EndingsSeen.Add(key);
             Session.RunFinished = true;
-            PersistRun();
+            if (eval.Ending == EndingType.Lose) SaveLostNight(); else PersistRun();
             SetState(AppViewState.Ending);
             if (Ending != null) Ending.Populate(eval, Session, Records);
             Audio.PlayMusic("end_" + key);

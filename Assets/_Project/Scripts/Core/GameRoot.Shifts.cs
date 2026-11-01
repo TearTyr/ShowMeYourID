@@ -42,6 +42,7 @@ namespace Hollowbrook.Core
             }
             Session = save.Session;
             Records = save.Records;
+            _nightStart = Saves.Read();   // its own copy: the live session must not change it
             Settings.AdoptFromSaveIfFresh(save.Settings);
             _resolvedVisitorIndices.Clear();
             _continuePending = true;
@@ -80,6 +81,7 @@ namespace Hollowbrook.Core
             // a resume continues the saved night at its saved clock; a fresh shift starts at 22:00
             _shiftMinutes = isResume ? Session.ShiftClockMinutes : 0f;
             if (!isResume) Session.ShiftClockMinutes = 0f;
+            RememberNightStart(isResume);
             SetupShiftQueue(number, resumeFromVisitor);
             PlayIntroThenCheckpoint(BuildShiftIntroLines(number, penaltyNote), CurrentShiftDef);
             _resumeFromVisitor = 0;
@@ -123,7 +125,7 @@ namespace Hollowbrook.Core
             if (severity <= 0) return null;
             int loss = Mathf.RoundToInt(ShiftFailureRules.StartSanityLoss(severity, Session.PendingPenaltyNight));
             string cause = Session.LastShiftFailure == ShiftFailure.Blackout
-                ? "You blacked out at your post."
+                ? "You blacked out at your post, so the night starts again."
                 : "You clocked out with an anomaly let in.";
             return cause + " Tonight you start with " + loss + " less sanity, and something is already walking the halls.";
         }
