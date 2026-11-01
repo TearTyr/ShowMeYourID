@@ -4,7 +4,7 @@ You know the Unity basics. This page tells you where things live and how to chan
 
 ## How the game is put together (the one idea you need)
 
-The three scenes (`MainMenu`, `Hollowbrook`, `School`) hold the **real objects** of the game: the
+The three scenes (`MainMenu`, `Gameplay`, `School`) hold the **real objects** of the game: the
 canvases, every screen, every button and label. Open a scene, look in the Hierarchy under
 `SceneRoot_...`, and move, resize, recolour or re-text things in the Inspector like any Unity object.
 
@@ -28,7 +28,7 @@ never ran the setup, the game still works: it builds the missing objects in code
 **Not in the scene files:** things that only exist while playing (anomalies, papers on the desk, the
 administrator hunt) and the patrol world (rooms, doors, items), which is data built from code.
 
-- **Hollowbrook.unity** = the security booth desk (the inspection).
+- **Gameplay.unity** = the security booth desk (the inspection).
 - **School.unity** = the patrol (hallway, classrooms, flashlight, the administrator hunt).
 - **GameRoot** (in `Scripts/Core`) is the one object that lives across scenes. It holds the run,
   the night, the save, and links to every screen. Start there if you are lost.
@@ -57,10 +57,11 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | Change which tricks appear on which night | `GameLogic/ShiftPlan.cs` (`...Allowed` flags, counts, the rule note text) |
 | Add a new kind of trick (defect) | `Enums.cs` (`DefectType`), `RosterFactory.cs` (`ApplyDefect`, `BuildDefectPool`), `IdRules.cs` if it shows on the papers |
 | Change what the administrator says | `GameLogic/AdminTalk.cs` > `BuildScript` (plain text, copy a `Topic(...)` line) |
+| Change any rule number, a night or a student (their lines, even how they speak awkwardly) | `Resources/GameConfig.asset`, group **Game rules** (defaults in `GameLogic/GameRules.cs` and `GameRules.Tables.cs`) |
 | Tune night 5 (catches, seconds to dawn, door and lamp holds, seconds per lie) | `Resources/GameConfig.asset`, group **Administrator hunt** |
 | Change how his picture shakes | `GameLogic/AdminHunt.cs` > `AdminHuntMotion` |
 | Give him a real picture | `char_admin.png` / `char_admin_glitch.png` come from the Director art (`Tools/prep_characters.py`); drop `char_admin_hunt.png` in `Resources/Art/` for a special hunt picture |
-| Add or change a student picture | put the busts in `Art/UI and Design Assets/Characters`, edit the list in `Tools/prep_characters.py`, run it, then raise `FaceAssets.StudentFaceCount` |
+| Add or change a student picture | put the busts in `Art/UI and Design Assets/Characters`, edit the list in `Tools/prep_characters.py`, run it, then add a row to the Students table in `GameRules.Tables.cs` |
 | Change the student ID card art | edit `Art/UI and Design Assets/ID/SMYI-ID.psd`, run `python Tools/prep_id_card.py` (needs `pip install psd-tools aggdraw pillow`); text positions are in `CheckpointView.Papers.cs` > `LayoutIdCard` |
 | Make customers arrive faster or slower | `GameConfig.asset`, group **Checkpoint queue** |
 | How long after a stamp until the next student | `GameConfig.asset` > `verdictBannerSeconds` |

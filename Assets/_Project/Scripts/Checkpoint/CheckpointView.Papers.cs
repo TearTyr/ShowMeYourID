@@ -279,7 +279,7 @@ namespace Hollowbrook.Checkpoint
             _recHeader.text = "DISTRICT ROSTER MEMO";
             _recName.text = "ASSIGNED: " + v.RecordName;
             _recNumber.text = "BADGE NO: " + v.RecordIdNumber;
-            _recYear.text = "EFFECTIVE: " + Content.ShiftDates[Mathf.Clamp(_gameRoot.Session.CurrentShift - 1, 0, 4)];
+            _recYear.text = "EFFECTIVE: " + (_gameRoot.CurrentShiftDef != null ? _gameRoot.CurrentShiftDef.DateLabel : "");
             _recCourse.text = "PURPOSE: Assume control of site";
             _recStatus.text = "SIGNED: District Seal (smudged)";
             _recClassroom.text = "ESCORT: None authorized";

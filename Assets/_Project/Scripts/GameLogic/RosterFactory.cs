@@ -9,6 +9,7 @@ namespace Hollowbrook.Logic
         private readonly HashSet<string> _registry = new HashSet<string>();
         private readonly GameRng _rng;
         private readonly PresentationLog _genLog = new PresentationLog();
+        private readonly Dictionary<StudentIdentity, int> _timesAnomaly = new Dictionary<StudentIdentity, int>();
 
         public IReadOnlyList<StudentIdentity> Canon => _canon;
         public ISet<string> Registry => _registry;
@@ -24,19 +25,24 @@ namespace Hollowbrook.Logic
         {
             _genLog.Clear(); // duplicates are a "tonight" rule in story mode
             var visitors = new List<VisitorData>();
-            var identities = PickDistinctIdentities(shift.VisitorCount);
-            // The school only has so many students. When a night is longer than the registry,
+// The school only has so many students. When a night is longer than the registry,
             // the extra visitors are impostors wearing a student's name (never a second honest
-            // visit by the same student).
+            // visit by the same student). They come last.
             int honestSlots = Math.Min(shift.VisitorCount, _canon.Count);
-            while (identities.Count < shift.VisitorCount)
-                identities.Add(_canon[_rng.NextInt(0, _canon.Count)]);
-            var anomalySlots = PickAnomalySlots(shift.VisitorCount, shift.AnomalyCount, honestSlots);
+            int impostors = shift.VisitorCount - honestSlots;
+            var turning = PickLeastUsed(Math.Min(honestSlots, Math.Max(0, shift.AnomalyCount - impostors)));
+            var identities = PickNight(turning, honestSlots);
+            for (int i = 0; i < impostors; i++)
+            {
+                var worn = _canon[_rng.NextInt(0, _canon.Count)];
+                identities.Add(worn);
+                CountTurn(worn);
+            }
 
             for (int i = 0; i < shift.VisitorCount; i++)
             {
                 var id = identities[i];
-                bool anomaly = anomalySlots.Contains(i);
+                bool anomaly = i >= honestSlots || turning.Contains(id);
                 var v = anomaly ? BuildAnomaly(id, shift) : BuildLegit(id, shift);
                 v.VisitorIndex = i;
                 v.ShiftNumber = shift.Number;
@@ -50,29 +56,44 @@ namespace Hollowbrook.Logic
             return visitors;
         }
 
-        private List<StudentIdentity> PickDistinctIdentities(int count)
+// Who turns tonight: whoever has been an anomaly the fewest times this run, ties broken at
+        // random, so every student gets their turn in every run. The roster replays from the seed,
+        // so a Continue picks the same students.
+        private List<StudentIdentity> PickLeastUsed(int count)
         {
             var pool = new List<StudentIdentity>(_canon);
             _rng.Shuffle(pool);
-            return pool.GetRange(0, Math.Min(count, pool.Count));
+            var order = new List<StudentIdentity>();
+            foreach (var s in pool)
+            {
+                int place = 0;
+                while (place < order.Count && Turns(order[place]) <= Turns(s)) place++;
+                order.Insert(place, s);
+            }
+            var picked = order.GetRange(0, count);
+            foreach (var s in picked) CountTurn(s);
+            return picked;
         }
 
-        private HashSet<int> PickAnomalySlots(int visitorCount, int anomalyCount, int forcedFrom)
+        private int Turns(StudentIdentity s) => _timesAnomaly.TryGetValue(s, out int n) ? n : 0;
+
+        private void CountTurn(StudentIdentity s) => _timesAnomaly[s] = Turns(s) + 1;
+
+        // Tonight's line: everyone turning, the rest honest, in a random order.
+        private List<StudentIdentity> PickNight(List<StudentIdentity> turning, int count)
         {
-            var slots = new HashSet<int>();
-            for (int i = forcedFrom; i < visitorCount; i++) slots.Add(i);   // impostors beyond the registry
-            if (anomalyCount <= 0) return slots;
-            var candidates = new List<int>();
-            for (int i = 0; i < forcedFrom; i++) candidates.Add(i);
-            _rng.Shuffle(candidates);
-            int stillNeeded = Math.Max(0, anomalyCount - slots.Count);
-            for (int i = 0; i < stillNeeded && i < candidates.Count; i++) slots.Add(candidates[i]);
-            return slots;
+            var rest = new List<StudentIdentity>(_canon);
+            rest.RemoveAll(s => turning.Contains(s));
+            _rng.Shuffle(rest);
+            var night = new List<StudentIdentity>(turning);
+            night.AddRange(rest.GetRange(0, count - turning.Count));
+            _rng.Shuffle(night);
+            return night;
         }
 
         private VisitorData BuildLegit(StudentIdentity id, ShiftDef shift)
         {
-            bool nearExpiry = (shift.Number >= 2 || shift.Number == 0) && _rng.Chance(0.25f);
+            bool nearExpiry = shift.NearExpiryAllowed && _rng.Chance(GameRules.Current.NearExpiryChance);
             int expDay = nearExpiry
                 ? Content.DayNumberOfDate(2026, 11, 20 + _rng.NextInt(0, 20))
                 : Content.DayNumberOfDate(2027, 3, 31);
@@ -212,7 +233,7 @@ namespace Hollowbrook.Logic
             if (shift.ClassroomLieAllowed) pool.Add(DefectType.ClassroomMismatch);
             if (shift.ClassroomLieAllowed) pool.Add(DefectType.SpokenMismatch);
             if (shift.DuplicateIdsAllowed) pool.Add(DefectType.DuplicateId);
-            if (shift.Number >= 2) pool.Add(DefectType.SlipMismatch);   // slip vs card, shift 2+
+            if (shift.SlipMismatchAllowed) pool.Add(DefectType.SlipMismatch);
             return pool;
         }
 
@@ -316,37 +337,39 @@ namespace Hollowbrook.Logic
 
         // What the visitor says to each of the four questions. An honest student says what their
         // card says (and the classroom on their file). Two kinds of anomaly lie out loud:
-        // ClassroomMismatch about the room, SpokenMismatch about course, year or status. The
-        // tone of voice is rolled once and belongs to the whole conversation.
+        // ClassroomMismatch about the room, SpokenMismatch about course, year or status. Some
+        // anomalies also get the words wrong: rolled once, for the whole conversation. A real
+        // student never speaks that way.
         private void BuildAnswers(VisitorData v, StudentIdentity id)
         {
-            v.Answers[(int)QuestionId.Course] = InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex]);
-            v.Answers[(int)QuestionId.Year] = InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1]);
-            v.Answers[(int)QuestionId.Status] = InterviewRules.StatusSpeech(v.IdIsTransferee);
-            v.ClassroomAnswer = id.ClassroomSpeech;
-            v.ClassroomTone = ToneFor(v);
-            if (v.Defects.Contains(DefectType.ClassroomMismatch))
-                v.ClassroomAnswer = LieAboutClassroom(id);
+            v.SpeaksAwkwardly = v.IsAnomaly && _rng.Chance(GameRules.Current.AwkwardSpeechChance);
+            var awkward = v.SpeaksAwkwardly ? id.Awkward : null;
+            if (awkward != null) v.Greeting = awkward.Greeting;
+            v.Answers[(int)QuestionId.Course] = InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex], awkward);
+            v.Answers[(int)QuestionId.Year] = InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1], awkward);
+            v.Answers[(int)QuestionId.Status] = InterviewRules.StatusSpeech(v.IdIsTransferee, awkward);
+            string classroom = v.Defects.Contains(DefectType.ClassroomMismatch) ? LieAboutClassroom(id) : id.ClassroomSpeech;
+            v.ClassroomAnswer = InterviewRules.ClassroomSpeech(classroom, awkward);
             v.Answers[(int)QuestionId.Classroom] = v.ClassroomAnswer;
-            if (v.Defects.Contains(DefectType.SpokenMismatch)) LieAboutCard(v);
+            if (v.Defects.Contains(DefectType.SpokenMismatch)) LieAboutCard(v, awkward);
         }
 
         // The spoken answer to the chosen question is never what the card says.
-        private void LieAboutCard(VisitorData v)
+        private void LieAboutCard(VisitorData v, AwkwardSpeech awkward)
         {
             var q = (QuestionId)v.SpokenLieQuestion;
             switch (q)
             {
                 case QuestionId.Course:
                     int other = (v.IdCourseIndex + 1 + _rng.NextInt(0, Content.Courses.Length - 1)) % Content.Courses.Length;
-                    v.Answers[(int)q] = InterviewRules.CourseSpeech(Content.Courses[other]);
+                    v.Answers[(int)q] = InterviewRules.CourseSpeech(Content.Courses[other], awkward);
                     break;
                 case QuestionId.Year:
                     int year = 1 + (v.IdYearLevel + _rng.NextInt(0, 3)) % 4;   // 1..4, never the card's
-                    v.Answers[(int)q] = InterviewRules.YearSpeech(Content.YearNames[year - 1]);
+                    v.Answers[(int)q] = InterviewRules.YearSpeech(Content.YearNames[year - 1], awkward);
                     break;
                 default:
-                    v.Answers[(int)q] = InterviewRules.StatusSpeech(!v.IdIsTransferee);
+                    v.Answers[(int)q] = InterviewRules.StatusSpeech(!v.IdIsTransferee, awkward);
                     break;
             }
         }
@@ -378,15 +401,6 @@ namespace Hollowbrook.Logic
             return subjects.Count > 0 ? _rng.Pick(subjects.ToArray()) : "Study Hall";
         }
 
-        // Only anomalies ever show a tone (fairness: a legitimate student never leaks one).
-        private ToneTag ToneFor(VisitorData v)
-        {
-            if (!v.IsAnomaly || !_rng.Chance(0.4f)) return ToneTag.Normal;
-            var tags = new[] { ToneTag.Flat, ToneTag.TooSmooth, ToneTag.Echoing, ToneTag.Hesitant };
-            return _rng.Pick(tags);
-        }
-
-
         public VisitorData BuildAdministrator(ShiftDef shift)
         {
             var badgePhoto = new Portrait { HairStyle = 2, FaceVariant = 3, Accessory = 0, Distorted = false };
@@ -415,7 +429,6 @@ namespace Hollowbrook.Logic
             v.Defects.Add(DefectType.NotInDatabase);       // badge number not on the roster
             v.Defects.Add(DefectType.PhotoSubtleMismatch); // same glitch as the other anomalies
             v.ClassroomAnswer = "My first stop is your server room.";
-            v.ClassroomTone = ToneTag.Echoing;
             for (int q = 0; q < InterviewRules.Count; q++) v.Answers[q] = "That is not your concern.";
             v.Answers[(int)QuestionId.Classroom] = v.ClassroomAnswer;
             v.WindowFaceIndex = -1;                        // the administrator has his own face art

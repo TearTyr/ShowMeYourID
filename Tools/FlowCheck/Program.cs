@@ -18,7 +18,7 @@ namespace FlowCheck
     // Drives the real NEW GAME path headlessly and prints the [Flow] breadcrumb chain.
     // SceneManager.LoadScene is a no-op in the stubs, so the scene script Awake is
     // invoked by hand exactly as Unity would run it after the load completes.
-    internal static class Program
+    internal static partial class Program
     {
         private static int _failures;
 
@@ -65,6 +65,7 @@ namespace FlowCheck
                 // the procedural sprites are painted while the desk builds, so build first
                 MenuScene.Build(GameCore.EnsureCore());
                 var bootRoot = GameRoot.Instance;
+                bootRoot.Saves.Delete();   // NEW GAME asks first when a game is in progress
                 bootRoot.MainMenu.transform.Find("buttons").Find("NEW GAME")
                     .GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
                 DeskScene.Build(bootRoot);
@@ -81,8 +82,10 @@ namespace FlowCheck
             Console.WriteLine("== NEW GAME flow, headless ==");
             MenuScene.Build(GameCore.EnsureCore());
             var root = GameRoot.Instance;
+            GameRules.Current.RandomSeed = false;   // these proofs need the same run every time
             Check(root != null && root.State == AppViewState.MainMenu, "menu boots");
 
+            root.Saves.Delete();   // NEW GAME asks first when a game is in progress, so start with none
             var newGame = root.MainMenu.transform.Find("buttons").Find("NEW GAME");
             newGame.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Console.WriteLine("  ..clicked NEW GAME..");
@@ -161,6 +164,8 @@ namespace FlowCheck
             IssueOneProofs(root);
             SceneReuseProof(root);
             ShiftFailureProof(root);
+            RetryProof(root);
+            MoreFlawsProof(root);
             Night6Proof(root);
             AdminTalkProof(root);
             AdminHuntProof(root);
@@ -2639,7 +2644,7 @@ namespace FlowCheck
         private static void FreshGame(GameRoot root)
         {
             root.StartNewGame(GameMode.Normal);
-            DeskScene.Build(root);        // what Unity does after LoadScene(Hollowbrook)
+            DeskScene.Build(root);        // what Unity does after LoadScene(Gameplay)
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
         }
 
@@ -2807,7 +2812,7 @@ namespace FlowCheck
             DeskScene.Build(root);
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
             Check(root.State == AppViewState.Checkpoint, "W0: a fresh run reaches the desk");
-            Check(root.Session.Pool.Pending == 1, "W0: night 1 seeds exactly one outstanding anomaly");
+            Check(root.Session.Pool.Pending == root.CurrentShiftDef.AnomalyCount, "W0: the night seeds as many outstanding anomalies as its row says");
 
             root.EnterExploration();
             PatrolScene.Build(root);      // what Unity does after LoadScene(School)
@@ -3640,8 +3645,8 @@ namespace FlowCheck
             }
             views.Spawner.DiscardLive();
 
-            // ---- W10: the classroom peek - the cursor lamp is manual (F), dark on entry
-            Console.WriteLine("== W10 classroom peek lamp (manual, dark entries) ==");
+            // ---- W10: the classroom peek - the cursor lamp starts ON, F toggles it
+            Console.WriteLine("== W10 classroom peek lamp (ON at entry, F toggles) ==");
             SetBeam(root, rig, LightMode.Off);
             views.EnterRoom(RoomId.Hallway);
             Check(views.Current.Id == RoomId.Hallway, "W10: back in the hallway for the peek proof");
@@ -3668,7 +3673,9 @@ namespace FlowCheck
             CheckLightSync(root, "W10 peek entry");
             var lamp = views.PeekLight;
             Check(lamp != null && lamp.Active, "W10: the peek session is live");
-            Check(!lamp.Lit, "W10: entering a classroom starts with the lamp OFF - no F was pressed");
+            Check(lamp.Lit, "W10: entering a classroom starts with the lamp ON, so what waits in the room reacts at once");
+            PressKey(root, KeyCode.F);
+            Check(!lamp.Lit, "W10: one F press puts it out (the proofs below start from the dark)");
             Check(rig.Beam == LightMode.Off, "W10: the handheld beam stays OFF through the peek entry");
             var lampBlind = FindDeep(lamp.transform, "PeekBlind").gameObject;
             Check(lampBlind.activeSelf,
@@ -3753,14 +3760,15 @@ namespace FlowCheck
             PressKey(root, KeyCode.F);
             Check(rig.Beam == LightMode.Sweep, "W10: back on patrol, F is the beam toggle again");
             root.EnterRoomPeek(RoomId.Classroom2);
-            Check(!views.PeekLight.Lit &&
-                  FindDeep(views.PeekLight.transform, "PeekBlind").gameObject.activeSelf,
-                "W10: the NEXT classroom entry also starts with the lamp OFF (every entry is dark)");
+            Check(views.PeekLight.Lit &&
+                  !FindDeep(views.PeekLight.transform, "PeekBlind").gameObject.activeSelf,
+                "W10: the NEXT classroom entry also starts with the lamp ON");
             Check(rig.Beam == LightMode.Off, "W10: ...and the beam never rides into a peek lit");
             PressKey(root, KeyCode.F);
-            Check(views.PeekLight.Lit, "W10: one F press lights the second classroom too");
+            Check(!views.PeekLight.Lit, "W10: one F press puts the second classroom's lamp out too");
             PressKey(root, KeyCode.F);
-            Check(!views.PeekLight.Lit, "W10: ...and one F press puts it out again (a clean toggle)");
+            Check(views.PeekLight.Lit, "W10: ...and one more lights it again (a clean toggle)");
+            PressKey(root, KeyCode.F);
             RoomId peekedRoom = views.Current.Id;
             // the dark exit: S steps back with the lamp OFF
             PressKey(root, KeyCode.S);
@@ -3776,7 +3784,6 @@ namespace FlowCheck
             WorldFrames(root, 2);
             string ownPrompt = bodyPrompt.text;
             root.EnterRoomPeek(peekedRoom);
-            views.PeekLight.ToggleLamp();
             AimAt(views.Current.Interactables[0].AnchorX, views.Current.Interactables[0].AnchorY);
             WorldFrames(root, 2);
             string peekPrompt = views.Current.Interactables[0].Prompt;
@@ -3790,10 +3797,9 @@ namespace FlowCheck
             Console.WriteLine("== AN anomalies in every mode ==");
             var fresh = new RoomSpawner(root, views, null);
             views.Spawner.DiscardLive();
-            fresh.UpdateSpawner(cfg.anomalyFirstSpawnSeconds - 1f);
-            Check(fresh.Live == null, "AN: the patrol gets a moment before the first anomaly");
-            fresh.UpdateSpawner(2f);
-            Check(fresh.Live != null, "AN: every patrol meets an anomaly, from night 1, without a dice roll");
+            Eq0(GameConfigSO.CreateDefault().anomalyFirstSpawnSeconds, "AN: the shipped setting has no wait before the first anomaly");
+            fresh.UpdateSpawner(0.02f);
+            Check(fresh.Live != null, "AN: an anomaly is already waiting when the patrol starts, from night 1, without a dice roll");
             if (fresh.Live != null)
             {
                 Check(fresh.Live.Renderer.sprite == ProceduralArt.Get("char_anomaly"), "AN: it uses the real creature art");
@@ -3823,6 +3829,8 @@ namespace FlowCheck
             Check((root.Session.ClearedRooms & bit) == 0, "AN: the room does not count while it is still in there");
             Check(hider.sprite == ProceduralArt.Get("char_hood"), "AN: it is the hooded figure");
             var hiderPos = views.PeekedAnomaly.transform.localPosition;
+            Check(lamp.Lit, "AN: the lamp is already on when the room opens");
+            lamp.ToggleLamp();                      // put it out for the dark proof
             AimAt(hiderPos.x, hiderPos.y);
             WorldFrames(root, 200);
             Check((root.Session.PeekAnomaliesGone & bit) == 0 && !views.PeekedAnomaly.Playing, "AN: a dark lamp does nothing to it");
@@ -3862,20 +3870,59 @@ namespace FlowCheck
             Check(views.PeekedAnomaly == null, "AN: it does not come back tonight");
             PressKey(root, KeyCode.S);
             WorldFrames(root, 2);
+
+            // the owner's report: it has to be there already, and the lamp has to be on
+            root.Session.PeekAnomaliesGone = 0;
+            root.Session.ClearedRooms = 0;
+            root.EnterRoomPeek(withOne);
+            WorldFrames(root, 2);
+            Check(views.PeekLight.Lit && views.PeekedAnomaly != null, "AN: a standing anomaly is in the room and the lamp is on as it opens");
+            var waiting = views.PeekedAnomaly;
+            AimAt(waiting.transform.localPosition.x, waiting.transform.localPosition.y);
+            WorldFrames(root, 5);
+            Check(waiting.Playing, "AN: hovering over it reacts at once, with no F press and no waiting");
+            WorldFrames(root, 400);
+            PressKey(root, KeyCode.S);
+            WorldFrames(root, 60);
+
+            // stepping out of a peek never lands a catch the player did not see coming
+            views.EnterRoom(RoomId.Hallway);
+            views.Spawner.DiscardLive();
+            var close = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Blink);
+            // stepping out puts the guard at the door of the room they looked into: stand one right there
+            float doorX = 0f;
+            foreach (var it in views.Room(RoomId.Hallway).Interactables)
+            {
+                var d = it as Doorway;
+                if (d != null && d.Target == withNone) doorX = d.AnchorX - 1.1f;
+            }
+            var closePos = close.transform.localPosition; closePos.x = doorX + 1f; close.transform.localPosition = closePos;
+            root.EnterRoomPeek(withNone);
+            WorldFrames(root, 40);
+            PressKey(root, KeyCode.S);
+            for (int f = 0; f < 120 && views.PeekActive; f++) WorldFrame(root);   // the moment the guard is back in the hallway
+            float guardX = views.Player.transform.localPosition.x;
+            Check(Mathf.Abs(close.transform.localPosition.x - guardX) >= GameRules.Current.PeekExitPushDistance - 0.05f,
+                $"AN: one standing by the door when the player steps out is pushed back, there is room to react (guard {guardX:F2}, it {close.transform.localPosition.x:F2})");
+            WorldFrames(root, 60);
+            Check(!close.WasCaught && !close.Gone, "AN: ...and nothing catches the player in the first moments after a peek");
+            views.Spawner.DiscardLive();
+            WorldFrames(root, 60);
             foreach (var r in peekRooms)
                 if (r != withOne && standing > 1 && root.PeekAnomalyIn(r))
                 {
+                    AimAt(40f, 40f);   // the lamp is on as a room opens: keep the cursor off the figure, or the scene starts
                     root.EnterRoomPeek(r);
-                    WorldFrames(root, 2);
+                    WorldFrames(root, 60);
                     Check(views.PeekedAnomaly != null, "AN: another room's anomaly is still standing, driving one out does not clear them all");
                     PressKey(root, KeyCode.S);
-                    WorldFrames(root, 2);
+                    WorldFrames(root, 60);
                     break;
                 }
             if (haveNone)
             {
                 root.EnterRoomPeek(withNone);
-                WorldFrames(root, 2);
+                WorldFrames(root, 60);
                 Check(views.PeekedAnomaly == null && (root.Session.ClearedRooms & PatrolCycle.Bit(withNone)) != 0,
                       "AN: an empty room has nothing in it and counts at once");
                 PressKey(root, KeyCode.S);
@@ -4277,6 +4324,8 @@ namespace FlowCheck
                 "HUNT: the loss is its own ending ('server_door')");
         }
 
+        private static void Eq0(float value, string what) => Check(value == 0f, what + " (" + value + ")");
+
         private static bool QueueAbandoned(GameRoot root) =>
             root.Queue != null && root.Queue.Active == null && root.Queue.WaitingCount == 0;
 
@@ -4605,6 +4654,7 @@ namespace FlowCheck
             root.Config.queueArrivalMinSeconds = 3f;
             root.Config.queueArrivalMaxSeconds = 5f;
             root.Config.queueBusyHurryMultiplier = 1f;
+            root.Saves.Delete();   // NEW GAME asks first when a game is in progress, so start with none
             var newGame = root.MainMenu.transform.Find("buttons").Find("NEW GAME");
             newGame.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             DeskScene.Build(root);
@@ -4903,6 +4953,7 @@ namespace FlowCheck
             root.Config.queueBusyHurryMultiplier = 1f;
             // the real path: NEW GAME queues BeginShift, THEN the checkpoint scene boots and
             // runs the queued action - skipping the click leaves the run in MainMenu
+            root.Saves.Delete();   // NEW GAME asks first when a game is in progress, so start with none
             var newGame = root.MainMenu.transform.Find("buttons").Find("NEW GAME");
             newGame.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             DeskScene.Build(root);

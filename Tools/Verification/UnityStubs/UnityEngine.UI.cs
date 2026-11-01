@@ -17,6 +17,7 @@ namespace UnityEngine
     public class Canvas : Behaviour
     {
         public Canvas rootCanvas => this;
+        public static void ForceUpdateCanvases() { }
         public RenderMode renderMode = RenderMode.ScreenSpaceOverlay;
         public Camera worldCamera;
         public int sortingOrder = 0;

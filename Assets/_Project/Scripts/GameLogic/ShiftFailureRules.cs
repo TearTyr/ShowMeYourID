@@ -10,11 +10,12 @@ namespace Hollowbrook.Logic
     /// already roaming. Pure: unit-tested, nothing here knows about the engine.</summary>
     public static class ShiftFailureRules
     {
-        public const int MaxSeverity = 5;
-        public const int BlackoutSeverity = 2;          // a blackout is worth two anomalies let in
-        public const float SanityLossPerSeverity = 8f;  // at the first night
-        public const float NightScale = 0.15f;          // +15% per night after the first
-        public const float MaxStartSanityLoss = 45f;    // the next night never starts below 55
+private static GameRules Rules => GameRules.Current;
+        public static int MaxSeverity => Rules.MaxSeverity;
+        public static int BlackoutSeverity => Rules.BlackoutSeverity;
+        public static float SanityLossPerSeverity => Rules.SanityLossPerSeverity;
+        public static float NightScale => Rules.FailedNightScale;
+        public static float MaxStartSanityLoss => Rules.MaxStartSanityLoss;
 
         /// <summary>How bad the failed night was: anomalies let in that night, plus the blackout.</summary>
         public static int Severity(int shiftBreaches, ShiftFailure kind)

@@ -15,14 +15,25 @@ namespace Hollowbrook.Core
     // each file reads on its own; it is all still one class.
     public partial class GameRoot
     {
+        /// <summary>The NEW GAME button. A story run in progress would be overwritten, so it asks first.</summary>
+        public void RequestNewGame(GameMode mode)
+        {
+            bool overwrites = mode == GameMode.Normal && HasSave();
+            if (!overwrites || Confirm == null) { StartNewGame(mode); return; }
+            Confirm.Ask("START A NEW GAME?",
+                "You have a game in progress. Starting over erases it. Your records and unlocked endings are kept.",
+                () => StartNewGame(mode));
+        }
+
         public void StartNewGame(GameMode mode)
         {
             // carry meta records across runs
             var old = Saves.Read();
             Records = old?.Records ?? new RecordsData();
 
-            int seed = 20261102;
+            int seed = GameRules.Current.NewRunSeed();
             Session = new GameSession { Mode = mode, Seed = seed };
+            Queue = new CheckpointQueue();   // the last run's line must never be saved into this one
             _resolvedVisitorIndices.Clear();
             _continuePending = false;
 
@@ -40,9 +51,15 @@ namespace Hollowbrook.Core
                 SetState(AppViewState.MainMenu);
                 return;
             }
+            // the game closed while the lost-hunt scene played: that night is lost, so play it again
+            if (save.Session.Hunt == HuntState.Lost)
+            {
+                var start = Saves.ReadNightStart();
+                if (start != null) save = start; else save.Session.RewindNight();
+            }
             Session = save.Session;
             Records = save.Records;
-            _nightStart = Saves.Read();   // its own copy: the live session must not change it
+            Queue = new CheckpointQueue();   // the failed attempt's line must never reach the save
             Settings.AdoptFromSaveIfFresh(save.Settings);
             _resolvedVisitorIndices.Clear();
             _continuePending = true;
@@ -81,8 +98,8 @@ namespace Hollowbrook.Core
             // a resume continues the saved night at its saved clock; a fresh shift starts at 22:00
             _shiftMinutes = isResume ? Session.ShiftClockMinutes : 0f;
             if (!isResume) Session.ShiftClockMinutes = 0f;
-            RememberNightStart(isResume);
             SetupShiftQueue(number, resumeFromVisitor);
+            RememberNightStart(isResume);   // after the queue: this saves, and only tonight's queue may be saved
             PlayIntroThenCheckpoint(BuildShiftIntroLines(number, penaltyNote), CurrentShiftDef);
             _resumeFromVisitor = 0;
         }
@@ -141,14 +158,8 @@ namespace Hollowbrook.Core
             };
             if (!string.IsNullOrEmpty(penaltyNote))
                 intro.Add(new DialogueLine { Speaker = "LAST NIGHT", Text = penaltyNote });
-            if (number == ShiftPlan.Night6Number)
-            {
-                intro.Add(new DialogueLine { Speaker = "???", Text = "He said he would be back. He does not give up. Deny him again, and this time he will not be gentle. Only the light stops him." });
-            }
-            else if (number == 5)
-            {
-                intro.Add(new DialogueLine { Speaker = "???", Text = "Tonight the district sends an administrator to 'take control'. Check the credentials like you would check anyone else's. Trust the evidence." });
-            }
+if (!string.IsNullOrEmpty(CurrentShiftDef.IntroWarning))
+                intro.Add(new DialogueLine { Speaker = "???", Text = CurrentShiftDef.IntroWarning });
             return intro;
         }
 

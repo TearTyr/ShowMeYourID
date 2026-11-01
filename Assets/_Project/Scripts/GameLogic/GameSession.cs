@@ -36,7 +36,7 @@ namespace Hollowbrook.Logic
     public class GameSession
     {
         public GameMode Mode = GameMode.Normal;
-        public int Seed = 20261102;
+        public int Seed = GameRules.Current.FixedSeed;
         public int CurrentShift = 1;        // Normal: shift being played (1..5)
         public int CompletedShifts = 0;     // Normal: shifts fully completed
         public int Processed = 0;           // visitors processed this run
@@ -52,6 +52,9 @@ namespace Hollowbrook.Logic
         // After the DENY stamp the administrator hunts through the school (see AdminHunt).
         // Won = he was driven off; Lost = he reached the server door.
         public HuntState Hunt = HuntState.None;
+        // Where a hunt that was left half way stands, so quitting and Continuing is no free escape.
+        public int HuntCatches;
+        public float HuntSecondsLeft = -1f;     // -1 = the hunt has not been left yet
         // The Shift-5 conversation: where it stands, which one-shots were spent, the tactic
         // counters. Encoded into the save as one invariant string (see SaveFormat "adminTalk").
         // It carries no mechanical power - no clues, no budget, no verdict - so resuming it
@@ -192,6 +195,22 @@ namespace Hollowbrook.Logic
             PendingPenaltySeverity = 0;
             PendingPenaltyNight = 0;
             LastShiftFailure = ShiftFailure.None;
+        }
+
+        /// <summary>Only used if the night start file is gone: forget tonight's progress on this
+        /// session, so Continue can still start the night from the top.</summary>
+        public void RewindNight()
+        {
+            QueueState = null;
+            VisitorIndexAtSave = 0;
+            ShiftClockMinutes = 0f;
+            AdminAllowed = false;
+            AdminRejected = false;
+            AdminTalk = new AdminTalkState();
+            Hunt = HuntState.None;
+            HuntCatches = 0;
+            HuntSecondsLeft = -1f;
+            RunFinished = false;
         }
 
         public ClueDiscoveryResult DiscoverClue(string key)

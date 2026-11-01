@@ -334,7 +334,7 @@ namespace Hollowbrook.Checkpoint
             RefreshQuestionsPanel(atWindow);
             RefreshStamps(live);
             bool patrolOn = PatrolOpen && !atWindow;
-            bool endOn = Queue != null && Queue.ShiftComplete && _gameRoot.PatrolDone &&
+            bool endOn = Queue != null && Queue.ShiftComplete && _gameRoot.PatrolDone && _gameRoot.NightResolved &&
                          _gameRoot.Session.Mode == GameMode.Normal && !_gameRoot.HuntActive && !_gameRoot.HuntReady;
             if (_kitOn) { ApplyKitPill(_patrolBtn, patrolOn); ApplyKitPill(_endShiftBtn, endOn); }
             else

@@ -40,6 +40,9 @@ namespace Hollowbrook.LogicTests
             IdRulesTests();
             ContentTests();
             ShiftPlanTests();
+            HuntFairnessTests();
+            EveryStudentTurnsTests();
+            RulesAreLiveTests();
             ClueRegistryTests();
             RosterFairnessTests();
             AdministratorTests();
@@ -131,8 +134,6 @@ namespace Hollowbrook.LogicTests
             Check(roster.All(s => s.YearLevel >= 1 && s.YearLevel <= 4), "year levels in 1..4");
             Check(roster.All(s => s.CourseIndex >= 0 && s.CourseIndex < Content.Courses.Length), "course indices in range");
             Check(Content.Courses.Length > 0 && Content.YearNames.Length == 4, "course/year pools populated");
-            Eq(Content.ShiftDates.Length, 6, "six shift dates (five nights and the Challenge)");
-            Eq(Content.ShiftDatesLong.Length, 6, "six long dates");
             // day-number mapping must be strictly monotonic ACROSS THE WINDOW THE GAME
             // ACTUALLY GENERATES (Jun 2026 .. Mar 2027). The model uses 30-day months, so
             // it is only an approximation: 2026-12-31 and 2027-01-01 both map to 1060.
@@ -151,6 +152,264 @@ namespace Hollowbrook.LogicTests
         }
 
         // ------------------------------------------------------------ shift plan
+        // He never catches a player who is not looking at him: every catch comes from a visible approach.
+        private static void HuntFairnessTests()
+        {
+            Group("Hunt: no catch from something the player never saw");
+            var tuning = HuntTuning.Default;
+            tuning.RoomSeconds = 5f;
+            var inHall = new HuntInput { InHallway = true, PlayerRoom = RoomId.Hallway };
+            int caughtUnseen = 0, followedRoom = 0, followedBehind = 0;
+            for (int seed = 1; seed <= 300; seed++)
+            {
+                var hunt = new AdminHunt(tuning, seed);
+                hunt.Start();
+                int guard = 0;
+                // walk until he stops in a room (the player waits in the hallway)
+                while (hunt.Phase != HuntPhase.InRoom && !hunt.Finished && guard++ < 5000) hunt.Tick(0.1f, inHall);
+                if (hunt.Phase != HuntPhase.InRoom) continue;
+                RoomId his = hunt.Room;
+                // the room timer runs out with the player in the hallway
+                var ev = HuntEvent.None;
+                guard = 0;
+                while (hunt.Phase == HuntPhase.InRoom && guard++ < 200) ev |= hunt.Tick(0.1f, inHall);
+                if ((ev & HuntEvent.Caught) != 0) caughtUnseen++;
+                if (hunt.Phase == HuntPhase.Behind && (ev & HuntEvent.AppearedBehind) != 0) followedBehind++;
+            }
+            Eq(caughtUnseen, 0, "timing out while the player is in the hallway is not a catch");
+            Check(followedBehind > 0, "...he comes up behind them instead, where the beam can answer him");
+
+            for (int seed = 1; seed <= 300; seed++)
+            {
+                var hunt = new AdminHunt(tuning, seed);
+                hunt.Start();
+                int guard = 0;
+                while (hunt.Phase != HuntPhase.InRoom && !hunt.Finished && guard++ < 5000) hunt.Tick(0.1f, inHall);
+                if (hunt.Phase != HuntPhase.InRoom) continue;
+                RoomId his = hunt.Room;
+                RoomId other = his == RoomId.Classroom1 ? RoomId.Classroom2 : RoomId.Classroom1;
+                var peekOther = new HuntInput { Peeking = true, PlayerRoom = other };
+                var ev = HuntEvent.None;
+                guard = 0;
+                while (hunt.Phase == HuntPhase.InRoom && hunt.Room == his && guard++ < 200) ev |= hunt.Tick(0.1f, peekOther);
+                if ((ev & HuntEvent.Caught) != 0) caughtUnseen++;
+                if (hunt.Phase == HuntPhase.InRoom && hunt.Room == other && (ev & HuntEvent.EnteredRoom) != 0)
+                {
+                    followedRoom++;
+                    Check(hunt.PhaseTimer >= tuning.RoomSeconds - GameRules.Current.HuntFollowSeconds - 0.001f,
+                        "the follower has only a short time left to be found");
+                }
+            }
+            Eq(caughtUnseen, 0, "timing out while the player peeks another room is not a catch");
+            Check(followedRoom > 0, "...he goes to the room being peeked");
+
+            // a hunt left half way starts again where it was, and never with more than a fresh one
+            var resumed = new AdminHunt(tuning, 3);
+            resumed.Start(2, 40f);
+            Eq(resumed.Catches, 2, "a resumed hunt keeps its catches");
+            Check(Math.Abs(resumed.SurviveLeft - 40f) < 0.001f, "...and its dawn clock");
+            var cheated = new AdminHunt(tuning, 3);
+            cheated.Start(0, 99999f);
+            Check(cheated.SurviveLeft <= tuning.SurviveSeconds, "...never more time than a fresh hunt");
+            var nearEnd = new AdminHunt(tuning, 3);
+            nearEnd.Start(99, 40f);
+            Eq(nearEnd.Catches, tuning.CatchesToLose - 1, "...and never starts already lost");
+            var withHunt = new SaveGame();
+            withHunt.Session.Hunt = HuntState.Active;
+            withHunt.Session.HuntCatches = 2;
+            withHunt.Session.HuntSecondsLeft = 61.5f;
+            var back = SaveFormat.Deserialize(SaveFormat.Serialize(withHunt));
+            Check(back != null && back.Session.HuntCatches == 2 && Math.Abs(back.Session.HuntSecondsLeft - 61.5f) < 0.01f,
+                "the hunt's catches and clock survive the save file");
+            var plain = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame()));
+            Check(plain != null && plain.Session.HuntCatches == 0 && plain.Session.HuntSecondsLeft < 0f, "a save with no hunt reads back as none");
+
+            // a player who IS looking at him and fails is caught: the hunt still bites
+            var seen = new AdminHunt(tuning, 7);
+            seen.Start();
+            int steps = 0;
+            while (seen.Phase != HuntPhase.InRoom && steps++ < 5000) seen.Tick(0.1f, inHall);
+            var looking = new HuntInput { Peeking = true, PlayerRoom = seen.Room, OnTarget = false };
+            var seenEv = HuntEvent.None;
+            steps = 0;
+            while (seen.Phase == HuntPhase.InRoom && steps++ < 200) seenEv |= seen.Tick(0.1f, looking);
+            Check((seenEv & HuntEvent.Caught) != 0, "a player who sees him and cannot light his head is still caught");
+
+            // nobody is ever stuck: idle and wandering players both reach an end
+            for (int seed = 1; seed <= 100; seed++)
+            {
+                var idle = new AdminHunt(HuntTuning.Default, seed);
+                idle.Start();
+                for (int i = 0; i < 20000 && !idle.Finished; i++) idle.Tick(0.1f, inHall);
+                Check(idle.Finished, $"seed {seed}: a player who does nothing still reaches dawn or the door");
+                var rng = new GameRng(seed);
+                var wander = new AdminHunt(HuntTuning.Default, seed);
+                wander.Start();
+                var rooms = new[] { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 };
+                for (int i = 0; i < 20000 && !wander.Finished; i++)
+                {
+                    bool peek = rng.Chance(0.5f);
+                    wander.Tick(0.1f, new HuntInput { Peeking = peek, PlayerRoom = peek ? rooms[rng.NextInt(0, 4)] : RoomId.Hallway,
+                                                      InHallway = !peek, OnTarget = rng.Chance(0.3f), BeamOnFace = rng.Chance(0.3f) });
+                }
+                Check(wander.Finished, $"seed {seed}: a player moving at random still reaches an end");
+            }
+        }
+
+        // Every student takes a turn, in every run. The owner's report: Raffy never turned in a whole game.
+        private static void EveryStudentTurnsTests()
+        {
+            Group("Every student is an anomaly at least once per run");
+            int students = Content.TotalStudents;
+            var plan = ShiftPlan.Build();
+            for (int seed = 1; seed <= 300; seed++)
+            {
+                var turned = new HashSet<int>();
+                var factory = new RosterFactory(seed * 7919);
+                foreach (var night in plan)
+                    foreach (var v in factory.GenerateShift(night))
+                        if (v.IsAnomaly && !v.IsAdministrator) turned.Add(v.FaceAssetIndex);
+                Eq(turned.Count, students, $"seed {seed}: all {students} students turned");
+            }
+            foreach (var night in plan)
+            {
+                var v = new RosterFactory(5).GenerateShift(night);
+                int honest = night.VisitorCount - night.AnomalyCount;
+                Eq(v.Count(x => x.IsAnomaly && !x.IsAdministrator), night.AnomalyCount, $"night {night.Number}: as many anomalies as its row says");
+                Eq(v.Count(x => !x.IsAnomaly), honest, $"night {night.Number}: the rest are real students");
+                var real = v.Where(x => !x.IsAnomaly).Select(x => x.ClaimedName).ToList();
+                Eq(real.Distinct().Count(), real.Count, $"night {night.Number}: nobody real comes twice");
+            }
+            // the same seed always rebuilds the same run: Continue depends on it
+            var a = new RosterFactory(99);
+            var b = new RosterFactory(99);
+            foreach (var night in plan)
+            {
+                var x = a.GenerateShift(night);
+                var y = b.GenerateShift(night);
+                Check(x.Select(s => s.ClaimedName + s.IsAnomaly + s.WindowFaceIndex).SequenceEqual(y.Select(s => s.ClaimedName + s.IsAnomaly + s.WindowFaceIndex)),
+                    $"night {night.Number}: the same seed gives the same line");
+            }
+
+            Group("Anomalies sometimes speak awkwardly, with no markers");
+            int awkwardCount = 0, plainCount = 0;
+            var awkwardLines = new HashSet<string>();
+            foreach (var row in GameRules.Current.Students)
+                foreach (var line in new[] { row.Awkward.Course, row.Awkward.Year, row.Awkward.Status, row.Awkward.Classroom })
+                    Check(line.Contains("{0}"), row.FullName + ": awkward lines keep the fact in them");
+            for (int seed = 1; seed <= 100; seed++)
+            {
+                var factory = new RosterFactory(seed);
+                foreach (var night in plan)
+                    foreach (var v in factory.GenerateShift(night))
+                    {
+                        if (v.IsAdministrator) continue;
+                        foreach (var line in v.Answers) Check(!line.Contains("[") && !line.Contains("{0}"), $"seed {seed}: no tone marker and no blank in '{line}'");
+                        if (!v.SpeaksAwkwardly) { if (v.IsAnomaly) plainCount++; continue; }
+                        awkwardCount++;
+                        Check(v.IsAnomaly, $"seed {seed}: only an anomaly speaks awkwardly");
+                        var student = GameRules.Current.Students[v.FaceAssetIndex];
+                        Eq(v.Greeting, student.Awkward.Greeting, $"seed {seed}: the greeting is that student's habit");
+                        if (!v.Defects.Contains(DefectType.SpokenMismatch))
+                            Check(v.Answers[(int)QuestionId.Course].Contains(Content.Courses[v.IdCourseIndex]) &&
+                                  v.Answers[(int)QuestionId.Year].Contains(Content.YearNames[v.IdYearLevel - 1]),
+                                $"seed {seed}: the facts are the card's, only the sound is off");
+                        awkwardLines.Add(student.Awkward.Greeting);
+                    }
+            }
+            Check(awkwardCount > 0 && plainCount > 0, $"some anomalies speak awkwardly, some do not ({awkwardCount} / {plainCount})");
+            Check(Math.Abs(awkwardCount - plainCount) < (awkwardCount + plainCount) / 4, "about half of them, as the rule says");
+            Eq(awkwardLines.Count, students, "every student has been heard speaking their own way");
+
+            Group("Every student has both pictures");
+            foreach (var row in GameRules.Current.Students) Check(row.Awkward != null, row.FullName + " has an awkward way of speaking");
+            for (int i = 0; i < students; i++)
+                Check(FaceAssets.AnomalyKey(i) == FaceAssets.StudentKey(i) + "_anomaly", "face " + i + " has its anomaly key");
+            for (int seed = 1; seed <= 50; seed++)
+            {
+                var factory = new RosterFactory(seed);
+                foreach (var night in plan)
+                    foreach (var v in factory.GenerateShift(night))
+                    {
+                        if (v.IsAdministrator) continue;
+                        int face = v.WindowFaceIndex >= 0 ? v.WindowFaceIndex : v.FaceAssetIndex;
+                        Check(FaceAssets.WindowKey(face, v.IsAnomaly).EndsWith("_anomaly") == v.IsAnomaly,
+                            $"seed {seed}: {v.ClaimedName}: the window face shows the monster exactly when it is an anomaly");
+                        Check(!FaceAssets.IdKey(v.FaceAssetIndex).EndsWith("_anomaly"), "the ID card always shows the real face");
+                    }
+            }
+        }
+
+        // The owner's rule: nothing buried in code. Change a rule, and the game has to change.
+        private static void RulesAreLiveTests()
+        {
+            Group("Changing a rule changes the game");
+            var keep = GameRules.Current;
+            try
+            {
+                var r = new GameRules();
+                GameRules.Current = r;
+
+                r.LoseThreshold = 7;
+                Eq(EndingRules.LoseThreshold, 7, "the lose limit comes from the rules");
+                var lose = new GameSession { Breaches = 6, CurrentShift = ShiftPlan.TotalShifts };
+                Check(!lose.LoseThresholdReached, "...six breaches are now not enough");
+                r.QuestionBudget = 3;
+                Eq(InterviewRules.Remaining(0), 3, "the question budget comes from the rules");
+                r.StableFrom = 95f;
+                Eq(SanityModel.StageFor(90f), SanityStage.Uneasy, "sanity stages come from the rules");
+                r.HallucinationBreaking = 0.5f;
+                Eq(SanityModel.HallucinationChancePerSecond(SanityStage.Breaking), 0.5f, "hallucination chances come from the rules");
+                r.RefillOnCorrect = 40f;
+                Eq(SanityModel.RefillOnCorrect, 40f, "the sanity refill comes from the rules");
+                r.BlackoutSeverity = 4;
+                Eq(ShiftFailureRules.Severity(0, ShiftFailure.Blackout), 4, "a blackout's weight comes from the rules");
+                r.MaxStartSanityLoss = 5f;
+                Eq(ShiftFailureRules.StartSanityLoss(5, 4), 5f, "the penalty cap comes from the rules");
+
+                r.StandingChance = 1f;
+                foreach (RoomId room in new[] { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 })
+                    Check(PatrolCycle.StandingIn(3, 2, room), "chance 1: every peek room holds one");
+                r.StandingChance = 0f;
+                int standing = 0;
+                foreach (RoomId room in new[] { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 })
+                    if (PatrolCycle.StandingIn(3, 2, room)) standing++;
+                Eq(standing, 1, "chance 0: still one, the patrol always meets something");
+
+                // the tables: a night and a student are rows
+                var nights = new List<ShiftDef>(r.Nights);
+                nights.Insert(0, r.Nights[0].Copy());
+                r.Nights = nights.ToArray();
+                Eq(ShiftPlan.TotalShifts, 6, "adding a row adds a night");
+                Eq(ShiftPlan.Night6Number, 7, "the Challenge moves after it");
+                Eq(ShiftPlan.Build()[5].Number, 6, "rows number themselves");
+                r.Nights[1].AnomalyCount = 1;
+                Eq(new RosterFactory(1).GenerateShift(ShiftPlan.Get(2)).Count(v => v.IsAnomaly), 1, "a night's anomaly count comes from its row");
+                ShiftPlan.Build()[0].Title = "changed";
+                Check(r.Nights[0].Title != "changed", "nothing can change the table by accident");
+
+                var students = new List<StudentRow>(r.Students);
+                students.Add(new StudentRow { FullName = "New Student", IdNumber = "HB-2026-0999", YearLevel = 2, FirstClassSubject = "Art", Greeting = "Hi.", Awkward = r.Students[0].Awkward });
+                r.Students = students.ToArray();
+                Eq(Content.TotalStudents, 8, "adding a row adds a student");
+                Eq(FaceAssets.StudentFaceCount, 8, "...with a face");
+                Eq(FaceAssets.StudentKey(7), "char_student_08", "...in the next picture");
+
+                r.AwkwardSpeechChance = 0f;
+                Check(new RosterFactory(1).GenerateShift(ShiftPlan.Get(5)).All(v => !v.SpeaksAwkwardly), "awkward chance 0: nobody");
+                r.AwkwardSpeechChance = 1f;
+                Check(new RosterFactory(1).GenerateShift(ShiftPlan.Get(5)).Where(v => v.IsAnomaly).All(v => v.SpeaksAwkwardly), "awkward chance 1: every anomaly");
+
+                r.RandomSeed = false; r.FixedSeed = 12345;
+                Eq(r.NewRunSeed(), 12345, "seed mode Fixed uses the number from the rules");
+                r.RandomSeed = true;
+                var seeds = new HashSet<int>();
+                for (int i = 0; i < 20; i++) seeds.Add(r.NewRunSeed());
+                Check(seeds.Count > 1, "seed mode Random gives different runs");
+            }
+            finally { GameRules.Current = keep; }
+        }
+
         private static void ShiftPlanTests()
         {
             Group("ShiftPlan - approved 4/6/7/8/8+admin progression");
@@ -158,7 +417,7 @@ namespace Hollowbrook.LogicTests
             Eq(shifts.Count, ShiftPlan.TotalShifts, "five shifts");
             Eq(shifts.Count, 5, "TotalShifts is 5");
             int[] wantVisitors = { 4, 6, 7, 8, 0 };
-            int[] wantAnomalies = { 1, 2, 3, 4, 0 };
+            int[] wantAnomalies = { 2, 3, 4, 5, 0 };
             for (int i = 0; i < shifts.Count; i++)
             {
                 var s = shifts[i];
@@ -277,8 +536,7 @@ namespace Hollowbrook.LogicTests
                                   $"seed {seed}: legit ID and record agree on every field");
                             Check(AnswerMatchesFile(v),
                                   $"seed {seed}: legit '{v.ClaimedName}' names the room and class on their file ('{v.ClassroomAnswer}' vs '{v.RecordFirstClassroom}')");
-                            Eq(v.ClassroomTone, ToneTag.Normal,
-                               $"seed {seed}: legit answers are always delivered Normal (fair tell)");
+                            Check(!v.SpeaksAwkwardly, $"seed {seed}: a real student never speaks awkwardly");
                         }
                         else
                         {
@@ -593,8 +851,12 @@ namespace Hollowbrook.LogicTests
         // ---------------------------------------------------- classroom question
         // "Rooms the file would say": the answer is "Room 202, Genetics." and the file prints
         // "Room 202 · Genetics" - the same room and class, spelled for a different reader.
-        private static bool AnswerMatchesFile(VisitorData v) =>
-            v.ClassroomAnswer.TrimEnd('.').Replace(", ", " · ") == v.RecordFirstClassroom;
+        private static bool AnswerMatchesFile(VisitorData v)
+        {
+            var awkward = v.SpeaksAwkwardly ? GameRules.Current.Students[v.FaceAssetIndex].Awkward : null;
+            string plain = v.RecordFirstClassroom.Replace(" · ", ", ") + ".";
+            return v.ClassroomAnswer == InterviewRules.ClassroomSpeech(plain, awkward);
+        }
 
         // A spoken lie is provable when the answer to the chosen question is not what the card says.
         private static bool SpokenLieIsProvable(VisitorData v)
@@ -603,14 +865,16 @@ namespace Hollowbrook.LogicTests
             return v.Answers[v.SpokenLieQuestion] != CardSpeech(v, (QuestionId)v.SpokenLieQuestion);
         }
 
-        // What an honest student with this card would say to a question.
+        // What a visitor with this card would say, in the words this visitor uses: an awkward anomaly
+        // says the card's fact in its own student's awkward lines.
         private static string CardSpeech(VisitorData v, QuestionId q)
         {
+            var awkward = v.SpeaksAwkwardly ? GameRules.Current.Students[v.FaceAssetIndex].Awkward : null;
             switch (q)
             {
-                case QuestionId.Course: return InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex]);
-                case QuestionId.Year: return InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1]);
-                case QuestionId.Status: return InterviewRules.StatusSpeech(v.IdIsTransferee);
+                case QuestionId.Course: return InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex], awkward);
+                case QuestionId.Year: return InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1], awkward);
+                case QuestionId.Status: return InterviewRules.StatusSpeech(v.IdIsTransferee, awkward);
                 default: return v.ClassroomAnswer;
             }
         }
@@ -1032,7 +1296,7 @@ namespace Hollowbrook.LogicTests
             var n6 = ShiftPlan.Night6Def();
             Check(n6.Number == 6 && n6.HasAdministrator && n6.VisitorCount == 0 && n6.AnomalyCount == 0,
                   "night 6 is the administrator alone, like night 5");
-            Check(Array.IndexOf(Content.ShiftDates, n6.DateLabel) == 5 && n6.LongDateLabel == "SATURDAY - NOVEMBER 7",
+            Check(n6.DateLabel == "Sat · Nov 7" && n6.LongDateLabel == "SATURDAY - NOVEMBER 7",
                   "night 6 has its own date");
             Eq(ShiftPlan.LastNight(GameMode.Normal), 5, "the story ends at night 5");
             Eq(ShiftPlan.LastNight(GameMode.Challenge), 6, "the Challenge reaches night 6");
@@ -1044,7 +1308,7 @@ namespace Hollowbrook.LogicTests
             Check(c6win.Ending == EndingType.Win && c6win.ReasonKey == "night6", "night 6 survived is its own Win");
             var c6lose = new GameSession { Mode = GameMode.Challenge, CurrentShift = 6, CompletedShifts = 0, AdminRejected = true, Hunt = HuntState.Lost };
             var c6loseEval = EndingRules.Evaluate(c6lose);
-            Check(c6loseEval.Ending == EndingType.Lose && c6loseEval.ReasonKey == "server_door" && c6loseEval.ReasonText.Contains("twice"),
+            Check(c6loseEval.Ending == EndingType.Lose && c6loseEval.ReasonKey == "server_door",
                   "night 6: reaching the server door loses (he needs two catches there)");
             var c6allow = new GameSession { Mode = GameMode.Challenge, CurrentShift = 6, AdminAllowed = true };
             Eq(EndingRules.Evaluate(c6allow).Ending, EndingType.Lose, "night 6: letting him in loses at once");
@@ -1271,7 +1535,7 @@ namespace Hollowbrook.LogicTests
         {
             Group("SaveFormat - round-trip, checksum tamper detection, bad input");
             Eq(SaveFormat.Header, "SMYIDSAVE", "header constant");
-            Eq(SaveFormat.Version, 3, "version constant");
+            Eq(SaveFormat.Version, 4, "version constant");
 
             var save = new SaveGame { SavedAtLabel = "NIGHT 3 - 02:14" };
             save.Session.Mode = GameMode.Normal;

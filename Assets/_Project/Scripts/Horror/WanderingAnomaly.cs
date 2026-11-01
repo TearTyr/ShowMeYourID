@@ -32,6 +32,7 @@ namespace Hollowbrook.Horror
         private AnomalyState _state = AnomalyState.Roaming;
         private float _stateTimer;
         private float _threatSeconds;            // continuous threatening time (fair catch)
+        private float _catchGrace;               // seconds after a peek in which nothing can catch the player
         private bool _threatTold;
         private bool _resolved;                  // pool resolution, exactly once
         private bool _gone;                      // despawn handoff, exactly once
@@ -88,7 +89,7 @@ namespace Hollowbrook.Horror
             // spawn INSIDE the behavior's own vertical band - no contradictory coordinates
             transform.localPosition = new Vector3(spawn.x, RoomInstance.FloorY + _profile.SpawnY, 0);
             _lastX = spawn.x;
-            _lifetime = hallucination ? 6.5f : 18f;
+            _lifetime = hallucination ? GameRules.Current.PhantomLifetimeSeconds : GameRules.Current.AnomalyLifetimeSeconds;
             PickWanderTarget(PlayerPos());
 
             if (!hallucination)
@@ -291,6 +292,7 @@ namespace Hollowbrook.Horror
         private void TickCatch(float dt, bool threatening, bool observed, bool active)
         {
             bool pinned = _profile.FreezesWhenObserved && observed;
+            if (_catchGrace > 0f) { _catchGrace -= dt; threatening = false; }
             if (!threatening || !active || pinned)
             {
                 _threatSeconds = 0f;
@@ -305,6 +307,26 @@ namespace Hollowbrook.Horror
             }
             _threatSeconds += dt;
             if (_threatSeconds >= _profile.CatchGraceSeconds) CatchPlayer();
+        }
+
+        /// <summary>The player just stepped out of a peek. Whatever it was doing, it cannot finish a catch the
+        /// player never saw coming: its threat timer is cleared, a short grace runs, and if it stands too
+        /// close it is pushed back so there is room to react.</summary>
+        public void CalmAfterPeek()
+        {
+            if (_gone || IsHallucination) return;
+            var rules = GameRules.Current;
+            _threatSeconds = 0f;
+            _threatTold = false;
+            _catchGrace = rules.PeekExitGraceSeconds;
+            var views = _gameRoot != null ? _gameRoot.Views : null;
+            if (views == null || views.Player == null) return;
+            var p = transform.localPosition;
+            float px = views.Player.transform.localPosition.x;
+            if (Mathf.Abs(p.x - px) >= rules.PeekExitPushDistance) return;
+            float side = p.x >= px ? 1f : -1f;
+            p.x = px + side * rules.PeekExitPushDistance;
+            transform.localPosition = ClampToBand(p);
         }
 
         /// <summary>The spawner hands each anomaly a seed derived from the run rng, so
@@ -496,11 +518,14 @@ namespace Hollowbrook.Horror
             bool lit = views.RoomLit;
             float alpha = _profile.CeilingLurker ? 0.30f : 0.92f;
             int order = 40;
+            // one that is closing in is drawn above the darkness: the player always sees what catches them
+            bool closingIn = _state == AnomalyState.Stalking && !IsHallucination;
             if (IsHallucination) alpha = 0.45f;
             // any beam reads silhouettes - but the ceiling lurker only turns clear under Focus
             if (beam && (!_profile.CeilingLurker || views.IsFocusLit(pos)))
             { alpha = Mathf.Max(alpha, 0.95f); order = 71; }
             if (!lit && !beam) alpha *= 0.6f;
+            if (closingIn) { alpha = Mathf.Max(alpha, 0.95f); order = 71; }
             var c = _sr.color;
             if (!Mathf.Approximately(c.a, alpha) || _sr.sortingOrder != order)
             { c.a = alpha; _sr.color = c; _sr.sortingOrder = order; }
@@ -520,20 +545,21 @@ namespace Hollowbrook.Horror
         {
             if (views.Player == null) return;
             float d = Mathf.Abs(views.Player.transform.localPosition.x - transform.localPosition.x);
-            if (d < 3.2f)
+            var rules = GameRules.Current;
+            if (d < rules.NearRange)
             {
                 _sanityTickTimer -= dt;
                 if (_sanityTickTimer <= 0f)
                 {
                     _sanityTickTimer = 1f;
-                    _gameRoot.Session.ApplySanity(-1.5f);
+                    _gameRoot.Session.ApplySanity(-rules.NearSanityPerSecond);
                     _gameRoot.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, _gameRoot.Session.Sanity));
                 }
             }
-            if (!_sightedPenaltyApplied && d < 5f)
+            if (!_sightedPenaltyApplied && d < rules.SightedRange)
             {
                 _sightedPenaltyApplied = true;
-                _gameRoot.Session.ApplySanity(-6f);
+                _gameRoot.Session.ApplySanity(-rules.SightedSanity);
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, _gameRoot.Session.Sanity));
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*something is standing in the room with you*", 3f, null));
             }
@@ -551,7 +577,7 @@ namespace Hollowbrook.Horror
             if (_gone) return;
             if (IsHallucination) { Despawn(false); return; }
             WasCaught = true;
-            _gameRoot.Session.ApplySanity(-15f);
+            _gameRoot.Session.ApplySanity(-GameRules.Current.CaughtSanity);
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.SanityChanged, _gameRoot.Session.Sanity));
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.AnomalyCaught, Kind));
             if (_gameRoot.Scares != null) _gameRoot.Scares.Capture(Kind);

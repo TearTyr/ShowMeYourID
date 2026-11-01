@@ -18,7 +18,7 @@ menu) fills the scenes by running the same code in the editor, saves code painte
 in `SceneArt`, repairs Build Settings, art import settings and `GameConfig.asset`, and has the Check and
 Rebuild From Scratch commands. Button clicks are wired in code, not in the Inspector. The patrol world is
 not baked. Every `MonoBehaviour` that sits in a scene must live in a file named like the class.
-`MainMenu.unity` -> menu + overlay sheets. `Hollowbrook.unity` -> the desk (CheckpointView) plus
+`MainMenu.unity` -> menu + overlay sheets. `Gameplay.unity` -> the desk (CheckpointView) plus
 HUD/dialogue/map/results/endings. `School.unity` -> rooms, player, flashlight rig, anomalies, the
 administrator hunt. The core survives loads via DontDestroyOnLoad; per-scene roots are destroyed
 normally. The ending screens exist only in the desk scene, so `GameRoot.TriggerEnding` loads it

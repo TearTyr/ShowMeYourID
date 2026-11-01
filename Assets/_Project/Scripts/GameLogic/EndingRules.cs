@@ -2,7 +2,7 @@ namespace Hollowbrook.Logic
 {
     public static class EndingRules
     {
-        public const int LoseThreshold = 3;
+        public static int LoseThreshold => GameRules.Current.LoseThreshold;
 
         public class Evaluation
         {
@@ -27,15 +27,15 @@ namespace Hollowbrook.Logic
                     "You let the administrator through. It walked straight to the server room, and the identification system came online. By morning the district had already replaced you.");
             if (s.Hunt == HuntState.Lost)
                 return Result(EndingType.Lose, "server_door",
-                    "You turned the administrator away, but your light failed you " + (s.Mode == GameMode.Challenge ? "twice" : "three times") + ". He found the sealed server door, and the identification system woke behind it. By morning the district had replaced you.");
+                    "You turned the administrator away, but your light failed you too many times. He found the sealed server door, and the identification system woke behind it. By morning the district had replaced you.");
             // these two can land after dawn: surviving him does not undo the nights before
             string survived = s.Hunt == HuntState.Won ? "You lasted until dawn, and it was not enough. " : "";
             if (s.Breaches >= LoseThreshold)
                 return Result(EndingType.Lose, "breaches",
-                    survived + "Three anomalies entered Hollowbrook on your watch. The district pulled your contract.");
+                    survived + "Too many anomalies entered Hollowbrook on your watch. The district pulled your contract.");
             if (s.FalseRejections >= LoseThreshold)
                 return Result(EndingType.Lose, "false_rejections",
-                    survived + "Three legitimate students were turned away at your window. The complaints reached the district before your explanation did.");
+                    survived + "Too many legitimate students were turned away at your window. The complaints reached the district before your explanation did.");
             if (s.QueueOverwhelmed)
                 return Result(EndingType.Lose, "overwhelmed",
                     "The line overran the checkpoint. Too many faces at the glass, too little time to hold them - the gate gave way, and the yard poured into Hollowbrook unchecked. The district ended your contract before dawn.");
@@ -62,9 +62,9 @@ namespace Hollowbrook.Logic
                 // the Secret is the clue chain's own prize (ten findings, in order) and outranks the Win
                 if (s.Clues.SecretConditionsMet)
                     return Result(EndingType.Secret, "secret",
-                        "Ten findings, in the order they were meant to be found. You leave Hollowbrook carrying what the official explanation never included - and what no custodian before you ever discovered.");
+                        "Every finding, in the order it was meant to be found. You leave Hollowbrook carrying what the official explanation never included - and what no custodian before you ever discovered.");
                 return Result(EndingType.Win, "win",
-                    "Five nights. You trusted your own judgment, kept the checkpoint, and drove the thing wearing the administrator's face back into the dark. You walk out of Hollowbrook relieved - and alive.");
+                    "Every night of it. You trusted your own judgment, kept the checkpoint, and drove the thing wearing the administrator's face back into the dark. You walk out of Hollowbrook relieved - and alive.");
             }
             return Result(EndingType.None, "continue", "");
         }

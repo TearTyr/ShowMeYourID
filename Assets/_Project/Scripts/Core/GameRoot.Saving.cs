@@ -54,6 +54,11 @@ namespace Hollowbrook.Core
                 Session.QueueOverwhelmed = Queue.Collapsed;
             }
             Session.ShiftClockMinutes = _shiftMinutes;   // the resume must not rewind the night
+            if (HuntActive && Views != null && Views.Hunt != null && Views.Hunt.Running && Views.Hunt.Model != null)
+            {
+                Session.HuntCatches = Views.Hunt.Model.Catches;        // quitting is no way out of a hunt
+                Session.HuntSecondsLeft = Views.Hunt.Model.SurviveLeft;
+            }
             var save = new SaveGame
             {
                 Session = Session,

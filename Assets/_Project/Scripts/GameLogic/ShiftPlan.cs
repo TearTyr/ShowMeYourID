@@ -4,82 +4,31 @@ namespace Hollowbrook.Logic
 {
     public static class ShiftPlan
     {
-        public const int TotalShifts = 5;
-        /// <summary>The Challenge: a sixth night, unlocked by finishing the story. Not part of Build().</summary>
-        public const int Night6Number = 6;
+public static int TotalShifts => GameRules.Current.Nights.Length;
+        /// <summary>The Challenge: one night after the story, unlocked by finishing it. Not part of Build().</summary>
+        public static int Night6Number => TotalShifts + 1;
 
-        /// <summary>The last night a mode can reach: 5 for the story, 6 for the Challenge.</summary>
+        /// <summary>The last night a mode can reach: the story's last, or the Challenge.</summary>
         public static int LastNight(GameMode mode) => mode == GameMode.Challenge ? Night6Number : TotalShifts;
 
         public static ShiftDef Night6Def()
         {
-            return new ShiftDef
-            {
-                Number = Night6Number, DateLabel = Content.ShiftDates[5],
-                VisitorCount = 0, AnomalyCount = 0, HasAdministrator = true,   // nobody else comes
-                Title = "He Does Not Give Up",
-                Objective = "The administrator is back. Same questions, new answers. Deny him again and survive until dawn: he is faster and more aggressive than ever.",
-                RuleNoteAddendum = "NIGHT 6 - District personnel present a STAFF BADGE. Badge and memo must match. If they do not, deny entry. He will ask you to make the right decision. You already know what it is.",
-                MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = true, DuplicateIdsAllowed = true,
-                ClassroomLieAllowed = true, ExplorationFocus = false,
-            };
+            var night = GameRules.Current.ChallengeNight.Copy();
+            night.Number = Night6Number;
+            return night;
         }
 
+        /// <summary>The story's nights, numbered by their row in the table.</summary>
         public static List<ShiftDef> Build()
         {
-            return new List<ShiftDef>
+            var nights = new List<ShiftDef>();
+            foreach (var row in GameRules.Current.Nights)
             {
-                new ShiftDef
-                {
-                    Number = 1, DateLabel = Content.ShiftDates[0],
-                    VisitorCount = 4, AnomalyCount = 1, HasAdministrator = false,
-                    Title = "Introduction",
-                    Objective = "Learn the checkpoint: inspect IDs, pull the student file, ask a question or two, and stamp Allow or Reject. Take a walk - learn how to leave the security room and come back.",
-                    RuleNoteAddendum = "NIGHT 1 - Welcome, custodian. Verify: ID number format (HB-YYYY-NNNN), photo vs. the person at the window, expiration date, year level, course, and Regular/Transferee status against the student file in the drawer. You may ask two questions per student. One of them tonight is not a student.",
-                    MaxDefectsPerAnomaly = 1, SubtleDefectsAllowed = false, DuplicateIdsAllowed = false,
-                    ClassroomLieAllowed = false, ExplorationFocus = false,
-                },
-                new ShiftDef
-                {
-                    Number = 2, DateLabel = Content.ShiftDates[1],
-                    VisitorCount = 6, AnomalyCount = 2, HasAdministrator = false,
-                    Title = "Initial Inconsistencies",
-                    Objective = "Small contradictions are appearing in documents, faces, and answers. Not everyone at the window is a student. The hallway is open between visitors - look around.",
-                    RuleNoteAddendum = "NIGHT 2 - District reminder: an expired ID must never be accepted, whatever the excuse. If documents disagree, the person does not enter. A student must name the room and class their file says.",
-                    MaxDefectsPerAnomaly = 1, SubtleDefectsAllowed = false, DuplicateIdsAllowed = false,
-                    ClassroomLieAllowed = true, ExplorationFocus = false,
-                },
-                new ShiftDef
-                {
-                    Number = 3, DateLabel = Content.ShiftDates[2],
-                    VisitorCount = 7, AnomalyCount = 3, HasAdministrator = false,
-                    Title = "Increasing Anomalies",
-                    Objective = "Cases are harder tonight - subtle photo differences and recycled identities. Pull the floor files and cross-check everything twice.",
-                    RuleNoteAddendum = "NIGHT 3 - WARNING: duplicate ID numbers have been reported at other district sites. A valid ID already presented tonight with a different card is grounds for immediate rejection.",
-                    MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = true, DuplicateIdsAllowed = true,
-                    ClassroomLieAllowed = true, ExplorationFocus = false,
-                },
-                new ShiftDef
-                {
-                    Number = 4, DateLabel = Content.ShiftDates[3],
-                    VisitorCount = 8, AnomalyCount = 4, HasAdministrator = false,
-                    Title = "Investigation",
-                    Objective = "Something happened in this school. Between visitors, investigate the hallway and both classrooms. Whatever the previous custodians found - find it too.",
-                    RuleNoteAddendum = "NIGHT 4 - The district has scheduled this facility for final closure. Custodial staff are instructed to document anything unusual found inside the building. Investigation is now part of your duties.",
-                    MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = true, DuplicateIdsAllowed = true,
-                    ClassroomLieAllowed = true, ExplorationFocus = true,
-                },
-                new ShiftDef
-                {
-                    Number = 5, DateLabel = Content.ShiftDates[4],
-                    VisitorCount = 0, AnomalyCount = 0, HasAdministrator = true,   // nobody else comes tonight
-                    Title = "Final Shift",
-                    Objective = "Last night. No students tonight: only a district administrator, here to take control of the school. Check his credentials like anyone else's.",
-                    RuleNoteAddendum = "NIGHT 5 - District personnel present a STAFF BADGE, not a student ID. The badge name and number must match the attached District Roster Memo. If they do not match, deny entry. No exceptions. No overrides by phone.",
-                    MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = true, DuplicateIdsAllowed = true,
-                    ClassroomLieAllowed = true, ExplorationFocus = false,
-                },
-            };
+                var night = row.Copy();
+                night.Number = nights.Count + 1;
+                nights.Add(night);
+            }
+            return nights;
         }
 
         public static ShiftDef Get(int number)
@@ -95,21 +44,23 @@ namespace Hollowbrook.Logic
         public const float Max = 100f;
         public const float Min = 0f;
 
-        public static SanityStage StageFor(float sanity)
+public static SanityStage StageFor(float sanity)
         {
-            if (sanity >= 70f) return SanityStage.Stable;
-            if (sanity >= 40f) return SanityStage.Uneasy;
-            if (sanity >= 15f) return SanityStage.Shaken;
+            var r = GameRules.Current;
+            if (sanity >= r.StableFrom) return SanityStage.Stable;
+            if (sanity >= r.UneasyFrom) return SanityStage.Uneasy;
+            if (sanity >= r.ShakenFrom) return SanityStage.Shaken;
             return SanityStage.Breaking;
         }
 
         public static float HallucinationChancePerSecond(SanityStage stage)
         {
+            var r = GameRules.Current;
             switch (stage)
             {
-                case SanityStage.Uneasy: return 0.010f;
-                case SanityStage.Shaken: return 0.035f;
-                case SanityStage.Breaking: return 0.080f;
+                case SanityStage.Uneasy: return r.HallucinationUneasy;
+                case SanityStage.Shaken: return r.HallucinationShaken;
+                case SanityStage.Breaking: return r.HallucinationBreaking;
                 default: return 0f;
             }
         }
@@ -117,13 +68,12 @@ namespace Hollowbrook.Logic
         // Resting at the desk (the window is empty) recovers sanity; a student at the window
         // wears it down slowly; patrol in the dark wears it down a little faster. Wrong
         // decisions do not cost sanity directly: they add a SanityStacks drain stack.
-        public const float SecurityRoomRecoveryPerSecond = 1.2f;
-        public const float DeskDrainPerSecond = 0.25f;
-        public const float DarknessDrainPerSecond = 0.3f;
-        // A correct decision refills this much, handed over gradually (the bar fills in
-        // RefillOnCorrect / RefillPerSecond = 6 s) rather than in one jump.
-        public const float RefillOnCorrect = 15f;
-        public const float RefillPerSecond = 2.5f;
+        public static float SecurityRoomRecoveryPerSecond => GameRules.Current.SecurityRoomRecoveryPerSecond;
+        public static float DeskDrainPerSecond => GameRules.Current.DeskDrainPerSecond;
+        public static float DarknessDrainPerSecond => GameRules.Current.DarknessDrainPerSecond;
+        // A correct decision refills sanity gradually rather than in one jump.
+        public static float RefillOnCorrect => GameRules.Current.RefillOnCorrect;
+        public static float RefillPerSecond => GameRules.Current.RefillPerSecond;
 
         public static float Clamp(float v) => v < Min ? Min : (v > Max ? Max : v);
     }

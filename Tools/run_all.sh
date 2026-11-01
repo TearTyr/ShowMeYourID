@@ -23,7 +23,7 @@ echo "$ok OK, $bad BAD"
 if echo "$out" | grep -q "FLOW CHAIN COMPLETE" && [ "$bad" = "0" ]; then echo "PASS: flow check"; else echo "FAIL: flow check"; echo "$out" | grep '^  BAD' | head -10; failed=1; fi
 
 echo "== 3/3 compile against real Unity assemblies (Tools/Verify, downloads once) =="
-if bash Tools/Verify/verify.sh 2>&1 | tail -25 | grep -q "0 Error(s)"; then echo "PASS: Unity compile"; else echo "FAIL (or could not download): Unity compile - run 'bash Tools/Verify/verify.sh' to see why"; failed=1; fi
+if bash Tools/Verify/verify.sh 2>&1 | grep -q "0 Error(s)"; then echo "PASS: Unity compile"; else echo "FAIL (or could not download): Unity compile - run 'bash Tools/Verify/verify.sh' to see why"; failed=1; fi
 
 [ "$failed" = "0" ] && echo "ALL CHECKS PASSED" || echo "SOMETHING FAILED (see above)"
 exit "$failed"

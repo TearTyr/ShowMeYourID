@@ -26,11 +26,17 @@ namespace Hollowbrook.Core
         /// is no scare. Scares belong to patrol and peeking.</summary>
         public void RequestEndShift()
         {
+            if (!NightResolved) return;
             bool failed = Session.Mode == GameMode.Normal && Session.CurrentShift < ShiftPlan.TotalShifts &&
                           Session.ShiftBreaches > 0;
             if (failed) Session.RecordShiftFailure(ShiftFailure.Breach);
             FinishShift();
         }
+
+        /// <summary>A night with the administrator closes only once he has been refused and survived.
+        /// Every other night has nothing to resolve.</summary>
+        public bool NightResolved => CurrentShiftDef == null || !CurrentShiftDef.HasAdministrator ||
+                                     (Session.AdminRejected && Session.Hunt == HuntState.Won);
 
         /// <summary>The sanity bar hit zero. Nights 1-4: the custodian blacks out and the shift ends.
         /// The final night is the unique one: a blackout there is the Lose result.</summary>
@@ -67,6 +73,7 @@ namespace Hollowbrook.Core
         {
             int breaches = Session.ShiftBreaches;
             if (_nightStart != null) Session = _nightStart.Session;
+            else Session.RewindNight();
             Session.ShiftBreaches = breaches;      // the penalty counts what was let in
             Session.RecordShiftFailure(kind);
             Session.ShiftBreaches = 0;
@@ -78,23 +85,44 @@ namespace Hollowbrook.Core
             QuitToMenu(false);
         }
 
-        // Called when a night begins. A fresh night is written to the save at once and remembered; a
-        // resumed night remembers the save it was loaded from.
+        // Called when a night begins. A fresh night is saved at once and kept in its own file, so a
+        // failed attempt always goes back to the true start, even after a quit and Continue half way
+        // through. A resumed night reads that file back; a copy from another run or night is ignored.
         private void RememberNightStart(bool isResume)
         {
-            if (Session.Mode != GameMode.Normal || isResume) return;
+            if (Session.Mode != GameMode.Normal) return;
+            if (isResume)
+            {
+                _nightStart = Saves.ReadNightStart();
+                bool sameNight = _nightStart != null && _nightStart.Session.Seed == Session.Seed &&
+                                 _nightStart.Session.CurrentShift == Session.CurrentShift;
+                if (!sameNight) _nightStart = null;
+                return;
+            }
             PersistRun();
             _nightStart = Saves.Read();
+            Saves.WriteNightStart(_nightStart);
         }
 
         // The run is lost, but the night is not: the save goes back to the start of the night that was
-        // lost (with the records from now), so Continue offers that same night again.
+        // lost (with the records from now), so Continue offers that same night again. A run that began
+        // the night already over the lose limit could only lose again, so it stays finished instead:
+        // the ending then offers a new game, not a retry that cannot be won.
         private void SaveLostNight()
         {
-            if (Session.Mode != GameMode.Normal || _nightStart == null) { PersistRun(); return; }
-            _nightStart.Records = Records;
-            _nightStart.Settings = Settings.Current.Clone();
-            Saves.Write(_nightStart);
+            PersistRun();
+            if (Session.Mode != GameMode.Normal) return;
+            var night = _nightStart;
+            if (night == null)
+            {
+                night = Saves.Read();
+                if (night == null) return;
+                night.Session.RewindNight();
+            }
+            if (night.Session.LoseThresholdReached) return;
+            night.Records = Records;
+            night.Settings = Settings.Current.Clone();
+            Saves.Write(night);
         }
 
         // The scare only plays out on patrol or in a peek. Fainting at the desk just ends the night.
@@ -155,7 +183,9 @@ namespace Hollowbrook.Core
                 TriggerEnding(ending);
                 return;
             }
-            if (Session.CurrentShift > ShiftPlan.TotalShifts) { BootToMainMenu(); return; }
+            // the run is over with no ending to show: load the menu scene (BootToMainMenu alone would
+            // stay in this scene, which has no menu, and strand the player)
+            if (Session.CurrentShift > ShiftPlan.TotalShifts) { QuitToMenu(false); return; }
             BeginShift(Session.CurrentShift);
         }
 

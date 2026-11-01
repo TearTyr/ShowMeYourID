@@ -180,9 +180,9 @@ namespace Hollowbrook.Checkpoint
             if (Queue != null && Queue.MissingIncidents > 0)
                 sb.Append("\nROSTER DISCREPANCY: ").Append(Queue.MissingIncidents)
                   .Append(" expected student(s) never reached the window.\n");
-            sb.Append("\nBREACHES (anomalies allowed in): ").Append(_gameRoot.Session.Breaches).Append(" / 3\n");
-            sb.Append("FALSE REJECTIONS: ").Append(_gameRoot.Session.FalseRejections).Append(" / 3\n");
-            sb.Append("FINDINGS DISCOVERED: ").Append(_gameRoot.Session.Clues.FoundCount).Append(" / 10\n");
+            sb.Append("\nBREACHES (anomalies allowed in): ").Append(_gameRoot.Session.Breaches).Append(" / ").Append(EndingRules.LoseThreshold).Append("\n");
+            sb.Append("FALSE REJECTIONS: ").Append(_gameRoot.Session.FalseRejections).Append(" / ").Append(EndingRules.LoseThreshold).Append("\n");
+            sb.Append("FINDINGS DISCOVERED: ").Append(_gameRoot.Session.Clues.FoundCount).Append(" / ").Append(_gameRoot.Session.Clues.TotalCount).Append("\n");
             _recordsText.text = sb.ToString();
         }
     }

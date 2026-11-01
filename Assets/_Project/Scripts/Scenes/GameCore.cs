@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using Hollowbrook.Audio;
 using Hollowbrook.Core;
@@ -12,7 +13,7 @@ namespace Hollowbrook.Scenes
     public static class SceneRouter
     {
         public const string Menu = "MainMenu";
-        public const string Checkpoint = "Hollowbrook";   // Scene A - "That's Not My Neighbor" desk loop
+        public const string Checkpoint = "Gameplay";   // the desk (security booth) scene; the file is Gameplay.unity
         public const string School = "School";           // Scene B - side-scroller + security room
 
         public static bool IsRegistered(string sceneName) =>
@@ -135,6 +136,7 @@ namespace Hollowbrook.Scenes
         {
             string rootName = "SceneRoot_" + sceneName;
             var held = ExistingRootForTests != null ? ExistingRootForTests : FindRootInScene(rootName);
+            if (held == null && ExistingRootForTests == null) held = RenameOldRoot(sceneName, rootName);
             if (held != null)
             {
                 CurrentSceneRoot = held;
@@ -143,6 +145,19 @@ namespace Hollowbrook.Scenes
             if (CurrentSceneRoot != null) Kill(CurrentSceneRoot);
             CurrentSceneRoot = new GameObject(rootName);
             return CurrentSceneRoot;
+        }
+
+        // The desk scene used to be called Hollowbrook. A scene that was set up back then still holds its
+        // root under the old name: take it over (keeping every edit made inside) instead of making a second.
+        public static string OldRootName(string sceneName) =>
+            sceneName == SceneRouter.Checkpoint ? "SceneRoot_Hollowbrook" : null;
+
+        private static GameObject RenameOldRoot(string sceneName, string rootName)
+        {
+            string old = OldRootName(sceneName);
+            var found = old != null ? FindRootInScene(old) : null;
+            if (found != null) found.name = rootName;
+            return found;
         }
 
         private static GameObject FindRootInScene(string rootName)
@@ -197,6 +212,31 @@ namespace Hollowbrook.Scenes
             var guard = canvas.gameObject.GetOrAdd<Core.AspectMatchGuard>();
             guard.Init(canvas.gameObject.GetComponent<CanvasScaler>());
             return canvas;
+        }
+
+        // A scene is built in one frame while its big pictures are still being uploaded, and a screen that
+        // was drawn before everything was ready can stay blank or stale until something touches it (a hover
+        // or a click). So once the scene has been drawn, every picture and text on it is told to redraw,
+        // right after the first frame and again shortly after.
+        public static void RefreshScreens(GameRoot root)
+        {
+            if (root == null || !Application.isPlaying) return;
+            root.StartCoroutine(RefreshRoutine());
+        }
+
+        private static IEnumerator RefreshRoutine()
+        {
+            yield return null;
+            RedrawScene();
+            yield return new WaitForSecondsRealtime(0.3f);
+            RedrawScene();
+        }
+
+        private static void RedrawScene()
+        {
+            if (CurrentSceneRoot == null) return;
+            foreach (var graphic in CurrentSceneRoot.GetComponentsInChildren<Graphic>(false)) graphic.SetAllDirty();
+            Canvas.ForceUpdateCanvases();
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]

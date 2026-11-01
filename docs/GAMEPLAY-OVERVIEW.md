@@ -26,7 +26,7 @@ desk), the **rules note** and **tonight's log** (with ID numbers), and the **que
 - **The night security log:** the log paper has three boxes, STUDENT ENCOUNTERS, ANOMALIES DETECTED and
   SECURITY INCIDENTS. Left click a box to count up, right click to count down (0 to 99). It is only a
   record for the experience: nothing reads the numbers, nothing is scored, and each night starts clean.
-  The numbers are saved with the night. The boxes are objects under `OverlayLog/paper` in the Hollowbrook
+  The numbers are saved with the night. The boxes are objects under `OverlayLog/paper` in the Gameplay
   scene, so when the paper art changes they can be moved to fit (positions are fractions of the picture,
   `LogBoxCentres` in `CheckpointView.Overlays.cs`).
 
@@ -35,8 +35,10 @@ desk), the **rules note** and **tonight's log** (with ID numbers), and the **que
   unlocks once you have flipped the ID, status once you have opened their file; hearing an answer
   again is free. The answer shows in the bubble and stays on its button. Compare it with the card
   and the student's file. An anomaly lies about the room (the other room, a room the school does
-  not have, or the wrong class) or about course, year or status. Lies start on night 2, and a
-  strange tone of voice tells you something is off before you spend the second question.
+  not have, or the wrong class) or about course, year or status. Lies start on night 2. About half
+  of the anomalies also speak awkwardly: the same facts in wrong-sounding words (Raffy says everything
+  twice, Maria Clara talks about "the girl"). Nothing marks it on screen; you have to hear it. A real
+  student never speaks that way.
 - **The ID** flips only by its black spine (or `F`). Click it to inspect it enlarged; an open file
   stays visible next to it. The face at the window vs the ID photo is **your own eyes**.
 - **Faces:** the ID always shows the real student. The window shows the same person unless the
@@ -58,9 +60,9 @@ dark. The doors follow the desk map: Security, Room 101, Room 202, CR-1, the sea
 (FloorPlan.cs draws the hallway and both maps). The **flashlight** points at the cursor (`F` sweep
 on/off, `Q` focus, `L` off). While it is lit it turns the guard to face it; while it is off he faces
 the way he walks. **One patrol cycle** is required before END SHIFT: peek into Room 101, Room 202 and
-a CR (either one). **Anomalies** (small, crouched things that slide along the floor, one hangs from the ceiling) roam the hallway only, from night 1, with one guaranteed about 15 seconds into each patrol: hold the Focus beam on it to repel it, and it is gone for a while. The guard carries only a weak light, so what is ahead of him is black until the flashlight finds it: sweep it along the walls, up at the ceiling and down at the floor. Every room is a
+a CR (either one). **Anomalies** (small, crouched things that slide along the floor, one hangs from the ceiling) roam the hallway only, from night 1, with one already waiting when each patrol starts: hold the Focus beam on it to repel it, and it is gone for a while. The guard carries only a weak light, so what is ahead of him is black until the flashlight finds it: sweep it along the walls, up at the ceiling and down at the floor. Every room is a
 **peek** from its door: a black cover with a hole that follows the mouse shows the room behind it
-(`F` on/off, `Q` wide/tight). `E` selects what the lit lamp is on, nothing else; `S` or the bottom
+(on when the room opens; `F` on/off, `Q` wide/tight). `E` selects what the lit lamp is on, nothing else; `S` or the bottom
 edge steps back. The peek rooms hold a **hooded figure** that stands perfectly still, in some rooms each night and always at least one. Put the lit lamp fully on him (the cursor on his body) and he starts to flicker around while the lamp dims and flickers, then everything goes black, and a slow fade brings the room back with him gone. Once started it always plays to the end and the lamp, `E` and stepping back are locked meanwhile. He never attacks. The peek lamp is about 1.3x smaller than it was. The patrol flashlight no longer paints a yellow cone: it clears the darkness, so the room shows its own art, like the peek lamp. A room does not count for the cycle until its anomaly is gone,. Besides the clues there
 are things to inspect: the patrol clipboard, the lockers, and each CR's mirror, sinks and stalls.
 The pocket watch token on Room 101's lost-and-found board is one of the ten: it is picked up when
@@ -95,7 +97,9 @@ still finishes the night: CONTINUE starts the next one and its intro says what i
 do not finish (a blackout) is **played again**: CONTINUE stays on that night, with the same cost.
 Night 5 shows the results, then the ending. Losing night 5 keeps night 5 in the save: CONTINUE offers
 it again and the ending screen has RETRY NIGHT 5. Losing night 6 offers RETRY NIGHT 6. There is no scare
-at the desk; scares only happen on patrol and in peeks.
+at the desk; scares only happen on patrol and in peeks. A retry always restarts the night empty, and
+stepping out of a peek never lands a catch you did not see coming (a short grace, and anything by the
+door is pushed back).
 
 **Endings:** Surviving Hollowbrook (5 nights + dawn on the last) / Another Custodian
 (3 breaches, 3 false rejections, the line overruns, the administrator let in, or three catches on night 5) /

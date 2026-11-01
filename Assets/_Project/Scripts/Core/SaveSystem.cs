@@ -9,6 +9,9 @@ namespace Hollowbrook.Core
     public class SaveSystem
     {
         private const string FileName = "hollowbrook_save.txt";
+        // The save as it stood when the night began. A failed night goes back to this copy, even
+        // after a quit and Continue in the middle of that night.
+        private const string NightStartFileName = "hollowbrook_nightstart.txt";
 
         public string SaveDirectory
         {
@@ -29,15 +32,14 @@ namespace Hollowbrook.Core
             }
         }
 
-        public string SavePath
-        {
-            get
-            {
-                string dir = SaveDirectory;
-                return dir == null ? null : Path.Combine(dir, FileName);
-            }
-        }
+        public string SavePath => PathOf(FileName);
+        public string NightStartPath => PathOf(NightStartFileName);
 
+        private string PathOf(string fileName)
+        {
+            string dir = SaveDirectory;
+            return dir == null ? null : Path.Combine(dir, fileName);
+        }
 
         public bool HasSave()
         {
@@ -49,11 +51,13 @@ namespace Hollowbrook.Core
             catch (Exception) { return false; }
         }
 
-        public bool Write(SaveGame save)
+        public bool Write(SaveGame save) => WriteTo(SavePath, save);
+        public bool WriteNightStart(SaveGame save) => WriteTo(NightStartPath, save);
+
+        private static bool WriteTo(string p, SaveGame save)
         {
             try
             {
-                string p = SavePath;
                 if (p == null || save == null) return false;
                 string tmp = p + ".tmp";
                 File.WriteAllText(tmp, SaveFormat.Serialize(save));
@@ -81,11 +85,13 @@ namespace Hollowbrook.Core
             catch { return null; }
         }
 
-        public SaveGame Read()
+        public SaveGame Read() => ReadFrom(SavePath);
+        public SaveGame ReadNightStart() => ReadFrom(NightStartPath);
+
+        private static SaveGame ReadFrom(string p)
         {
             try
             {
-                string p = SavePath;
                 if (p == null) return null;
                 var save = TryReadSave(p);
                 if (save == null && File.Exists(p + ".bak")) save = TryReadSave(p + ".bak");
@@ -106,10 +112,12 @@ namespace Hollowbrook.Core
             {
                 // the backup and the temp file too: Read falls back to them, so leaving one behind
                 // would bring a "deleted" save back
-                string p = SavePath;
-                if (p == null) return;
-                foreach (string f in new[] { p, p + ".bak", p + ".tmp" })
-                    if (File.Exists(f)) File.Delete(f);
+                foreach (string p in new[] { SavePath, NightStartPath })
+                {
+                    if (p == null) continue;
+                    foreach (string f in new[] { p, p + ".bak", p + ".tmp" })
+                        if (File.Exists(f)) File.Delete(f);
+                }
             }
             catch (Exception e) { Debug.LogWarning("[SaveSystem] delete failed: " + e.Message); }
         }

@@ -46,8 +46,8 @@ namespace Hollowbrook.Logic
         {
             CatchesToLose = 3, SurviveSeconds = 210f, StalkMinSeconds = 5f, StalkMaxSeconds = 10f,
             RoomSeconds = 12f, RoomHoldSeconds = 1.8f,
-            HoldDecayPerSecond = 0.5f, HeadRadius = 1.0f, BehindSeconds = 2.6f, BeamHitSeconds = 0.35f,
-            RetreatSeconds = 1.5f,
+            HoldDecayPerSecond = GameRules.Current.HuntHoldDecayPerSecond, HeadRadius = 1.0f, BehindSeconds = 2.6f, BeamHitSeconds = 0.35f,
+            RetreatSeconds = GameRules.Current.HuntRetreatSeconds,
         };
     }
 
@@ -111,12 +111,13 @@ namespace Hollowbrook.Logic
             SurviveLeft = tuning.SurviveSeconds;
         }
 
-        /// <summary>He starts walking.</summary>
-        public HuntEvent Start()
+        /// <summary>He starts walking. A hunt that was left half way starts with the catches it had and
+        /// the dawn clock where it stood, never with more time than a fresh one.</summary>
+        public HuntEvent Start(int catches = 0, float surviveLeft = -1f)
         {
             Repels = 0;
-            Catches = 0;
-            SurviveLeft = Tuning.SurviveSeconds;
+            Catches = Math.Max(0, Math.Min(catches, Tuning.CatchesToLose - 1));
+            SurviveLeft = surviveLeft > 0f ? Math.Min(surviveLeft, Tuning.SurviveSeconds) : Tuning.SurviveSeconds;
             return BeginStalking();
         }
 
@@ -157,7 +158,21 @@ namespace Hollowbrook.Logic
             if (looking && !_spotted) { _spotted = true; seen = HuntEvent.Spotted; }
             UpdateHold(dt, looking && input.OnTarget, Tuning.RoomHoldSeconds);
             if (Hold >= 1f) return seen | Repel();
-            return PhaseTimer >= Tuning.RoomSeconds ? seen | Catch() : seen;
+            if (PhaseTimer < Tuning.RoomSeconds) return seen;
+            // He only catches a player who saw him and was too slow. A player looking elsewhere
+            // is not caught by something never seen: he comes to where they are instead.
+            return looking ? seen | Catch() : seen | FollowPlayer(input);
+        }
+
+        // He goes to the room being peeked, with a short time to find him, or comes up behind
+        // a player in the hallway.
+        private HuntEvent FollowPlayer(HuntInput input)
+        {
+            int here = input.Peeking ? System.Array.IndexOf(Rooms, input.PlayerRoom) : -1;
+            if (here < 0) return Stop(BehindYou);
+            var ev = Stop(here);
+            PhaseTimer = Math.Max(0f, Tuning.RoomSeconds - GameRules.Current.HuntFollowSeconds);
+            return ev;
         }
 
         private HuntEvent TickBehind(float dt, HuntInput input)
@@ -230,9 +245,6 @@ namespace Hollowbrook.Logic
         // He goes for the player. In the hallway he comes up behind them more often than not; while the
         // player peeks into a room he is as likely to be in that very room as anywhere else. Otherwise
         // any of the four rooms. Never the same place twice in a row, and never behind you during a peek.
-        private const float BehindChance = 0.6f;       // in the hallway: right behind the player
-        private const float SameRoomChance = 0.5f;     // peeking: in the room the player is looking into
-
         private int PickSpot(HuntInput input)
         {
             int pick = ChooseSpot(input);
@@ -242,8 +254,8 @@ namespace Hollowbrook.Logic
 
         private int ChooseSpot(HuntInput input)
         {
-            if (input.InHallway && _rng.Chance(BehindChance)) return BehindYou;
-            if (input.Peeking && _rng.Chance(SameRoomChance))
+            if (input.InHallway && _rng.Chance(GameRules.Current.HuntBehindChance)) return BehindYou;
+            if (input.Peeking && _rng.Chance(GameRules.Current.HuntSameRoomChance))
             {
                 int here = System.Array.IndexOf(Rooms, input.PlayerRoom);
                 if (here >= 0) return here;

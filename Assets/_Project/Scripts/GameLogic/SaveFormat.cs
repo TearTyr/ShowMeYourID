@@ -16,7 +16,7 @@ namespace Hollowbrook.Logic
     public static class SaveFormat
     {
         public const string Header = "SMYIDSAVE";
-        public const int Version = 3;   // 3: the seven illustrated students (older saves are dropped)
+        public const int Version = 4;   // 4: students take turns as anomalies (older saves are dropped)
 
         public static string Serialize(SaveGame save)
         {
@@ -60,6 +60,8 @@ namespace Hollowbrook.Logic
             KV(sb, "adminTalk", s.AdminTalk != null ? s.AdminTalk.Encode() : "");
             sb.Append("adminRejected=").Append(s.AdminRejected ? 1 : 0).Append('\n');
             sb.Append("hunt=").Append((int)s.Hunt).Append('\n');
+            sb.Append("huntCatches=").Append(s.HuntCatches).Append('\n');
+            KV(sb, "huntLeft", Inv(s.HuntSecondsLeft));
             sb.Append("shiftBreaches=").Append(s.ShiftBreaches).Append('\n');
             KV(sb, "logCounts", string.Join(",", s.LogCounts));
             sb.Append("penaltySeverity=").Append(s.PendingPenaltySeverity).Append('\n');
@@ -168,6 +170,8 @@ namespace Hollowbrook.Logic
                 s.AdminAllowed = Int(map, "adminAllowed", 0) == 1;
                 s.AdminRejected = Int(map, "adminRejected", 0) == 1;
                 s.Hunt = (HuntState)Math.Max(0, Math.Min(4, Int(map, "hunt", 0)));
+                s.HuntCatches = Math.Max(0, Int(map, "huntCatches", 0));
+                s.HuntSecondsLeft = Flt(map, "huntLeft", -1f);
                 // absent in older saves: no failed night to pay for
                 s.ShiftBreaches = Int(map, "shiftBreaches", 0);
                 s.LogCounts = new int[GameSession.LogEntries];
