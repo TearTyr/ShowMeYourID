@@ -143,6 +143,19 @@ namespace Hollowbrook.Logic
         /// <summary>Anomalies let in during the shift being played (resets each night). Clocking out with
         /// any of them in is a failed night.</summary>
         public int ShiftBreaches;
+        /// <summary>The night security log: three counts the player keeps by hand (student encounters,
+        /// anomalies detected, security incidents). A recording toy only: nothing reads or scores them.
+        /// Cleared when a night begins.</summary>
+        public const int LogEntries = 3, LogMax = 99;
+        public int[] LogCounts = new int[LogEntries];
+
+        /// <summary>Count one entry up or down (kept between 0 and <see cref="LogMax"/>). Returns the new count.</summary>
+        public int ChangeLog(int entry, int delta)
+        {
+            if (entry < 0 || entry >= LogEntries) return 0;
+            LogCounts[entry] = System.Math.Max(0, System.Math.Min(LogMax, LogCounts[entry] + delta));
+            return LogCounts[entry];
+        }
         /// <summary>How the night just played failed (None when it did not) - read by the results screen.</summary>
         public ShiftFailure LastShiftFailure = ShiftFailure.None;
         /// <summary>Severity of the failed night the NEXT night pays for (0 = nothing to pay), and which
@@ -165,6 +178,7 @@ namespace Hollowbrook.Logic
         public void BeginNight()
         {
             ShiftBreaches = 0;
+            LogCounts = new int[LogEntries];
             Stacks.Clear();
             RefillPending = 0f;
             int severity = PendingPenaltySeverity;

@@ -5,38 +5,9 @@ using UnityEngine;
 
 namespace Hollowbrook.Scenes
 {
-    // Desk papers and stamps: clipboard, note paper, ALLOW/REJECT stamps, check/cross icons.
+    // Desk papers and stamps: the record sheet, ID frame, ALLOW/REJECT stamps.
     public static partial class ProceduralArt
     {
-        private static Sprite MakeClipboard(int w, int h)
-        {
-            var c = new Canvas2D(w, h);
-            c.Fill(G(0.16f));
-            c.FillRect(w / 2 - 34, 0, 68, 26, G(0.45f));             // clip
-            c.FillRect(14, 20, w - 28, h - 34, G(0.76f));            // paper
-            for (int i = 0; i < 8; i++)
-            {
-                int y = 44 + i * 52;
-                c.FillRect(28, y, 26, 26, G(0.85f));                 // checkbox
-                c.FillRect(30, y + 2, 22, 22, G(0.2f, 0.15f));
-                c.FillRect(66, y + 10, w - 110, 3, G(0.45f));        // row rule
-            }
-            c.Noise(0.05f, 109);
-            return c.ToSprite("clipboard", UiPpu);
-        }
-
-        private static Sprite MakeNotePaper(int w, int h)
-        {
-            var c = new Canvas2D(w, h);
-            c.Fill(G(0.74f));
-            for (int y = 24; y < h - 20; y += 26) c.FillRect(18, y, w - 36, 2, G(0.5f));
-            c.Noise(0.07f, 113);
-            for (float a = 0; a < Mathf.PI * 2; a += 0.1f)
-                c.FillRect((int)(w * 0.78f + Mathf.Cos(a) * 26), (int)(h * 0.25f + Mathf.Sin(a) * 22), 3, 3, G(0.45f, 0.6f));
-            for (int i = 0; i < 34; i++) c.FillRect(w - 34 + i / 2, i, 34 - i, 2, G(0.62f));
-            return c.ToSprite("note_paper", UiPpu);
-        }
-
         private static Sprite MakeStamp(bool reject)
         {
             int size = 168;
@@ -83,15 +54,6 @@ namespace Hollowbrook.Scenes
                 }
             }
             return c.ToSprite("bubble_tail", UiPpu);
-        }
-
-        private static Sprite MakeIcon(bool check)
-        {
-            int s = 36;
-            var c = new Canvas2D(s, s);
-            if (check) { c.Line(6, 18, 14, 28, G(0.85f), 5); c.Line(14, 28, 30, 8, G(0.85f), 5); }
-            else { c.Line(8, 8, 28, 28, new Color(0.85f, 0.2f, 0.24f), 5); c.Line(28, 8, 8, 28, new Color(0.85f, 0.2f, 0.24f), 5); }
-            return c.ToSprite(check ? "icon_check" : "icon_x", UiPpu);
         }
 
         // Floor-files folder front: a manila tab poking up on the left of a worn folder body.

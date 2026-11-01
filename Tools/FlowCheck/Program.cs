@@ -409,6 +409,60 @@ namespace FlowCheck
             Check(root.State == AppViewState.MainMenu && root.Session.PendingPenaltySeverity == ShiftFailureRules.BlackoutSeverity,
                 "FAIL: a blackout on patrol fails the night and lands on the main menu, penalty booked");
 
+            // the night security log: three boxes the player counts in by hand, recorded only
+            {
+                FreshGame(root); ClickStickyNote(root);
+                var cpLog = root.Checkpoint;
+                cpLog.DebugOpenOverlay("log");
+                var paperLog = FindDeep(cpLog.transform, "OverlayLog");
+                Check(paperLog.gameObject.activeSelf, "LOG: the night security log opens");
+                string[] boxNames = { "student_encounters", "anomalies_detected", "security_incidents" };
+                bool allThere = true;
+                foreach (var bn in boxNames) allThere &= FindDeep(paperLog, "logbox_" + bn) != null;
+                Check(allThere, "LOG: it has the three boxes: student encounters, anomalies detected, security incidents");
+                var box1 = FindDeep(paperLog, "logbox_anomalies_detected").GetComponent<LogBox>();
+                var left = new UnityEngine.EventSystems.PointerEventData();
+                var right = new UnityEngine.EventSystems.PointerEventData { button = UnityEngine.EventSystems.PointerEventData.InputButton.Right };
+                box1.OnPointerClick(left); box1.OnPointerClick(left); box1.OnPointerClick(left); box1.OnPointerClick(right);
+                Check(root.Session.LogCounts[1] == 2 && root.Session.LogCounts[0] == 0,
+                    "LOG: left click counts up, right click counts down, each box on its own");
+                Check(FindDeep(paperLog, "logbox_anomalies_detected").Find("count").GetComponent<UnityEngine.UI.Text>().text == "2",
+                    "LOG: the box shows its number");
+                for (int i = 0; i < 5; i++) box1.OnPointerClick(right);
+                Check(root.Session.LogCounts[1] == 0, "LOG: it never goes below zero");
+                box1.OnPointerClick(left);
+                root.PersistRun();
+                Check(root.Saves.Read().Session.LogCounts[1] == 1, "LOG: the numbers are saved, so Continue keeps them");
+                root.Session.BeginNight();
+                Check(root.Session.LogCounts[1] == 0, "LOG: a new night starts with a clean log");
+                var before = new[] { root.Session.Sanity, (float)root.Session.Score, (float)root.Session.Breaches };
+                box1.OnPointerClick(left);
+                Check(root.Session.Sanity == before[0] && root.Session.Score == (int)before[1] && root.Session.Breaches == (int)before[2],
+                    "LOG: counting changes nothing else: no sanity, score or breaches (it is only a record)");
+            }
+
+            // the caption bar has no box: an empty caption shows nothing, a real one is text only
+            {
+                FreshGame(root); ClickStickyNote(root);
+                var capBg = FindDeep(root.Captions.transform, "bg");
+                var capImg = capBg.GetComponent<UnityEngine.UI.Image>();
+                Check(capImg.color.a < 0.01f, "CAP: the caption bar has no dark box behind its text");
+                capBg.gameObject.SetActive(false);
+                root.Settings.Current.Captions = true;
+                root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "", 2f, null));
+                Check(!capBg.gameObject.activeSelf, "CAP: an empty caption shows nothing");
+                root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*a door opens somewhere*", 2f, null));
+                Check(capBg.gameObject.activeSelf && FindDeep(capBg, "t").GetComponent<UnityEngine.UI.Text>().text == "*a door opens somewhere*",
+                    "CAP: the words the game sends as event data really appear (they used to show as an empty black strip)");
+                capBg.gameObject.SetActive(false);
+                root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, null, 2f, "*knock*"));
+                Check(capBg.gameObject.activeSelf && FindDeep(capBg, "t").GetComponent<UnityEngine.UI.Text>().text == "*knock*",
+                    "CAP: words sent as the event's Text appear too");
+                capBg.gameObject.SetActive(false);
+                root.Checkpoint.Ask(QuestionId.Classroom);
+                Check(!capBg.gameObject.activeSelf, "CAP: asking a question shows no caption at all");
+            }
+
             // a failed night is played again, not skipped: Continue stays on it, with the penalty
             void PlayToNight(int n)
             {
@@ -1188,8 +1242,8 @@ namespace FlowCheck
             Check(lastToast.Contains("MISSED"), "QOL: a stamp dropped off the slip says why (got '" + lastToast + "')");
             Check(FindDeep(cp.transform, "windowcue").gameObject.activeSelf,
                   "QOL: once the slip is stamped, the window sill lights up to say 'hand the ID back here'");
-            Check(FindDeep(cp.transform, "queuecount").GetComponent<UnityEngine.UI.Text>().text.Contains("TO GO TONIGHT"),
-                  "QOL: the top bar counts who is waiting and how many are still to go");
+            Check(FindDeep(cp.transform, "queuecount") == null,
+                  "QOL: nothing on the desk tells the player how many visitors are left tonight");
             cp.DebugOpenOverlay("rules");
             Check(FindDeep(cp.transform, "OverlayRules").gameObject.activeSelf, "QOL: the rules note opens");
             Input.KeysDown.Add(KeyCode.X); cp.TickHotkeys(); Input.KeysDown.Clear();
@@ -3888,7 +3942,7 @@ namespace FlowCheck
                 if (f[4] == "temp-shipped" || f[4] == "shipped") shipped.Add(f[0] + "|" + f[1] + "|flat");
                 if (f[4] == "shipped-kit") shipped.Add(f[0] + "|" + f[1] + "|kit");
             }
-            Check(artRows.Count >= 85 && audioRows.Count >= 30 && fontRows.Count == 8,
+            Check(artRows.Count >= 75 && audioRows.Count >= 30 && fontRows.Count == 8,
                 $"AM: the manifest covers the whole pipeline ({artRows.Count} art, {audioRows.Count} audio, {fontRows.Count} font rows)");
 
             // art rows == the painter's keys + the face pairs, exactly

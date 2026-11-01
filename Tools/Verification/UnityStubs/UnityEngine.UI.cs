@@ -428,6 +428,8 @@ namespace UnityEngine.EventSystems
         public Vector2 delta = Vector2.zero;
         public int pointerId = -1;
         public bool dragging;
+        public enum InputButton { Left = 0, Right = 1, Middle = 2 }
+        public InputButton button = InputButton.Left;
     }
 
     public interface IPointerEnterHandler { void OnPointerEnter(PointerEventData eventData); }

@@ -47,7 +47,6 @@ namespace Hollowbrook.Checkpoint
         // ---- row under the top bar (wireframe text baseline y=72) -----------
         // the strip under the kit board (board bottom = 107): hint, run stats, findings
         public static readonly Region Hint = new Region(25, 82, 300, 20);
-        public static readonly Region QueueCount = new Region(25, 58, 360, 18);        // "WAITING 2 · 4 TO GO TONIGHT"
         public static readonly Region Findings = new Region(955, 84, 309, 12);        // right edge x=1264
         public static readonly Region RoomInfo = new Region(955, 96, 309, 12);       // exploration only
 

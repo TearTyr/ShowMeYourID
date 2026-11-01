@@ -271,16 +271,15 @@ namespace Hollowbrook.Scenes
         public static readonly string[] AllKeys =
         {
             "solid_white", "vignette", "noise_overlay", "flash", "light_cone",
-            "menu_bg", "desk_bg", "hood_figure",
-            "hall_depth", 
-            "prop_door_security", "prop_server_door", 
+            "desk_bg", "hood_figure",
+            "hall_depth",
+            "prop_door_security", "prop_server_door",
             "prop_clock",
             "token",
-            "rough_panel", "rough_panel_dark", "rough_circle", "circle_dark", "circle_paper",
-            "paper_flat", "school_facade", "camera_frame", "window_frame", "lamp_glow",
-            "face_placeholder",
-            "record_sheet", "clipboard", "note_paper", "stamp_allow", "stamp_reject",
-            "folder_tab", "cursor_hand", "icon_check", "icon_x", "bubble_tail",
+            "rough_panel_dark", "rough_circle", "circle_paper",
+            "paper_flat", "school_facade", "face_placeholder",
+            "record_sheet", "stamp_allow", "stamp_reject",
+            "folder_tab", "cursor_hand", "bubble_tail",
             "id_card_frame",
             "map_paper", "map_room", "map_sealed", "map_door",
         };
@@ -306,7 +305,6 @@ namespace Hollowbrook.Scenes
                 case "noise_overlay": return MakeNoise(256, 256, 0.5f, 7);
                 case "flash": return MakeFlash(256);
                 case "light_cone": return MakeLightCone(512, 288);
-                case "menu_bg": return MakeMenuBg(1280, 720);
                 case "desk_bg": return MakeDeskBg(640, 360);
                 case "hood_figure": return MakeHoodFigure(24, 48);
                 case "hall_depth": return MakeHallDepth();
@@ -314,28 +312,19 @@ namespace Hollowbrook.Scenes
                 case "prop_server_door": return MakeDoor(208, 384, false, chained: true);
                 case "prop_clock": return MakeClock(112);
                 case "token": return MakeClock(28, "token");   // pocket-watch token left by a revealed anomaly
-                case "rough_panel": return MakeRoughPanel(256, 192, 0.88f, "rough_panel");
                 case "rough_panel_dark": return MakeRoughPanel(256, 192, 0.16f, "rough_panel_dark");
                 case "rough_circle": return MakeRoughCircle(128);
-                case "circle_dark": return MakeFlatCircle("circle_dark", new Color(0.098f, 0.098f, 0.110f));
                 case "circle_paper": return MakeFlatCircle("circle_paper", new Color(0.839f, 0.831f, 0.800f));
                 case "paper_flat": return MakePaperFlat();
                 case "school_facade": return MakeSchoolFacade(440, 296);
-                case "camera_frame": return MakeCameraFrame(252, 150);
-                case "window_frame": return MakeWindowFrame(470, 316);
-                case "lamp_glow": return MakeLampGlow(128);
                 case "peek_hole": return MakePeekHole(256);
                 case "face_placeholder": return MakeFacePlaceholder(168, 208);
                 case "id_card_frame": return MakeIdCard();
                 case "record_sheet": return MakeRecordSheet();
-                case "clipboard": return MakeClipboard(370, 490);
-                case "note_paper": return MakeNotePaper(390, 300);
                 case "stamp_allow": return MakeStamp(false);
                 case "stamp_reject": return MakeStamp(true);
                 case "folder_tab": return MakeFolderTab(304, 26);
                 case "cursor_hand": return MakeCursorHand(24);
-                case "icon_check": return MakeIcon(true);
-                case "icon_x": return MakeIcon(false);
                 case "bubble_tail": return MakeBubbleTail();
                 // the hand-drawn ground-floor plan (sheet, rough room outlines, seal, doorways)
                 case "map_paper": return MakeMapPaper(940, 440);

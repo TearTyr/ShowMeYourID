@@ -61,6 +61,7 @@ namespace Hollowbrook.Logic
             sb.Append("adminRejected=").Append(s.AdminRejected ? 1 : 0).Append('\n');
             sb.Append("hunt=").Append((int)s.Hunt).Append('\n');
             sb.Append("shiftBreaches=").Append(s.ShiftBreaches).Append('\n');
+            KV(sb, "logCounts", string.Join(",", s.LogCounts));
             sb.Append("penaltySeverity=").Append(s.PendingPenaltySeverity).Append('\n');
             sb.Append("penaltyNight=").Append(s.PendingPenaltyNight).Append('\n');
             sb.Append("lastFailure=").Append((int)s.LastShiftFailure).Append('\n');
@@ -169,6 +170,13 @@ namespace Hollowbrook.Logic
                 s.Hunt = (HuntState)Math.Max(0, Math.Min(4, Int(map, "hunt", 0)));
                 // absent in older saves: no failed night to pay for
                 s.ShiftBreaches = Int(map, "shiftBreaches", 0);
+                s.LogCounts = new int[GameSession.LogEntries];
+                if (map.TryGetValue("logCounts", out var logText) && logText != null)
+                {
+                    var parts = logText.Split(',');
+                    for (int i = 0; i < parts.Length && i < s.LogCounts.Length; i++)
+                        if (int.TryParse(parts[i], out int n)) s.LogCounts[i] = Math.Max(0, Math.Min(GameSession.LogMax, n));
+                }
                 s.PendingPenaltySeverity = Int(map, "penaltySeverity", 0);
                 s.PendingPenaltyNight = Int(map, "penaltyNight", 0);
                 s.LastShiftFailure = (ShiftFailure)Int(map, "lastFailure", 0);

@@ -267,7 +267,7 @@ namespace Hollowbrook.EditorTools
             if (painted.texture == null) return null;
             string file = SafeFileName(painted.name);
             string path = SceneArtFolder + "/" + file + ".png";
-            byte[] bytes = painted.texture.EncodeToPNG();
+            byte[] bytes = PngOf(painted);
             if (bytes == null) return null;
 
             if (!File.Exists(path) || !SameBytes(File.ReadAllBytes(path), bytes))
@@ -289,6 +289,30 @@ namespace Hollowbrook.EditorTools
                 importer.SaveAndReimport();
             }
             return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        }
+
+        // The sprite's own pixels as a png. A picture the code painted can be encoded directly. A sprite
+        // cut out of a picture file (the desk's drawer sheet) sits on a texture that is not readable, so
+        // it is copied through a render texture first, cropped to the sprite's rectangle.
+        private static byte[] PngOf(Sprite sprite)
+        {
+            var source = sprite.texture;
+            var area = sprite.textureRect;
+            bool whole = source.isReadable && (int)area.width == source.width && (int)area.height == source.height;
+            if (whole) return source.EncodeToPNG();
+
+            var temp = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+            var previous = RenderTexture.active;
+            Graphics.Blit(source, temp);
+            RenderTexture.active = temp;
+            var copy = new Texture2D((int)area.width, (int)area.height, TextureFormat.RGBA32, false);
+            copy.ReadPixels(new Rect(area.x, area.y, area.width, area.height), 0, 0);
+            copy.Apply();
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(temp);
+            byte[] bytes = copy.EncodeToPNG();
+            Object.DestroyImmediate(copy);
+            return bytes;
         }
 
         private static string SafeFileName(string name)

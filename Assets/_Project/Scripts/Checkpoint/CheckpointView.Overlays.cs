@@ -23,6 +23,7 @@ namespace Hollowbrook.Checkpoint
 
             _notesRoot = BuildPaperOverlay("OverlayRules", "sec_rules_paper", out _notesText);
             _recordsRoot = BuildPaperOverlay("OverlayLog", "sec_log_paper", out _recordsText);
+            BuildLogBoxes();
 
             // there is no yes/no confirm popup: stamping IS confirming
         }
@@ -78,6 +79,52 @@ namespace Hollowbrook.Checkpoint
             return go;
         }
 
+        // The night security log's three boxes (STUDENT ENCOUNTERS, ANOMALIES DETECTED, SECURITY INCIDENTS):
+        // the player counts what they notice. Left click counts up, right click counts down. It is only a
+        // record for the experience: nothing reads it. Each box is a plain object under OverlayLog/paper, so
+        // when the paper art changes the boxes can simply be moved in the scene. Centres are fractions of the
+        // paper picture, measured on the 789x879 art.
+        private readonly Text[] _logCounts = new Text[GameSession.LogEntries];
+        private static readonly Vector2[] LogBoxCentres =
+            { new Vector2(0.825f, 0.497f), new Vector2(0.830f, 0.588f), new Vector2(0.843f, 0.679f) };
+        private static readonly string[] LogBoxNames = { "student_encounters", "anomalies_detected", "security_incidents" };
+
+        private void BuildLogBoxes()
+        {
+            var paper = _recordsRoot.transform.Find("paper") as RectTransform;
+            if (paper == null) return;
+            for (int i = 0; i < GameSession.LogEntries; i++)
+            {
+                int entry = i;
+                var box = UIFactory.NewUI(paper, "logbox_" + LogBoxNames[i]);
+                box.anchorMin = box.anchorMax = new Vector2(LogBoxCentres[i].x, 1f - LogBoxCentres[i].y);
+                box.pivot = new Vector2(0.5f, 0.5f);
+                box.sizeDelta = new Vector2(60f, 54f);
+                box.anchoredPosition = Vector2.zero;
+                var hit = box.gameObject.GetOrAdd<Image>();
+                hit.color = new Color(1f, 1f, 1f, 0f);   // invisible, but it catches the click
+                hit.raycastTarget = true;
+                var count = UIFactory.Label(box, "count", "0", 34, UIFactory.PaperInk, TextAnchor.MiddleCenter);
+                count.font = UIFactory.HandFont;
+                count.raycastTarget = false;
+                UIFactory.AnchorsFull(count.rectTransform);
+                _logCounts[i] = count;
+                box.gameObject.GetOrAdd<LogBox>().Init(delta =>
+                {
+                    _gameRoot.Session.ChangeLog(entry, delta);
+                    RefreshLogBoxes();
+                    _gameRoot.Audio.PlaySfx("sfx_click", 0.3f);
+                });
+            }
+        }
+
+        private void RefreshLogBoxes()
+        {
+            var counts = _gameRoot.Session.LogCounts;
+            for (int i = 0; i < _logCounts.Length; i++)
+                if (_logCounts[i] != null) _logCounts[i].text = counts != null && i < counts.Length ? counts[i].ToString() : "0";
+        }
+
         /// <summary>Headless dumps open a reading sheet exactly as its desk prop click
         /// would - same refresh, same toggle, no shortcut path.</summary>
         internal void DebugOpenOverlay(string which)
@@ -125,7 +172,9 @@ namespace Hollowbrook.Checkpoint
 
         private void RefreshRecords()
         {
+            RefreshLogBoxes();
             var sb = new StringBuilder();
+            sb.Append("LOG: click a box to count up, right click to count down.\n\n");
             sb.Append("PRESENTED TONIGHT:\n");
             sb.Append(_tonightsLog.Length == 0 ? "  (no one yet)\n" : _tonightsLog.ToString());
             if (Queue != null && Queue.MissingIncidents > 0)

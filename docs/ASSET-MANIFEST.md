@@ -54,7 +54,7 @@ with their own eyes, so these portraits carry more gameplay weight than any othe
 
 `id_card_frame` (320×220 px @100 ppu - the card art only; photo and text rows are drawn on top by
 code), `record_sheet` (320×290), `folder_tab` (304×26), `paper_flat` (760×480 overlays),
-`note_paper`, `clipboard`, `bubble_tail`, `stamp_allow` (temp ink ships as
+`bubble_tail`, `stamp_allow` (temp ink ships as
 `UI/SecurityDesk/stamp_allow.png`), `stamp_reject`. All @ **UiPpu = 100**: pixel size ÷ 100 =
 desk-grid units, and the desk grid is fixed at 1280×720 reference, so **deliver at the listed px**.
 
@@ -89,7 +89,7 @@ wobble proportional. The owner's hand-drawn reference can replace `map_paper.png
 
 `light_cone` 512×288 @64: the stencil that cuts the darkness (the flashlight no longer paints it
 yellow, so the rooms show their own art inside the beam) - its feathered shoulders are load-bearing (`SpriteMask.alphaCutoff = 0.05`), so keep the
-falloff curve, not just the shape. `lamp_glow` 128 (peek lamp). `vignette`, `noise_overlay`,
+falloff curve, not just the shape. `vignette`, `noise_overlay`,
 `flash` are polish-tier.
 
 ## 6. Audio (`type: audio`) - 21 sfx + 11 music contexts
@@ -115,8 +115,7 @@ built-in runtime font if a file is absent, so text can never break.
 ## 8. Functional / do-not-ship keys
 
 `solid_white` (the 1×1-unit quad everything placeholder is built from), `rough_circle`,
-`rough_panel`, `circle_dark`, `cursor_hand`, `icon_check`, `icon_x`, `camera_frame` and
-`window_frame` (retired-scanner reserve). Shipping files for these buys nothing and risks the
+and `cursor_hand`. Shipping files for these buys nothing and risks the
 meter/overlay maths - except `rough_panel_dark`, which IS the drawer skin and may be replaced by a
 wood-grain texture of the same key.
 

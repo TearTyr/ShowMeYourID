@@ -74,6 +74,7 @@ namespace Hollowbrook.LogicTests
             EndingAuditSuite();
             AdminRosterSuite();
             SlipFairnessTests();
+            NightLogTests();
             CultureRoundTripTests();
             ResumeReplayTests();
 
@@ -612,6 +613,27 @@ namespace Hollowbrook.LogicTests
                 case QuestionId.Status: return InterviewRules.StatusSpeech(v.IdIsTransferee);
                 default: return v.ClassroomAnswer;
             }
+        }
+
+        private static void NightLogTests()
+        {
+            Group("Night security log - three hand counts, clamped, saved, cleared each night");
+            var s = new GameSession();
+            Check(s.LogCounts.Length == 3 && s.LogCounts[0] == 0 && s.LogCounts[1] == 0 && s.LogCounts[2] == 0, "a new session has three empty counts");
+            s.ChangeLog(0, +1); s.ChangeLog(0, +1); s.ChangeLog(2, +1);
+            Check(s.LogCounts[0] == 2 && s.LogCounts[1] == 0 && s.LogCounts[2] == 1, "each entry counts on its own");
+            for (int i = 0; i < 5; i++) s.ChangeLog(0, -1);
+            Check(s.LogCounts[0] == 0, "an entry never goes below zero");
+            for (int i = 0; i < 150; i++) s.ChangeLog(1, +1);
+            Check(s.LogCounts[1] == GameSession.LogMax, "an entry stops at " + GameSession.LogMax);
+            Check(s.ChangeLog(5, +1) == 0 && s.ChangeLog(-1, +1) == 0, "an entry that does not exist is ignored");
+            var back = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = s })).Session;
+            Check(back.LogCounts[0] == 0 && back.LogCounts[1] == GameSession.LogMax && back.LogCounts[2] == 1, "the counts survive a save and load");
+            var fresh = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = new GameSession() })).Session;
+            Check(fresh.LogCounts.Length == 3 && fresh.LogCounts[0] + fresh.LogCounts[1] + fresh.LogCounts[2] == 0,
+                "an untouched log loads back empty");
+            s.BeginNight();
+            Check(s.LogCounts[1] == 0 && s.LogCounts[2] == 0, "a new night starts with a clean log");
         }
 
         private static void CreditsTests()
