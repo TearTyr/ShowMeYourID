@@ -19,6 +19,9 @@ a district administrator, and turning him away is only the start.
 1. Install **Unity 6.3** (the project is stamped `6000.3.0f1`, Built-in Render Pipeline, no paid
    packages). It also opens on other Unity 6.x versions and 2022.3 LTS.
 2. Open this folder as a Unity project and let it import.
+   Then click **Hollowbrook > Set Up Project (one click)** in the menu bar. It fixes the scenes,
+   the Build Settings list, the art import settings and `GameConfig.asset`, and only touches what is
+   broken. **Hollowbrook > Check Project** just reports.
 3. Press **Play**. The first scene is `Assets/_Project/Scenes/MainMenu.unity`. Each of the three
    scenes holds one bootstrap object that builds everything in code.
 4. Windows build: `File > Build Settings > Windows > Build` (the three scenes are already listed).
@@ -94,6 +97,7 @@ Three tokens open Endless and Challenge from the TOKENS button.
 ```
 Assets/_Project/
   Scenes/                 MainMenu, Hollowbrook (the desk), School (patrol) - one bootstrap each
+  Editor/                 ProjectSetup: the Hollowbrook menu (one click setup and check), editor only
   Resources/              GameConfig.asset (tuning), Audio/ drop-in files
     Art/                  Characters/, UI/ (SecurityDesk, MainMenu) and Environment/ (Hallway, Rooms,
                           Props, Inspect), named in snake_case

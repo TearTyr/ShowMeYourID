@@ -7,6 +7,9 @@ session, shift flow, state, references to every view; split into `GameRoot.cs`, 
 save), `AudioDirector` (all sound; captions fire from inside PlaySfx).
 
 **Scenes:** each `.unity` holds one bootstrap component that builds everything in code.
+`Assets/_Project/Editor/ProjectSetup.cs` (editor only) is the Hollowbrook menu: it repairs the scenes,
+Build Settings, art import settings and `GameConfig.asset`. It does not bake the screens into the
+scene files, because button clicks and the generated pictures cannot be saved there.
 `MainMenu.unity` -> menu + overlay sheets. `Hollowbrook.unity` -> the desk (CheckpointView) plus
 HUD/dialogue/map/results/endings. `School.unity` -> rooms, player, flashlight rig, anomalies, the
 administrator hunt. The core survives loads via DontDestroyOnLoad; per-scene roots are destroyed

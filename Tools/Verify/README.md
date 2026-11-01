@@ -84,7 +84,8 @@ Point it at another tree with `-p:GameLogicSrc=/path/to/Assets/_Project/Scripts/
 2. **Assemblies are 2022.3.62f1**, not 6000.3.x - no public redistributable of
    Unity 6 managed assemblies exists. Unity 6 removals are covered by `audit.py`'s
    `UNITY6_RISK` rules instead (Arial.ttf, FindObjectOfType, WWW, …).
-3. **Only `Assets/**.cs` is compiled.** Editor scripts, asmdefs and the `Tools/`
+3. **Only runtime `Assets/**.cs` is compiled.** Editor scripts (`Assets/_Project/Editor/`, they need
+   `UnityEditor.dll`, which the redistributable does not have), asmdefs and the `Tools/`
    test suites are separate compilation units; add a second `.csproj` if you want
    them covered.
 4. Scenes, `ProjectSettings/`, `Packages/manifest.json` and `.meta` files are not
