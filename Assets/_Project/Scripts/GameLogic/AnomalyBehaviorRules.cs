@@ -44,6 +44,10 @@ namespace Hollowbrook.Logic
     /// floor line (world y = floorY + offset), so spawn and clamp bands can never contradict.</summary>
     public struct BehaviorProfile
     {
+        /// <summary>Height of a ground anomaly's centre above the floor line. Its art is 1.9 units
+        /// tall (ProceduralArt FilePpus), so half of that puts its feet on the floor.</summary>
+        public const float GroundCentreY = 0.95f;
+
         public float MoveSpeed;
         public float SpawnY;              // floor-relative spawn height
         public float MinY, MaxY;          // floor-relative vertical band it may never leave
@@ -71,18 +75,18 @@ namespace Hollowbrook.Logic
             {
                 case AnomalyBehaviorKind.Blink:
                     p.MoveSpeed = t.BlinkSpeed;
-                    p.SpawnY = 2.4f; p.MinY = 2.4f; p.MaxY = 2.4f;
+                    p.SpawnY = GroundCentreY; p.MinY = GroundCentreY; p.MaxY = GroundCentreY;
                     p.CatchGraceSeconds = t.CatchGraceBlink;
                     p.FreezesWhenObserved = true;
                     break;
                 case AnomalyBehaviorKind.Slide:
                     p.MoveSpeed = t.SlideSpeed;
-                    p.SpawnY = 2.4f; p.MinY = 2.4f; p.MaxY = 2.4f;
+                    p.SpawnY = GroundCentreY; p.MinY = GroundCentreY; p.MaxY = GroundCentreY;
                     p.CatchGraceSeconds = t.CatchGraceSlide;
                     break;
                 case AnomalyBehaviorKind.Sprint:
                     p.MoveSpeed = t.SprintSpeed;
-                    p.SpawnY = 2.4f; p.MinY = 2.4f; p.MaxY = 2.4f;
+                    p.SpawnY = GroundCentreY; p.MinY = GroundCentreY; p.MaxY = GroundCentreY;
                     p.CatchGraceSeconds = t.CatchGraceSprint;
                     p.TelegraphSeconds = t.SprintTelegraphSeconds;
                     p.DashSpeed = t.SprintDashSpeed;

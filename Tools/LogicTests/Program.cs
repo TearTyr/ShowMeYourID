@@ -1464,6 +1464,9 @@ namespace Hollowbrook.LogicTests
                 "catch windups are per-behavior - no shared coverHug-named constant");
             Check(Math.Abs(hug.SpawnY - 4.4f) < 1e-3f && hug.SpawnY >= hug.MinY && hug.SpawnY <= hug.MaxY,
                 "CoverHug spawns INSIDE its own clamp band (no contradictory coordinates)");
+            Check(Math.Abs(blink.SpawnY - BehaviorProfile.GroundCentreY) < 1e-3f && slide.SpawnY == blink.SpawnY && sprint.SpawnY == blink.SpawnY,
+                  "ground anomalies sit low: their small body stands on the floor line");
+            Check(BehaviorProfile.GroundCentreY < 1.2f, "...a crouched thing, not a giant (the old body was 2.4 high)");
             Check(hug.MinY > blink.MaxY, "the ceiling band sits above the ground walkers");
             Check(blink.MinY == blink.MaxY && slide.MinY == slide.MaxY && sprint.MinY == sprint.MaxY,
                 "ground walkers stay on the floor line");

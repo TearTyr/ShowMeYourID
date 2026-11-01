@@ -451,7 +451,8 @@ namespace Hollowbrook.Horror
             if (_faceGo != null) { _faceGo.SetActive(true); return; }
             _faceGo = new GameObject("ExposedFace");
             _faceGo.transform.SetParent(transform, false);
-            _faceGo.transform.localPosition = new Vector3(0f, 0.55f, -0.1f);
+            _faceGo.transform.localPosition = new Vector3(0.2f, 0.75f, -0.1f);   // over the bowed head
+            _faceGo.transform.localScale = new Vector3(0.55f, 0.55f, 1f);
             _face = _faceGo.AddComponent<SpriteRenderer>();
             _face.sprite = ProceduralArt.Portrait("anom",
                 new Portrait { HairStyle = 2, FaceVariant = 4, Accessory = 0, Distorted = true }, 96, 120);
