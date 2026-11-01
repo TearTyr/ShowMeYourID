@@ -86,8 +86,12 @@ namespace Hollowbrook.Core
         [Header("Patrol")]
         [Tooltip("Seconds into a patrol before the first anomaly is guaranteed to appear.")][Range(2f, 60f)]
         public float anomalyFirstSpawnSeconds = 15f;
-        [Tooltip("Seconds the lit lamp must stay on the anomaly hiding in a peek room to drive it out.")][Range(0.3f, 6f)]
+        [Tooltip("The hooded figure in a peek room: seconds it flickers and jumps while the lamp dims, once the light is fully on it.")][Range(0.3f, 6f)]
         public float peekRepelSeconds = 1.5f;
+        [Tooltip("Seconds of full black after the flicker, while the figure is removed.")][Range(0.1f, 3f)]
+        public float peekBlackoutSeconds = 0.6f;
+        [Tooltip("Seconds the room takes to fade back in, with the figure gone.")][Range(0.5f, 6f)]
+        public float peekFadeBackSeconds = 2f;
 
         [Header("Administrator hunt (night 5, after the DENY stamp)")]
         [Tooltip("Times he can catch you before he reaches the server door and you lose.")][Range(1, 10)]

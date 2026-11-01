@@ -2832,11 +2832,11 @@ namespace FlowCheck
             SetBeam(root, rig, LightMode.Focus);
             Check(rig.Params.HalfAngleDeg < cfg.sweepHalfAngleDeg,
                 "W2b: FOCUS narrows the cone (tighter, longer) within the same single mask+cone system");
-            Check(Mathf.Abs(coneT.GetComponent<SpriteRenderer>().color.a - 0.42f) < 1e-3f,
-                "W2b: focus concentrates more light on the inspected spot (hotter core tint)");
+            Check(!coneT.GetComponent<SpriteRenderer>().enabled,
+                "W2b: the beam paints nothing over the room (no yellow cone): its mask only clears the darkness, so the art shows clear");
             SetBeam(root, rig, LightMode.Sweep);
-            Check(Mathf.Abs(coneT.GetComponent<SpriteRenderer>().color.a - 0.30f) < 1e-3f,
-                "W2b: leaving focus restores the broad sweep wash");
+            Check(Mathf.Abs(rig.Params.HalfAngleDeg - cfg.sweepHalfAngleDeg) < 1e-3f,
+                "W2b: leaving focus restores the broad sweep");
             SetBeam(root, rig, LightMode.Off);
             Check(!coneT.gameObject.activeSelf && !maskGo.gameObject.activeSelf,
                 "W2b: beam OFF removes cone AND mask - no stale light layer survives");
@@ -2886,8 +2886,8 @@ namespace FlowCheck
                   coneT.localPosition == maskGo.localPosition &&
                   coneT.localEulerAngles == maskGo.localEulerAngles,
                 $"W2c: cone and mask are both parked on the aim's mid-point and angle ({coneT.localPosition} @ {coneT.localEulerAngles.z:F1}°)");
-            Check(Mathf.Abs(coneT.GetComponent<SpriteRenderer>().color.a - 0.30f) < 1e-3f,
-                "W2c: full brightness on the activation frame - no fade-in to wait through");
+            Check(maskGo.gameObject.activeSelf && !coneT.GetComponent<SpriteRenderer>().enabled,
+                "W2c: the light hole is open on the activation frame - no fade-in to wait through");
             // repeated activation/deactivation must behave identically every time, and a new
             // activation must never inherit the previous aim
             bool stable = true;
@@ -2902,7 +2902,7 @@ namespace FlowCheck
                 if (rig.Beam != LightMode.Sweep || !coneT.gameObject.activeSelf ||
                     Vector3.Distance(coneT.localPosition, want) > 0.02f ||
                     Mathf.Abs(Mathf.DeltaAngle(coneT.localEulerAngles.z, wantAngle)) > 0.5f ||
-                    Mathf.Abs(coneT.GetComponent<SpriteRenderer>().color.a - 0.30f) > 1e-3f)
+                    !maskGo.gameObject.activeSelf)
                     stable = false;
             }
             Check(stable,
@@ -2913,8 +2913,8 @@ namespace FlowCheck
             WorldFrames(root, 30);
             Check(rig.Beam == LightMode.Focus &&
                   Mathf.Abs(coneT.localScale.x - cfg.focusRange / 8f) < 0.01f &&
-                  Mathf.Abs(coneT.GetComponent<SpriteRenderer>().color.a - 0.42f) < 1e-3f,
-                "W2c: switching Sweep->Focus while lit still morphs, and lands on Focus geometry + tint");
+                  Mathf.Abs(rig.Params.HalfAngleDeg - cfg.focusHalfAngleDeg) < 1e-3f,
+                "W2c: switching Sweep->Focus while lit still morphs, and lands on Focus geometry");
             SetBeam(root, rig, LightMode.Off);
             Check(!coneT.gameObject.activeSelf && !maskGo.gameObject.activeSelf,
                 "W2c: and L still puts it out at once (controls unchanged)");
@@ -3444,7 +3444,7 @@ namespace FlowCheck
             Check(lamp.Lit && lamp.Focused && views.IsPeekLit(new Vector3(1f, 0f, 0f)),
                 "W10: ...and F brings the focused light back (mode survived the OFF, illumination did not leak)");
             PressKey(root, KeyCode.Q);
-            Check(lamp.Lit && !lamp.Focused && views.IsPeekLit(new Vector3(2.2f, 0f, 0f)),
+            Check(lamp.Lit && !lamp.Focused && views.IsPeekLit(new Vector3(1.9f, 0f, 0f)),
                 "W10: Q again returns the broad wash - the wide/focus toggle is clean both ways");
             AimAt(3f, 1f);
             WorldFrames(root, 5);
@@ -3530,16 +3530,40 @@ namespace FlowCheck
             var hider = views.PeekedAnomaly.GetComponent<SpriteRenderer>();
             Check(hider.sortingOrder < WorldLayers.PeekCover, "AN: it sits under the dark, so only the lamp shows it");
             Check((root.Session.ClearedRooms & bit) == 0, "AN: the room does not count while it is still in there");
+            Check(hider.sprite == ProceduralArt.Get("char_hood"), "AN: it is the hooded figure");
             var hiderPos = views.PeekedAnomaly.transform.localPosition;
             AimAt(hiderPos.x, hiderPos.y);
             WorldFrames(root, 200);
-            Check((root.Session.PeekAnomaliesGone & bit) == 0, "AN: a dark lamp does nothing to it");
-            views.PeekLight.ToggleLamp();
-            WorldFrames(root, 30);
-            Check((root.Session.PeekAnomaliesGone & bit) == 0, "AN: it takes a steady light, not a glance");
-            WorldFrames(root, 90);
-            Check((root.Session.PeekAnomaliesGone & bit) != 0, "AN: the held lamp drives it out");
-            Check((root.Session.ClearedRooms & bit) != 0, "AN: and now the room counts");
+            Check((root.Session.PeekAnomaliesGone & bit) == 0 && !views.PeekedAnomaly.Playing, "AN: a dark lamp does nothing to it");
+            lamp.ToggleLamp();
+            AimAt(hiderPos.x + 1.9f, hiderPos.y);   // the lit circle reaches him, the light is not on him
+            WorldFrames(root, 150);
+            Check(!views.PeekedAnomaly.Playing && views.PeekedAnomaly.transform.localPosition == hiderPos,
+                "AN: standing in the edge of the light does nothing, he does not move");
+            AimAt(hiderPos.x, hiderPos.y);          // now the light is fully on him
+            WorldFrames(root, 5);
+            Check(views.PeekedAnomaly.Playing && lamp.Locked, "AN: light fully on him starts the scene and locks the lamp");
+            var blindSr = FindDeep(lamp.transform, "PeekBlind").GetComponent<SpriteRenderer>();
+            PressKey(root, KeyCode.F);
+            PressKey(root, KeyCode.Q);
+            PressKey(root, KeyCode.S);
+            Check(lamp.Lit && views.PeekActive && !views.Transitioning, "AN: while it plays F, Q and stepping back do nothing");
+            WorldFrames(root, 40);
+            Check(views.PeekedAnomaly.transform.localPosition != hiderPos, "AN: he flickers around");
+            Check(blindSr.gameObject.activeSelf && blindSr.color.a > 0f && blindSr.color.a < 1f || blindSr.color.a >= 1f,
+                "AN: the lamp dims while he flickers");
+            Check((root.Session.PeekAnomaliesGone & bit) == 0, "AN: he is still there during the flicker");
+            WorldFrames(root, 60);   // past peekRepelSeconds
+            Check((root.Session.PeekAnomaliesGone & bit) != 0 && (root.Session.ClearedRooms & bit) != 0,
+                "AN: after the flicker he is gone and the room counts");
+            Check(blindSr.color.a >= 0.99f && !views.PeekedAnomaly.GetComponent<SpriteRenderer>().enabled,
+                "AN: everything goes black, and he is not drawn any more");
+            Check(lamp.Locked, "AN: the lamp stays locked through the black");
+            WorldFrames(root, 70);   // the slow fade back begins
+            Check(blindSr.color.a < 0.99f && blindSr.color.a > 0f, "AN: then the room fades back in slowly");
+            WorldFrames(root, 160);
+            Check(!lamp.Locked && blindSr.color.a <= 0.001f && lamp.Lit,
+                "AN: afterwards the lamp is the player's again, with the light fully back");
             views.PeekLight.ToggleLamp();
             PressKey(root, KeyCode.S);
             root.EnterRoomPeek(withOne);

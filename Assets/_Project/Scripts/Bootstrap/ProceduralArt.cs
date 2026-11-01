@@ -41,6 +41,7 @@ namespace Hollowbrook.Bootstrap
                 { "sec_bubble", 10f },
                 // the guard's frames are 452 px tall and the old drawn guard stood 3.5 world units
                 // high, so 129 px per unit keeps him the same size
+                { "char_hood", 190f },      // the hooded figure: 608 px tall = 3.2 units, feet on the floor
                 { "char_anomaly", 390f },   // 1.9 units tall: a crouched thing low on the floor, centre height 0.95 (BehaviorProfile.GroundCentreY)
                 { "char_guard_idle", 129f }, { "char_guard_walk_a", 129f }, { "char_guard_walk_b", 129f },
                 // backdrops: the three screen wide hallway covers 30 units, a room 17.8 (the camera's

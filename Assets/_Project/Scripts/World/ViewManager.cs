@@ -107,7 +107,6 @@ namespace Hollowbrook.World
                 var coneGo = RoomBuilder.SpriteGO(rigGo.transform, "beam", ProceduralArt.Get("light_cone"),
                     new Vector3(0, 0, -0.5f), 71);
                 var cone = coneGo.GetComponent<SpriteRenderer>();
-                cone.color = new Color(1f, 0.96f, 0.85f, 0.30f);
                 Flashlight.Init(_gameRoot, _cam, cone);
             }
             _worldRoot.SetActive(true);
@@ -265,6 +264,7 @@ namespace Hollowbrook.World
         public void ExitPeek()
         {
             if (!_peeking || _peekExiting || Transitioning) return;
+            if (_peekLight != null && _peekLight.Locked) return;   // the hooded figure's scene cannot be walked out of
             _peekExiting = true;
             StartCoroutine(ExitPeekRoutine());
         }

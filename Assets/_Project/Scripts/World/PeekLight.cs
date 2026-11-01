@@ -17,12 +17,12 @@ namespace Hollowbrook.World
     // what the lit lamp is on; S or the bottom band steps back, so a dark room is never a trap.
     public class PeekLight : MonoBehaviour
     {
-        // Size of the hole in world units.
-        public float Radius = 2.6f;
+        // Size of the hole in world units (about 1.3x smaller than the first version: 2.6).
+        public float Radius = 2.0f;
         // Focus: the same idea as the handheld beam's Focus - a tighter, hotter circle for
         // reading details. Q toggles it; it never lights the lamp by itself and changing it
         // never moves the ON/OFF state (two independent flags, one source of truth each).
-        public float FocusRadius = 1.3f;
+        public float FocusRadius = 1.0f;
 
         /// <summary>Is the lamp in its tight, concentrated mode right now?</summary>
         public bool Focused { get; private set; }
@@ -40,6 +40,9 @@ namespace Hollowbrook.World
         private Camera _cam;
         private RoomInstance _room;
         private GameObject _blind;            // plugs the hole while the lamp is off
+        private SpriteRenderer _blindSr;
+        private bool _lampVisible;            // the hole is open (lamp lit and not dead)
+        private float _dim;                   // 0 = full light, 1 = the hole is black (the hood figure's trick)
         private Vector3 _worldPoint;
         private string _lastPrompt = "\0";   // "\0" = nothing published yet this peek
         private float _flickerLeft;           // > 0 while the lamp is dying (administrator hunt)
@@ -50,8 +53,25 @@ namespace Hollowbrook.World
         /// <summary>True while a flicker has the lamp dead.</summary>
         public bool Flickering => _flickerLeft > 0f;
 
-        // How far the black reaches past the hole, in hole diameters. The smallest hole is 2.6
-        // units wide, so this covers the screen wherever the cursor goes.
+        /// <summary>True while a scripted scene owns the peek: F, Q, E and stepping back do nothing.</summary>
+        public bool Locked { get; private set; }
+        public void Lock() { Locked = true; }
+        public void Unlock() { Locked = false; SetDim(0f); }
+
+        /// <summary>Dim the lit circle: 0 = normal, 1 = black. A lamp that is off stays black.</summary>
+        public void SetDim(float amount)
+        {
+            _dim = Mathf.Clamp01(amount);
+            RefreshBlind();
+        }
+
+        /// <summary>Is the cursor inside this box (centre and half sizes in world units)? What "the light
+        /// is fully on him" means for the standing figure.</summary>
+        public bool CursorWithin(Vector3 centre, float halfW, float halfH) =>
+            Mathf.Abs(_worldPoint.x - centre.x) <= halfW && Mathf.Abs(_worldPoint.y - centre.y) <= halfH;
+
+        // How far the black reaches past the hole, in hole diameters. The smallest hole is 2.0
+        // units wide, so the black reaches 32 units, far more than the screen, wherever the cursor goes.
         private const float CoverReach = 16f;
 
         /// <summary>Builds the cover once. Starts inactive and unlit.</summary>
@@ -69,6 +89,7 @@ namespace Hollowbrook.World
             AddCover("CoverTop", new Vector3(0f, side, 0f), new Vector2(1f, CoverReach));
             AddCover("CoverBottom", new Vector3(0f, -side, 0f), new Vector2(1f, CoverReach));
             _blind = AddCover("PeekBlind", Vector3.zero, Vector2.one);
+            _blindSr = _blind.GetComponent<SpriteRenderer>();
 
             Active = false;
             SetLit(false, true);
@@ -87,6 +108,8 @@ namespace Hollowbrook.World
             _room = room;
             _lastPrompt = "\0";
             _flickerLeft = 0f;
+            Locked = false;
+            _dim = 0f;
             Active = true;
             gameObject.SetActive(true);
             SetLit(lampOn, true);   // the hunt starts the lamp ON; every other peek starts dark
@@ -111,6 +134,8 @@ namespace Hollowbrook.World
         public void Exit()
         {
             Active = false;
+            Locked = false;
+            _dim = 0f;
             SetLit(false, true);
             _room = null;
             _lastPrompt = "\0";
@@ -148,7 +173,20 @@ namespace Hollowbrook.World
         // Open or plug the hole without touching the Lit state (used by the flicker).
         private void ApplyLampVisual(bool visible)
         {
-            if (_blind != null) _blind.SetActive(!visible);
+            _lampVisible = visible;
+            RefreshBlind();
+        }
+
+        // The plug is solid while the hole is shut and fades in with the dim while it is open.
+        private void RefreshBlind()
+        {
+            if (_blind == null) return;
+            float alpha = _lampVisible ? _dim : 1f;
+            _blind.SetActive(alpha > 0.001f);
+            if (_blindSr != null)
+            {
+                var c = _blindSr.color; c.a = alpha; _blindSr.color = c;
+            }
         }
 
         // The lamp's state. quiet = no toast (entry/exit resets).
@@ -202,7 +240,8 @@ namespace Hollowbrook.World
             if (!_gameRoot.Paused && !_gameRoot.BlockingOverlayOpen &&
                 (_gameRoot.Dialogue == null || !_gameRoot.Dialogue.IsActive))
             {
-                if (Input.GetKeyDown(KeyCode.F)) ToggleLamp();
+                if (Locked) { }   // a scene is playing: the lamp is not the player's right now
+                else if (Input.GetKeyDown(KeyCode.F)) ToggleLamp();
                 else if (Input.GetKeyDown(KeyCode.Q)) ToggleFocus();   // reshapes, never lights
             }
 
@@ -224,6 +263,7 @@ namespace Hollowbrook.World
             }
 
             if (_gameRoot.Views != null && _gameRoot.Views.Transitioning) return;   // no input mid fade
+            if (Locked) return;
             if (Input.GetKeyDown(KeyCode.E) && nearest != null) nearest.Interact();
             if (Input.GetKeyDown(KeyCode.S)) _gameRoot.ExitRoomPeek();
         }
@@ -242,7 +282,7 @@ namespace Hollowbrook.World
         // room has nothing to select, so E only ever works on what the player can see.
         private Interactable FindNearestUnderCursor(Vector3 cursor)
         {
-            if (_room == null || !Lit || Flickering) return null;
+            if (_room == null || !Lit || Flickering || Locked) return null;
             Interactable nearest = null;
             float bestSq = float.MaxValue;
             foreach (var it in _room.Interactables)
