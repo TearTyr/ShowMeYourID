@@ -173,6 +173,8 @@ namespace Hollowbrook.Checkpoint
                 var circAllow = TrayCircle("sec_tray_allow", "sec_stamp_circle_allow");
                 if (circDeny != null) circDeny.rectTransform.SetSiblingIndex(deny.GetSiblingIndex());
                 if (circAllow != null) circAllow.rectTransform.SetSiblingIndex(allow.GetSiblingIndex());
+                _trayCircles[0] = circAllow;   // same slots as _stampTints
+                _trayCircles[1] = circDeny;
             }
             SkinStamp("stamp_allow", "sec_icon_accept");
             SkinStamp("stamp_deny", "sec_icon_decline");
@@ -384,6 +386,7 @@ namespace Hollowbrook.Checkpoint
             if (sp == null) return null;
             var img = UIFactory.Img(_desk, name, sp);
             img.raycastTarget = false;
+            img.preserveAspect = true;   // the check and the cross keep their shape in the wider slot
             L.Place(img.rectTransform, key.EndsWith("allow") ? L.StampAllow : L.StampDeny);
             return img;
         }
@@ -398,7 +401,7 @@ namespace Hollowbrook.Checkpoint
             var stampArt = ProceduralArt.Get("sec_stamp");
             // RefreshStamps keeps driving the Image colour (verdict tint, dim until live), so the
             // kit handle inherits the established wake/dim language for free
-            if (img != null && stampArt != null) img.sprite = stampArt;
+            if (img != null && stampArt != null) { img.sprite = stampArt; img.preserveAspect = true; }
             var lbl = t.Find("label");
             if (lbl != null)
             {

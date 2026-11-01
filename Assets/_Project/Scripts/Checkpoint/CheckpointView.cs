@@ -79,6 +79,11 @@ namespace Hollowbrook.Checkpoint
         private Button _notesBtn, _recordsBtn, _mapBtn, _patrolBtn, _endShiftBtn;
         private readonly Image[] _stampTints = new Image[3];
         private readonly Color[] _stampBase = new Color[3];
+        // The tray shows each verdict as a round check or cross. The stamp itself is only drawn while
+        // the player holds it, so it never pops over the tray picture. Without the kit art the stamp
+        // is its own tray picture and stays drawn.
+        private readonly Image[] _trayCircles = new Image[3];
+        private readonly bool[] _stampHeld = new bool[3];
         private readonly List<EventSubscription> _subscriptions = new List<EventSubscription>();
 
         private Image _stampOverlay;

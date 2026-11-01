@@ -890,7 +890,15 @@ namespace FlowCheck
         private static string PromptText(GameRoot root) =>
             FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>().text;
 
-        private static float StampAlpha(GameRoot root, string stampName) =>
+        // how inked the tray looks: the round check or cross when the kit art is on, otherwise the stamp itself
+        private static float StampAlpha(GameRoot root, string stampName)
+        {
+            var tray = FindDeep(root.Checkpoint.transform, stampName == "stamp_allow" ? "sec_tray_allow" : "sec_tray_deny");
+            var shown = tray != null ? tray : FindDeep(root.Checkpoint.transform, stampName);
+            return shown.GetComponent<UnityEngine.UI.Image>().color.a;
+        }
+
+        private static float StampHandAlpha(GameRoot root, string stampName) =>
             FindDeep(root.Checkpoint.transform, stampName).GetComponent<UnityEngine.UI.Image>().color.a;
 
         // drag a stamp from its tray onto a paper's centre, exactly like the pointer does
@@ -2107,6 +2115,21 @@ namespace FlowCheck
             Check(!live("endshift"), "END SHIFT dimmed before the roster is done");
 
             Check(StampAlpha(root, "stamp_allow") > 0.9f, "stamps stay inked while the inspection is live");
+
+            // the tray picture is the round check and cross, never stretched, and the stamp itself
+            // only shows while it is held (it used to pop over the tray the moment the night went live)
+            foreach (var pair in new[] { new[] { "stamp_allow", "sec_tray_allow" }, new[] { "stamp_deny", "sec_tray_deny" } })
+            {
+                var trayImg = FindDeep(root.Checkpoint.transform, pair[1]).GetComponent<UnityEngine.UI.Image>();
+                Check(trayImg.preserveAspect, "STAMPS: " + pair[1] + " keeps its shape (a check or a cross, not stretched)");
+                Check(StampHandAlpha(root, pair[0]) < 0.01f, "STAMPS: " + pair[0] + " is not drawn over the tray while it rests");
+                var hand = FindDeep(root.Checkpoint.transform, pair[0]).GetComponent<DragPaper>();
+                hand.BeginDrag();
+                Check(StampHandAlpha(root, pair[0]) > 0.99f, "STAMPS: " + pair[0] + " shows in the hand while it is held");
+                hand.EndDrag();
+                Check(StampHandAlpha(root, pair[0]) < 0.01f && StampAlpha(root, pair[0]) > 0.9f,
+                    "STAMPS: " + pair[0] + " goes back to the tray picture when let go");
+            }
 
             cp.GoPatrol();
             Check(root.State == AppViewState.Checkpoint, "PATROL refused mid-inspection (state stays Checkpoint)");
