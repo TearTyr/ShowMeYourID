@@ -428,27 +428,5 @@ namespace Hollowbrook.Logic
             v.VisitorIndex = shift.VisitorCount;
             return v;
         }
-
-        public VisitorData GenerateRunVisitor(int processedSoFar)
-        {
-            float anomalyChance = Math.Min(0.15f + processedSoFar * 0.02f, 0.6f);
-            bool anomaly = _rng.Chance(anomalyChance);
-            var id = _canon[_rng.NextInt(0, _canon.Count)];
-            var fakeShift = new ShiftDef
-            {
-                Number = 0,
-                VisitorCount = 1,
-                AnomalyCount = anomaly ? 1 : 0,
-                MaxDefectsPerAnomaly = processedSoFar < 5 ? 1 : (processedSoFar < 12 ? 2 : 3),
-                SubtleDefectsAllowed = processedSoFar >= 5,
-                DuplicateIdsAllowed = processedSoFar >= 8,
-                ClassroomLieAllowed = processedSoFar >= 3,
-                HasAdministrator = false,
-            };
-            var v = anomaly ? BuildAnomaly(id, fakeShift) : BuildLegit(id, fakeShift);
-            v.ShiftNumber = 0;
-            _genLog.RecordFrom(v, "presented earlier this run");
-            return v;
-        }
     }
 }

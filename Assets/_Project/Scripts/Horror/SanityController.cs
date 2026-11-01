@@ -111,10 +111,7 @@ namespace Hollowbrook.Horror
             var visitor = _gameRoot.Checkpoint != null ? _gameRoot.Checkpoint.CurrentVisitor : null;
             if (visitor == null)
             {
-                float rate = session.Mode == GameMode.Normal
-                    ? SanityModel.SecurityRoomRecoveryPerSecond
-                    : SanityModel.SecurityRoomRecoveryPerSecond * 0.4f;
-                session.ApplySanity(rate * dt);
+                session.ApplySanity(SanityModel.SecurityRoomRecoveryPerSecond * dt);
                 return;
             }
             session.ApplySanity(-(SanityModel.DeskDrainPerSecond + ScaryExtraDrain(visitor.ClaimedName)) * dt);

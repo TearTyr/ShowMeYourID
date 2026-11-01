@@ -76,12 +76,6 @@ namespace Hollowbrook.Core
             PersistRun();
 
             var eval = Session.EvaluateEnding();
-            if (eval.Ending == EndingType.None && Config != null && Config.exhibitionMode && Session.CompletedShifts >= 1)
-            {
-                Session.Breaches += Session.Pool.Pending;         // booth night closes its books too
-                eval = EndingRules.EvaluateExhibition(Session);   // booth cut closes after one night
-            }
-            if (Config != null && Config.exhibitionMode && eval.Ending != EndingType.None) { TriggerEnding(eval); return; }
 
             // nights 1 to 4 end straight at the main menu; Continue starts the next one
             if (Session.Mode == GameMode.Normal && Session.CurrentShift <= ShiftPlan.TotalShifts)
@@ -111,17 +105,6 @@ namespace Hollowbrook.Core
             BeginShift(Session.CurrentShift);
         }
 
-        public void FinishRun() // endless/challenge time-out
-        {
-            if (Session.Mode == GameMode.Endless && Session.Score > Records.EndlessBest) Records.EndlessBest = Session.Score;
-            if (Session.Mode == GameMode.Challenge && Session.Score > Records.ChallengeBest) Records.ChallengeBest = Session.Score;
-            Session.RunFinished = true;
-            PersistRun();
-            SetState(AppViewState.EndlessResults);
-            if (Ending != null) Ending.PopulateRunResults(Session, Records);
-            Audio.PlayMusic(Session.Score > 0 ? "end_win" : "end_lose");
-        }
-
         public void TriggerEnding(EndingRules.Evaluation eval)
         {
             if (Ending == null)
@@ -133,7 +116,7 @@ namespace Hollowbrook.Core
                 return;
             }
             string key = eval.Ending == EndingType.Secret ? "secret" : (eval.Ending == EndingType.Win ? "win" : "lose");
-            if (eval.ReasonKey != "exhibition" && !Records.EndingsSeen.Contains(key)) Records.EndingsSeen.Add(key);
+            if (!Records.EndingsSeen.Contains(key)) Records.EndingsSeen.Add(key);
             Session.RunFinished = true;
             PersistRun();
             SetState(AppViewState.Ending);

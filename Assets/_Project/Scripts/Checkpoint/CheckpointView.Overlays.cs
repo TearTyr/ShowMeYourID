@@ -120,11 +120,6 @@ namespace Hollowbrook.Checkpoint
             sb.Append("Ask which classroom they are going to, then check the answer against their file in the drawer. Decisions are permanent.\n");
             sb.Append("Compare the face at the window with the ID photo yourself - the desk keeps no appearance form.\n\n");
             if (_shift != null) { sb.Append(_shift.RuleNoteAddendum).Append('\n'); }
-            if (_gameRoot.Session.Mode == GameMode.Challenge)
-            {
-                var m = _gameRoot.Session.ActiveMutation;
-                if (m != null && !string.IsNullOrEmpty(m.RuleText)) sb.Append('\n').Append("▸ ").Append(m.RuleText);
-            }
             _notesText.text = sb.ToString();
         }
 

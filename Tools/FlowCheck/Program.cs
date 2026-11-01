@@ -174,8 +174,6 @@ namespace FlowCheck
         {
             Console.WriteLine("== failed nights: breach, blackout, penalty, final night ==");
             float dtSave = Time.deltaTime;
-            bool exhibitionSave = root.Config.exhibitionMode;
-            root.Config.exhibitionMode = false;          // the shipping default: the full five-night story
 
             // a clean clock-out is a normal shift end
             FreshGame(root); ClickStickyNote(root);
@@ -261,7 +259,6 @@ namespace FlowCheck
             Time.deltaTime = dtSave;
             Check(root.State == AppViewState.Ending && root.Session.RunFinished,
                 "FAIL: a blackout on the final night is the Lose ending");
-            root.Config.exhibitionMode = exhibitionSave;
             FreshGame(root);   // leave a live game for whatever runs next
         }
 
@@ -305,7 +302,7 @@ namespace FlowCheck
             Console.WriteLine("== required desk/HUD elements exist ==");
             string[] deskNames =
             {
-                "DeskFrame", "topbar", "daybanner_border", "clock", "pause", "runstats", "mutationbg",
+                "DeskFrame", "topbar", "daybanner_border", "clock", "pause",
                 "record", "station", "folder1", "folder2", "filedrawer_border", "closefile", "idcard",
                 "drawerbody", "drawerfront", "drawercavity", "drawerhead", "cabfront",
                 "windowframe", "glass", "facade", "visitor", "glitch", "sill",
@@ -465,9 +462,8 @@ namespace FlowCheck
             // hint/findings row: wireframe baseline y=72, findings right edge x=1264
             Check(Math.Abs(L.Findings.Right - 1264) < 0.01f, "findings right-aligned at x=1264");
             Check(Math.Abs(L.Hint.X - 25) < 0.01f, "hint lives in the left slot of the strip under the top bar");
-            Check(L.Hint.Y >= 82 && L.Hint.Bottom <= 110 && L.Findings.Y >= 82 && L.Findings.Bottom <= 110 &&
-                  L.RunStats.Y >= 82 && L.RunStats.Bottom <= 110,
-                "hint/findings/run-stats live in the one strip under the kit board (84..108)");
+            Check(L.Hint.Y >= 82 && L.Hint.Bottom <= 110 && L.Findings.Y >= 82 && L.Findings.Bottom <= 110,
+                "hint and findings live in the one strip under the kit board (84..108)");
 
             Console.WriteLine("== grid sanity: on screen, disjoint, contained ==");
             Rows.Clear();
@@ -476,8 +472,6 @@ namespace FlowCheck
             Add("light meter", L.LightMeter, "E");
             Add("clock", L.Clock, "B");
             Add("pause", L.Pause, "B");
-            Add("run stats", L.RunStats, "B");
-            Add("mutation strip", L.Mutation, "B");
             Add("findings", L.Findings, "B");
             Add("hint", L.Hint, "E");
             Add("room info", L.RoomInfo, "E");
@@ -1208,7 +1202,7 @@ namespace FlowCheck
             // scaffolding only: scale the rect directly so the drop maths still proves it maps
             // through ANY scale chain (nothing in the game scales the slip any more)
             slipT.localScale = new Vector3(1.5f, 1.5f, 1f);
-            var want = InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null);
+            var want = InspectionRules.ExpectedVerdict(cp.CurrentVisitor);
             StampAtPoint(root, want, new Vector2(797.5f, 522.5f));   // centre of the 1.5x slip
             Check(cp.SlipStamped && cp.PendingVerdict == want,
                 "SP: the drop stamps the slip and records the pending verdict (workflow preserved)");
@@ -1761,7 +1755,7 @@ namespace FlowCheck
             // earlier proofs may have left an inspection mid-way: close it like a player
             // would, then make sure a fresh visitor (documents NOT taken) is at the window
             if (FindDeep(desk, "idcard").gameObject.activeSelf && cp.CurrentVisitor != null)
-                cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+                cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor));
             int freshGuard = 0;
             while (cp.CurrentVisitor == null && freshGuard++ < 8) cp.AdvanceQueue(6f);
             Check(cp.CurrentVisitor != null && FindDeep(desk, "idcard").gameObject.activeSelf &&
@@ -1849,7 +1843,7 @@ namespace FlowCheck
                 if (cp.CurrentVisitor == null) { cp.AdvanceQueue(6f); continue; }
                 cp.DebugTakeDocuments();   // hand-over gate before the verdict path
                 TakeSlip(root);
-                var want = InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null) == Verdict.Allow
+                var want = InspectionRules.ExpectedVerdict(cp.CurrentVisitor) == Verdict.Allow
                     ? Verdict.Allow : Verdict.Reject;
                 StampSlip(root, want);
                 HandBack(root, true, true);   // full hand-back commits the verdict
@@ -1884,9 +1878,7 @@ namespace FlowCheck
 
             ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
             btn("endshift").onClick.Invoke();
-            bool expectedEnding = root.Config.exhibitionMode;   // the exhibition arc clocks out straight into its ending
-            Check(expectedEnding ? root.State == AppViewState.Ending : root.State == AppViewState.MainMenu,
-                "END SHIFT click clocks out (exhibition=" + expectedEnding + ", state=" + root.State + ")");
+            Check(root.State == AppViewState.MainMenu, "END SHIFT click clocks out to the menu (state=" + root.State + ")");
         }
 
         private static void SaveContinueResume()
@@ -1894,7 +1886,7 @@ namespace FlowCheck
             var root = GameRoot.Instance;
             string first = root.Checkpoint.CurrentVisitor != null ? root.Checkpoint.CurrentVisitor.ClaimedName : "?";
             root.Checkpoint.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-            root.Checkpoint.Stamp(InspectionRules.ExpectedVerdict(root.Checkpoint.CurrentVisitor, null));
+            root.Checkpoint.Stamp(InspectionRules.ExpectedVerdict(root.Checkpoint.CurrentVisitor));
             int logBefore = root.Session.TonightLog.Count;
             int poolBefore = root.Session.Pool.Pending;
             int admittedBefore = root.Session.AdmittedStudents.Count;
@@ -1960,7 +1952,6 @@ namespace FlowCheck
         private static void QueueProof(GameRoot root)
         {
             Console.WriteLine("== QUEUE proofs (Phase 9 + 11.1-11.4, headless) ==");
-            bool exhibition = root.Config.exhibitionMode;
 
             // ---- Q1 arrivals accumulate FIFO while an inspection stays unresolved
             FreshGame(root);
@@ -1985,14 +1976,14 @@ namespace FlowCheck
 
             // ---- Q2 the oldest waiter steps up after the banner, with no second wait
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor));
             Check(cp.CurrentVisitor == roster[1], "Q2: oldest waiting visitor stepped up immediately after the banner");
             Check(root.Queue.WaitingCount == 2, "Q2: the line queues invisibly (showcase)");
             int guard = 0;
             while (cp.CurrentVisitor != null && guard++ < 6)
             {
                 cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-                cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+                cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor));
             }
             Check(root.Queue.ShiftComplete && guard <= 3, "Q2: the fully resolved roster completes the shift");
 
@@ -2002,7 +1993,7 @@ namespace FlowCheck
             cp = root.Checkpoint;
             ClickStickyNote(root);
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor));
             Check(cp.CurrentVisitor == null && root.Queue.WaitingCount == 0, "Q3: window and line are empty");
             Check(!root.Queue.ShiftComplete, "Q3: empty line with pending arrivals is NOT completion");
             Check(!Btn(root, "endshift").interactable, "Q3: END SHIFT stays dimmed while the source can produce");
@@ -2073,7 +2064,7 @@ namespace FlowCheck
             string toast = FindDeep(root.HUD.transform, "toast").GetComponent<UnityEngine.UI.Text>().text;
             Check(toast.Contains("ROSTER DISCREPANCY"), "Q5: subtle radio feedback via the HUD toast, no anomaly revealed");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));   // resolve #0 -> anomaly steps up
+            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor));   // resolve #0 -> anomaly steps up
             Check(cp.CurrentVisitor == mRoster[2], "Q5: the anomaly itself steps up to the window");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
             cp.Stamp(Verdict.Allow);                    // let the anomaly in - the loss must stand
@@ -2086,7 +2077,7 @@ namespace FlowCheck
                 if (cp.CurrentVisitor == null) { cp.AdvanceQueue(1f); continue; }
                 arrivedNames.Add(cp.CurrentVisitor.ClaimedName);
                 cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-                cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+                cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor));
             }
             Check(root.Queue.ShiftComplete, "Q5: the shift still completes with a vanished student");
             Check(!arrivedNames.Contains(victimExpected.ClaimedName), "Q5: the vanished student never arrived later");
@@ -2116,9 +2107,9 @@ namespace FlowCheck
             cp.AdvanceQueue(6f);                                   // #2 arrives behind #1
             Check(root.Queue.WaitingCount == 1, "Q7: a visitor is waiting before the patrol");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));   // #1 resolved, #2 steps up
+            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor));   // #1 resolved, #2 steps up
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));   // #2 resolved, line empty
+            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor));   // #2 resolved, line empty
             Check(cp.CurrentVisitor == null && root.Queue.RosterCursor == 2, "Q7: window free, cursor at 2");
             Check(cp.WindowOpen, "Q7: the window stays open with students still to come");
             cp.AdvanceQueue(0.01f);
@@ -2167,29 +2158,11 @@ namespace FlowCheck
                   "Q8: the answer came back on its button with the restored visitor (got '" + restoredNote.text + "')");
             Check(root.Queue.WaitingCount == 1, "Q8: the waiting line was restored, not duplicated");
             cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor));
             Check(cp.CurrentVisitor != null && cp.CurrentVisitor.VisitorIndex == pRoster[3].VisitorIndex,
                   "Q8: after the verdict the restored waiter steps up");
 
-            // ---- Q9 Endless/Challenge keep working through their own arrival source (9.8)
-            root.StartNewGame(GameMode.Endless);
-            CheckpointSceneBootstrap.Build(root);
-            Check(root.Queue != null && root.Queue.Tuning.ArrivalMaxSeconds == 5f, "endless keeps the fast race clock");
-            for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
-            cp = root.Checkpoint;
-            Check(root.Queue.InfiniteSource && root.Queue.EffectiveTotal == -1, "Q9: endless run attaches the generator source");
-            Check(FindDeep(cp.transform, "StickyNoteOverlay").gameObject.activeSelf, "Q9: run modes use the same start gate");
-            ClickStickyNote(root);
-            Check(cp.CurrentVisitor != null, "Q9: first run visitor arrives on the note click");
-            cp.AdvanceQueue(6f);
-            Check(root.Queue.WaitingCount == 1, "Q9: run visitors accumulate in the same line");
-            cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-            cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
-            Check(cp.CurrentVisitor != null && root.Session.RunProcessed == 1,
-                  "Q9: promotion + run scoring still flow through OnVerdictResolved");
-
             // ---- Q10 shift boundary: clocking out never leaks the line into the next night
-            root.Config.exhibitionMode = false;        // full five-night arc (test-only override)
             FreshGame(root);
             IsolateMissingStudent(root);
             cp = root.Checkpoint;
@@ -2199,7 +2172,7 @@ namespace FlowCheck
             {
                 if (cp.CurrentVisitor == null) { cp.AdvanceQueue(6f); continue; }
                 cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-                cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+                cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor));
             }
             Check(guard < 20 && root.Queue.ShiftComplete, "Q10: night 1 walked to completion through the queue");
             root.Session.ClearedRooms = PatrolCycle.Bit(RoomId.Classroom1) | PatrolCycle.Bit(RoomId.Classroom2) | PatrolCycle.Bit(RoomId.ComfortRoom);
@@ -2249,7 +2222,7 @@ namespace FlowCheck
                 }
                 if (cp.CurrentVisitor == null) continue;   // defensive: view/queue out of sync
                 cp.DebugTakeDocuments();   // hand-over gate: take the ID like a click would
-                cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+                cp.Stamp(InspectionRules.ExpectedVerdict(cp.CurrentVisitor));
             }
             Check(root.Queue.ProcessedCount == 1, "Q11: the administrator resolved through the queue (" +
                   root.Queue.ProcessedCount + ")");
@@ -2259,8 +2232,6 @@ namespace FlowCheck
                 root.Dialogue.Advance();               // play the outro to its callback
             Check(root.Queue.ShiftComplete, "Q11: rejecting the administrator completes the night");
             Check(!Btn(root, "endshift").interactable, "Q11: END SHIFT stays off, the night is not over while he is inside");
-
-            root.Config.exhibitionMode = exhibition;   // restore the production default
         }
 
         // ------------------------------------------------- settings modal proofs
@@ -2456,7 +2427,7 @@ namespace FlowCheck
             // NEAR THE TOP-LEFT - clamped so the whole tilted mark stays on the paper
             cp.DebugTakeDocuments();
             TakeSlip(root);
-            var cornerWant = InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null);
+            var cornerWant = InspectionRules.ExpectedVerdict(cp.CurrentVisitor);
             StampAtPoint(root, cornerWant, new Vector2(690f, 460f));   // just inside the corner
             var soT = FindDeep(cp.transform, "stampoverlay").GetComponent<RectTransform>();
             var slT = FindDeep(cp.transform, "slip").Find("slipart").GetComponent<RectTransform>();
@@ -2493,7 +2464,7 @@ namespace FlowCheck
             Check(!cp.SlipStamped, "issue #5: unpaused, A and D do NOT stamp - a verdict is only ever a dragged stamp");
             Check(FindDeep(cp.transform, "slblA") == null && FindDeep(cp.transform, "slblD") == null,
                 "issue #5: no APPROVE (A) / DECLINE (D) caption bars sit under the stamps");
-            StampSlip(root, Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+            StampSlip(root, Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor));
             Check(cp.SlipStamped, "issue #5: dragging a stamp onto the slip still stamps it");
             UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.H);
             cp.TickHotkeys();
@@ -2534,13 +2505,11 @@ namespace FlowCheck
             Console.WriteLine("== PATROL world loop (flashlight + roaming anomaly), headless frames ==");
 
             // a fresh normal run, then patrol - through the real scene handoffs the game uses.
-            // the booth demo is an explicit opt-in now (issue #2): shipping default is the story
-            root.Config.exhibitionMode = true;
             root.StartNewGame(GameMode.Normal);
             CheckpointSceneBootstrap.Build(root);
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
             Check(root.State == AppViewState.Checkpoint, "W0: a fresh run reaches the desk");
-            Check(root.Session.Pool.Pending == 1, "W0: the exhibition night seeds exactly one outstanding anomaly");
+            Check(root.Session.Pool.Pending == 1, "W0: night 1 seeds exactly one outstanding anomaly");
 
             root.EnterExploration();
             SchoolSceneBootstrap.Build(root);      // what Unity does after LoadScene(School)
@@ -2736,22 +2705,6 @@ namespace FlowCheck
                 Check(!views.PeekActive && views.Current.Id == RoomId.Hallway && root.State == AppViewState.Exploration,
                       "CR: stepping back returns to the hallway");
                 if (!hall.Light.Lit) hall.Light.SetLit(true);
-            }
-
-            // ---- tokens: picked up on patrol, banked in the records, spent on the main menu ----
-            {
-                int before = root.Records.TokensBanked;
-                var tokenGo = new GameObject("proof_token");
-                var pickup = tokenGo.AddComponent<TokenPickup>();
-                pickup.Init(root, hall, 0f);
-                pickup.Interact();
-                Check(root.Records.TokensBanked == before + 1, "TOKEN: a picked up token is banked in the records");
-                var round = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = root.Session, Records = root.Records }));
-                Check(round != null && round.Records.TokensBanked == before + 1, "TOKEN: banked tokens survive the save file");
-                var rec = new RecordsData { TokensBanked = RecordsData.TokensToUnlockModes - 1 };
-                Check(!rec.ModesUnlocked, "TOKEN: the other modes stay locked below the price");
-                rec.TokensBanked++;
-                Check(rec.ModesUnlocked, "TOKEN: enough tokens open Endless and Challenge on the menu");
             }
 
             // ---- the hallway art fits the frame and the walkers stand on the painted floor ----
@@ -3125,7 +3078,7 @@ namespace FlowCheck
             Check(stateLog.Skip(repelMark).Count(s => s == "Repelled") == 1, "W5: Repelled published exactly once");
             Check(revealedReal == 1, "W5: the reveal event fires exactly once per resolution");
             Check(an.Resolved, "W5: the entity is marked resolved");
-            Check(CountDeep(hall.Root.transform, "AnomalyToken") == 1, "W5: exactly one token dropped, in the room it was repelled in");
+            Check(CountDeep(hall.Root.transform, "AnomalyToken") == 0, "W5: a repelled anomaly drops nothing");
             SetBeam(root, rig, LightMode.Off);
 
             // the retreat is physical, then it leaves the stage and a return is scheduled
@@ -3160,18 +3113,6 @@ namespace FlowCheck
                 Check(g > 60 * (cfg.anomalyRecoverySeconds - 2f), "W5: it stayed away for (about) the full recovery period");
             }
             views.Spawner.DiscardLive();
-
-            // the dropped token is collectible exactly once
-            var token = FindInteractable<TokenPickup>(hall);
-            Check(token != null, "W5: the dropped token registered as a room interactable");
-            if (token != null)
-            {
-                views.Player.PlaceInRoom(hall, new Vector3(token.AnchorX, 0f, 0f));
-                int w5Tokens = root.Session.TokensCollected;
-                token.Interact();
-                Check(root.Session.TokensCollected == w5Tokens + 1, "W5: collecting the token counts exactly once");
-                Check(FindInteractable<TokenPickup>(hall) == null, "W5: the token is gone from the room after pickup");
-            }
 
             // ---- W6: four distinct behaviors
             Console.WriteLine("== W6 behavior identities ==");
@@ -3562,14 +3503,12 @@ namespace FlowCheck
             AimAt(hiderPos.x, hiderPos.y);
             WorldFrames(root, 200);
             Check((root.Session.PeekAnomaliesGone & bit) == 0, "AN: a dark lamp does nothing to it");
-            int peekTokens = root.Session.TokensCollected;
             views.PeekLight.ToggleLamp();
             WorldFrames(root, 30);
             Check((root.Session.PeekAnomaliesGone & bit) == 0, "AN: it takes a steady light, not a glance");
             WorldFrames(root, 90);
             Check((root.Session.PeekAnomaliesGone & bit) != 0, "AN: the held lamp drives it out");
             Check((root.Session.ClearedRooms & bit) != 0, "AN: and now the room counts");
-            Check(root.Session.TokensCollected == peekTokens, "AN: a standing anomaly leaves no token, those come from the hallway");
             views.PeekLight.ToggleLamp();
             PressKey(root, KeyCode.S);
             root.EnterRoomPeek(withOne);
@@ -3870,7 +3809,7 @@ namespace FlowCheck
                 $"AT: REFUSE ENTRY counts as rejecting the administrator (rejected={root.Session.AdminRejected} allowed={root.Session.AdminAllowed} processed={root.Session.Processed})");
             int processed = root.Session.Processed;
             int breaches = root.Session.Breaches;
-            root.OnVerdictResolved(admin, InspectionRules.Apply(admin, Verdict.Reject, null));
+            root.OnVerdictResolved(admin, InspectionRules.Apply(admin, Verdict.Reject));
             Check(root.Session.Processed == processed && root.Session.Breaches == breaches,
                 "AT: a duplicated verdict callback changes nothing (exactly-once guard)");
             Check(QueueAbandoned(root), "AT: the rejected administrator closes the night's line safely");
@@ -4001,7 +3940,7 @@ namespace FlowCheck
         internal static readonly string[] SecurityKitKeys =
         {
             "sec_background", "sec_background_open", "sec_light",
-            "sec_window_open", "sec_window_close", "sec_upper_panel", "sec_upper_panel_bg",
+            "sec_upper_panel_bg",
             "sec_sanity_bar", "sec_pause_block", "sec_btn_pill", "sec_wide_pill", "sec_caption_bar",
             "sec_stamp_circle_allow", "sec_stamp_circle_deny", "sec_icon_accept",
             "sec_icon_decline", "sec_folder_tab1", "sec_icon_patrol",
@@ -4046,7 +3985,7 @@ namespace FlowCheck
                 var im = t.GetComponent<UnityEngine.UI.Image>();
                 if (im != null && im.raycastTarget) clickThrough = false;
             }
-            foreach (var b in new[] { "NEW GAME", "CONTINUE", "SETTINGS", "EXIT", "CREDITS", "TOKENS" })
+            foreach (var b in new[] { "NEW GAME", "CONTINUE", "SETTINGS", "EXIT", "CREDITS" })
             {
                 var t = menu.Find("buttons/" + b);
                 Check(t != null && t.GetComponent<UnityEngine.UI.Button>() != null,
@@ -4330,7 +4269,7 @@ namespace FlowCheck
                 // same beat the editor reaches through the post-stamp coroutine.
                 cp.DebugTakeDocuments();
                 TakeSlip(root);
-                StampSlip(root, Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor, null));
+                StampSlip(root, Hollowbrook.Logic.InspectionRules.ExpectedVerdict(cp.CurrentVisitor));
                 HandBack(root, true, false);
                 cp.SetVisitorVisible(false);
                 DeskFrames(cp, 6);

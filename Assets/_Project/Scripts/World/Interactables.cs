@@ -26,25 +26,6 @@ namespace Hollowbrook.World
         public float DistanceTo(Vector3 p) => Mathf.Abs(p.x - AnchorX);
     }
 
-    public class TokenPickup : Interactable
-    {
-        public void Init(GameRoot root, RoomInstance room, float x)
-        {
-            _gameRoot = root; Room = room; AnchorX = x;
-            Prompt = "Collect token [E]";
-            Art = GetComponent<SpriteRenderer>();
-        }
-
-        public override void Interact()
-        {
-            if (_gameRoot == null || _gameRoot.Session == null) return;
-            if (Room != null) Room.Interactables.Remove(this);
-            _gameRoot.AwardToken();
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*you pocket a token*", 2.4f, null));
-            Destroy(gameObject);
-        }
-    }
-
     public class Doorway : Interactable
     {
         public RoomId Target;

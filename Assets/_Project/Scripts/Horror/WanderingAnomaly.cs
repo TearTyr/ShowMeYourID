@@ -13,7 +13,7 @@ namespace Hollowbrook.Horror
     // Authority: AnomalyEncounter is the ONE progression path for real anomalies. The old
     // tracking-threshold reveal that bypassed Repelled/Recovering is gone; TrackingPolicy only
     // supplies meter rates. Hallucinations keep their separate Focus-seconds truth-check and
-    // never touch the pool, tokens or catch logic.
+    // never touch the pool or catch logic.
     //
     // Coordinate space: the shared world/room plane (world root is identity), via localPosition.
     public class WanderingAnomaly : MonoBehaviour
@@ -33,8 +33,7 @@ namespace Hollowbrook.Horror
         private float _stateTimer;
         private float _threatSeconds;            // continuous threatening time (fair catch)
         private bool _threatTold;
-        private bool _tokenDropped;
-        private bool _resolved;                  // token + pool resolution, exactly once
+        private bool _resolved;                  // pool resolution, exactly once
         private bool _gone;                      // despawn handoff, exactly once
         private float _lastX;
 
@@ -279,7 +278,7 @@ namespace Hollowbrook.Horror
 
         private void AnnounceRepel(ViewManager views)
         {
-            ResolveOnce();       // token + pool marker, exactly once
+            ResolveOnce();       // pool marker, exactly once
             BeginRetreat(views); // physical withdrawal starts NOW; hunting is over
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.AnomalyRevealed, Kind));
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it tears itself away from the light*", 2.6f, null));
@@ -544,24 +543,6 @@ namespace Hollowbrook.Horror
             if (_resolved || IsHallucination) return;
             _resolved = true;
             WasRevealed = true;
-            DropToken();
-        }
-
-        private void DropToken()
-        {
-            if (_tokenDropped || _room == null || _room.Root == null) return;
-            _tokenDropped = true;
-            var go = new GameObject("AnomalyToken");
-            go.transform.SetParent(_room.Root.transform, false);   // stays in the room it was repelled in
-            var p = transform.localPosition;
-            go.transform.localPosition = new Vector3(p.x, RoomInstance.FloorY + 0.2f, -0.2f);
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = ProceduralArt.Get("token");
-            sr.color = new Color(0.85f, 0.85f, 0.82f);
-            sr.sortingOrder = 75;
-            var pick = go.AddComponent<TokenPickup>();
-            pick.Init(_gameRoot, _room, p.x);
-            _room.Interactables.Add(pick);
         }
 
         public void CatchPlayer()
@@ -583,7 +564,7 @@ namespace Hollowbrook.Horror
         }
 
         /// <summary>End this entity. `resolved` marks it as dealt with (pool clears in
-        /// OnAnomalyGone). Runs exactly once - no duplicate handoffs, tokens or callbacks.</summary>
+        /// OnAnomalyGone). Runs exactly once - no duplicate handoffs or callbacks.</summary>
         public void Despawn(bool resolved)
         {
             if (_gone) return;

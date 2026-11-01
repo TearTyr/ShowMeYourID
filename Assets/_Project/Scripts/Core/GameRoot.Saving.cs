@@ -58,7 +58,7 @@ namespace Hollowbrook.Core
                 Records = Records,
                 SavedAtLabel = "Night " + Session.CurrentShift + " · " + ClockString,
             };
-            save.Session.VisitorIndexAtSave = Queue != null && Queue.IsAttached && !Queue.InfiniteSource
+            save.Session.VisitorIndexAtSave = Queue != null && Queue.IsAttached
                 ? Queue.RosterCursor : 0;
             Saves.Write(save);
         }

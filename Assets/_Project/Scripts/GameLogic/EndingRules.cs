@@ -15,8 +15,7 @@ namespace Hollowbrook.Logic
         {
             // Normal mode: nights 1-4 never end the game (a bad night just fails the shift and
             // costs the next one); the lose conditions below only apply on the final night.
-            // Endless and Challenge keep them throughout.
-            bool losesCount = s.Mode != GameMode.Normal || s.CurrentShift >= ShiftPlan.TotalShifts;
+            bool losesCount = s.CurrentShift >= ShiftPlan.TotalShifts;
             if (losesCount) { var lose = EvaluateLosses(s); if (lose != null) return lose; }
             return EvaluateOutcome(s);
         }
@@ -62,59 +61,7 @@ namespace Hollowbrook.Logic
             return Result(EndingType.None, "continue", "");
         }
 
-        public static Evaluation EvaluateExhibition(GameSession s)
-        {
-            var lose = Evaluate(s);
-            if (lose.Ending == EndingType.Lose) return lose;
-            if (s.Clues.SecretConditionsMet)
-                return Result(EndingType.Secret, "secret", lose.ReasonText);
-            return Result(EndingType.Win, "exhibition",
-                "The bell rings. Four faces, one of them wrong, and the wrong one did not get in. " +
-                "Hollowbrook keeps its secrets one more night - demo complete, thank you for playing.");
-        }
-
         private static Evaluation Result(EndingType t, string key, string text) =>
             new Evaluation { Ending = t, ReasonKey = key, ReasonText = text };
-    }
-
-    public static class EndlessRules
-    {
-        public const float StartSeconds = 150f;
-        public const float TimePerAnomalyRejected = 20f;
-        public const float TimePerLegitAllowed = 8f;
-        public const float TimePenaltyForMistake = 12f;
-        public const float HardCapSeconds = 420f;
-
-        public static float AnomalyChance(int processedSoFar)
-        {
-            float c = 0.15f + processedSoFar * 0.02f;
-            return c > 0.6f ? 0.6f : c;
-        }
-
-        public static int ScoreFor(InspectionRules.Outcome o, int streakAfter)
-        {
-            int baseScore = o.WasAnomaly ? 100 : 50;
-            return o.Correct ? (int)(baseScore * StreakMultiplier(streakAfter)) : 0;
-        }
-
-        public static float StreakMultiplier(int streak)
-        {
-            float m = 1f + (streak / 3) * 0.5f; // integer division: +0.5x every 3 streak
-            return m > 4f ? 4f : m;
-        }
-    }
-
-    public static class ChallengeRules
-    {
-        public const int VisitorsPerRuleWave = 4;
-        public const float ScoreMultiplier = 2f;
-        public const float StartSeconds = EndlessRules.StartSeconds;
-
-        public static RuleMutationDef RollMutation(int waveIndex, GameRng rng)
-        {
-            if (waveIndex <= 0) return ShiftPlan.ChallengeMutations[0];
-            int idx = rng.NextInt(1, ShiftPlan.ChallengeMutations.Length);
-            return ShiftPlan.ChallengeMutations[idx];
-        }
     }
 }

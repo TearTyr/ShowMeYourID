@@ -77,5 +77,4 @@ It cannot tell you how it looks, sounds or feels. Press Play for that.
 - Numbers that you might tune go in `GameConfig.asset`, not hidden in code.
 - Do not use `GameObject.Find`. Ask `GameRoot` for the thing.
 - Rules in `GameLogic/`, screens elsewhere.
-- Old reports and history are in `docs/archive/`. You never need them to work.
 - More detail in `ARCHITECTURE.md` and `STYLE.md`.

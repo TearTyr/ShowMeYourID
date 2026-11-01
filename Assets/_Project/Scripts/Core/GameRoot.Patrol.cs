@@ -46,7 +46,7 @@ namespace Hollowbrook.Core
         }
 
         /// <summary>The lamp drove out the anomaly in the room being peeked: it is gone for the night
-        /// and the room counts for the patrol. It leaves no token, those come from the hallway.</summary>
+        /// and the room counts for the patrol. </summary>
         public void RepelPeekAnomaly()
         {
             if (!PeekRoom.HasValue) return;
@@ -58,19 +58,9 @@ namespace Hollowbrook.Core
             Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it folds into the dark and is gone*", 3f, null));
         }
 
-        /// <summary>A token goes straight to the save: it is kept even if the run is abandoned.</summary>
-        public void AwardToken()
-        {
-            Session.TokensCollected++;
-            Records.TokensBanked++;   // spent on the main menu: see MainMenuView
-            Bus.Publish(GameEvent.Of(EventIds.TokenCollected, Session.TokensCollected));
-            Audio.PlaySfx("sfx_scan_ok", 0.6f);
-            PersistRun();
-        }
-
         /// <summary>Normal nights 1 to 4 need one patrol cycle before END SHIFT.</summary>
         public bool PatrolRequired => Session != null && Session.Mode == GameMode.Normal &&
-            Session.CurrentShift < ShiftPlan.TotalShifts && (Config == null || !Config.exhibitionMode);
+            Session.CurrentShift < ShiftPlan.TotalShifts;
 
         /// <summary>True once tonight's cycle is finished, or when tonight has none.</summary>
         public bool PatrolDone => !PatrolRequired || PatrolCycle.Done(Session.ClearedRooms);

@@ -9,7 +9,7 @@ namespace Hollowbrook.Logic
             public Verdict Verdict;
             public Verdict Expected;
             public bool Correct;
-            public bool FalseRejection;   // legit rejected (not via an official rule mutation)
+            public bool FalseRejection;   // legit rejected
             public bool AnomalyBreach;    // anomaly allowed in
             public bool WasAnomaly;
             public bool WasAdministrator;
@@ -19,22 +19,18 @@ namespace Hollowbrook.Logic
             public List<string> RevealedDefects = new List<string>();
         }
 
-        public static Verdict ExpectedVerdict(VisitorData v, RuleMutationDef activeMutation)
-        {
-            if (activeMutation != null && activeMutation.ForcesReject(v)) return Verdict.Reject;
-            return v.IsAnomaly ? Verdict.Reject : Verdict.Allow;
-        }
+        public static Verdict ExpectedVerdict(VisitorData v) =>
+            v.IsAnomaly ? Verdict.Reject : Verdict.Allow;
 
-        public static Outcome Apply(VisitorData v, Verdict verdict, RuleMutationDef activeMutation)
+        public static Outcome Apply(VisitorData v, Verdict verdict)
         {
-            var expected = ExpectedVerdict(v, activeMutation);
-            bool forcedByRule = activeMutation != null && activeMutation.ForcesReject(v);
+            var expected = ExpectedVerdict(v);
             var o = new Outcome
             {
                 Verdict = verdict,
                 Expected = expected,
                 Correct = verdict == expected,
-                FalseRejection = verdict == Verdict.Reject && !v.IsAnomaly && !forcedByRule,
+                FalseRejection = verdict == Verdict.Reject && !v.IsAnomaly,
                 AnomalyBreach = verdict == Verdict.Allow && v.IsAnomaly,
                 WasAnomaly = v.IsAnomaly,
                 WasAdministrator = v.IsAdministrator,

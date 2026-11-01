@@ -44,7 +44,6 @@ namespace Hollowbrook.Logic
         public int FalseRejections = 0;
         public int Breaches = 0;            // anomalies allowed in (includes administrator if allowed)
         public int AnomaliesRejected = 0;
-        public int TokensCollected = 0;
         public int ClearedRooms = 0;   // tonight's patrol, see PatrolCycle
         public int PeekAnomaliesGone;  // peek rooms whose standing anomaly was driven out tonight (bits, see PatrolCycle)
         public int VisitorIndexAtSave = 0;   // where a mid-shift continue resumes
@@ -62,10 +61,7 @@ namespace Hollowbrook.Logic
         public int Score = 0;
         public int Streak = 0;
         public int BestStreak = 0;
-        public float RunTimer = 0f;         // Endless/Challenge seconds remaining
         public float ShiftClockMinutes = 0f;  // shift clock at last save (22:00 + this)
-        public int RunProcessed = 0;        // Endless/Challenge visitors this run
-        public string ActiveMutationKey = "none";
         public ClueTracker Clues = new ClueTracker();
         public PatrolPool Pool = new PatrolPool();   // outstanding anomalies tonight
         public List<ShiftSummary> History = new List<ShiftSummary>();
@@ -82,16 +78,6 @@ namespace Hollowbrook.Logic
         public QueueSnapshot QueueState;           // null until a shift queue has been persisted
 
         public SanityStage SanityStage => SanityModel.StageFor(Sanity);
-
-        public RuleMutationDef ActiveMutation
-        {
-            get
-            {
-                foreach (var m in ShiftPlan.ChallengeMutations)
-                    if (m.Key == ActiveMutationKey) return m;
-                return ShiftPlan.ChallengeMutations[0];
-            }
-        }
 
         public void RecordVerdict(InspectionRules.Outcome o)
         {
@@ -146,11 +132,11 @@ namespace Hollowbrook.Logic
             return give;
         }
 
-        /// <summary>Change sanity. Every LOSS is scaled by the mode and by the current drain stacks;
+        /// <summary>Change sanity. Every LOSS is scaled by the current drain stacks;
         /// gains are not.</summary>
         public void ApplySanity(float delta)
         {
-            if (delta < 0) delta *= SanityModel.DrainMultiplier(Mode) * Stacks.Multiplier;
+            if (delta < 0) delta *= Stacks.Multiplier;
             Sanity = SanityModel.Clamp(Sanity + delta);
         }
 
@@ -202,17 +188,6 @@ namespace Hollowbrook.Logic
         }
 
         public void MarkRoomInvestigated(RoomId room) => Clues.MarkRoomInvestigated(room);
-
-        public float ApplyRunTimer(InspectionRules.Outcome o)
-        {
-            float delta;
-            if (o.Correct)
-                delta = o.WasAnomaly ? EndlessRules.TimePerAnomalyRejected : EndlessRules.TimePerLegitAllowed;
-            else
-                delta = -EndlessRules.TimePenaltyForMistake;
-            RunTimer = Math.Min(RunTimer + delta, EndlessRules.HardCapSeconds);
-            return delta;
-        }
 
         public void CompleteShift()
         {
@@ -312,13 +287,6 @@ namespace Hollowbrook.Logic
     [Serializable]
     public class RecordsData
     {
-        public int EndlessBest = 0;
-        public int ChallengeBest = 0;
         public List<string> EndingsSeen = new List<string>(); // "win", "lose", "secret"
-        public int TokensBanked = 0;   // every token ever picked up, kept between runs
-
-        /// <summary>Tokens that open Endless and Challenge on the main menu.</summary>
-        public const int TokensToUnlockModes = 3;
-        public bool ModesUnlocked => TokensBanked >= TokensToUnlockModes;
     }
 }

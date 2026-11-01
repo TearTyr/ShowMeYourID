@@ -80,11 +80,6 @@ The numbers are in `GameConfig.asset` under "Administrator hunt".
 | Dialogue | click / `Space` / `Enter` / `E` |
 | Menu | `F2` ×3 erases save data (then confirm) |
 
-## Tokens
-
-Repelled anomalies leave tokens behind. They are kept between runs and shown on the main menu.
-Three tokens open Endless and Challenge from the TOKENS button.
-
 ## Endings
 
 - **Surviving Hollowbrook** - five nights, and dawn reached on the last one.
@@ -112,7 +107,7 @@ Assets/_Project/
     Audio/                music and effects
 Art/                      source art for the prep scripts (the current kit is "UI and Design Assets")
 Tools/                    test, check and art prep tools (not part of the game build)
-docs/                     GUIDE.md, GAMEPLAY-OVERVIEW.md, ART-NAMING.md, ASSET-MANIFEST.md, archive/
+docs/                     GUIDE.md, GAMEPLAY-OVERVIEW.md, ART-NAMING.md, ASSET-MANIFEST.md
 ```
 
 ## Checking your changes (no Unity needed)

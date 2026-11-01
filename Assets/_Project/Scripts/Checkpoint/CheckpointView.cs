@@ -23,7 +23,6 @@ namespace Hollowbrook.Checkpoint
         private bool _kitOn;
         /// <summary>True once the HUD's live sanity meter got its kit tint (HUD is built after the desk).</summary>
         private bool _kitSanityApplied;
-        private const string BulletinShort = "⚠ DISTRICT BULLETIN - NEW RULE IN EFFECT · SEE RULES NOTE";
 
         private GameRoot _gameRoot;
         private RectTransform _root;
@@ -46,8 +45,6 @@ namespace Hollowbrook.Checkpoint
 
         private Text _topLeft, _topClock, _topQueue;
         private string _lastClockText = "";
-        private Text _runStats;      // endless/challenge: score · streak · timer
-        private Text _mutationStrip; // challenge bulletin
         private GameObject _stickyRoot;
         private Button _stickyButton;
 
@@ -125,9 +122,6 @@ namespace Hollowbrook.Checkpoint
             BuildAdminTalk();    // the Shift-5 conversation panel + its re-open bar
             ApplyKitSkin();      // the owner's SecurityRoom art, over the audited grid
 
-            _subscriptions.Add(_gameRoot.Bus.Subscribe(EventIds.RunTimerTick, e => OnRunTimerTick(e.Value)));
-            _subscriptions.Add(_gameRoot.Bus.Subscribe(EventIds.MutationChanged,
-                e => ShowBulletin(e.Payload<RuleMutationDef>())));
             gameObject.SetActive(false);
         }
 
@@ -196,8 +190,7 @@ namespace Hollowbrook.Checkpoint
         }
 
         // Shared start-of-shift reset for BeginRun (new game / continue) and ResumeRun
-        // (back from patrol): clear per-visitor state, re-post the challenge bulletin,
-        // and show the score strip only in endless/challenge.
+        // (back from patrol): clear per-visitor state.
         private void ResetShiftState()
         {
             _tonightsLog.Clear();
@@ -205,10 +198,6 @@ namespace Hollowbrook.Checkpoint
             _flowActive = true;
             _current = null;
             _verdictLocked = true;
-            if (_gameRoot.Session.Mode == GameMode.Challenge) ShowBulletin(_gameRoot.Session.ActiveMutation);
-            else ShowBulletin(null);
-            bool runMode = _gameRoot.Session.Mode != GameMode.Normal;
-            _runStats.gameObject.SetActive(runMode);
         }
 
         // Rebuilds what the player sees at the window from the persistent queue: a started
@@ -282,7 +271,6 @@ namespace Hollowbrook.Checkpoint
         {
             if (r.ToWindow != null)
             {
-                ExhibitionHintOnce();
                 PresentFromQueue(r.ToWindow, restoreAsked);
             }
             else if (r.ToLine != null)
@@ -307,13 +295,6 @@ namespace Hollowbrook.Checkpoint
                 // one consequence, one announcement: GameRoot owns both (toast + ending)
                 _gameRoot.TriggerQueueOverwhelmed();
             }
-        }
-
-        private void ExhibitionHintOnce()
-        {
-            if (_gameRoot.Config.exhibitionMode && _gameRoot.Session.Processed == 0 && _gameRoot.Session.CurrentShift == 1)
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    "EXHIBITION: photo and expiry first, then one question if in doubt."));
         }
 
         // A visitor reached the window (from the line or the clock): fresh inspection
@@ -361,7 +342,7 @@ namespace Hollowbrook.Checkpoint
             RefreshHud();              // tray/prompt state always matches the new visitor
         }
 
-        private float BannerSeconds => _gameRoot.Config.exhibitionMode ? _gameRoot.Config.exhibitionBannerSeconds : _gameRoot.Config.verdictBannerSeconds;
+        private float BannerSeconds => _gameRoot.Config.verdictBannerSeconds;
 
         public void GoPatrol()
         {
@@ -532,12 +513,6 @@ namespace Hollowbrook.Checkpoint
             RefreshDecisionButtons();
             RefreshStands();
             RefreshAdminTalk();
-        }
-
-        private void OnEnable()
-        {
-            if (_gameRoot != null && _runStats != null && _gameRoot.Session.Mode != GameMode.Normal)
-                _runStats.gameObject.SetActive(true);
         }
     }
 }

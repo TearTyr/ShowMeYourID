@@ -55,7 +55,7 @@ namespace Hollowbrook.LogicTests
             SaveFormatTests();
             ModelMathTests();
             DisplayAndOptionsTests();
-            TrackingAndTokenTests();
+            TrackingTests();
             CheckpointQueueTests();
             SpeechBubbleTests();
             StampPlacementTests();
@@ -177,11 +177,6 @@ namespace Hollowbrook.LogicTests
                   "shift 3 unlocks subtle/duplicate/classroom-lie defects");
             Check(!shifts[0].ClassroomLieAllowed && shifts[1].ClassroomLieAllowed, "classroom lies start on night 2 (night 1 has no anomalies)");
             Check(shifts[3].ExplorationFocus && !shifts[4].ExplorationFocus, "only shift 4 is investigation-focused");
-            Check(ShiftPlan.ChallengeMutations.Length >= 2, "challenge mutation pool exists");
-            Check(ShiftPlan.ChallengeMutations.All(m => !string.IsNullOrEmpty(m.Key)), "every mutation has a key");
-            Check(ShiftPlan.ChallengeMutations[0].Key == "none", "wave 0 is the clean 'none' rule");
-            Check(ShiftPlan.ChallengeMutations.Skip(1).All(m => !string.IsNullOrEmpty(m.RuleText)),
-                  "every real mutation has printable rule text for the paper note");
         }
 
         // ------------------------------------------------------------ clue set
@@ -261,7 +256,7 @@ namespace Hollowbrook.LogicTests
                                   $"seed {seed} shift {shift.Number}: legit '{v.ClaimedName}' carries defects [{string.Join(",", v.Defects)}]");
                             Check(docDefects.Count == 0,
                                   $"seed {seed} shift {shift.Number}: legit '{v.ClaimedName}' has objective discrepancies [{string.Join(",", docDefects)}]");
-                            Eq(InspectionRules.ExpectedVerdict(v, null), Verdict.Allow,
+                            Eq(InspectionRules.ExpectedVerdict(v), Verdict.Allow,
                                $"seed {seed} shift {shift.Number}: legit visitor must be Allow");
                             Check(IdRules.IsFormatValid(v.IdNumber) && IdRules.DatabaseLookup(v.IdNumber, rf.Registry),
                                   $"seed {seed}: legit ID is valid and registered");
@@ -291,7 +286,7 @@ namespace Hollowbrook.LogicTests
                                $"seed {seed} shift {shift.Number}: an anomaly lies about the classroom exactly when it carries ClassroomMismatch");
                             Check(detectable,
                                   $"seed {seed} shift {shift.Number}: anomaly '{v.ClaimedName}' is undetectable [{string.Join(",", v.Defects)}]");
-                            Eq(InspectionRules.ExpectedVerdict(v, null), Verdict.Reject,
+                            Eq(InspectionRules.ExpectedVerdict(v), Verdict.Reject,
                                $"seed {seed} shift {shift.Number}: anomaly must be Reject");
                             if (!shift.SubtleDefectsAllowed)
                                 Check(!v.Defects.Contains(DefectType.PhotoSubtleMismatch),
@@ -506,8 +501,6 @@ namespace Hollowbrook.LogicTests
                 Eq(EndingRules.Evaluate(earlyNight).Ending, EndingType.None,
                    "night " + night + ": three breaches, three false rejections and an overrun line end nothing");
             }
-            var endlessEarly = new GameSession { Mode = GameMode.Endless, CurrentShift = 1, Breaches = 3 };
-            Eq(EndingRules.Evaluate(endlessEarly).Ending, EndingType.Lose, "Endless mode keeps its lose thresholds on any 'night'");
         }
 
         private static void FillSecretClues(GameSession s)
@@ -534,11 +527,6 @@ namespace Hollowbrook.LogicTests
                 if (shift == 5)
                     Check(roster[roster.Count - 1].IsAdministrator, "the administrator is the LAST visitor of shift 5");
             }
-            var rf = new RosterFactory(5);
-            bool runModeAdmin = false;
-            for (int i = 0; i < 200; i++)
-                if (rf.GenerateRunVisitor(i).IsAdministrator) runModeAdmin = true;
-            Check(!runModeAdmin, "Endless/Challenge never generate the administrator");
             // determinism: the same seed replays the same final visitor
             var a = new RosterFactory(21).GenerateShift(ShiftPlan.Get(5));
             var b = new RosterFactory(21).GenerateShift(ShiftPlan.Get(5));
@@ -559,11 +547,11 @@ namespace Hollowbrook.LogicTests
             var docDefects = IdRules.EvaluateDocuments(admin, rf.Registry, new PresentationLog());
             Check(docDefects.Contains(DefectType.RecordNameMismatch) && docDefects.Contains(DefectType.NotInDatabase),
                   "objective evaluation reports the badge discrepancies (admin special case)");
-            Eq(InspectionRules.ExpectedVerdict(admin, null), Verdict.Reject, "administrator must be rejected");
-            var allowed = InspectionRules.Apply(admin, Verdict.Allow, null);
+            Eq(InspectionRules.ExpectedVerdict(admin), Verdict.Reject, "administrator must be rejected");
+            var allowed = InspectionRules.Apply(admin, Verdict.Allow);
             Check(allowed.AnomalyBreach && allowed.WasAdministrator && !allowed.Correct,
                   "allowing the administrator is a breach (=> immediate Lose)");
-            var rejected = InspectionRules.Apply(admin, Verdict.Reject, null);
+            var rejected = InspectionRules.Apply(admin, Verdict.Reject);
             Check(rejected.Correct && !rejected.AnomalyBreach, "rejecting the administrator is correct");
         }
 
@@ -900,88 +888,15 @@ namespace Hollowbrook.LogicTests
             var legit = visitors.First(x => !x.IsAnomaly);
             var anomaly = visitors.First(x => x.IsAnomaly && !x.IsAdministrator);
 
-            var okAllow = InspectionRules.Apply(legit, Verdict.Allow, null);
+            var okAllow = InspectionRules.Apply(legit, Verdict.Allow);
             Check(okAllow.Correct && !okAllow.FalseRejection && !okAllow.AnomalyBreach, "legit + Allow = correct, clean");
-            var badReject = InspectionRules.Apply(legit, Verdict.Reject, null);
+            var badReject = InspectionRules.Apply(legit, Verdict.Reject);
             Check(!badReject.Correct && badReject.FalseRejection && !badReject.AnomalyBreach, "legit + Reject = false rejection");
-            var badAllow = InspectionRules.Apply(anomaly, Verdict.Allow, null);
+            var badAllow = InspectionRules.Apply(anomaly, Verdict.Allow);
             Check(!badAllow.Correct && badAllow.AnomalyBreach && !badAllow.FalseRejection, "anomaly + Allow = breach");
-            var okReject = InspectionRules.Apply(anomaly, Verdict.Reject, null);
+            var okReject = InspectionRules.Apply(anomaly, Verdict.Reject);
             Check(okReject.Correct && !okReject.AnomalyBreach && !okReject.FalseRejection, "anomaly + Reject = correct");
-            Eq(InspectionRules.Apply(legit, Verdict.None, null).Correct, false, "no verdict is never 'correct'");
-
-            // Challenge rule mutation flips the required verdict for some legit visitors
-            var strict = new RuleMutationDef("strict_expiry", "test rule");
-            var nearExpiryLegit = visitors.FirstOrDefault(x => !x.IsAnomaly && strict.ForcesReject(x));
-            if (nearExpiryLegit != null)
-            {
-                Eq(InspectionRules.ExpectedVerdict(nearExpiryLegit, strict), Verdict.Reject, "mutation forces Reject");
-                var forced = InspectionRules.Apply(nearExpiryLegit, Verdict.Reject, strict);
-                Check(forced.Correct && !forced.FalseRejection,
-                      "rejecting under an official rule mutation is correct and NOT a false rejection");
-            }
-            else Console.WriteLine("   (no legit visitor matched 'strict_expiry' in this shift - rule path covered by mutation unit checks)");
-
-            Check(!strict.ForcesReject(anomaly), "mutations never force-reject an anomaly (it is already Reject)");
-            var noTransferees = new RuleMutationDef("no_transferees", "test");
-            var odd = new RuleMutationDef("odd_serials", "test");
-            var curfew = new RuleMutationDef("fourth_year_curfew", "test");
-            Check(!new RuleMutationDef("unknown_key", "x").ForcesReject(legit), "unknown mutation key is inert");
-
-            // strict_expiry works on a 60-day window measured on Content's day-number axis
-            var far = new VisitorData
-            {
-                IsAnomaly = false, ShiftNumber = 3, IdIsTransferee = false, IdYearLevel = 2,
-                IdNumber = "HB-2026-0004", ExpirationDay = Content.DayNumberOfDate(2027, 3, 31),
-            };
-            Check(!strict.ForcesReject(far), "strict_expiry ignores a far-future expiry (2027-03-31)");
-            var near = new VisitorData
-            {
-                IsAnomaly = false, ShiftNumber = 3, IdIsTransferee = false, IdYearLevel = 2,
-                IdNumber = "HB-2026-0004", ExpirationDay = Content.ShiftDayNumber(3) + 10,
-            };
-            Check(strict.ForcesReject(near), "strict_expiry fires 10 days out (inside the 60-day window)");
-            var edge = new VisitorData
-            {
-                IsAnomaly = false, ShiftNumber = 3, IdNumber = "HB-2026-0004",
-                ExpirationDay = Content.ShiftDayNumber(3) + 60,
-            };
-            Check(strict.ForcesReject(edge), "strict_expiry fires exactly at 60 days (inclusive)");
-            var past = new VisitorData
-            {
-                IsAnomaly = false, ShiftNumber = 3, IdNumber = "HB-2026-0004",
-                ExpirationDay = Content.ShiftDayNumber(3) + 61,
-            };
-            Check(!strict.ForcesReject(past), "strict_expiry does not fire at 61 days");
-
-            var probe = new VisitorData
-            {
-                IsAnomaly = false, ShiftNumber = 3, IdIsTransferee = true, IdYearLevel = 4,
-                IdNumber = "HB-2026-0003", ExpirationDay = Content.DayNumberOfDate(2027, 3, 31),
-            };
-            Check(noTransferees.ForcesReject(probe), "no_transferees forces reject on a transferee");
-            Check(curfew.ForcesReject(probe), "fourth_year_curfew forces reject on a 4th year");
-            Check(odd.ForcesReject(probe), "odd_serials forces reject on serial 0003");
-            Check(!noTransferees.ForcesReject(new VisitorData { ShiftNumber = 3, IdNumber = "HB-2026-0004" }),
-                  "no_transferees ignores a regular student");
-            Check(!curfew.ForcesReject(new VisitorData { ShiftNumber = 3, IdYearLevel = 2, IdNumber = "HB-2026-0004" }),
-                  "fourth_year_curfew ignores a 2nd year");
-            Check(!odd.ForcesReject(new VisitorData { ShiftNumber = 3, IdNumber = "HB-2026-0004" }),
-                  "odd_serials ignores an even serial");
-
-            // the Challenge 'strict_expiry' rule only matters if near-expiry legit IDs exist
-            int nearExpiryCount = 0;
-            for (int seed = 1; seed <= 40; seed++)
-            {
-                var rfe = new RosterFactory(seed);
-                for (int i = 0; i < 25; i++)
-                {
-                    var rv = rfe.GenerateRunVisitor(i);
-                    if (!rv.IsAnomaly && strict.ForcesReject(rv)) nearExpiryCount++;
-                }
-            }
-            Check(nearExpiryCount > 0,
-                  $"endless/challenge runs do produce near-expiry legit IDs (found {nearExpiryCount} in 1000 visitors)");
+            Eq(InspectionRules.Apply(legit, Verdict.None).Correct, false, "no verdict is never 'correct'");
         }
 
         // ---------------------------------------------------------- endings
@@ -1027,10 +942,6 @@ namespace Hollowbrook.LogicTests
             var secretWithBreaches = new GameSession { Mode = GameMode.Normal, CompletedShifts = 5, CurrentShift = 6, Breaches = 3 };
             foreach (var clue in ClueRegistry.Build().OrderBy(x => x.Order)) secretWithBreaches.Clues.Discover(clue.Key);
             Eq(EndingRules.Evaluate(secretWithBreaches).Ending, EndingType.Lose, "breaches outrank Secret too");
-
-            // Endless/Challenge never reach the Normal win branch
-            var endless = new GameSession { Mode = GameMode.Endless, CompletedShifts = 99 };
-            Eq(EndingRules.Evaluate(endless).Ending, EndingType.None, "Endless run does not resolve to the Normal Win");
         }
 
         // ---------------------------------------------------------- session
@@ -1046,7 +957,7 @@ namespace Hollowbrook.LogicTests
             Eq(s.Sanity, 100f, "sanity starts at max");
             Eq(s.SanityStage, SanityStage.Stable, "starts Stable");
 
-            s.RecordVerdict(InspectionRules.Apply(legit, Verdict.Allow, null));
+            s.RecordVerdict(InspectionRules.Apply(legit, Verdict.Allow));
             Eq(s.Processed, 1, "processed increments");
             Eq(s.CorrectDecisions, 1, "correct increments");
             Eq(s.Streak, 1, "streak increments");
@@ -1055,31 +966,25 @@ namespace Hollowbrook.LogicTests
             Eq(s.RefillPending, SanityModel.RefillOnCorrect, "...it queues a refill instead");
             Eq(s.Stacks.Count, 0, "a correct call puts no drain stack up");
 
-            s.RecordVerdict(InspectionRules.Apply(anomaly, Verdict.Allow, null));
+            s.RecordVerdict(InspectionRules.Apply(anomaly, Verdict.Allow));
             Eq(s.Breaches, 1, "breach counted");
             Eq(s.Streak, 0, "streak resets on a mistake");
             Eq(s.BestStreak, 1, "best streak preserved");
             Eq(s.Sanity, 100f, "a breach costs no sanity directly");
             Eq(s.Stacks.Count, 1, "...it adds a drain stack");
 
-            s.RecordVerdict(InspectionRules.Apply(legit, Verdict.Reject, null));
+            s.RecordVerdict(InspectionRules.Apply(legit, Verdict.Reject));
             Eq(s.FalseRejections, 1, "false rejection counted");
             Eq(s.Sanity, 100f, "a false rejection costs no sanity directly");
             Eq(s.Stacks.Count, 2, "...it adds another drain stack");
 
-            var challenge = new GameSession { Mode = GameMode.Challenge, Sanity = 100f };
-            challenge.ApplySanity(-10f);
-            Check(Math.Abs(challenge.Sanity - 83f) < 1e-3f, "Challenge drains twice as fast (10 x 2 x the 0.85 baseline = 17)");
-            Eq(SanityModel.DrainMultiplier(GameMode.Challenge), 2f, "challenge drain multiplier");
-            Eq(SanityModel.DrainMultiplier(GameMode.Normal), 1f, "normal drain multiplier");
-
             var admin = rf.BuildAdministrator(ShiftPlan.Get(5));
             var adminSession = new GameSession { Sanity = 50f };
-            adminSession.RecordVerdict(InspectionRules.Apply(admin, Verdict.Reject, null));
+            adminSession.RecordVerdict(InspectionRules.Apply(admin, Verdict.Reject));
             Check(adminSession.AdminRejected && !adminSession.AdminAllowed, "admin rejection recorded");
             Eq(adminSession.Sanity, 50f, "rejecting the administrator is a correct call: a refill, not an instant jump");
             Eq(adminSession.RefillPending, SanityModel.RefillOnCorrect, "...the refill is queued");
-            adminSession.RecordVerdict(InspectionRules.Apply(admin, Verdict.Allow, null));
+            adminSession.RecordVerdict(InspectionRules.Apply(admin, Verdict.Allow));
             Check(adminSession.AdminAllowed, "allowing the administrator sets AdminAllowed");
 
             Group("SanityStacks - wrong calls speed the drain up for a while");
@@ -1156,9 +1061,9 @@ namespace Hollowbrook.LogicTests
             Eq(clean.RefillPending, 0f, "...and no refill left over");
             Check(!clean.RoamingAtStart, "...and nothing roaming at the start");
             var breachSess = new GameSession { Mode = GameMode.Normal, Sanity = 100f };
-            breachSess.RecordVerdict(InspectionRules.Apply(anomaly, Verdict.Allow, null));
+            breachSess.RecordVerdict(InspectionRules.Apply(anomaly, Verdict.Allow));
             Eq(breachSess.ShiftBreaches, 1, "an anomaly let in counts toward this shift's breaches");
-            breachSess.RecordVerdict(InspectionRules.Apply(legit, Verdict.Allow, null));
+            breachSess.RecordVerdict(InspectionRules.Apply(legit, Verdict.Allow));
             Eq(breachSess.ShiftBreaches, 1, "a correct call does not");
 
             Group("GameSession - drain stacks scale losses, a correct call refills gradually");
@@ -1206,17 +1111,6 @@ namespace Hollowbrook.LogicTests
             Eq(dec.Visitors, prog.History[0].Visitors, "ShiftSummary round-trips (visitors)");
             Eq(dec.Correct, prog.History[0].Correct, "ShiftSummary round-trips (correct)");
             Check(Math.Abs(dec.SanityEnd - prog.History[0].SanityEnd) < 0.01f, "ShiftSummary round-trips (sanity)");
-
-            // endless timer math
-            var run = new GameSession { Mode = GameMode.Endless, RunTimer = EndlessRules.StartSeconds };
-            run.ApplyRunTimer(InspectionRules.Apply(anomaly, Verdict.Reject, null));
-            Eq(run.RunTimer, EndlessRules.StartSeconds + EndlessRules.TimePerAnomalyRejected, "rejecting an anomaly adds time");
-            run.ApplyRunTimer(InspectionRules.Apply(legit, Verdict.Allow, null));
-            Eq(run.RunTimer, EndlessRules.StartSeconds + EndlessRules.TimePerAnomalyRejected + EndlessRules.TimePerLegitAllowed,
-               "allowing a legit visitor adds less time");
-            var capped = new GameSession { Mode = GameMode.Endless, RunTimer = EndlessRules.HardCapSeconds };
-            capped.ApplyRunTimer(InspectionRules.Apply(anomaly, Verdict.Reject, null));
-            Eq(capped.RunTimer, EndlessRules.HardCapSeconds, "timer respects the hard cap");
         }
 
         // ------------------------------------------------------- clue tracker
@@ -1270,7 +1164,7 @@ namespace Hollowbrook.LogicTests
             Eq(SaveFormat.Version, 3, "version constant");
 
             var save = new SaveGame { SavedAtLabel = "NIGHT 3 - 02:14" };
-            save.Session.Mode = GameMode.Challenge;
+            save.Session.Mode = GameMode.Normal;
             save.Session.Seed = 424242;
             save.Session.CurrentShift = 4;
             save.Session.CompletedShifts = 3;
@@ -1289,9 +1183,6 @@ namespace Hollowbrook.LogicTests
             save.Session.Score = 5150;
             save.Session.Streak = 4;
             save.Session.BestStreak = 9;
-            save.Session.RunTimer = 187.25f;
-            save.Session.RunProcessed = 17;
-            save.Session.ActiveMutationKey = "strict_expiry";
             save.Session.RunFinished = true;
             save.Session.History.Add(new ShiftSummary { Shift = 1, Visitors = 4, Correct = 4, FalseRejections = 0, Breaches = 0, SanityEnd = 100f });
             foreach (var clue in ClueRegistry.Build().Take(4).OrderBy(x => x.Order)) save.Session.Clues.Discover(clue.Key);
@@ -1302,8 +1193,6 @@ namespace Hollowbrook.LogicTests
             save.Settings.ReduceMotion = true;
             save.Settings.PhotosensitivitySafe = true;
             save.Settings.Captions = false;
-            save.Records.EndlessBest = 9999;
-            save.Records.ChallengeBest = 12345;
             save.Records.EndingsSeen = new List<string> { "win", "secret" };
 
             var text = SaveFormat.Serialize(save);
@@ -1333,9 +1222,6 @@ namespace Hollowbrook.LogicTests
                 Eq(s.Score, save.Session.Score, "score round-trips");
                 Eq(s.Streak, save.Session.Streak, "streak round-trips");
                 Eq(s.BestStreak, save.Session.BestStreak, "best streak round-trips");
-                Check(Math.Abs(s.RunTimer - save.Session.RunTimer) < 0.01f, "run timer round-trips");
-                Eq(s.RunProcessed, save.Session.RunProcessed, "run processed round-trips");
-                Eq(s.ActiveMutationKey, save.Session.ActiveMutationKey, "active mutation round-trips");
                 Check(s.RunFinished, "run finished flag round-trips");
                 Eq(s.History.Count, 1, "shift history round-trips");
                 Eq(s.Clues.FoundCount, 4, "clue discoveries round-trip");
@@ -1343,8 +1229,6 @@ namespace Hollowbrook.LogicTests
                 Check(back.Settings.ReduceMotion && back.Settings.PhotosensitivitySafe && !back.Settings.Captions,
                       "accessibility toggles round-trip");
                 Check(Math.Abs(back.Settings.MasterVolume - 0.55f) < 0.001f, "master volume round-trips");
-                Eq(back.Records.EndlessBest, 9999, "endless record round-trips");
-                Eq(back.Records.ChallengeBest, 12345, "challenge record round-trips");
                 Eq(string.Join(",", back.Records.EndingsSeen), "win,secret", "endings seen round-trip");
                 Eq(back.SavedAtLabel, save.SavedAtLabel, "saved-at label round-trips");
             }
@@ -1388,7 +1272,7 @@ namespace Hollowbrook.LogicTests
         }
 
         // ------------------------------------------------ tracking / reveal / tokens
-        private static void TrackingAndTokenTests()
+        private static void TrackingTests()
         {
             Group("TrackingPolicy - Focus advances, observation holds, darkness decays");
             Eq(TrackingPolicy.RatePerSecond(true, false), TrackingPolicy.FocusRatePerSecond, "Focus is the only beam that ADVANCES the meter");
@@ -1575,16 +1459,6 @@ namespace Hollowbrook.LogicTests
             Eq(BehaviorProfile.For(AnomalyBehaviorKind.CoverHug, customB).CatchGraceSeconds, 5f, "CoverHug grace is tunable on its own");
             Eq(BehaviorProfile.For(AnomalyBehaviorKind.Blink, customB).CatchGraceSeconds, bt.CatchGraceBlink, "...without touching the other three");
 
-            Group("Tokens - collection persists with the run");
-            var ses = new GameSession();
-            Eq(ses.TokensCollected, 0, "a fresh run holds no tokens");
-            ses.TokensCollected = 3;
-            var save = new SaveGame { Session = ses };
-            var back = SaveFormat.Deserialize(SaveFormat.Serialize(save));
-            Check(back != null, "save with tokens serialises");
-            if (back != null) Eq(back.Session.TokensCollected, 3, "token count round-trips");
-            var old = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame()).Replace("tokens=3", "tokens="));
-            Check(old != null && old.Session.TokensCollected == 0, "a save without tokens loads as zero");
         }
 
         // ------------------------------------------------------- checkpoint queue
@@ -1688,16 +1562,16 @@ namespace Hollowbrook.LogicTests
             foreach (var v in roster) { if (legit == null && !v.IsAnomaly) legit = v; if (anom == null && v.IsAnomaly) anom = v; }
             Check(legit != null && anom != null, "roster provides a legit and an anomaly subject");
 
-            var rA = InspectionRules.Apply(anom, Verdict.Reject, null);
+            var rA = InspectionRules.Apply(anom, Verdict.Reject);
             Check(rA.Correct, "reject scores anomalies correctly");
-            var aL = InspectionRules.Apply(legit, Verdict.Allow, null);
+            var aL = InspectionRules.Apply(legit, Verdict.Allow);
             Check(aL.Correct, "allow scores legit students correctly");
 
             var sN = new GameSession { Mode = GameMode.Normal, Score = 250 };
-            sN.RecordVerdict(InspectionRules.Apply(legit, Verdict.Reject, null));   // miss 1
-            sN.RecordVerdict(InspectionRules.Apply(legit, Verdict.Allow, null));   // correct
-            sN.RecordVerdict(InspectionRules.Apply(anom, Verdict.Allow, null));    // miss 2
-            sN.RecordVerdict(InspectionRules.Apply(legit, Verdict.Reject, null));  // miss 3 -> fine
+            sN.RecordVerdict(InspectionRules.Apply(legit, Verdict.Reject));   // miss 1
+            sN.RecordVerdict(InspectionRules.Apply(legit, Verdict.Allow));   // correct
+            sN.RecordVerdict(InspectionRules.Apply(anom, Verdict.Allow));    // miss 2
+            sN.RecordVerdict(InspectionRules.Apply(legit, Verdict.Reject));  // miss 3 -> fine
             Eq(sN.Warnings, 3, "three mistakes book three warnings");
             Eq(sN.Fines, 1, "the third warning draws a fine");
             Eq(sN.Score, 150, "the fine costs 100 score (penalty, not game over)");
@@ -2022,7 +1896,6 @@ namespace Hollowbrook.LogicTests
                 var save = new SaveGame();
                 save.Session.Mode = GameMode.Normal;
                 save.Session.Sanity = 63.5f;
-                save.Session.RunTimer = 187.25f;
                 save.Session.QueueState = new QueueSnapshot { Started = true, TimerSeconds = 4.5f, Warned = 1 };
                 save.Settings.MasterVolume = 0.55f;
                 save.Settings.MusicVolume = 0.3f;
@@ -2030,7 +1903,7 @@ namespace Hollowbrook.LogicTests
                 Check(text.Contains("sanity=63.5") && text.Contains("queueTimer=4.5") && text.Contains("0.55"),
                       "de-DE: floats serialize with a DOT, never a comma");
                 var back = SaveFormat.Deserialize(text);
-                Check(back != null && back.Session.Sanity == 63.5f && back.Session.RunTimer == 187.25f &&
+                Check(back != null && back.Session.Sanity == 63.5f &&
                       back.Session.QueueState.TimerSeconds == 4.5f && back.Settings.MasterVolume == 0.55f,
                       "de-DE: checksummed round-trip parses back exactly");
                 var roster = RosterFor(5, 1);
@@ -2753,20 +2626,6 @@ namespace Hollowbrook.LogicTests
             Check(lres.ToWindow == legacyRoster[2], "legacy resume presents the next unprocessed visitor");
             Check(lq.TimerSeconds > 0f, "legacy resume arms the arrival clock");
 
-            int generated = 0;
-            var runQ = new CheckpointQueue();
-            runQ.AttachRunSource(() =>
-            {
-                generated++;
-                return new VisitorData { VisitorIndex = -1, IsAnomaly = generated % 2 == 0, ClaimedName = "RUN" + generated };
-            }, new QueueTuning { ArrivalMinSeconds = 0.01f, ArrivalMaxSeconds = 0.02f, MissingStudentChance = 1f }, 9);
-            runQ.MarkStarted();
-            runQ.ForceNextArrival();
-            for (int i = 0; i < 5; i++) { runQ.Tick(1f); runQ.CompleteActive(); }
-            Eq(runQ.ArrivalCount, 6, "run-mode source keeps producing");
-            Eq(runQ.EffectiveTotal, -1, "run modes have no effective total");
-            Check(!runQ.ShiftComplete && !runQ.SourceExhausted, "run modes never complete by roster");
-            Eq(runQ.MissingIncidents, 0, "missing-student is a finite-roster (Normal) mechanic");
             Check(!new CheckpointQueue().IsAttached, "a detached queue reports unattached (PersistRun guard)");
 
             Group("CheckpointQueue - two-phase resolution (quit mid-banner can never re-stamp)");
@@ -2912,7 +2771,7 @@ namespace Hollowbrook.LogicTests
         // ------------------------------------------------------- model maths
         private static void ModelMathTests()
         {
-            Group("SanityModel / Endless / Challenge maths");
+            Group("SanityModel maths");
             Eq(SanityModel.StageFor(100f), SanityStage.Stable, "100 = Stable");
             Eq(SanityModel.StageFor(70f), SanityStage.Stable, "70 = Stable (boundary)");
             Eq(SanityModel.StageFor(69.9f), SanityStage.Uneasy, "69.9 = Uneasy");
@@ -2931,22 +2790,6 @@ namespace Hollowbrook.LogicTests
             Eq(SanityModel.Clamp(42f), 42f, "clamp passthrough");
             Check(SanityModel.SecurityRoomRecoveryPerSecond > SanityModel.DarknessDrainPerSecond,
                   "resting at the desk recovers faster than darkness drains");
-
-            Eq(EndlessRules.AnomalyChance(0), 0.15f, "endless anomaly chance at 0");
-            Check(EndlessRules.AnomalyChance(10) > EndlessRules.AnomalyChance(0), "anomaly chance ramps");
-            Eq(EndlessRules.AnomalyChance(1000), 0.6f, "anomaly chance caps at 0.6");
-            Eq(EndlessRules.StreakMultiplier(0), 1f, "streak multiplier starts at 1x");
-            Eq(EndlessRules.StreakMultiplier(3), 1.5f, "+0.5x every 3 streak");
-            Eq(EndlessRules.StreakMultiplier(300), 4f, "streak multiplier caps at 4x");
-            Eq(ChallengeRules.ScoreMultiplier, 2f, "challenge doubles the score");
-            Eq(ChallengeRules.StartSeconds, EndlessRules.StartSeconds, "challenge starts from the endless clock");
-            Eq(ChallengeRules.VisitorsPerRuleWave, 4, "a rule wave lasts 4 visitors");
-
-            var rng = new GameRng(99);
-            Check(ChallengeRules.RollMutation(0, rng) == ShiftPlan.ChallengeMutations[0], "wave 0 is always the clean rule");
-            var rolled = new HashSet<string>();
-            for (int i = 0; i < 200; i++) rolled.Add(ChallengeRules.RollMutation(1 + i % 5, rng).Key);
-            Check(rolled.Count >= 2, "later waves actually rotate through mutations");
 
             // GameRng determinism
             var r1 = new GameRng(2026);

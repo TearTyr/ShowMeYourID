@@ -16,10 +16,6 @@ namespace Hollowbrook.Core
         public float queueArrivalMinSeconds = 25f;
         [Tooltip("Upper bound of the randomized visitor arrival interval (Normal mode, night 1).")][Range(0.5f, 120f)]
         public float queueArrivalMaxSeconds = 30f;
-        [Tooltip("Endless/Challenge arrival interval bounds - those modes are score races and keep the fast clock.")][Range(0.5f, 60f)]
-        public float queueRunMinSeconds = 3f;
-        [Range(0.5f, 120f)]
-        public float queueRunMaxSeconds = 5f;
         [Tooltip("Normal mode: the arrival clock runs this much faster while the window is busy, so dawdling grows the line.")][Range(1f, 4f)]
         public float queueBusyHurryMultiplier = 2f;
         [Tooltip("Normal mode: seconds before the next student steps up when the window and the line are both empty.")][Range(0.5f, 30f)]
@@ -168,13 +164,6 @@ namespace Hollowbrook.Core
         [Header("Horror pacing")]
         [Tooltip("Base chance per second that a wandering anomaly spawns in an entered room (shift-scaled).")]
         public float anomalySpawnChancePerSecond = 0.05f;
-
-        [Header("Exhibition (5-10 minute booth cut)")]
-        [Tooltip("One curated night (4 visitors, 1 anomaly) then the demo closes. Off = full five-shift story.")]
-        // shipping default is the FIVE-NIGHT story; the booth demo opts in via
-        // GameConfig.asset exhibitionMode: 1 or this flag in headless proofs
-        public bool exhibitionMode = false;
-        public float exhibitionBannerSeconds = 2.2f;
 
         [Header("Shift clock")]
         [Tooltip("In-story minutes per real second while a shift is running, in ANY scene.")]

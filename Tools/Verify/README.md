@@ -72,7 +72,7 @@ It generates 2,040 visitors over 60 seeds × 5 shifts and asserts the fairness i
 zero defects ⇒ Allow; anomaly = ≥1 defect and always detectable ⇒ Reject), the 4/6/7/8/8+admin
 progression, shift-gated defect unlocks, the ≤2 question cap, the administrator encounter, ending
 priority (Lose > Secret > Win), save round-trip + tamper rejection, clue-sequence gating and the
-sanity/endless/challenge maths. Add `-- --debug-dup` for a focused dump of duplicate-ID evidence.
+sanity maths. Add `-- --debug-dup` for a focused dump of duplicate-ID evidence.
 
 Point it at another tree with `-p:GameLogicSrc=/path/to/Assets/_Project/Scripts/GameLogic`.
 

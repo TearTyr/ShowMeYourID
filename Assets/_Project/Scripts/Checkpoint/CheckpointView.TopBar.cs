@@ -51,68 +51,20 @@ namespace Hollowbrook.Checkpoint
 
             var pause = GridButton(_desk, "pause", "II  PAUSE", () => _gameRoot.TogglePause(true), L.Pause, 12);
             Reg("pause", pause, L.Pause);
-
-            _runStats = UIFactory.Label(_desk, "runstats", "", 13, UIFactory.Ink, TextAnchor.MiddleCenter);
-            Reg("runstats", _runStats.rectTransform, L.RunStats);
-            _runStats.gameObject.SetActive(false);
-
-            var mutBg = UIFactory.Panel(_desk, "mutationbg", new Color(0.04f, 0.04f, 0.05f, 0.95f));
-            Reg("mutation", mutBg.rectTransform, L.Mutation);
-            mutBg.raycastTarget = false;
-            _mutationStrip = UIFactory.Label(mutBg.rectTransform, "mutation", "", 13,
-                new Color(0.95f, 0.85f, 0.55f), TextAnchor.MiddleCenter);
-            UIFactory.AnchorsFull(_mutationStrip.rectTransform);
-            _mutationStrip.gameObject.SetActive(false);
-        }
-
-        // The challenge-mode district bulletin: a short strip on the desk plus the full
-        // rule text as a HUD toast (the speech bubble belongs to the student alone).
-        // A null or textless mutation hides the strip again.
-        private void ShowBulletin(RuleMutationDef mutation)
-        {
-            bool active = mutation != null && !string.IsNullOrEmpty(mutation.RuleText);
-            _mutationStrip.gameObject.SetActive(active);
-            if (!active) return;
-            _mutationStrip.text = BulletinShort;         // full rule text: toast + RULES NOTE
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                "DISTRICT BULLETIN - " + mutation.RuleText));
-        }
-
-        // Night/clock line in Normal mode; mode/score line in endless and challenge.
-        private void ApplyModeGates()
-        {
-            bool runMode = _gameRoot != null && _gameRoot.Session != null &&
-                           _gameRoot.Session.Mode != GameMode.Normal;
-            if (_runStats != null) _runStats.gameObject.SetActive(runMode);
-            if (_mutationStrip != null) _mutationStrip.gameObject.SetActive(runMode);
         }
 
         private void RefreshTopBar()
-        { 
-            ApplyModeGates();
+        {
             RefreshQueueCount();
-            if (_gameRoot.Session.Mode == GameMode.Normal)
-            {
-                _topLeft.text = "NIGHT " + _gameRoot.Session.CurrentShift + " - " + (_shift != null ? _shift.LongDateLabel : "");
-                TickClockText();
-            }
-            else
-            {
-                _topLeft.text = (_gameRoot.Session.Mode == GameMode.Endless ? "ENDLESS WATCH" : "CHALLENGE PROTOCOL") +
-                                "   ·   PROCESSED " + _gameRoot.Session.RunProcessed;
-                TickClockText();
-                float mult = EndlessRules.StreakMultiplier(_gameRoot.Session.Streak) *
-                             (_gameRoot.Session.Mode == GameMode.Challenge ? ChallengeRules.ScoreMultiplier : 1f);
-                _runStats.text = "SCORE " + _gameRoot.Session.Score + "   ·   STREAK " + _gameRoot.Session.Streak + " (×" + mult.ToString("0.0") + ")";
-            }
+            _topLeft.text = "NIGHT " + _gameRoot.Session.CurrentShift + " - " + (_shift != null ? _shift.LongDateLabel : "");
+            TickClockText();
         }
 
-        // "WAITING 2   ·   4 TO GO TONIGHT" - blank until the shift has started and in run modes.
+        // "WAITING 2   ·   4 TO GO TONIGHT" - blank until the shift has started.
         private void RefreshQueueCount()
         {
             if (_topQueue == null) return;
-            bool show = Queue != null && Queue.Started && !Queue.InfiniteSource &&
-                        _gameRoot.Session.Mode == GameMode.Normal;
+            bool show = Queue != null && Queue.Started;
             _topQueue.gameObject.SetActive(show);
             if (!show) return;
             int toGo = Mathf.Max(0, Queue.EffectiveTotal - Queue.ProcessedCount);
@@ -129,15 +81,6 @@ namespace Hollowbrook.Checkpoint
             if (_topClock == null || _gameRoot == null) return;
             string s = _gameRoot.ClockString;
             if (s != _lastClockText) { _lastClockText = s; _topClock.text = s; }
-        }
-
-        public void OnRunTimerTick(float secondsLeft)
-        {
-            if (_runStats == null || !_runStats.gameObject.activeInHierarchy) return;
-            int m = (int)(secondsLeft / 60f), s = (int)(secondsLeft % 60f);
-            _runStats.text = "TIME " + m + ":" + s.ToString("D2") + "   ·   SCORE " + _gameRoot.Session.Score +
-                             "   ·   STREAK ×" + EndlessRules.StreakMultiplier(_gameRoot.Session.Streak).ToString("0.0");
-            _runStats.color = secondsLeft < 30f ? UIFactory.AccentBright : UIFactory.Ink;
         }
     }
 }

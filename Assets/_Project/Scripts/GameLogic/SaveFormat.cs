@@ -33,7 +33,6 @@ namespace Hollowbrook.Logic
             sb.Append("falseRej=").Append(s.FalseRejections).Append('\n');
             sb.Append("breaches=").Append(s.Breaches).Append('\n');
             sb.Append("anomRej=").Append(s.AnomaliesRejected).Append('\n');
-            sb.Append("tokens=").Append(s.TokensCollected).Append('\n');
             sb.Append("visitorAtSave=").Append(s.VisitorIndexAtSave).Append('\n');
             var q = s.QueueState;
             if (q != null)
@@ -70,12 +69,9 @@ namespace Hollowbrook.Logic
             sb.Append("score=").Append(s.Score).Append('\n');
             sb.Append("streak=").Append(s.Streak).Append('\n');
             sb.Append("bestStreak=").Append(s.BestStreak).Append('\n');
-            KV(sb, "runTimer", Inv(s.RunTimer));
             KV(sb, "shiftClock", Inv(s.ShiftClockMinutes));
-            sb.Append("runProcessed=").Append(s.RunProcessed).Append('\n');
             sb.Append("warnings=").Append(s.Warnings).Append('\n');
             sb.Append("fines=").Append(s.Fines).Append('\n');
-            KV(sb, "mutation", s.ActiveMutationKey);
             KV(sb, "seen", s.TonightLog.Encode());
             KV(sb, "clues", string.Join(",", s.Clues.SaveFound()));
             sb.Append("orderIntact=").Append(s.Clues.OrderIntact ? 1 : 0).Append('\n');
@@ -85,9 +81,6 @@ namespace Hollowbrook.Logic
             foreach (var h in s.History) hist.Add(h.Encode());
             KV(sb, "history", string.Join("|", hist));
             KV(sb, "settings", save.Settings.Encode());
-            sb.Append("endlessBest=").Append(save.Records.EndlessBest).Append('\n');
-            sb.Append("tokensBanked=").Append(save.Records.TokensBanked).Append('\n');
-            sb.Append("challengeBest=").Append(save.Records.ChallengeBest).Append('\n');
             KV(sb, "endingsSeen", string.Join(",", save.Records.EndingsSeen));
 
             string body = sb.ToString();
@@ -137,7 +130,6 @@ namespace Hollowbrook.Logic
                 s.FalseRejections = Int(map, "falseRej", 0);
                 s.Breaches = Int(map, "breaches", 0);
                 s.AnomaliesRejected = Int(map, "anomRej", 0);
-                s.TokensCollected = Int(map, "tokens", 0);
                 s.VisitorIndexAtSave = Int(map, "visitorAtSave", 0);
                 if (map.ContainsKey("queueStarted"))
                 {
@@ -187,13 +179,10 @@ namespace Hollowbrook.Logic
                 s.Score = Int(map, "score", 0);
                 s.Streak = Int(map, "streak", 0);
                 s.BestStreak = Int(map, "bestStreak", 0);
-                s.RunTimer = Flt(map, "runTimer", 0f);
                 // older saves have no clock line: they resume at 22:00, as they always did
                 s.ShiftClockMinutes = Flt(map, "shiftClock", 0f);
-                s.RunProcessed = Int(map, "runProcessed", 0);
                 s.Warnings = Int(map, "warnings", 0);
                 s.Fines = Int(map, "fines", 0);
-                s.ActiveMutationKey = Str(map, "mutation", "none");
                 save.SavedAtLabel = Str(map, "savedAt", "");
 
                 s.TonightLog.Decode(Str(map, "seen", ""));
@@ -213,9 +202,6 @@ namespace Hollowbrook.Logic
                 var settings = SettingsData.Decode(Str(map, "settings", ""));
                 if (settings != null) save.Settings = settings;
 
-                save.Records.EndlessBest = Int(map, "endlessBest", 0);
-                save.Records.TokensBanked = Int(map, "tokensBanked", 0);
-                save.Records.ChallengeBest = Int(map, "challengeBest", 0);
                 save.Records.EndingsSeen.Clear();
                 foreach (var e in Split(Str(map, "endingsSeen", ""))) save.Records.EndingsSeen.Add(e);
             }

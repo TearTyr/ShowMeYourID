@@ -82,7 +82,6 @@ namespace Hollowbrook.Logic
     public class CheckpointQueue
     {
         private List<VisitorData> _roster;             // Normal mode source (null in run modes)
-        private Func<VisitorData> _runSource;          // Endless/Challenge generator
         private GameRng _rng = new GameRng(1);
         private int _baseSeed = 1;
         private readonly Queue<VisitorData> _waiting = new Queue<VisitorData>();
@@ -113,15 +112,13 @@ namespace Hollowbrook.Logic
             set { if (!value) ActiveQuestionMask = 0; else if (ActiveQuestionMask == 0) ActiveQuestionMask = 1; }
         }
 
-        public bool IsAttached => _roster != null || _runSource != null;
-        public bool InfiniteSource => _runSource != null;
+        public bool IsAttached => _roster != null;
 
         /// <summary>Visitors the source can still produce (vanished ones never arrive).</summary>
         public int RemainingSource
         {
             get
             {
-                if (InfiniteSource) return int.MaxValue;
                 if (_roster == null) return 0;
                 int n = 0;
                 for (int i = RosterCursor; i < _roster.Count; i++)
@@ -130,21 +127,21 @@ namespace Hollowbrook.Logic
             }
         }
 
-        public bool SourceExhausted => !InfiniteSource && RemainingSource == 0;
+        public bool SourceExhausted => RemainingSource == 0;
 
-        /// <summary>Roster size minus missing students; -1 when the source is infinite.</summary>
+        /// <summary>Roster size minus missing students; -1 when nothing is attached.</summary>
         public int EffectiveTotal
         {
             get
             {
-                if (InfiniteSource || _roster == null) return -1;
+                if (_roster == null) return -1;
                 return _roster.Count - _vanished.Count;
             }
         }
 
         /// <summary>The shift is only over when the source is dry, the line is empty and
         /// the window is free - never merely because the line ran dry mid-shift.</summary>
-        public bool ShiftComplete => Started && !InfiniteSource && _roster != null &&
+        public bool ShiftComplete => Started && _roster != null &&
                                      SourceExhausted && _waiting.Count == 0 && Active == null;
 
         /// <summary>0 = normal, 1 = at/over the pressure warning, 2 = at/over overwhelmed.</summary>
@@ -164,15 +161,6 @@ namespace Hollowbrook.Logic
         public void AttachRoster(List<VisitorData> roster, QueueTuning tuning, int seed)
         {
             _roster = roster ?? new List<VisitorData>();
-            _runSource = null;
-            AttachCommon(tuning, seed);
-        }
-
-        /// <summary>Endless/Challenge: visitors are generated on demand, forever.</summary>
-        public void AttachRunSource(Func<VisitorData> generator, QueueTuning tuning, int seed)
-        {
-            _roster = null;
-            _runSource = generator;
             AttachCommon(tuning, seed);
         }
 
@@ -248,7 +236,7 @@ namespace Hollowbrook.Logic
 
         private void TryArrive(ref QueueTickResult r)
         {
-            var v = InfiniteSource ? _runSource() : TakeFromRoster();
+            var v = TakeFromRoster();
             if (v == null) return;
             ArrivalCount++;
             if (Active == null && _waiting.Count == 0) { Active = v; r.ToWindow = v; }
@@ -363,7 +351,7 @@ namespace Hollowbrook.Logic
 
         private void EvaluateMissingStudent(VisitorData arrived, ref QueueTickResult r)
         {
-            if (InfiniteSource || _roster == null) return;      // story mechanic: finite rosters
+            if (_roster == null) return;
             if (!arrived.IsAnomaly || arrived.IsAdministrator) return;
             if (MissingIncidents >= Tuning.MissingStudentLimit) return;
             if (Tuning.MissingStudentChance <= 0f) return;
@@ -433,13 +421,10 @@ namespace Hollowbrook.Logic
                 ResolutionPending = ResolutionPending,
                 Warned = _warned ? 1 : 0,
             };
-            if (!InfiniteSource)      // run modes never restore a mid-run line (they restart fresh)
-            {
-                foreach (var w in _waiting) s.WaitingIdx.Add(w.VisitorIndex);
-                foreach (var v in _vanished) s.VanishedIdx.Add(v.VisitorIndex);
-                s.WaitingIdx.Sort();  // stable file output; FIFO order is restored by ascending index below
-                s.VanishedIdx.Sort();
-            }
+            foreach (var w in _waiting) s.WaitingIdx.Add(w.VisitorIndex);
+            foreach (var v in _vanished) s.VanishedIdx.Add(v.VisitorIndex);
+            s.WaitingIdx.Sort();  // stable file output; FIFO order is restored by ascending index below
+            s.VanishedIdx.Sort();
             return s;
         }
 

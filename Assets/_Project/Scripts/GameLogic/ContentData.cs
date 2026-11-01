@@ -183,27 +183,6 @@ namespace Hollowbrook.Logic
         public bool ExplorationFocus;    // shift 4 nudges investigation
     }
 
-    [Serializable]
-    public class RuleMutationDef
-    {
-        public string Key;
-        public string RuleText;       // printed on the paper note while active
-
-        public RuleMutationDef(string key, string text) { Key = key; RuleText = text; }
-
-        public bool ForcesReject(VisitorData v)
-        {
-            switch (Key)
-            {
-                case "no_transferees": return !v.IsAnomaly && v.IdIsTransferee;
-                case "fourth_year_curfew": return !v.IsAnomaly && v.IdYearLevel == 4;
-                case "strict_expiry": return !v.IsAnomaly && v.ExpirationDay - Content.ShiftDayNumber(v.ShiftNumber) <= 60;
-                case "odd_serials": return !v.IsAnomaly && IdRules.SerialOf(v.IdNumber) % 2 == 1;
-                default: return false;
-            }
-        }
-    }
-
     public static class Content
     {
         public const int TotalStudents = 7;           // one per illustrated character (char_student_01 to 07)

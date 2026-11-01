@@ -349,8 +349,7 @@ namespace Hollowbrook.Checkpoint
             if (_current == null || _verdictLocked || !_documentsTaken) return;
             if (Queue != null && Queue.Collapsed) return;   // the line overran the checkpoint - verdicts are dead
             _verdictLocked = true; // §2.4 - decisions are permanent
-            var mutation = _gameRoot.Session.Mode == GameMode.Challenge ? _gameRoot.Session.ActiveMutation : null;
-            var outcome = InspectionRules.Apply(_current, verdict, mutation);
+            var outcome = InspectionRules.Apply(_current, verdict);
 
             // the thud already played when the stamp landed; hand-back owns its own sound
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VerdictStamped, outcome));

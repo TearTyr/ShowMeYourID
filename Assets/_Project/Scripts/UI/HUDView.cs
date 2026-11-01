@@ -156,7 +156,6 @@ namespace Hollowbrook.UI
             }));
             _subs.Add(root.Bus.Subscribe(EventIds.Notification, e => Notify(e.Text)));
             _subs.Add(root.Bus.Subscribe(EventIds.ClueDiscovered, e => RefreshFindings()));
-            _subs.Add(root.Bus.Subscribe(EventIds.TokenCollected, e => RefreshFindings()));
             _subs.Add(root.Bus.Subscribe(EventIds.BatteryChanged, e => { SetBattery(e.Value); RefreshRoom(); }));
             _subs.Add(root.Bus.Subscribe(EventIds.RoomEntered, e => RefreshRoom()));
             _subs.Add(root.Bus.Subscribe(EventIds.LightModeChanged, e => RefreshRoom()));
@@ -259,8 +258,7 @@ namespace Hollowbrook.UI
         {
             if (_gameRoot.Session == null) return;
             _findings.text = "FINDINGS " + _gameRoot.Session.Clues.FoundCount + "/10" +
-                             (_gameRoot.Session.Clues.OrderIntact ? "" : "  (order broken)") +
-                             (_gameRoot.Session.TokensCollected > 0 ? "  ·  TOKENS " + _gameRoot.Session.TokensCollected : "");
+                             (_gameRoot.Session.Clues.OrderIntact ? "" : "  (order broken)");
         }
 
         public void RefreshRoom()

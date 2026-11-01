@@ -14,7 +14,6 @@ namespace Hollowbrook.Bootstrap
             var ui = CoreBootstrap.NewCanvas(sceneRoot, "UICanvas", 10, root.Config);
 
             root.MainMenu = CoreBootstrap.CreateView<MainMenuView>(ui, "MainMenuView", root);
-            root.ModeSelect = CoreBootstrap.CreateView<ModeSelectView>(ui, "ModeSelectView", root);
             root.SettingsScreen = CoreBootstrap.CreateView<SettingsView>(ui, "SettingsView", root);
             root.ControlsScreen = CoreBootstrap.CreateView<ControlsView>(ui, "ControlsView", root);
             root.CreditsScreen = CoreBootstrap.CreateView<CreditsView>(ui, "CreditsView", root);

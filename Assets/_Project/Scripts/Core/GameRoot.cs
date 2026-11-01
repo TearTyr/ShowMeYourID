@@ -37,7 +37,6 @@ namespace Hollowbrook.Core
         // The classroom being peeked into from the doorway (null when not peeking).
         // Set by EnterRoomPeek; cleared by ViewManager.ExitPeek when the step-back ends.
         public RoomId? PeekRoom { get; internal set; }
-        public int EndlessProcessed { get; private set; }
 
         /// <summary>The checkpoint arrival queue - persistent run state. Owned here (not by
         /// the desk view) so the waiting line, roster cursor, arrival timer and start gate
@@ -53,7 +52,6 @@ namespace Hollowbrook.Core
         public HUDView HUD;
         public DialogueView Dialogue;
         public MainMenuView MainMenu;
-        public ModeSelectView ModeSelect;
         public SettingsView SettingsScreen;
         public PauseView PauseScreen;
         public ControlsView ControlsScreen;
@@ -142,7 +140,6 @@ namespace Hollowbrook.Core
             }
         }
 
-        private GameRng _runRng;
         private int _resumeFromVisitor;
 
         // ---------------------------------------------------------------- lifecycle
@@ -169,7 +166,7 @@ namespace Hollowbrook.Core
         private void OnApplicationFocus(bool focused)
         {
             if (focused || Paused || Session == null) return;
-            if (State == AppViewState.MainMenu || State == AppViewState.ModeSelect) return;
+            if (State == AppViewState.MainMenu) return;
             TogglePause(true);
         }
 
@@ -178,7 +175,6 @@ namespace Hollowbrook.Core
             CheckSceneHandshake();
             if (Paused || Session == null) return;
             TickShiftClock();
-            TickRunCountdown();
             TickSanity();
         }
 
@@ -190,23 +186,6 @@ namespace Hollowbrook.Core
                 State == AppViewState.Map || State == AppViewState.RoomPeek)
             {
                 AdvanceShiftClock(ClampedDelta * (Config != null ? Config.clockMinutesPerSecond : 0.25f));
-            }
-        }
-
-        // Endless / Challenge countdown - only while actually inspecting (and only
-        // once the shift has begun; the sticky note must not burn run time).
-        private void TickRunCountdown()
-        {
-            bool runMode = Session.Mode == GameMode.Endless || Session.Mode == GameMode.Challenge;
-            if (!runMode || State != AppViewState.Checkpoint) return;
-            if (Dialogue == null || Dialogue.IsActive) return;
-            if (Queue == null || !Queue.Started) return;
-            Session.RunTimer -= ClampedDelta;   // clamped: a tab-out spike must not eat run time
-            Bus.Publish(GameEvent.Of(EventIds.RunTimerTick, Session.RunTimer));
-            if (Session.RunTimer <= 0f)
-            {
-                Session.RunTimer = 0f;
-                FinishRun();
             }
         }
 
@@ -230,9 +209,8 @@ namespace Hollowbrook.Core
         private void ApplyVisibility(AppViewState s)
         {
             if (VerboseFlow) Debug.Log("[Flow] ApplyVisibility " + s);
-            bool menu = s == AppViewState.MainMenu || s == AppViewState.ModeSelect;
+            bool menu = s == AppViewState.MainMenu;
             if (MainMenu != null) { if (s == AppViewState.MainMenu) MainMenu.Show(); else MainMenu.Hide(); }
-            if (ModeSelect != null) { if (s == AppViewState.ModeSelect) ModeSelect.Show(); else ModeSelect.Hide(); }
 
             bool inRun = s == AppViewState.Checkpoint || s == AppViewState.Exploration ||
                          s == AppViewState.ShiftIntro ||
@@ -252,7 +230,7 @@ namespace Hollowbrook.Core
             }
             if (MapScreen != null) { if (s == AppViewState.Map) MapScreen.Show(); else MapScreen.Hide(); }
             if (ShiftResults != null) { if (s == AppViewState.ShiftResults) ShiftResults.Show(); else ShiftResults.Hide(); }
-            if (Ending != null) { if (s == AppViewState.Ending || s == AppViewState.EndlessResults) Ending.Show(); else Ending.Hide(); }
+            if (Ending != null) { if (s == AppViewState.Ending) Ending.Show(); else Ending.Hide(); }
             if (Captions != null) { if (menu) Captions.Hide(); else Captions.Show(); }
         }
 
@@ -347,7 +325,7 @@ namespace Hollowbrook.Core
         private bool InRunProgress() =>
             Session != null && Session.Mode == GameMode.Normal && !Session.RunFinished &&
             Session.CompletedShifts < ShiftPlan.TotalShifts &&
-            State != AppViewState.MainMenu && State != AppViewState.ModeSelect && State != AppViewState.Boot;
+            State != AppViewState.MainMenu && State != AppViewState.Boot;
 
         public void QuitApplication()
         {

@@ -4,7 +4,7 @@
 box opens on black, then fades -> the black lifts off the shut booth -> **sticky note ("CLICK TO
 BEGIN", on night 1 the how to play card)** -> the shutter opens for the first student ->
 **checkpoint desk** <-> **patrol** (hallway + 2 classrooms) -> shift results -> next
-night -> ending. Exhibition build (`exhibitionMode` in GameConfig) = one curated night.
+night -> ending.
 
 **The line:** an **arrival clock** (25-30 s on night 1, x0.8 each night, double speed while the
 window is busy) walks the roster up to the booth. If the window is busy they queue in the yard.
@@ -51,12 +51,12 @@ dark. The doors follow the desk map: Security, Room 101, Room 202, CR-1, the sea
 (FloorPlan.cs draws the hallway and both maps). The **flashlight** points at the cursor (`F` sweep
 on/off, `Q` focus, `L` off). While it is lit it turns the guard to face it; while it is off he faces
 the way he walks. **One patrol cycle** is required before END SHIFT: peek into Room 101, Room 202 and
-a CR (either one). **Anomalies** roam the hallway only, from night 1, with one guaranteed about 15 seconds into each patrol: hold the Focus beam on it to repel it, and it drops a token. The guard carries only a weak light, so what is ahead of him is black until the flashlight finds it: sweep it along the walls, up at the ceiling and down at the floor. Every room is a
+a CR (either one). **Anomalies** roam the hallway only, from night 1, with one guaranteed about 15 seconds into each patrol: hold the Focus beam on it to repel it, and it is gone for a while. The guard carries only a weak light, so what is ahead of him is black until the flashlight finds it: sweep it along the walls, up at the ceiling and down at the floor. Every room is a
 **peek** from its door: a black cover with a hole that follows the mouse shows the room behind it
 (`F` on/off, `Q` wide/tight). `E` selects what the lit lamp is on, nothing else; `S` or the bottom
-edge steps back. The peek rooms hold **standing anomalies** that never move, in some rooms each night and always at least one: hold the lit lamp on one for 1.5 seconds to drive it out. A room does not count for the cycle until its anomaly is gone, and standing ones leave no token. Besides the clues there
+edge steps back. The peek rooms hold **standing anomalies** that never move, in some rooms each night and always at least one: hold the lit lamp on one for 1.5 seconds to drive it out. A room does not count for the cycle until its anomaly is gone,. Besides the clues there
 are things to inspect: the patrol clipboard, the lockers, and each CR's mirror, sinks and stalls.
-Tokens are banked between runs and 3 open Endless and Challenge on the main menu. Ten clues, found
+Ten clues, found
 in order, open the secret ending.
 
 **Night 5 - the administrator:** no students and no roaming anomalies, only him, with a staff badge

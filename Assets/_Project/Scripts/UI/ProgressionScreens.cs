@@ -493,7 +493,6 @@ namespace Hollowbrook.UI
         private Text _title, _desc, _summary;
         private Text[] _badges = new Text[3];
         private Button _again;
-        private GameMode _lastMode = GameMode.Normal;
 
         private const string WinTitle = "SURVIVING HOLLOWBROOK";
         private const string LoseTitle = "ANOTHER CUSTODIAN";
@@ -537,7 +536,7 @@ namespace Hollowbrook.UI
             _again = UIFactory.StandardButton(transform, "again", "PLAY AGAIN", () =>
             {
                 _gameRoot.Audio.PlaySfx("sfx_bell", 0.7f);
-                _gameRoot.StartNewGame(_lastMode);
+                _gameRoot.StartNewGame(GameMode.Normal);
             }, 220, 46);
             UIFactory.Anchor(_again.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(220, 46), new Vector2(120, 38));
 
@@ -546,7 +545,6 @@ namespace Hollowbrook.UI
 
         public void Populate(EndingRules.Evaluation eval, GameSession session, RecordsData records)
         {
-            _lastMode = GameMode.Normal;
             switch (eval.Ending)
             {
                 case EndingType.Secret:
@@ -569,30 +567,6 @@ namespace Hollowbrook.UI
             sb.Append("Findings:                   ").Append(session.Clues.FoundCount).Append(" / 10  (").Append(session.Clues.OrderIntact ? "intended sequence intact" : "sequence broken").Append(")\n");
             sb.Append("Final sanity:               ").Append((int)session.Sanity).Append("  (").Append(session.SanityStage).Append(")\n");
             sb.Append("Score:                      ").Append(session.Score).Append("    Best streak: ").Append(session.BestStreak);
-            _summary.text = sb.ToString();
-
-            RefreshBadges(records);
-            gameObject.SetActive(true);
-        }
-
-        public void PopulateRunResults(GameSession session, RecordsData records)
-        {
-            _lastMode = session.Mode;
-            _title.text = session.Mode == GameMode.Endless ? "THE NIGHT ENDS" : "PROTOCOL TERMINATED";
-            _title.color = UIFactory.Ink;
-            _desc.text = "The clock ran out. The district's morning crew found the booth empty and the log full.";
-
-            var sb = new StringBuilder();
-            sb.Append("Mode:                       ").Append(session.Mode).Append('\n');
-            sb.Append("Visitors processed:         ").Append(session.RunProcessed).Append('\n');
-            sb.Append("Correct decisions:          ").Append(session.CorrectDecisions).Append('\n');
-            sb.Append("Anomalies rejected:         ").Append(session.AnomaliesRejected).Append('\n');
-            sb.Append("Mistakes:                   ").Append(session.FalseRejections + session.Breaches).Append('\n');
-            sb.Append("Best streak:                ").Append(session.BestStreak).Append('\n');
-            sb.Append("FINAL SCORE:                ").Append(session.Score).Append('\n');
-            sb.Append(session.Mode == GameMode.Endless
-                ? "BEST ENDLESS SCORE:         " + records.EndlessBest
-                : "BEST CHALLENGE SCORE:       " + records.ChallengeBest);
             _summary.text = sb.ToString();
 
             RefreshBadges(records);
