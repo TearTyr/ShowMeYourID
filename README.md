@@ -100,7 +100,7 @@ night: quitting it ends it, and it never touches your story save. The numbers ar
 
 ```
 Assets/_Project/
-  Scenes/                 MainMenu, Hollowbrook (the desk), School (patrol) - hold their screens
+  Scenes/                 MainMenu, Gameplay (the desk), School (patrol) - hold their screens
   Editor/                 ProjectSetup: the Hollowbrook menu (one click setup and check), editor only
   Resources/              GameConfig.asset (tuning), Audio/ drop-in files
     Art/                  Characters/, UI/ (SecurityDesk, MainMenu) and Environment/ (Hallway, Rooms,

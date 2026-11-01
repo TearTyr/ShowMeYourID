@@ -39,7 +39,7 @@ namespace Hollowbrook.EditorTools
         {
             new SceneInfo { Path = ScenesFolder + "/MainMenu.unity", Name = SceneRouter.Menu,
                 StarterObject = "MenuScene", Starter = typeof(MenuScene), ScreenScript = "MainMenuView.cs" },
-            new SceneInfo { Path = ScenesFolder + "/Hollowbrook.unity", Name = SceneRouter.Checkpoint,
+            new SceneInfo { Path = ScenesFolder + "/Gameplay.unity", Name = SceneRouter.Checkpoint,
                 StarterObject = "DeskScene", Starter = typeof(DeskScene), ScreenScript = "CheckpointView.cs" },
             new SceneInfo { Path = ScenesFolder + "/School.unity", Name = SceneRouter.School,
                 StarterObject = "PatrolScene", Starter = typeof(PatrolScene), ScreenScript = "HUDView.cs" },
@@ -184,6 +184,11 @@ namespace Hollowbrook.EditorTools
 
             // what a designer changed in this scene before (so it is kept)
             var oldRoot = FindRoot(scene, "SceneRoot_" + info.Name);
+            if (oldRoot == null && GameCore.OldRootName(info.Name) != null)
+            {
+                oldRoot = FindRoot(scene, GameCore.OldRootName(info.Name));   // set up before the rename: keep its edits
+                if (oldRoot != null) oldRoot.name = "SceneRoot_" + info.Name;
+            }
             var kept = SceneEdits.Begin(oldRoot);
 
             try

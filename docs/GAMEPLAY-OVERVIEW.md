@@ -26,7 +26,7 @@ desk), the **rules note** and **tonight's log** (with ID numbers), and the **que
 - **The night security log:** the log paper has three boxes, STUDENT ENCOUNTERS, ANOMALIES DETECTED and
   SECURITY INCIDENTS. Left click a box to count up, right click to count down (0 to 99). It is only a
   record for the experience: nothing reads the numbers, nothing is scored, and each night starts clean.
-  The numbers are saved with the night. The boxes are objects under `OverlayLog/paper` in the Hollowbrook
+  The numbers are saved with the night. The boxes are objects under `OverlayLog/paper` in the Gameplay
   scene, so when the paper art changes they can be moved to fit (positions are fractions of the picture,
   `LogBoxCentres` in `CheckpointView.Overlays.cs`).
 

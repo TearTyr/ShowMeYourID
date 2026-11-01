@@ -2639,7 +2639,7 @@ namespace FlowCheck
         private static void FreshGame(GameRoot root)
         {
             root.StartNewGame(GameMode.Normal);
-            DeskScene.Build(root);        // what Unity does after LoadScene(Hollowbrook)
+            DeskScene.Build(root);        // what Unity does after LoadScene(Gameplay)
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
         }
 

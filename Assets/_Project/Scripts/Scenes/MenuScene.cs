@@ -14,6 +14,7 @@ namespace Hollowbrook.Scenes
             BuildContent(root);
             UIFactory.ApplyTextScale(root.Settings.TextScaleMultiplier);
             root.BootToMainMenu();
+            GameCore.RefreshScreens(root);
         }
 
         /// <summary>The screens only (what the editor saves into the scene file).</summary>

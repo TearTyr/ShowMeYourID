@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Hollowbrook.Scenes
 {
-    // The one component on Hollowbrook.unity (the desk). The desk screens are objects in the scene
+    // The one component on Gameplay.unity (the desk). The desk screens are objects in the scene
     // file (edit them there); this connects them to the game when the scene loads and builds anything
     // the file lacks.
     public class DeskScene : MonoBehaviour
@@ -17,12 +17,13 @@ namespace Hollowbrook.Scenes
             Debug.Log("[Flow] desk scene ready (checkpoint=" + (root.Checkpoint != null) +
                       " loading=" + (root.Loading != null) + " dialogue=" + (root.Dialogue != null) + ")");
             root.RunQueuedSceneAction();
+            GameCore.RefreshScreens(root);
         }
 
         /// <summary>The screens only (what the editor saves into the scene file).</summary>
         public static void BuildContent(GameRoot root)
         {
-            var sceneRoot = GameCore.BeginSceneRoot("Hollowbrook");
+            var sceneRoot = GameCore.BeginSceneRoot(SceneRouter.Checkpoint);
             var edits = SceneEdits.Begin(sceneRoot);   // what was changed in the scene file
             SceneBuild.Begin();
             try
@@ -63,6 +64,6 @@ namespace Hollowbrook.Scenes
             edits.Apply();   // the scene file changes go back on top
         }
 
-        private void Awake() { GameCore.SafeBuild("Hollowbrook", () => Build(GameCore.EnsureCore())); }
+        private void Awake() { GameCore.SafeBuild(SceneRouter.Checkpoint, () => Build(GameCore.EnsureCore())); }
     }
 }

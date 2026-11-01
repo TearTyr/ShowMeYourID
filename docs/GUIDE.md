@@ -4,7 +4,7 @@ You know the Unity basics. This page tells you where things live and how to chan
 
 ## How the game is put together (the one idea you need)
 
-The three scenes (`MainMenu`, `Hollowbrook`, `School`) hold the **real objects** of the game: the
+The three scenes (`MainMenu`, `Gameplay`, `School`) hold the **real objects** of the game: the
 canvases, every screen, every button and label. Open a scene, look in the Hierarchy under
 `SceneRoot_...`, and move, resize, recolour or re-text things in the Inspector like any Unity object.
 
@@ -28,7 +28,7 @@ never ran the setup, the game still works: it builds the missing objects in code
 **Not in the scene files:** things that only exist while playing (anomalies, papers on the desk, the
 administrator hunt) and the patrol world (rooms, doors, items), which is data built from code.
 
-- **Hollowbrook.unity** = the security booth desk (the inspection).
+- **Gameplay.unity** = the security booth desk (the inspection).
 - **School.unity** = the patrol (hallway, classrooms, flashlight, the administrator hunt).
 - **GameRoot** (in `Scripts/Core`) is the one object that lives across scenes. It holds the run,
   the night, the save, and links to every screen. Start there if you are lost.
