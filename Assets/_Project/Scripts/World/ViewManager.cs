@@ -263,9 +263,12 @@ namespace Hollowbrook.World
         /// presentation. Idempotent.</summary>
         public void ExitPeek()
         {
-            if (!_peeking || _peekExiting || Transitioning) return;
+            if (!_peeking || _peekExiting) return;
             if (_peekLight != null && _peekLight.Locked) return;   // the hooded figure's scene cannot be walked out of
+            // asked for while the room is still going dark: leave the moment it has opened
+            if (Transitioning) { _leaveWhenOpen = true; return; }
             _peekExiting = true;
+            Transitioning = true;
             StartCoroutine(ExitPeekRoutine());
         }
 
@@ -284,12 +287,14 @@ namespace Hollowbrook.World
             if (_gameRoot.PeekAnomalyIn(id))
                 _peekAnomaly = PeekAnomaly.Place(_gameRoot, Current, _peekLight, _gameRoot.Session.Seed + _gameRoot.Session.CurrentShift * 131 + (int)id * 53);
             _cam.transform.position = new Vector3(0f, 0f, -10f);   // frozen frame of the room
-            yield return FadeTo(0f, 0.34f);
-            Transitioning = false;
+            Transitioning = false;           // the player may already act, the fade-in is only looks
+            if (_leaveWhenOpen) { _leaveWhenOpen = false; ExitPeek(); yield break; }
+            StartFade(0f, 0.34f);
         }
 
         private IEnumerator ExitPeekRoutine()
         {
+            StopFade();
             yield return FadeTo(1f, 0.28f);
             var from = Current;
             if (_peekLight != null) _peekLight.Exit();
@@ -304,8 +309,8 @@ namespace Hollowbrook.World
             _gameRoot.PeekRoom = null;
             _gameRoot.SetState(AppViewState.Exploration);
             foreach (var a in _anomalies.ToArray()) a.CalmAfterPeek();
-            yield return FadeTo(0f, 0.34f);
-            Transitioning = false;
+            Transitioning = false;           // back in control at once, the fade-in is only looks
+            StartFade(0f, 0.34f);
         }
 
         private void SetPlayerVisible(bool on)
@@ -324,6 +329,22 @@ namespace Hollowbrook.World
             go.transform.SetParent(transform, false);
             _peekLight = go.AddComponent<PeekLight>();
             _peekLight.Init(_gameRoot, _cam);
+        }
+
+        // A fade the player does not have to wait for: it plays on its own and any new fade replaces it.
+        private Coroutine _fadeRoutine;
+        private bool _leaveWhenOpen;
+
+        private void StartFade(float target, float seconds)
+        {
+            StopFade();
+            _fadeRoutine = StartCoroutine(FadeTo(target, seconds));
+        }
+
+        private void StopFade()
+        {
+            if (_fadeRoutine != null) StopCoroutine(_fadeRoutine);
+            _fadeRoutine = null;
         }
 
         private IEnumerator FadeTo(float target, float seconds)

@@ -93,6 +93,30 @@ namespace Hollowbrook.UI
             FinishTitle();
         }
 
+        /// <summary>The screen dims to black over <paramref name="seconds"/> (the card is click-proof while it
+        /// does), then <paramref name="then"/> runs exactly once. Used between two nights.</summary>
+        public void DimThen(float seconds, Action then)
+        {
+            if (_routine != null) { StopCoroutine(_routine); _routine = null; }
+            _onTitleDone = null;
+            _label.text = "";
+            SetTitleAlpha(0f);
+            SetCardAlpha(0f);
+            _bg.SetActive(true);
+            _routine = StartCoroutine(DimRoutine(seconds, then));
+        }
+
+        private IEnumerator DimRoutine(float seconds, Action then)
+        {
+            for (int i = 1; i <= FadeSteps; i++)
+            {
+                SetCardAlpha(i / (float)FadeSteps);
+                yield return new WaitForSecondsRealtime(seconds / FadeSteps);
+            }
+            _routine = null;
+            if (then != null) then();
+        }
+
         /// <summary>The black card fades away, showing what is behind it (the shut booth).</summary>
         public void RevealDesk()
         {

@@ -129,9 +129,14 @@ namespace Hollowbrook.UI
             bandRt.offsetMin = new Vector2(0f, 0f);
             bandRt.offsetMax = new Vector2(0f, 44f);
             var bandImg = bandRt.gameObject.GetOrAdd<Image>();
-            bandImg.color = new Color(1f, 1f, 1f, 0.05f);
+            float bandAlpha = GameRules.Current.PeekBandAlpha;
+            bandImg.color = new Color(0f, 0f, 0f, bandAlpha);   // dark glass: the room shows through
             var bandBtn = bandRt.gameObject.GetOrAdd<Button>();
             bandBtn.targetGraphic = bandImg;
+            var bandColors = bandBtn.colors;                      // a brighter pane when the mouse is over it
+            bandColors.highlightedColor = new Color(1f, 1f, 1f, 1f);
+            bandColors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+            bandBtn.colors = bandColors;
             bandBtn.onClick.AddListener(() => _gameRoot.ExitRoomPeek());
             var bandCap = UIFactory.Label(bandRt, "cap", "STEP BACK TO THE HALLWAY  [S]", 13,
                 UIFactory.InkDim, TextAnchor.MiddleCenter);

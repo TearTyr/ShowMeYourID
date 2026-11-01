@@ -92,8 +92,8 @@ and says he does not give up; he asks for the right decision and has a new set o
 again and the pursuit starts, harder: 2 catches, shorter stalks, less time to react, a longer night.
 Surviving to dawn is its own ending. It is one night and never touches the story save.
 
-**End of a night:** nights 1 to 4 go straight to the main menu. Clocking out with an anomaly let in
-still finishes the night: CONTINUE starts the next one and its intro says what it costs. A night you
+**End of a night:** nights 1 to 4 run on without the menu: the screen dims, then the next night starts (a marathon). Clocking out with an anomaly let in
+still finishes the night: the next night starts by itself and its intro says what it costs. CONTINUE still resumes a game you quit. A night you
 do not finish (a blackout) is **played again**: CONTINUE stays on that night, with the same cost.
 Night 5 shows the results, then the ending. Losing night 5 keeps night 5 in the save: CONTINUE offers
 it again and the ending screen has RETRY NIGHT 5. Losing night 6 offers RETRY NIGHT 6. There is no scare

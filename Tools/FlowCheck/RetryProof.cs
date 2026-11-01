@@ -21,7 +21,7 @@ namespace FlowCheck
             {
                 ClickStickyNote(root);
                 root.RequestEndShift();
-                ContinueToDesk(root);
+                AdvanceDialogue(root);   // the next night starts by itself
             }
         }
 
@@ -209,6 +209,64 @@ namespace FlowCheck
             Check(!System.IO.File.Exists(root.Saves.NightStartPath) && root.Saves.ReadNightStart() == null,
                 "SAVE: erasing the data removes the night start too");
             FreshGame(root);   // leave a live game for whatever runs next
+        }
+
+        private static float SanityAfterTick(GameRoot root, bool atDesk, int ticks = 4)
+        {
+            float dt = Time.deltaTime;
+            Time.deltaTime = 0.5f;
+            for (int i = 0; i < ticks; i++) root.SanityCtl.Tick(atDesk);
+            Time.deltaTime = dt;
+            return root.Session.Sanity;
+        }
+
+        // The playtest report: the bar never drained on nights 5 and 6.
+        private static void SanityProof(GameRoot root)
+        {
+            Console.WriteLine("== sanity: always draining on the administrator's nights ==");
+            ReachNight(root, 2);
+            root.Session.Sanity = 60f; root.Session.Stacks.Clear();
+            Check(root.Checkpoint.CurrentVisitor == null, "SANITY: (the window is empty)");
+            Check(SanityAfterTick(root, true) > 60f, "SANITY: at the desk on night 2, an empty window still rests the custodian");
+            Check(root.Session.Sanity - 60f < 4 * 0.5f * GameRules.Current.SecurityRoomRecoveryPerSecond + 0.01f,
+                "SANITY: ...at the rate the rules say, no faster");
+            ReachNight(root, ShiftPlan.TotalShifts);
+            Check(root.AdministratorNight, "SANITY: (night 5 is an administrator night)");
+            root.Session.Sanity = 80f; root.Session.Stacks.Clear();
+            float before = root.Session.Sanity;
+            Check(SanityAfterTick(root, true) < before, "SANITY: night 5 at the desk with an empty window drains instead of resting");
+            before = root.Session.Sanity;
+            Check(SanityAfterTick(root, false) < before, "SANITY: night 5 on patrol (hallway) drains");
+            before = root.Session.Sanity;
+            root.Session.Hunt = HuntState.Active;
+            Check(SanityAfterTick(root, false) < before, "SANITY: night 5 during the hunt drains (it used to be exempt)");
+            root.Session.Hunt = HuntState.None;
+            before = root.Session.Sanity;
+            root.SetState(AppViewState.RoomPeek);
+            Check(SanityAfterTick(root, false) < before, "SANITY: night 5 inside a peek drains");
+            root.SetState(AppViewState.Checkpoint);
+            root.Session.Sanity = 90f;
+            SanityAfterTick(root, true, 1);
+            float one = 90f - root.Session.Sanity;
+            Check(Mathf.Abs(one - 0.5f * GameRules.Current.FinalNightDrainPerSecond * 0.85f) < 0.01f,
+                "SANITY: the rate is the rules' final night rate (with the 0.85 baseline), one number, not two stacked (" + one + ")");
+            // night 6 is harder
+            root.Session.Mode = GameMode.Challenge;
+            root.Session.Sanity = 90f;
+            SanityAfterTick(root, true, 1);
+            Check(90f - root.Session.Sanity > one * 1.4f, "SANITY: night 6 drains faster than night 5");
+            root.Session.Mode = GameMode.Normal;
+            var r = GameRules.Current;
+            Check(r.RefillOnCorrect <= 8f && r.RefillPerSecond <= 1.5f && r.SecurityRoomRecoveryPerSecond <= 0.5f,
+                "SANITY: the passive gains are the nerfed values");
+            // a stall (tab-out) never drains in one jump
+            root.Session.Sanity = 90f;
+            float spike = Time.deltaTime;
+            Time.deltaTime = 60f;
+            root.SanityCtl.Tick(true);
+            Time.deltaTime = spike;
+            Check(root.Session.Sanity > 90f - 0.5f * 0.5f, "SANITY: a one minute stall costs no more than half a second of drain");
+            FreshGame(root);
         }
 
         // Other leaks found while playing the game through: a click that erased a run, and a quit that

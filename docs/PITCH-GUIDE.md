@@ -251,7 +251,7 @@ placeholder audio, and move more of the patrol world into scenes.
 **Who made what?** (Use the credits: Project Director and Narrative Jessie Mariel De Mesa,
 Programming Elijah Japeth Ramos and John Perilla, Art Daniel Steven Solitaria and Jessie Mariel De
 Mesa, Audio Clarence Manalo, Marketing and Branding Diosdado Fabelico II and Daniella Garing,
-Storyboard Clarence Manalo.)
+Storyboard Jessie Mariel De Mesa, Daniel Steven Solitaria, Daniella Garing and Diosdado Fabelico II.)
 
 ## 9. The numbers to memorize
 

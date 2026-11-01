@@ -203,6 +203,50 @@ namespace Hollowbrook.LogicTests
             Eq(caughtUnseen, 0, "timing out while the player peeks another room is not a catch");
             Check(followedRoom > 0, "...he goes to the room being peeked");
 
+            // lit in a peek, he is behind the player the moment they step out, and comes in if they stay
+            int ambushed = 0, enteredAfterStay = 0, tried = 0;
+            for (int seed = 1; seed <= 200; seed++)
+            {
+                var hunt = new AdminHunt(tuning, seed);
+                hunt.Start();
+                int guard = 0;
+                while (hunt.Phase != HuntPhase.InRoom && !hunt.Finished && guard++ < 5000) hunt.Tick(0.1f, inHall);
+                if (hunt.Phase != HuntPhase.InRoom) continue;
+                tried++;
+                var onHim = new HuntInput { Peeking = true, PlayerRoom = hunt.Room, OnTarget = true };
+                var ev = HuntEvent.None;
+                guard = 0;
+                while (hunt.Phase == HuntPhase.InRoom && guard++ < 200) ev |= hunt.Tick(0.1f, onHim);
+                if ((ev & HuntEvent.Repelled) == 0) continue;
+                var stayIn = new HuntInput { Peeking = true, PlayerRoom = onHim.PlayerRoom };
+                ev = HuntEvent.None;
+                for (int i = 0; i < 30; i++) ev |= hunt.Tick(0.1f, stayIn);   // three seconds, less than his patience
+                Check((ev & (HuntEvent.AppearedBehind | HuntEvent.EnteredRoom | HuntEvent.Caught)) == 0,
+                    $"seed {seed}: he waits while the player is still peeking");
+                ev = HuntEvent.None;
+                for (int i = 0; i < 20 && (ev & HuntEvent.AppearedBehind) == 0; i++) ev |= hunt.Tick(0.1f, inHall);   // two seconds out
+                if ((ev & HuntEvent.AppearedBehind) != 0 && hunt.Phase == HuntPhase.Behind) ambushed++;
+            }
+            Check(tried > 0 && ambushed == tried, $"after lighting him in a peek, he is behind the player soon after they step out ({ambushed}/{tried})");
+            for (int seed = 1; seed <= 100; seed++)
+            {
+                var hunt = new AdminHunt(tuning, seed);
+                hunt.Start();
+                int guard = 0;
+                while (hunt.Phase != HuntPhase.InRoom && !hunt.Finished && guard++ < 5000) hunt.Tick(0.1f, inHall);
+                if (hunt.Phase != HuntPhase.InRoom) continue;
+                var onHim = new HuntInput { Peeking = true, PlayerRoom = hunt.Room, OnTarget = true };
+                var ev = HuntEvent.None;
+                guard = 0;
+                while (hunt.Phase == HuntPhase.InRoom && guard++ < 200) ev |= hunt.Tick(0.1f, onHim);
+                if ((ev & HuntEvent.Repelled) == 0) continue;
+                var stayIn = new HuntInput { Peeking = true, PlayerRoom = onHim.PlayerRoom };
+                ev = HuntEvent.None;
+                for (int i = 0; i < 200 && (ev & HuntEvent.EnteredRoom) == 0; i++) ev |= hunt.Tick(0.1f, stayIn);
+                if ((ev & HuntEvent.EnteredRoom) != 0) enteredAfterStay++;
+            }
+            Check(enteredAfterStay > 0, "a player who stays in the peek is not safe: he comes into their room");
+
             // a hunt left half way starts again where it was, and never with more than a fresh one
             var resumed = new AdminHunt(tuning, 3);
             resumed.Start(2, 40f);
@@ -922,11 +966,12 @@ namespace Hollowbrook.LogicTests
             Check(!text.Contains((char)0x2014) && !text.Contains("procedurally"),
                   "the credits have no em dash and no stale 'generated at runtime' note");
             Check(text.Contains("Unity") && text.Contains("Bahnschrift"), "the credits thank the engine and the fonts");
-            bool storyboardOnlyClarence = false;
+            string[] storyboard = { "Jessie Mariel De Mesa", "Daniel Steven Solitaria", "Daniella Garing", "Diosdado Fabelico II" };
+            bool storyboardIsTeam = false;
             foreach (var sec in CreditsData.Team)
-                if (sec.Role == "STORYBOARD")
-                    storyboardOnlyClarence = sec.People.Length == 1 && sec.People[0] == "Clarence Manalo";
-            Check(storyboardOnlyClarence, "the storyboard credit is Clarence Manalo alone");
+                if (sec.Role == "STORYBOARD") storyboardIsTeam = string.Join("|", sec.People) == string.Join("|", storyboard);
+            Check(storyboardIsTeam, "the storyboard credit is Mariel, Daniel, Ella and Dio");
+            Check(!text.Contains("Clarence Manalo  -") || !text.Contains("STORYBOARD  -  Clarence"), "Clarence is no longer credited for the storyboard");
         }
 
         private static void InterviewRuleTests()
@@ -1454,12 +1499,13 @@ namespace Hollowbrook.LogicTests
             refill.RefillPending = SanityModel.RefillOnCorrect;
             float handed = 0f; int ticks = 0;
             while (refill.RefillPending > 0f && ticks < 100) { handed += refill.TakeRefill(0.5f); ticks++; }
-            Check(Math.Abs(handed - 15f) < 1e-3f, "the whole +15 is eventually handed over");
-            Eq(ticks, 12, "...in 12 half-second ticks of 1.25");
-            Check(ticks * 0.5f >= 5f && ticks * 0.5f <= 8f, "...so the refill takes 5-8 seconds (" + ticks * 0.5f + " s)");
+            Check(Math.Abs(handed - SanityModel.RefillOnCorrect) < 1e-3f, "the whole refill is eventually handed over");
+            int wantTicks = (int)Math.Ceiling(SanityModel.RefillOnCorrect / (SanityModel.RefillPerSecond * 0.5f));
+            Eq(ticks, wantTicks, "...at the rules' speed, half a second at a time");
+            Check(SanityModel.RefillPerSecond < 2.5f && SanityModel.RefillOnCorrect < 15f, "...and both numbers are nerfed from the old 15 at 2.5 a second");
             Eq(refill.TakeRefill(0.5f), 0f, "nothing is handed over once the refill is paid out");
             Eq(refill.TakeRefill(-1f), 0f, "a negative tick hands over nothing");
-            Check(SanityModel.RefillOnCorrect == 15f, "a correct call is worth +15");
+            Check(SanityModel.RefillOnCorrect == GameRules.Current.RefillOnCorrect, "a correct call is worth what the rules say");
             Check(SanityModel.DeskDrainPerSecond < SanityModel.DarknessDrainPerSecond &&
                   SanityModel.DarknessDrainPerSecond < SanityModel.SecurityRoomRecoveryPerSecond,
                   "a student at the window drains slowest, then the dark, and resting out-recovers both");
