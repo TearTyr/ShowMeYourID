@@ -1032,7 +1032,9 @@ namespace FlowCheck
             UnityEngine.Input.KeysDown.Clear();
             Check(hint.text == "1/2" && !qText(1).StartsWith("YEAR: "),
                   "the year question is locked until the ID is flipped (got '" + qText(1) + "')");
+            Check(qText(1).Contains("["), "the locked year button carries its lock tag (got '" + qText(1) + "')");
             cp.FlipId();
+            Check(!qText(1).Contains("["), "flipping the ID unlocks the year button at once, before any click (got '" + qText(1) + "')");
             UnityEngine.Input.KeysDown.Add(UnityEngine.KeyCode.Alpha2);
             cp.TickHotkeys();
             UnityEngine.Input.KeysDown.Clear();
