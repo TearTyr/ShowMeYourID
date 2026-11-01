@@ -62,6 +62,7 @@ namespace Hollowbrook.Core
         {
             _resumeFromVisitor = resumeFromVisitor;
             number = Mathf.Clamp(number, 1, ShiftPlan.TotalShifts);
+            string penaltyNote = isResume ? null : PenaltyNote();   // read before BeginNight pays and clears it
             Session.CurrentShift = number;
             PrepareShiftRoster(number, isResume);
             // a resume keeps the loaded night state: presentation log, admitted students
@@ -79,7 +80,7 @@ namespace Hollowbrook.Core
             _shiftMinutes = isResume ? Session.ShiftClockMinutes : 0f;
             if (!isResume) Session.ShiftClockMinutes = 0f;
             SetupShiftQueue(number, resumeFromVisitor);
-            PlayIntroThenCheckpoint(BuildShiftIntroLines(number), CurrentShiftDef);
+            PlayIntroThenCheckpoint(BuildShiftIntroLines(number, penaltyNote), CurrentShiftDef);
             _resumeFromVisitor = 0;
         }
 
@@ -114,15 +115,29 @@ namespace Hollowbrook.Core
             }
         }
 
+        // What a failed night costs tonight, said out loud in the intro. Null after a clean night.
+        internal string PenaltyNote()
+        {
+            int severity = Session.PendingPenaltySeverity;
+            if (severity <= 0) return null;
+            int loss = Mathf.RoundToInt(ShiftFailureRules.StartSanityLoss(severity, Session.PendingPenaltyNight));
+            string cause = Session.LastShiftFailure == ShiftFailure.Blackout
+                ? "You blacked out at your post."
+                : "You clocked out with an anomaly let in.";
+            return cause + " Tonight you start with " + loss + " less sanity, and something is already walking the halls.";
+        }
+
         // The night's opening cards: title, objective and the rules addendum (plus the
         // Night-5 administrator warning).
-        private List<DialogueLine> BuildShiftIntroLines(int number)
+        private List<DialogueLine> BuildShiftIntroLines(int number, string penaltyNote)
         {
             var intro = new List<DialogueLine>
             {
                 new DialogueLine { Speaker = "NIGHT " + number + " - " + CurrentShiftDef.DateLabel.ToUpperInvariant(), Text = CurrentShiftDef.Title + ". " + CurrentShiftDef.Objective },
                 new DialogueLine { Speaker = "PAPER NOTE", Text = CurrentShiftDef.RuleNoteAddendum },
             };
+            if (!string.IsNullOrEmpty(penaltyNote))
+                intro.Add(new DialogueLine { Speaker = "LAST NIGHT", Text = penaltyNote });
             if (number == 5)
             {
                 intro.Add(new DialogueLine { Speaker = "???", Text = "Tonight the district sends an administrator to 'take control'. Check the credentials like you would check anyone else's. Trust the evidence." });

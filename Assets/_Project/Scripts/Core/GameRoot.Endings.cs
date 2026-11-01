@@ -21,14 +21,15 @@ namespace Hollowbrook.Core
 
         private EndingRules.Evaluation _endingAfterResults;
 
-        /// <summary>The END SHIFT button. Clocking out with an anomaly let in fails the night (black
-        /// screen, a face, the jumpscare) on nights 1-4; anything else just ends the shift.</summary>
+        /// <summary>The END SHIFT button. Clocking out with an anomaly let in fails the night on nights
+        /// 1-4: it is recorded and paid for the next night (and said in that night's intro), but there
+        /// is no scare. Scares belong to patrol and peeking.</summary>
         public void RequestEndShift()
         {
             bool failed = Session.Mode == GameMode.Normal && Session.CurrentShift < ShiftPlan.TotalShifts &&
                           Session.ShiftBreaches > 0;
-            if (failed) FailShift(ShiftFailure.Breach);
-            else FinishShift();
+            if (failed) Session.RecordShiftFailure(ShiftFailure.Breach);
+            FinishShift();
         }
 
         /// <summary>The sanity bar hit zero. Nights 1-4: the custodian blacks out and the shift ends.
@@ -46,8 +47,8 @@ namespace Hollowbrook.Core
             PlayFailure(() => { ShiftFailing = false; TriggerEnding(lose); });
         }
 
-        // A failed night (nights 1-4): record how and what it will cost, play the scene, then close
-        // the shift out, which goes straight back to the main menu.
+        // A blackout (nights 1-4): record it, play the scene, then close the shift out, which goes
+        // straight back to the main menu.
         private void FailShift(ShiftFailure kind)
         {
             if (ShiftFailing) return;
@@ -60,9 +61,11 @@ namespace Hollowbrook.Core
             });
         }
 
+        // The scare only plays out on patrol or in a peek. Fainting at the desk just ends the night.
         private void PlayFailure(System.Action then)
         {
-            if (Scares != null) Scares.FailureSequence(AnomalyBehaviorKind.Blink, then);
+            bool onPatrol = State == AppViewState.Exploration || State == AppViewState.RoomPeek;
+            if (Scares != null && onPatrol) Scares.FailureSequence(AnomalyBehaviorKind.Blink, then);
             else then();
         }
 

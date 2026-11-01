@@ -77,7 +77,9 @@ The security door is locked and every phase has a time limit, so it cannot get s
 restarts the hunt, or returns to the desk if it has not started.
 
 **End of a night:** nights 1 to 4, won or failed, go straight to the main menu; CONTINUE starts the
-next one. Night 5 shows the results, then the ending.
+next one. Night 5 shows the results, then the ending. A failed night (an anomaly let in, or a
+blackout) has no scare at the desk: the next night's intro says what it costs. Scares only happen on
+patrol and in peeks.
 
 **Endings:** Surviving Hollowbrook (5 nights + dawn on the last) / Another Custodian
 (3 breaches, 3 false rejections, the line overruns, the administrator let in, or three catches on night 5) /

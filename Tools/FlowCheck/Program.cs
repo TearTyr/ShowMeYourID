@@ -189,7 +189,11 @@ namespace FlowCheck
                 "FAIL: clocking out with an anomaly let in fails the night (Breach), back at the main menu");
             Check(!root.ShiftFailing, "FAIL: the failure scene is over (input is live again)");
             Check(root.Session.PendingPenaltySeverity == 2, "FAIL: two anomalies let in = severity 2");
+            string note = root.PenaltyNote();
+            Check(note != null && note.Contains("anomaly let in") && note.Contains("less sanity"),
+                "FAIL: the next night's intro says why it starts worse (" + note + ")");
             root.AdvanceToNextShift();
+            Check(root.PenaltyNote() == null, "FAIL: ...and the note is spent once the penalty is paid");
             Check(Mathf.Abs(root.Session.Sanity - (100f - ShiftFailureRules.StartSanityLoss(2, 1))) < 1e-3f,
                 "FAIL: the next night starts with less sanity (84)");
             Check(root.Session.Stacks.Count == 2, "FAIL: ...with the drain stacks already up");
