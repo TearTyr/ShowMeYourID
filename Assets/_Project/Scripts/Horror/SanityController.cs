@@ -60,7 +60,7 @@ namespace Hollowbrook.Horror
         public void Tick(bool inSecurity)
         {
             if (_gameRoot == null || _gameRoot.Session == null) return;
-            _acc += Time.deltaTime;
+            _acc += GameRoot.ClampedDelta;     // a stall (tab-out) must not drain the bar in one jump
             if (_acc < 0.5f) return;
             float dt = _acc; _acc = 0f;
 
@@ -70,13 +70,17 @@ namespace Hollowbrook.Horror
             session.Stacks.Tick(dt);                       // a wrong call's extra drain wears off
             float refill = session.TakeRefill(dt);         // a correct call's refill, handed over gradually
             if (refill > 0f) session.ApplySanity(refill);
-            if (inSecurity) TickDesk(session, dt);
+            if (_gameRoot.AdministratorNight)
+                session.ApplySanity(-FinalNightDrain(session) * dt);   // night 5 and 6: always draining, anywhere
+            else if (inSecurity) TickDesk(session, dt);
+            else if (_gameRoot.State == AppViewState.RoomPeek)
+                session.ApplySanity(-SanityModel.DarknessDrainPerSecond * dt);   // a peek is always dark
             else if (_gameRoot.Views != null && _gameRoot.Views.Current != null)
             {
                 var light = _gameRoot.Views.Current.Light;
                 // sanity reads the room's REAL ambient state; the handheld beam does not
                 // substitute for room light here (separation of concerns).
-                if (light != null && !light.Lit && !_gameRoot.HuntActive)   // the hunt has its own clock
+                if (light != null && !light.Lit)
                     session.ApplySanity(-SanityModel.DarknessDrainPerSecond * dt);
             }
 
@@ -101,6 +105,13 @@ namespace Hollowbrook.Horror
                     _gameRoot.Audio.PlaySfx("sfx_heartbeat", stage == SanityStage.Breaking ? 0.75f : 0.4f);
                 }
             }
+        }
+
+        private static float FinalNightDrain(GameSession session)
+        {
+            var rules = GameRules.Current;
+            float scale = session.Mode == GameMode.Challenge ? rules.ChallengeDrainScale : 1f;
+            return rules.FinalNightDrainPerSecond * scale;
         }
 
         // At the desk: a student at the window wears sanity down slowly (a scary one a little

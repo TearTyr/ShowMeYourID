@@ -35,11 +35,13 @@ namespace Hollowbrook.Logic
         public float HallucinationUneasy = 0.010f;      // chance per second at each stage
         public float HallucinationShaken = 0.035f;
         public float HallucinationBreaking = 0.080f;
-        public float SecurityRoomRecoveryPerSecond = 1.2f;  // resting at the desk
+        public float SecurityRoomRecoveryPerSecond = 0.5f;  // resting at the desk with the window empty (nights 1 to 4 only)
         public float DeskDrainPerSecond = 0.25f;        // a student at the window
-        public float DarknessDrainPerSecond = 0.3f;     // walking the dark hallway
-        public float RefillOnCorrect = 15f;             // a correct decision gives this much...
-        public float RefillPerSecond = 2.5f;            // ...at this speed
+        public float DarknessDrainPerSecond = 0.3f;     // walking the dark hallway, or peeking into a room
+        public float RefillOnCorrect = 8f;              // a correct decision gives this much...
+        public float RefillPerSecond = 1.5f;            // ...at this speed
+        public float FinalNightDrainPerSecond = 0.3f;   // night 5 and 6: sanity always drains, wherever you are
+        public float ChallengeDrainScale = 1.5f;        // ...and faster on night 6
 
         // ---- what a failed night costs the next one ----
         public int MaxSeverity = 5;

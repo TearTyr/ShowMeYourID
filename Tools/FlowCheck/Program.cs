@@ -166,6 +166,7 @@ namespace FlowCheck
             ShiftFailureProof(root);
             RetryProof(root);
             MoreFlawsProof(root);
+            SanityProof(root);
             Night6Proof(root);
             AdminTalkProof(root);
             AdminHuntProof(root);

@@ -194,12 +194,16 @@ namespace Hollowbrook.Core
             }
         }
 
-        // Sanity is atmosphere: it ticks at the desk and on patrol, nowhere else.
+        // Sanity ticks at the desk, on patrol and in a peek, nowhere else.
         private void TickSanity()
         {
-            if (SanityCtl != null && (State == AppViewState.Checkpoint || State == AppViewState.Exploration))
-                SanityCtl.Tick(State == AppViewState.Checkpoint);
+            if (SanityCtl == null) return;
+            if (State == AppViewState.Checkpoint) SanityCtl.Tick(true);
+            else if (State == AppViewState.Exploration || State == AppViewState.RoomPeek) SanityCtl.Tick(false);
         }
+
+        /// <summary>The administrator's nights (5 and 6): sanity never rests there.</summary>
+        public bool AdministratorNight => CurrentShiftDef != null && CurrentShiftDef.HasAdministrator;
 
         // ---------------------------------------------------------------- flow API
 

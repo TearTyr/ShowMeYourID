@@ -1498,12 +1498,13 @@ namespace Hollowbrook.LogicTests
             refill.RefillPending = SanityModel.RefillOnCorrect;
             float handed = 0f; int ticks = 0;
             while (refill.RefillPending > 0f && ticks < 100) { handed += refill.TakeRefill(0.5f); ticks++; }
-            Check(Math.Abs(handed - 15f) < 1e-3f, "the whole +15 is eventually handed over");
-            Eq(ticks, 12, "...in 12 half-second ticks of 1.25");
-            Check(ticks * 0.5f >= 5f && ticks * 0.5f <= 8f, "...so the refill takes 5-8 seconds (" + ticks * 0.5f + " s)");
+            Check(Math.Abs(handed - SanityModel.RefillOnCorrect) < 1e-3f, "the whole refill is eventually handed over");
+            int wantTicks = (int)Math.Ceiling(SanityModel.RefillOnCorrect / (SanityModel.RefillPerSecond * 0.5f));
+            Eq(ticks, wantTicks, "...at the rules' speed, half a second at a time");
+            Check(SanityModel.RefillPerSecond < 2.5f && SanityModel.RefillOnCorrect < 15f, "...and both numbers are nerfed from the old 15 at 2.5 a second");
             Eq(refill.TakeRefill(0.5f), 0f, "nothing is handed over once the refill is paid out");
             Eq(refill.TakeRefill(-1f), 0f, "a negative tick hands over nothing");
-            Check(SanityModel.RefillOnCorrect == 15f, "a correct call is worth +15");
+            Check(SanityModel.RefillOnCorrect == GameRules.Current.RefillOnCorrect, "a correct call is worth what the rules say");
             Check(SanityModel.DeskDrainPerSecond < SanityModel.DarknessDrainPerSecond &&
                   SanityModel.DarknessDrainPerSecond < SanityModel.SecurityRoomRecoveryPerSecond,
                   "a student at the window drains slowest, then the dark, and resting out-recovers both");
