@@ -45,9 +45,9 @@ namespace Hollowbrook.Scenes
                 { "char_anomaly", 390f },   // 1.9 units tall: a crouched thing low on the floor, centre height 0.95 (BehaviorProfile.GroundCentreY)
                 { "char_guard_idle", 129f }, { "char_guard_walk_a", 129f }, { "char_guard_walk_b", 129f },
                 // backdrops: the three screen wide hallway covers 30 units, a room 17.8 (the camera's
-                // 16:9 view), the bathroom 17.1
+                // 16:9 view), the bathroom the same
                 { "bg_hallway_unlit", 108f },
-                { "bg_classroom_1", 108f }, { "bg_classroom_2", 108f }, { "bg_comfort_room", 112f },
+                { "bg_classroom_1", 108f }, { "bg_classroom_2", 108f }, { "bg_comfort_room", 108f },
                 // props drawn about 3.4 units tall (doors), a 1.5 unit wall clock, a half unit token
                 { "prop_door_classroom_1", 308f }, { "prop_door_classroom_2", 299f },
                 { "prop_door_comfort", 196f }, { "prop_door_security", 188f }, { "prop_server_door", 191f },
@@ -79,7 +79,9 @@ namespace Hollowbrook.Scenes
         private static readonly string[] ArtFolders =
         {
             "Art/",
-            "Art/Characters/",
+            "Art/Characters/Students/",
+            "Art/Characters/Anomalies/",
+            "Art/Characters/Staff/",
             "Art/UI/SecurityDesk/",
             "Art/UI/MainMenu/",
             "Art/Environment/Hallway/",

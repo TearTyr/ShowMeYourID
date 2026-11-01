@@ -33,8 +33,9 @@ Tools/**/obj/
 # Generated visual-check output (Tools/Preview/render_map_preview.py, FlowCheck --dump-drawer)
 /preview/
 
-# Old art kit, replaced by "Art/UI and Design Assets" (it stays in git history)
-/Art/Old/
+# Source art (PSDs, full size exports, 150+ MB). The game only loads the cut copies under
+# Assets/_Project/Resources/Art, made by the Tools/prep_*.py scripts.
+/Art/
 
 # Python tool leftovers
 __pycache__/

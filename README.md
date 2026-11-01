@@ -103,7 +103,7 @@ Assets/_Project/
   Scenes/                 MainMenu, Gameplay (the desk), School (patrol) - hold their screens
   Editor/                 ProjectSetup: the Hollowbrook menu (one click setup and check), editor only
   Resources/              GameConfig.asset (tuning), Audio/ drop-in files
-    Art/                  Characters/, UI/ (SecurityDesk, MainMenu) and Environment/ (Hallway, Rooms,
+    Art/                  Characters/ (Students, Anomalies, Staff), UI/ (SecurityDesk, MainMenu) and Environment/ (Hallway, Rooms,
                           Props, Inspect), named in snake_case
   Scripts/
     GameLogic/            PURE C# rules, no UnityEngine (rosters, questions, queue, endings, hunt...)
@@ -142,7 +142,7 @@ Comfort Room, Hallway, ID, Main Menu, Rooms, Security). The game never reads it.
 |---|---|
 | `Tools/prep_securityroom_art.py` | the desk kit, `UI/SecurityDesk/` (`sec_*`) |
 | `Tools/prep_id_card.py` | the ID card template (needs `pip install psd-tools aggdraw pillow`) |
-| `Tools/prep_characters.py` | students, administrator and guard, `Characters/` |
+| `Tools/prep_characters.py` | students, administrator and guard, `Characters/Students`, `Staff`, `Anomalies` |
 | `Tools/prep_environment_art.py` | hallway, classrooms, comfort room, props and clue close ups, `Environment/` |
 | `Tools/prep_mainmenu_art.py` | the main menu, `UI/MainMenu/` (reads the old kit in `Art/Old/`, already cut) |
 

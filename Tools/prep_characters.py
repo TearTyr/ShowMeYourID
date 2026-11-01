@@ -19,6 +19,9 @@ from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "Art", "UI and Design Assets", "Characters")
 DST = os.path.join(ROOT, "Assets", "_Project", "Resources", "Art", "Characters")
+STUDENT_DST = os.path.join(DST, "Students")    # char_student_NN and char_student_NN_anomaly
+ANOMALY_DST = os.path.join(DST, "Anomalies")   # char_anomaly, char_hood
+STAFF_DST = os.path.join(DST, "Staff")         # char_admin, char_admin_glitch, the guard
 
 # (normal, anomaly) per student, in face-index order
 STUDENTS = [
@@ -54,7 +57,7 @@ def prep_guard():
            max(b[2] for b in boxes), max(b[3] for b in boxes))
     print("guard crop", box)
     for im, name in frames:
-        im.crop(box).save(os.path.join(DST, name + ".png"))
+        im.crop(box).save(os.path.join(STAFF_DST, name + ".png"))
 
 
 def prep_hood():
@@ -64,7 +67,7 @@ def prep_hood():
     im = load("Hood_Figure_/Hood_Figure.png")
     im = im.crop(bbox(im))
     im = im.resize((im.width * 4, im.height * 4), Image.LANCZOS)
-    im.save(os.path.join(DST, "char_hood.png"))
+    im.save(os.path.join(ANOMALY_DST, "char_hood.png"))
     print("hood", im.size)
 
 
@@ -84,20 +87,20 @@ def main():
     ch = max(c.height for c in normals) + 2 * pad
     print("shared canvas", cw, "x", ch)
 
-    def put(rel, name):
+    def put(rel, name, folder):
         c = crops[rel]
         fit = min(1.0, (cw - 2 * pad) / c.width, (ch - 2 * pad) / c.height)
         if fit < 1.0:
             c = c.resize((max(1, round(c.width * fit)), max(1, round(c.height * fit))), Image.LANCZOS)
         canvas = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
         canvas.alpha_composite(c, ((cw - c.width) // 2, ch - pad - c.height))
-        canvas.save(os.path.join(DST, name + ".png"))
+        canvas.save(os.path.join(folder, name + ".png"))
 
     for i, (normal, anomaly) in enumerate(STUDENTS, start=1):
-        put(normal, "char_student_%02d" % i)
-        put(anomaly, "char_student_%02d_anomaly" % i)
-    put(ADMIN[0], "char_admin")
-    put(ADMIN[1], "char_admin_glitch")
+        put(normal, "char_student_%02d" % i, STUDENT_DST)
+        put(anomaly, "char_student_%02d_anomaly" % i, STUDENT_DST)
+    put(ADMIN[0], "char_admin", STAFF_DST)
+    put(ADMIN[1], "char_admin_glitch", STAFF_DST)
     prep_guard()
 
 
