@@ -1778,6 +1778,8 @@ namespace FlowCheck
                 allFaces &= FindArt(rootDir, Hollowbrook.Logic.FaceAssets.StudentKey(i - 1)) != null;
             for (int i = 1; i <= Hollowbrook.Logic.FaceAssets.StudentFaceCount && allFaces; i++)
                 allFaces &= FindArt(rootDir, Hollowbrook.Logic.FaceAssets.AnomalyKey(i - 1)) != null;   // paired variants
+            for (int i = 1; i <= Hollowbrook.Logic.FaceAssets.StudentFaceCount && allFaces; i++)
+                allFaces &= FindArt(rootDir, Hollowbrook.Logic.FaceAssets.ScaredKey(i - 1)) != null;
             Check(allFaces, "FM: every student and anomaly face asset ships under Resources/Art");
             Check(FindArt(rootDir, "stamp_allow") != null,
                 "FM: the approval stamp asset ships under Resources/Art");
@@ -4082,6 +4084,7 @@ namespace FlowCheck
             {
                 codeArt.Add("char_student_" + i.ToString("D2"));
                 codeArt.Add("char_student_" + i.ToString("D2") + "_anomaly");
+                codeArt.Add("char_student_" + i.ToString("D2") + "_scared");
             }
             codeArt.Add(Hollowbrook.Logic.FaceAssets.AdminKey);
             codeArt.Add(Hollowbrook.Logic.FaceAssets.AdminWindowKey);

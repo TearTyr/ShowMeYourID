@@ -39,6 +39,10 @@ desk), the **rules note** and **tonight's log** (with ID numbers), and the **que
   of the anomalies also speak awkwardly: the same facts in wrong-sounding words (Raffy says everything
   twice, Maria Clara talks about "the girl"). Nothing marks it on screen; you have to hear it. A real
   student never speaks that way.
+- **Scared visitors:** every night some visitors arrive frightened (1, 2, 2, 3, 3 on nights 1 to 5). A scared
+  visitor, real student or anomaly, shows the same frightened face and talks in the same shaken words, so the
+  monster face and the awkward speech cannot give them away. A scared anomaly is still wrong on the papers or
+  in the file. Fear proves nothing.
 - **The ID** flips only by its black spine (or `F`). Click it to inspect it enlarged; an open file
   stays visible next to it. The face at the window vs the ID photo is **your own eyes**.
 - **Faces:** the ID always shows the real student. The window shows the same person unless the
