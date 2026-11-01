@@ -194,6 +194,20 @@ namespace Hollowbrook.Logic
             LastShiftFailure = ShiftFailure.None;
         }
 
+        /// <summary>Only used if the night start file is gone: forget tonight's progress on this
+        /// session, so Continue can still start the night from the top.</summary>
+        public void RewindNight()
+        {
+            QueueState = null;
+            VisitorIndexAtSave = 0;
+            ShiftClockMinutes = 0f;
+            AdminAllowed = false;
+            AdminRejected = false;
+            AdminTalk = new AdminTalkState();
+            Hunt = HuntState.None;
+            RunFinished = false;
+        }
+
         public ClueDiscoveryResult DiscoverClue(string key)
         {
             var res = Clues.Discover(key);

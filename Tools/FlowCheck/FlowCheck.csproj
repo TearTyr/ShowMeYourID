@@ -14,6 +14,6 @@
   <ItemGroup>
     <Compile Include="../Verification/UnityStubs/**/*.cs" />
     <Compile Include="../../Assets/_Project/Scripts/**/*.cs" />
-    <Compile Include="Program.cs" />
+    <Compile Include="*.cs" />
   </ItemGroup>
 </Project>

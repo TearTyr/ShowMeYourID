@@ -76,7 +76,7 @@ namespace Hollowbrook.UI
             }
             else if (lost && _gameRoot.HasSave())
             {
-                label = "RETRY NIGHT " + session.CurrentShift;
+                label = "RETRY NIGHT " + Mathf.Min(session.CurrentShift, ShiftPlan.TotalShifts);
                 _againAction = () => _gameRoot.ContinueGame();
             }
             var text = _again.GetComponentInChildren<Text>();

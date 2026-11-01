@@ -18,7 +18,7 @@ namespace FlowCheck
     // Drives the real NEW GAME path headlessly and prints the [Flow] breadcrumb chain.
     // SceneManager.LoadScene is a no-op in the stubs, so the scene script Awake is
     // invoked by hand exactly as Unity would run it after the load completes.
-    internal static class Program
+    internal static partial class Program
     {
         private static int _failures;
 
@@ -161,6 +161,7 @@ namespace FlowCheck
             IssueOneProofs(root);
             SceneReuseProof(root);
             ShiftFailureProof(root);
+            RetryProof(root);
             Night6Proof(root);
             AdminTalkProof(root);
             AdminHuntProof(root);
