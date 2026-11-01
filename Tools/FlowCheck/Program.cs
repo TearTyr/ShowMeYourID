@@ -371,22 +371,19 @@ namespace FlowCheck
             // a clean clock-out is a normal shift end
             FreshGame(root); ClickStickyNote(root);
             root.RequestEndShift();
-            Check(root.State == AppViewState.MainMenu && root.Session.LastShiftFailure == ShiftFailure.None,
-                "FAIL: clocking out clean goes straight to the main menu");
+            Check(root.State == AppViewState.ShiftIntro && root.Session.CurrentShift == 2 && root.Session.LastShiftFailure == ShiftFailure.None,
+                "FAIL: clocking out clean runs straight into the next night (marathon, no menu)");
+            Check(root.Saves.Read().Session.CurrentShift == 2, "FAIL: ...and the save already holds night 2, so a quit during the dim loses nothing");
 
             // clocking out with an anomaly let in: the night fails, the next one pays
             FreshGame(root); ClickStickyNote(root);
             root.Session.ShiftBreaches = 2;
             root.RequestEndShift();
-            Check(root.State == AppViewState.MainMenu && root.Session.LastShiftFailure == ShiftFailure.Breach,
-                "FAIL: clocking out with an anomaly let in fails the night (Breach), back at the main menu");
+            Check(root.State == AppViewState.ShiftIntro && root.Session.CurrentShift == root.Session.CompletedShifts + 1,
+                "FAIL: clocking out with an anomaly let in still runs on into the next night");
             Check(!root.ShiftFailing, "FAIL: the failure scene is over (input is live again)");
-            Check(root.Session.PendingPenaltySeverity == 2, "FAIL: two anomalies let in = severity 2");
-            string note = root.PenaltyNote();
-            Check(note != null && note.Contains("anomaly let in") && note.Contains("less sanity"),
-                "FAIL: the next night's intro says why it starts worse (" + note + ")");
-            root.AdvanceToNextShift();
-            Check(root.PenaltyNote() == null, "FAIL: ...and the note is spent once the penalty is paid");
+            Check(root.Dialogue.IsActive, "FAIL: the next night opens with its intro, which says why it starts worse");
+            Check(root.PenaltyNote() == null, "FAIL: ...and the penalty was paid at the start of that night");
             Check(Mathf.Abs(root.Session.Sanity - (100f - ShiftFailureRules.StartSanityLoss(2, 1))) < 1e-3f,
                 "FAIL: the next night starts with less sanity (84)");
             Check(root.Session.Stacks.Count == 2, "FAIL: ...with the drain stacks already up");
@@ -2204,8 +2201,10 @@ namespace FlowCheck
             Check(live("patrol"), "PATROL HALLWAY usable once no inspection is live");
 
             ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
+            int nightBeforeClockOut = root.Session.CurrentShift;
             btn("endshift").onClick.Invoke();
-            Check(root.State == AppViewState.MainMenu, "END SHIFT click clocks out to the menu (state=" + root.State + ")");
+            Check(root.State == AppViewState.ShiftIntro && root.Session.CurrentShift == nightBeforeClockOut + 1,
+                "END SHIFT click clocks out and the next night starts on its own, no menu (state=" + root.State + ", night " + root.Session.CurrentShift + ")");
         }
 
         private static void SaveContinueResume()
@@ -2506,7 +2505,7 @@ namespace FlowCheck
             cp.RefreshHud();
             ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
             Btn(root, "endshift").onClick.Invoke();
-            Check(root.State == AppViewState.MainMenu, "Q10: clocking out lands on the main menu");
+            Check(root.State == AppViewState.ShiftIntro && root.Session.CurrentShift == 2, "Q10: clocking out runs straight into the next night");
             root.QuitToMenu(true);
             root.ContinueGame();
             DeskScene.Build(root);

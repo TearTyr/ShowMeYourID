@@ -966,11 +966,12 @@ namespace Hollowbrook.LogicTests
             Check(!text.Contains((char)0x2014) && !text.Contains("procedurally"),
                   "the credits have no em dash and no stale 'generated at runtime' note");
             Check(text.Contains("Unity") && text.Contains("Bahnschrift"), "the credits thank the engine and the fonts");
-            bool storyboardOnlyClarence = false;
+            string[] storyboard = { "Jessie Mariel De Mesa", "Daniel Steven Solitaria", "Daniella Garing", "Diosdado Fabelico II" };
+            bool storyboardIsTeam = false;
             foreach (var sec in CreditsData.Team)
-                if (sec.Role == "STORYBOARD")
-                    storyboardOnlyClarence = sec.People.Length == 1 && sec.People[0] == "Clarence Manalo";
-            Check(storyboardOnlyClarence, "the storyboard credit is Clarence Manalo alone");
+                if (sec.Role == "STORYBOARD") storyboardIsTeam = string.Join("|", sec.People) == string.Join("|", storyboard);
+            Check(storyboardIsTeam, "the storyboard credit is Mariel, Daniel, Ella and Dio");
+            Check(!text.Contains("Clarence Manalo  -") || !text.Contains("STORYBOARD  -  Clarence"), "Clarence is no longer credited for the storyboard");
         }
 
         private static void InterviewRuleTests()

@@ -21,7 +21,7 @@ namespace FlowCheck
             {
                 ClickStickyNote(root);
                 root.RequestEndShift();
-                ContinueToDesk(root);
+                AdvanceDialogue(root);   // the next night starts by itself
             }
         }
 

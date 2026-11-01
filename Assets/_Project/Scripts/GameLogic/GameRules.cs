@@ -82,6 +82,8 @@ namespace Hollowbrook.Logic
         public float HuntFollowSeconds = 5f;            // he followed you into this room: time to find him
         public float HuntAmbushDelaySeconds = 1.2f;     // after you light him in a peek, he is behind you this long after you step out
         public float HuntAmbushPatienceSeconds = 5f;    // ...and if you stay in the peek, he comes into your room after this long
+        // ---- marathon: nights follow each other without the menu ----
+        public float NightDimSeconds = 1.4f;            // the screen dims this long between one night and the next
         // ---- the peek exit ----
         public float PeekBandAlpha = 0.45f;             // how see-through the step-back button is (0 = invisible, 1 = solid)
 
