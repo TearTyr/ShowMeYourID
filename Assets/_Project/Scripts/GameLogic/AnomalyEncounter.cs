@@ -12,8 +12,9 @@ namespace Hollowbrook.Logic
     ///               state is recoverable; the meter then decays per TrackingPolicy after the
     ///               grace window, it is not wiped.
     ///   Repelled  - meter >= RepelMeter: threat behavior and catch timers STOP (Threatening is
-    ///               judged on the new state); the entity physically retreats for
-    ///               ExposedBeatSeconds, then leaves the stage.
+    ///               judged on the new state); the entity runs backwards, facing the player, for at least
+    ///               ExposedBeatSeconds and until it is off screen (or RetreatMaxSeconds is up), then leaves
+    ///               the stage. It is never removed while the player can still see it.
     ///   Recovering- off-stage: the spawner's return timer owns the RecoverSeconds countdown
     ///               and re-enters the world as Roaming through a plausible location.
     /// Hallucinations never enter this machine; they use the Focus-seconds truth-check.</summary>
@@ -32,12 +33,13 @@ namespace Hollowbrook.Logic
     {
         public float RepelMeter;          // 0..1 tracking meter that constitutes "sustained light"
         public float ExposeMeter;         // meter at which accurate Focus first exposes the identity
-        public float ExposedBeatSeconds;  // how long a repelled anomaly visibly retreats before leaving
+        public float ExposedBeatSeconds;  // the shortest time a repelled anomaly visibly retreats before leaving
+        public float RetreatMaxSeconds;   // the longest it may take to get off screen: after this it leaves anyway
         public float RecoverSeconds;      // off-stage time before it may return
         public float ThreatRange;         // world units at which it can lunge/catch
         public static EncounterTuning Default => new EncounterTuning
         {
-            RepelMeter = 1f, ExposeMeter = 0.55f, ExposedBeatSeconds = 0.9f, RecoverSeconds = 14f, ThreatRange = 1.6f,
+            RepelMeter = 1f, ExposeMeter = 0.55f, ExposedBeatSeconds = 0.9f, RetreatMaxSeconds = 4f, RecoverSeconds = 14f, ThreatRange = 1.6f,
         };
     }
 
@@ -54,13 +56,15 @@ namespace Hollowbrook.Logic
     {
         public static EncounterStep Step(AnomalyState state, float meter, float stateTimer,
             bool illuminated, bool focused, bool batteryOk, float distanceToPlayer,
-            float dt, EncounterTuning t)
+            float dt, EncounterTuning t, bool retreatDone = true)
         {
             var r = new EncounterStep { State = state };
             switch (state)
             {
                 case AnomalyState.Repelled:
-                    if (stateTimer >= t.ExposedBeatSeconds) { r.State = AnomalyState.Recovering; stateTimer = 0f; }
+                    // retreatDone = it has left the screen; the timeout makes sure it can never get stuck on it
+                    bool leaves = stateTimer >= t.RetreatMaxSeconds || (retreatDone && stateTimer >= t.ExposedBeatSeconds);
+                    if (leaves) { r.State = AnomalyState.Recovering; stateTimer = 0f; }
                     break;
                 case AnomalyState.Recovering:
                     if (stateTimer >= t.RecoverSeconds) { r.State = AnomalyState.Roaming; r.JustRecovered = true; stateTimer = 0f; }

@@ -40,6 +40,12 @@ namespace Hollowbrook.World
         /// <summary>Half the width of the screen in world units (the framed peek view).</summary>
         public float ScreenHalfWidth => _cam.orthographicSize * _cam.aspect;
 
+        /// <summary>The middle of the screen along the room (the camera follows the player).</summary>
+        public float CameraX => _cam != null ? _cam.transform.position.x : 0f;
+
+        /// <summary>Is this x position past the edge of the screen, by at least the margin (a figure's half width)?</summary>
+        public bool IsOffScreen(float x, float margin) => Mathf.Abs(x - CameraX) > ScreenHalfWidth + margin;
+
         public Transform AnomalyRoot => _anomalyRoot != null ? _anomalyRoot.transform : null;
         public IReadOnlyList<WanderingAnomaly> Anomalies => _anomalies;
         public RoomSpawner Spawner => _spawner;   // exposed for headless diagnostics

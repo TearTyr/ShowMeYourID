@@ -459,9 +459,18 @@ namespace Hollowbrook.Checkpoint
 
         // The post-stamp beat: the mark lands, the subject leaves, the next steps up.
         // Deliberately wordless - feedback is the stamp, the sound, the walking figure.
+        // If the player opens the map (or anything else that takes the desk away) while this plays, the
+        // sequence waits for the desk to come back instead of quitting: quitting left the Principal's exit
+        // scene unplayed and the night stuck for good.
+        internal IEnumerator WaitForDesk()
+        {
+            while (_gameRoot.State == AppViewState.Map) yield return null;
+        }
+
         private IEnumerator AfterStamp(VisitorData resolved)
         {
             yield return WaitUnpaused(BannerSeconds);
+            yield return WaitForDesk();
             if (_gameRoot.State != AppViewState.Checkpoint) yield break;
 
             // the resolved visitor leaves the window; the oldest waiting visitor steps up
@@ -479,6 +488,7 @@ namespace Hollowbrook.Checkpoint
                 _gameRoot.PrepareAdminHunt();
                 RefreshHud();
                 yield return DimAndFlicker();
+                yield return WaitForDesk();
                 _gameRoot.PlayAdminExit();
                 yield break;
             }

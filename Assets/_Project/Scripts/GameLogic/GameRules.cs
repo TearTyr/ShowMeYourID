@@ -41,7 +41,7 @@ namespace Hollowbrook.Logic
         public float RefillOnCorrect = 8f;              // a correct decision gives this much...
         public float RefillPerSecond = 1.5f;            // ...at this speed
         public float FinalNightDrainPerSecond = 0.3f;   // night 5 and 6: sanity always drains, wherever you are
-        public float ChallengeDrainScale = 1.5f;        // ...and faster on night 6
+        public float ChallengeDrainScale = 2f;          // ...and faster on night 6
 
         // ---- what a failed night costs the next one ----
         public int MaxSeverity = 5;
@@ -76,12 +76,15 @@ namespace Hollowbrook.Logic
 
         // ---- the administrator hunt (the rest of its numbers are in the Game Config groups above) ----
         public float HuntBehindChance = 0.6f;           // in the hallway: he comes up behind the player
-        public float HuntSameRoomChance = 0.5f;         // peeking: he is in the room being looked into
         public float HuntRetreatSeconds = 1.5f;         // harmless after he leaves
         public float HuntHoldDecayPerSecond = 0.5f;     // the lamp hold drains this fast when you let go
-        public float HuntFollowSeconds = 5f;            // he followed you into this room: time to find him
-        public float HuntAmbushDelaySeconds = 1.2f;     // after you light him in a peek, he is behind you this long after you step out
-        public float HuntAmbushPatienceSeconds = 5f;    // ...and if you stay in the peek, he comes into your room after this long
+        public float HuntFollowSeconds = 5f;            // you look into the room he is in: you always get this long to find him
+        public float HuntAmbushDelayMinSeconds = 1f;    // after you step out of a peek he is behind you after a random wait of 1 to 2 s
+        public float HuntAmbushDelayMaxSeconds = 2f;
+        public float HuntAmbushPatienceSeconds = 5f;    // ...and if you stay in the peek, he gives up waiting and walks off after this long
+        public float HuntSwapRetreatSeconds = 0.5f;     // harmless time after he is dealt with in the hallway
+        public float HuntSwapAfterRepelSeconds = 2f;    // retreat and walk together: he is off to a classroom within this long
+        public float Night6SwapScale = 0.6f;            // night 6 shortens every one of his waits above to this share
         // ---- marathon: nights follow each other without the menu ----
         public float NightDimSeconds = 1.4f;            // the screen dims this long between one night and the next
         // ---- the peek exit ----

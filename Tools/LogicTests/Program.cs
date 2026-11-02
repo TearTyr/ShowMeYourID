@@ -186,6 +186,8 @@ namespace Hollowbrook.LogicTests
             Eq(caughtUnseen, 0, "timing out while the player is in the hallway is not a catch");
             Check(followedBehind > 0, "...he comes up behind them instead, where the beam can answer him");
 
+            // he never jumps into the room being peeked: he goes to wait behind the player instead
+            int enteredPeeked = 0, waiting = 0;
             for (int seed = 1; seed <= 300; seed++)
             {
                 var hunt = new AdminHunt(tuning, seed);
@@ -198,20 +200,48 @@ namespace Hollowbrook.LogicTests
                 var peekOther = new HuntInput { Peeking = true, PlayerRoom = other };
                 var ev = HuntEvent.None;
                 guard = 0;
-                while (hunt.Phase == HuntPhase.InRoom && hunt.Room == his && guard++ < 200) ev |= hunt.Tick(0.1f, peekOther);
+                while (hunt.Phase == HuntPhase.InRoom && guard++ < 200) ev |= hunt.Tick(0.1f, peekOther);
                 if ((ev & HuntEvent.Caught) != 0) caughtUnseen++;
-                if (hunt.Phase == HuntPhase.InRoom && hunt.Room == other && (ev & HuntEvent.EnteredRoom) != 0)
+                if (hunt.Phase == HuntPhase.Stalking) waiting++;
+                for (int i = 0; i < 120; i++)   // twelve more seconds of the player staying in that peek
                 {
-                    followedRoom++;
-                    Check(hunt.PhaseTimer >= tuning.RoomSeconds - GameRules.Current.HuntFollowSeconds - 0.001f,
-                        "the follower has only a short time left to be found");
+                    ev = hunt.Tick(0.1f, peekOther);
+                    if ((ev & HuntEvent.EnteredRoom) != 0 && hunt.Room == other) enteredPeeked++;
+                    if ((ev & (HuntEvent.AppearedBehind | HuntEvent.Caught)) != 0) enteredPeeked += 1000;
                 }
             }
             Eq(caughtUnseen, 0, "timing out while the player peeks another room is not a catch");
-            Check(followedRoom > 0, "...he goes to the room being peeked");
+            Eq(enteredPeeked, 0, "he never goes into the room being peeked, and never behind a player who is still peeking");
+            Check(waiting > 0, "...he leaves his room and waits for the player to step out");
 
-            // lit in a peek, he is behind the player the moment they step out, and comes in if they stay
-            int ambushed = 0, enteredAfterStay = 0, tried = 0;
+            // the player looks into the room he is in late: they still get a full fair chance, never a catch on the first look
+            int fairTried = 0, caughtOnLook = 0, fairCatchAfterFive = 0;
+            for (int seed = 1; seed <= 300; seed++)
+            {
+                var hunt = new AdminHunt(tuning, seed);
+                hunt.Start();
+                int guard = 0;
+                while (hunt.Phase != HuntPhase.InRoom && !hunt.Finished && guard++ < 5000) hunt.Tick(0.1f, inHall);
+                if (hunt.Phase != HuntPhase.InRoom) continue;
+                while (hunt.Phase == HuntPhase.InRoom && hunt.PhaseTimer < tuning.RoomSeconds - 0.15f && guard++ < 9000) hunt.Tick(0.05f, inHall);
+                if (hunt.Phase != HuntPhase.InRoom) continue;
+                fairTried++;
+                var lookNoLamp = new HuntInput { Peeking = true, PlayerRoom = hunt.Room, OnTarget = false };
+                var first = hunt.Tick(0.05f, lookNoLamp);
+                Check((first & HuntEvent.Spotted) != 0 && (first & HuntEvent.Caught) == 0, $"seed {seed}: the first look spots him and is never a catch");
+                float elapsed = 0f;
+                var ev = HuntEvent.None;
+                while (hunt.Phase == HuntPhase.InRoom && elapsed < 10f) { ev |= hunt.Tick(0.05f, lookNoLamp); elapsed += 0.05f; }
+                if ((ev & HuntEvent.Caught) != 0) caughtOnLook++;
+                float fair = GameRules.Current.HuntFollowSeconds;
+                if ((ev & HuntEvent.Caught) != 0 && elapsed >= fair - 0.2f) fairCatchAfterFive++;
+            }
+            Check(fairTried > 0 && caughtOnLook == fairTried && fairCatchAfterFive == fairTried,
+                $"a player who looks late still has at least {GameRules.Current.HuntFollowSeconds:F0} seconds before a catch ({fairCatchAfterFive}/{fairTried})");
+
+            // lit in a peek, he is behind the player 1 to 2 seconds after they step out, never inside the peek
+            int ambushed = 0, tried = 0, enteredWhileStaying = 0;
+            float quickest = 99f, slowest = 0f;
             for (int seed = 1; seed <= 200; seed++)
             {
                 var hunt = new AdminHunt(tuning, seed);
@@ -231,10 +261,19 @@ namespace Hollowbrook.LogicTests
                 Check((ev & (HuntEvent.AppearedBehind | HuntEvent.EnteredRoom | HuntEvent.Caught)) == 0,
                     $"seed {seed}: he waits while the player is still peeking");
                 ev = HuntEvent.None;
-                for (int i = 0; i < 20 && (ev & HuntEvent.AppearedBehind) == 0; i++) ev |= hunt.Tick(0.1f, inHall);   // two seconds out
-                if ((ev & HuntEvent.AppearedBehind) != 0 && hunt.Phase == HuntPhase.Behind) ambushed++;
+                float outSeconds = 0f;
+                while ((ev & HuntEvent.AppearedBehind) == 0 && outSeconds < 4f) { ev |= hunt.Tick(0.05f, inHall); outSeconds += 0.05f; }
+                if ((ev & HuntEvent.AppearedBehind) != 0 && hunt.Phase == HuntPhase.Behind)
+                {
+                    ambushed++;
+                    quickest = Math.Min(quickest, outSeconds);
+                    slowest = Math.Max(slowest, outSeconds);
+                }
             }
             Check(tried > 0 && ambushed == tried, $"after lighting him in a peek, he is behind the player soon after they step out ({ambushed}/{tried})");
+            Check(quickest >= tuning.AmbushDelayMinSeconds - 0.06f && slowest <= tuning.AmbushDelayMaxSeconds + 0.06f,
+                $"...after a wait of 1 to 2 seconds ({quickest:F2} to {slowest:F2})");
+            Check(slowest - quickest > 0.4f, "...drawn at random, so the player cannot time it");
             for (int seed = 1; seed <= 100; seed++)
             {
                 var hunt = new AdminHunt(tuning, seed);
@@ -248,11 +287,59 @@ namespace Hollowbrook.LogicTests
                 while (hunt.Phase == HuntPhase.InRoom && guard++ < 200) ev |= hunt.Tick(0.1f, onHim);
                 if ((ev & HuntEvent.Repelled) == 0) continue;
                 var stayIn = new HuntInput { Peeking = true, PlayerRoom = onHim.PlayerRoom };
-                ev = HuntEvent.None;
-                for (int i = 0; i < 200 && (ev & HuntEvent.EnteredRoom) == 0; i++) ev |= hunt.Tick(0.1f, stayIn);
-                if ((ev & HuntEvent.EnteredRoom) != 0) enteredAfterStay++;
+                for (int i = 0; i < 300; i++)   // thirty seconds in the same peek
+                {
+                    ev = hunt.Tick(0.1f, stayIn);
+                    if ((ev & HuntEvent.EnteredRoom) != 0 && hunt.Room == stayIn.PlayerRoom) enteredWhileStaying++;
+                    if ((ev & (HuntEvent.AppearedBehind | HuntEvent.Caught)) != 0) enteredWhileStaying += 1000;
+                }
             }
-            Check(enteredAfterStay > 0, "a player who stays in the peek is not safe: he comes into their room");
+            Eq(enteredWhileStaying, 0, "a player who stays in the peek is never followed into it and never ambushed there");
+
+            // stepping out of a peek (nobody lit) can bring him up behind them quickly, after the same 1 to 2 s breath
+            int quickBehind = 0;
+            float quickMin = 99f, quickMax = 0f;
+            for (int seed = 1; seed <= 300; seed++)
+            {
+                var hunt = new AdminHunt(tuning, seed);
+                hunt.Start();
+                var peeking = new HuntInput { Peeking = true, PlayerRoom = RoomId.Classroom1 };
+                for (int i = 0; i < 6; i++) hunt.Tick(0.05f, peeking);   // he is still walking when the player steps out
+                if (hunt.Phase != HuntPhase.Stalking) continue;
+                var ev = HuntEvent.None;
+                float t = 0f;
+                while ((ev & (HuntEvent.AppearedBehind | HuntEvent.EnteredRoom)) == 0 && t < 2.6f) { ev |= hunt.Tick(0.05f, inHall); t += 0.05f; }
+                if ((ev & HuntEvent.AppearedBehind) == 0) continue;
+                quickBehind++;
+                quickMin = Math.Min(quickMin, t);
+                quickMax = Math.Max(quickMax, t);
+            }
+            Check(quickBehind > 0 && quickMin >= tuning.AmbushDelayMinSeconds - 0.1f && quickMax <= tuning.AmbushDelayMaxSeconds + 0.1f,
+                $"stepping out of a peek can bring him behind the player after 1 to 2 seconds ({quickBehind} times, {quickMin:F2} to {quickMax:F2})");
+
+            // dealt with in the hallway: no extra wait, he is off to a classroom within 2 seconds in all
+            int swaps = 0, swapTried = 0;
+            float slowestSwap = 0f;
+            for (int seed = 1; seed <= 300; seed++)
+            {
+                var hunt = new AdminHunt(tuning, seed);
+                hunt.Start();
+                int guard = 0;
+                while (hunt.Phase != HuntPhase.Behind && !hunt.Finished && guard++ < 6000) hunt.Tick(0.05f, inHall);
+                if (hunt.Phase != HuntPhase.Behind) continue;
+                swapTried++;
+                var flash = new HuntInput { InHallway = true, PlayerRoom = RoomId.Hallway, BeamOnFace = true };
+                var ev = hunt.Tick(0.05f, flash);
+                guard = 0;
+                while ((ev & HuntEvent.Repelled) == 0 && guard++ < 100) ev |= hunt.Tick(0.05f, flash);
+                float t = 0f;
+                ev = HuntEvent.None;
+                while ((ev & (HuntEvent.EnteredRoom | HuntEvent.AppearedBehind)) == 0 && t < 4f) { ev |= hunt.Tick(0.05f, inHall); t += 0.05f; }
+                slowestSwap = Math.Max(slowestSwap, t);
+                if ((ev & HuntEvent.EnteredRoom) != 0 && t <= tuning.SwapAfterRepelSeconds + 0.06f) swaps++;
+            }
+            Check(swapTried > 0 && swaps == swapTried,
+                $"after he is dealt with in the hallway he swaps to a classroom within 2 seconds ({swaps}/{swapTried}, slowest {slowestSwap:F2}s)");
 
             // a hunt left half way starts again where it was, and never with more than a fresh one
             var resumed = new AdminHunt(tuning, 3);
@@ -1330,7 +1417,7 @@ namespace Hollowbrook.LogicTests
                 float limit = h.Phase == HuntPhase.InRoom ? tun.RoomSeconds
                     : h.Phase == HuntPhase.Behind ? tun.BehindSeconds
                     : h.Phase == HuntPhase.Retreat ? tun.RetreatSeconds
-                    : h.Phase == HuntPhase.Stalking ? tun.StalkMaxSeconds : float.MaxValue;
+                    : h.Phase == HuntPhase.Stalking ? tun.StalkMaxSeconds + GameRules.Current.HuntAmbushPatienceSeconds : float.MaxValue;
                 if (h.PhaseTimer > limit + dt + 0.01f) { seconds = t; catches = -2; return HuntPhase.Stalking; }
             }
             seconds = t;
@@ -1338,7 +1425,7 @@ namespace Hollowbrook.LogicTests
             return h.Phase;
         }
 
-        // He goes for the player: behind them in the hallway, and in the room they peek into.
+        // He goes for the player: behind them in the hallway, and in a room other than the one they peek into.
         private static void HuntTargetingTests()
         {
             Group("AdminHunt - he goes for the player");
@@ -1361,8 +1448,8 @@ namespace Hollowbrook.LogicTests
             }
             Check(behind > hallwayPicks * 0.5, $"walking the hallway, he comes up behind the player most of the time ({behind}/{hallwayPicks})");
             Check(otherRooms == 0, "...and never behind a player who is peeking");
-            Check(sameRoom > peekPicks * 0.4, $"peeking into a room, he is often in that very room ({sameRoom}/{peekPicks})");
-            Check(sameRoom < peekPicks * 0.8, "...but not every time, so the other rooms still matter");
+            Eq(sameRoom, 0, "peeking into a room, he is never in that very room");
+            Check(peekPicks > 0, "...he goes to one of the other rooms instead");
         }
 
         private static void AdminHuntTests()
@@ -1972,6 +2059,14 @@ namespace Hollowbrook.LogicTests
                 "losing focus before the meter fills falls back with no free repel");
             Check(S(AnomalyState.Repelled, 1f, t2.ExposedBeatSeconds, true, true, 9f).State == AnomalyState.Recovering,
                 "after the retreat beat the anomaly leaves the stage");
+            Check(AnomalyEncounter.Step(AnomalyState.Repelled, 1f, t2.ExposedBeatSeconds + 0.5f, true, true, true, 9f, 0.1f, t2, false).State == AnomalyState.Repelled,
+                "a repelled anomaly that is still on screen keeps running, even after the beat");
+            Check(AnomalyEncounter.Step(AnomalyState.Repelled, 1f, t2.ExposedBeatSeconds - 0.1f, true, true, true, 9f, 0.1f, t2, true).State == AnomalyState.Repelled,
+                "even if it is already off screen it shows the whole retreat beat first");
+            Check(AnomalyEncounter.Step(AnomalyState.Repelled, 1f, t2.RetreatMaxSeconds, true, true, true, 9f, 0.1f, t2, false).State == AnomalyState.Recovering,
+                "the timeout takes it away even if it never got off screen, so it can never get stuck");
+            Check(t2.RetreatMaxSeconds > t2.ExposedBeatSeconds, "the retreat timeout is longer than the retreat beat");
+            Check(BehaviorTuning.Default.RetreatSpeed >= 8f, "a repelled anomaly runs backwards fast (at least 8 units a second)");
             var rec = S(AnomalyState.Recovering, 0f, t2.RecoverSeconds, false, false, 9f);
             Check(rec.State == AnomalyState.Roaming && rec.JustRecovered, "recovery completes exactly once");
             Check(!S(AnomalyState.Repelled, 1f, 0f, true, true, 0.4f).Threatening, "a repelled anomaly next to you is not threatening");

@@ -376,6 +376,16 @@ namespace FlowCheck
                   t6.RoomSeconds < cfg.huntRoomSeconds && t6.BehindSeconds < cfg.huntBehindSeconds,
                 "N6: a longer night, shorter stalks and less time to react");
             Check(t6.StalkMinSeconds <= t6.StalkMaxSeconds, "N6: the stalk range stays sane");
+            var mode5 = root.Session.Mode;
+            root.Session.Mode = GameMode.Normal;
+            var t5 = root.BuildHuntTuning();
+            root.Session.Mode = mode5;
+            Check(t6.RoomHoldSeconds > t5.RoomHoldSeconds && t6.BeamHitSeconds > t5.BeamHitSeconds && t6.StalkMinSeconds < t5.StalkMinSeconds,
+                "N6: the lamp must stay longer on him, the beam longer on his face, and he walks less between stops than night 5");
+            Check(t6.AmbushDelayMaxSeconds < t5.AmbushDelayMaxSeconds && t6.SwapAfterRepelSeconds < t5.SwapAfterRepelSeconds &&
+                  t6.AmbushDelayMinSeconds > 0.3f && t6.BehindSeconds >= 3f,
+                "N6: his swaps come quicker than night 5 (still a breath after a peek) and he still walks up over at least 3 seconds");
+            Check(GameRules.Current.ChallengeDrainScale > 1.5f, "N6: sanity drains faster than night 5");
 
             // the DENY stamp starts the pursuit, like night 5
             StampSlip(root, Verdict.Reject);
@@ -514,6 +524,22 @@ namespace FlowCheck
                 capBg.gameObject.SetActive(false);
                 root.Checkpoint.Ask(QuestionId.Classroom);
                 Check(!capBg.gameObject.activeSelf, "CAP: asking a question shows no caption at all");
+            }
+
+            // SOFTLOCK: the map opened while the stamp sequence plays must not end it (it used to stop the Principal's
+            // exit scene for good); the sequence waits for the desk, and the map stays shut during a conversation
+            {
+                FreshGame(root); ClickStickyNote(root);
+                root.OpenMap();
+                Check(root.State == AppViewState.Map, "SOFTLOCK: the map opens on a quiet desk");
+                var waiter = root.Checkpoint.WaitForDesk();
+                Check(waiter.MoveNext(), "SOFTLOCK: the stamp sequence waits while the map is open");
+                root.CloseMap();
+                Check(!waiter.MoveNext() && root.State == AppViewState.Checkpoint, "SOFTLOCK: it carries on once the map is closed");
+                root.Dialogue.Play(new List<DialogueLine> { new DialogueLine { Speaker = "TEST", Text = "talking" } }, null);
+                root.OpenMap();
+                Check(root.State == AppViewState.Checkpoint, "SOFTLOCK: the map does not open over a conversation");
+                root.Dialogue.Hide();
             }
 
             // a failed night is played again, not skipped: Continue stays on it, with the penalty
@@ -3506,13 +3532,23 @@ namespace FlowCheck
             float px = views.Player.transform.localPosition.x;
             float distAtRepel = Mathf.Abs(an.Pos.x - px);
             float maxApproach = 0f;
+            float lastX = an.Pos.x, topSpeed = 0f;
+            bool keptFacing = true, wasOnScreenWhenGone = false;
             g = 0;
-            while (!an.Gone && g++ < 200)
+            while (!an.Gone && g++ < 300)
             {
+                lastX = an.Pos.x;
                 WorldFrame(root);
                 maxApproach = Mathf.Max(maxApproach, distAtRepel - Mathf.Abs(an.Pos.x - px));
+                if (an.Gone) { wasOnScreenWhenGone = !views.IsOffScreen(lastX, 0f); break; }
+                topSpeed = Mathf.Max(topSpeed, Mathf.Abs(an.Pos.x - lastX) / Time.deltaTime);
+                keptFacing &= an.Renderer.flipX == (px < an.Pos.x);
             }
             Check(an.Gone, $"W5: after the retreat beat the anomaly leaves the stage (frames={g})");
+            Check(!wasOnScreenWhenGone, "W5: it is only taken away once it is off screen: nobody sees it vanish");
+            Check(topSpeed >= 8f, $"W5: it runs backwards fast ({topSpeed:F1} units a second)");
+            Check(keptFacing, "W5: it keeps facing the player while it retreats, it never turns to run");
+            Check(g <= 60f * (cfg.repelRetreatMaxSeconds + 0.5f), $"W5: the retreat timeout holds, it cannot get stuck on screen (frames={g})");
             Check(maxApproach < 0.2f, $"W5: while repelled it never closes back on the player (max approach {maxApproach:F2}u)");
             Check(views.Anomalies.Count == 0 && views.Spawner.Live == null, "W5: the live slot is released");
             Check(root.Session.Pool.Pending == poolBefore - 1,

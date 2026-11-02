@@ -45,6 +45,7 @@ MonoBehaviour:
   focusGraceSeconds: 0.35
   exposeMeterThreshold: 0.55
   repelBeatSeconds: 0.9
+  repelRetreatMaxSeconds: 4
   anomalyRecoverySeconds: 14
   anomalyThreatRange: 1.6
   anomalySpeedBlink: 1.15
@@ -56,7 +57,7 @@ MonoBehaviour:
   sprintDashSeconds: 1.4
   sprintRecoverSeconds: 1.4
   sprintAggroRange: 9
-  anomalyRetreatSpeed: 3.2
+  anomalyRetreatSpeed: 9
   beamPace: 0.5
   catchGraceBlink: 2.2
   catchGraceSlide: 2.4

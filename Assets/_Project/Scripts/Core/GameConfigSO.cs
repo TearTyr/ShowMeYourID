@@ -128,23 +128,23 @@ namespace Hollowbrook.Core
         [Tooltip("Catches until he reaches the server door on night 6.")][Range(1, 10)]
         public int night6CatchesToLose = 2;
         [Tooltip("Seconds to survive until dawn on night 6.")][Range(30f, 900f)]
-        public float night6SurviveSeconds = 270f;
+        public float night6SurviveSeconds = 300f;
         [Tooltip("Seconds taken off night 6 for every lie exposed.")][Range(0f, 60f)]
         public float night6SecondsPerLie = 10f;
         [Tooltip("Night 6 is never shorter than this.")][Range(30f, 600f)]
-        public float night6MinSurviveSeconds = 150f;
+        public float night6MinSurviveSeconds = 180f;
         [Tooltip("How long he walks between stops on night 6 (min / max).")][Range(1f, 30f)]
-        public float night6StalkMinSeconds = 2f;
+        public float night6StalkMinSeconds = 1.5f;
         [Range(1f, 40f)]
-        public float night6StalkMaxSeconds = 4f;
+        public float night6StalkMaxSeconds = 3f;
         [Tooltip("Seconds to find him in the room he stopped in, night 6.")][Range(3f, 30f)]
-        public float night6RoomSeconds = 6f;
+        public float night6RoomSeconds = 5f;
         [Tooltip("Seconds the lamp must stay on his head, night 6.")][Range(0.3f, 10f)]
-        public float night6RoomHoldSeconds = 2.4f;
+        public float night6RoomHoldSeconds = 2.6f;
         [Tooltip("Seconds he takes to walk up to you from off screen, night 6.")][Range(1f, 10f)]
-        public float night6BehindSeconds = 3.5f;
+        public float night6BehindSeconds = 3.2f;
         [Tooltip("Seconds of beam on his face that count as a hit, night 6.")][Range(0.1f, 2f)]
-        public float night6BeamHitSeconds = 0.5f;
+        public float night6BeamHitSeconds = 0.55f;
 
         [Header("Encounter - repel meter")]
         [Tooltip("Meter per second while Focus holds the anomaly's body (the only way to progress).")][Range(0.05f, 2f)]
@@ -155,8 +155,10 @@ namespace Hollowbrook.Core
         public float focusGraceSeconds = TrackingPolicy.GraceSeconds;
         [Tooltip("Meter needed before accurate Focus exposes the corrupted identity.")][Range(0.05f, 0.95f)]
         public float exposeMeterThreshold = 0.55f;
-        [Tooltip("Seconds a repelled anomaly visibly retreats before it slips away.")][Range(0.2f, 5f)]
+        [Tooltip("The shortest time a repelled anomaly visibly retreats before it slips away (it also has to be off screen).")][Range(0.2f, 5f)]
         public float repelBeatSeconds = 0.9f;
+        [Tooltip("The longest a repelled anomaly may take to get off screen. After this it leaves anyway, so it can never get stuck.")][Range(1f, 10f)]
+        public float repelRetreatMaxSeconds = 4f;
         [Tooltip("Off-stage seconds before a repelled anomaly may return elsewhere.")][Range(2f, 60f)]
         public float anomalyRecoverySeconds = 14f;
 
@@ -181,8 +183,8 @@ namespace Hollowbrook.Core
         public float sprintRecoverSeconds = 1.4f;
         [Tooltip("Distance inside which Sprint winds up.")][Range(2f, 16f)]
         public float sprintAggroRange = 9f;
-        [Tooltip("How fast a repelled anomaly withdraws from the player.")][Range(1f, 8f)]
-        public float anomalyRetreatSpeed = 3.2f;
+        [Tooltip("How fast a repelled anomaly runs backwards, away from the player (units per second).")][Range(1f, 20f)]
+        public float anomalyRetreatSpeed = 9f;
         [Tooltip("Speed multiplier while any flashlight beam is on an anomaly (0.5 = half speed). Focus is still what repels it.")][Range(0.1f, 1f)]
         public float beamPace = 0.5f;
         [Tooltip("Continuous threatening seconds before each behavior catches the player. Fair warning cue plays first.")][Range(0.5f, 6f)]
