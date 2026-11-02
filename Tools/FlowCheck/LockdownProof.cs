@@ -109,7 +109,7 @@ namespace FlowCheck
             for (int i = 0; i < 13 && root.State != AppViewState.Ending; i++) StampCorrectly(root);
             Check(root.State == AppViewState.Ending && root.Session.LockdownStrikes == 0, "LD: thirteen right calls clear the line and win");
             Check(AgainLabel(root) == "TRY AGAIN", "LD: and the win offers TRY AGAIN too");
-            var summary = FindDeep(root.Ending.transform, "body").GetComponent<UnityEngine.UI.Text>().text;
+            var summary = root.Ending.SummaryText;
             Check(summary.Contains("FLAWLESS"), "LD: no mistakes ranks FLAWLESS (" + summary.Replace("\n", " / ") + ")");
             Check(SaveText() == storyBefore, "LD: the win leaves the story save untouched too");
 

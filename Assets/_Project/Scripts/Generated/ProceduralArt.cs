@@ -29,7 +29,12 @@ namespace Hollowbrook.Scenes
         // torn top/bottom/right edges to ~140. (x=left, y=bottom, z=right, w=top -
         // UnityEngine's Sprite.border order.)
         private static readonly Dictionary<string, Vector4> FileBorders =
-            new Dictionary<string, Vector4> { { "sec_bubble", new Vector4(480f, 140f, 140f, 140f) } };
+            new Dictionary<string, Vector4>
+            {
+                { "sec_bubble", new Vector4(480f, 140f, 140f, 140f) },
+                // the black report card on the end screen keeps its torn edge at any size (the desk uses it stretched)
+                { "sec_qpanel", new Vector4(40f, 40f, 40f, 40f) },
+            };
 
         // pixelsPerUnit overrides for kit masters authored at print resolution: sec_bubble's
         // 2879x1031 texture maps to ~288x103 reference units at PPU 10, so its 480px tail slice
