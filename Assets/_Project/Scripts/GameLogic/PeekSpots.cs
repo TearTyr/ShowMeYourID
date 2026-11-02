@@ -5,9 +5,6 @@ namespace Hollowbrook.Logic
     /// <summary>What stands in a peek room. Any room can hold any of the three.</summary>
     public enum PeekKind { Hood, Slide, Coverhug }
 
-    /// <summary>What it does while the lamp is on it: stays where it stands, or rushes at the camera.</summary>
-    public enum PeekReaction { Still, Rush }
-
     public struct PeekSpot
     {
         public float X;       // where it stands, along the room
@@ -135,13 +132,6 @@ namespace Hollowbrook.Logic
 
         /// <summary>Which of the room's three spots it stands at tonight.</summary>
         public static int SpotIndexIn(int seed, int shift, RoomId room) => Roll(seed, shift, room, 0x22).NextInt(0, 3);
-
-        /// <summary>Some rush at the camera while the lamp is on them, some just stand there. The hanger never moves.</summary>
-        public static PeekReaction ReactionIn(int seed, int shift, RoomId room)
-        {
-            if (KindIn(seed, shift, room) == PeekKind.Coverhug) return PeekReaction.Still;
-            return Roll(seed, shift, room, 0x33).Chance(0.5f) ? PeekReaction.Rush : PeekReaction.Still;
-        }
     }
 
     /// <summary>How fast the lamp clears a figure it is held on (pure). The plain wide lamp works, it is just

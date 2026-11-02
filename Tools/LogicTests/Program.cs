@@ -3162,7 +3162,7 @@ namespace Hollowbrook.LogicTests
             Check(PeekSpots.FrontHeight(PeekKind.Hood) > 3.2f, "the hooded figure is bigger than the first version (3.2)");
 
             // what a room holds, and the night's rolls
-            int slides = 0, hangers = 0, hoods = 0, rushes = 0, stills = 0, slidesInClassrooms = 0, hangersInClassrooms = 0;
+            int slides = 0, hangers = 0, hoods = 0, slidesInClassrooms = 0, hangersInClassrooms = 0;
             for (int seed = 1; seed <= 200; seed++)
                 for (int night = 1; night <= 4; night++)
                 {
@@ -3176,18 +3176,14 @@ namespace Hollowbrook.LogicTests
                         if (kind == PeekKind.Hood) hoods++;
                         if (kind == PeekKind.Slide) { slides++; if (classroom) slidesInClassrooms++; }
                         if (kind == PeekKind.Coverhug) { hangers++; if (classroom) hangersInClassrooms++; }
-                        var reaction = PeekSpots.ReactionIn(seed, night, room);
-                        if (kind == PeekKind.Coverhug) Check(reaction == PeekReaction.Still, "the hanger never moves");
-                        if (reaction == PeekReaction.Rush) rushes++; else stills++;
                         int index = PeekSpots.SpotIndexIn(seed, night, room);
                         Check(index >= 0 && index < 3, "the spot index is one of three");
-                        Check(PeekSpots.KindIn(seed, night, room) == kind && PeekSpots.ReactionIn(seed, night, room) == reaction
+                        Check(PeekSpots.KindIn(seed, night, room) == kind
                               && PeekSpots.SpotIndexIn(seed, night, room) == index, "the same night gives the same answers");
                     }
                 }
             Check(slides > 200 && hangers > 200 && hoods > 200, "every kind turns up (" + hoods + " / " + slides + " / " + hangers + ")");
             Check(slidesInClassrooms > 100 && hangersInClassrooms > 100, "the crouched one and the hanger also stand in classrooms (" + slidesInClassrooms + " / " + hangersInClassrooms + ")");
-            Check(rushes > 200 && stills > 200, "some rush and some stay still (" + rushes + " / " + stills + ")");
 
             // clearing speed: 2 seconds plain, 1.3 times faster with Focus, draining when the lamp leaves
             Check(Math.Abs(PeekClear.SecondsToClear(false, 2f) - 2f) < 1e-4f, "plain: two seconds");
@@ -3213,7 +3209,7 @@ namespace Hollowbrook.LogicTests
             Check(CaptionPolicy.Allow(103f, 100f, "b", "a", true), "an urgent caption is always shown");
 
             var pool = new PatrolPool();
-            pool.Seed(new[] { AnomalyBehaviorKind.Blink, AnomalyBehaviorKind.Slide, AnomalyBehaviorKind.Sprint, AnomalyBehaviorKind.CoverHug });
+            pool.Seed(new[] { AnomalyBehaviorKind.Sprint, AnomalyBehaviorKind.CoverHug });
             var rng = new GameRng(77);
             var last = pool.PeekKind(rng);
             bool never = true;
@@ -3224,6 +3220,21 @@ namespace Hollowbrook.LogicTests
                 last = next;
             }
             Check(never, "the pool never hands out the same kind twice in a row while others wait");
+
+            // the crouched picture (Blink, Slide) never walks the hallway
+            Check(PatrolPool.HallwayKinds.Length == 2 && PatrolPool.IsHallwayKind(AnomalyBehaviorKind.Sprint) && PatrolPool.IsHallwayKind(AnomalyBehaviorKind.CoverHug),
+                "the hallway kinds are the runner and the hanger");
+            Check(!PatrolPool.IsHallwayKind(AnomalyBehaviorKind.Slide) && !PatrolPool.IsHallwayKind(AnomalyBehaviorKind.Blink),
+                "Slide and Blink are not hallway kinds");
+            var empty = new PatrolPool();
+            bool onlyHallway = true;
+            var emptyRng = new GameRng(5);
+            for (int i = 0; i < 200; i++) onlyHallway &= PatrolPool.IsHallwayKind(empty.PeekKind(emptyRng));
+            Check(onlyHallway, "an empty pool still only hands out hallway kinds");
+            var saved = new PatrolPool();
+            saved.Decode("0,1,2,3");
+            Eq(saved.Pending, 2, "an old save with the crouched kinds loads only the runner and the hanger");
+            Check(PatrolPool.IsHallwayKind(PatrolPool.PhantomKind), "a hallucination uses a hallway shape, never the crouched one");
         }
 
         private static void CheckpointQueueTests()

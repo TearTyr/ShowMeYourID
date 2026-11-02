@@ -3905,7 +3905,8 @@ namespace FlowCheck
             Check(fresh.Live != null, "AN: an anomaly is already waiting when the patrol starts, from night 1, without a dice roll");
             if (fresh.Live != null)
             {
-                Check(fresh.Live.Renderer.sprite == ProceduralArt.Get("char_anomaly"), "AN: it uses the real creature art");
+                Check(fresh.Live.Renderer.sprite != null && ProceduralArt.IsFileBacked(fresh.Live.Renderer.sprite.name) && PatrolPool.IsHallwayKind(fresh.Live.Kind),
+                    "AN: it is a hallway kind (the runner or the hanger, never the crouched one) and uses real creature art");
                 Check(fresh.Live.Room.Id == RoomId.Hallway, "AN: roaming anomalies walk the hallway only");
             }
             {
@@ -3979,13 +3980,12 @@ namespace FlowCheck
                 "AN: the plain lamp on his body starts to clear him, and he is still there after half a second");
             Check(views.Flashlight.Battery < 0.999f && views.Flashlight.Battery > 0.5f,
                 "AN: the peek lamp runs the same battery down while it is lit (" + views.Flashlight.Battery.ToString("F3") + ")");
-            if (views.PeekedAnomaly.Reaction == PeekReaction.Rush)
-                Check(views.PeekedAnomaly.transform.localPosition != hiderPos && views.PeekedAnomaly.CurrentHeight > heightBefore,
-                    "AN: one that rushes jumps closer and bigger while the lamp holds");
-            else
-                Check(views.PeekedAnomaly.transform.localPosition == hiderPos,
-                    "AN: one that stays still stays exactly where it stands while the lamp holds");
-            WorldFrames(root, 140);
+            Check(views.PeekedAnomaly.transform.localPosition == hiderPos && Mathf.Abs(views.PeekedAnomaly.CurrentHeight - heightBefore) < 0.0001f,
+                "AN: every figure stays exactly where it stands, at its size, while the lamp holds (nothing shakes or grows)");
+            WorldFrames(root, 70);
+            Check(views.PeekedAnomaly.transform.localPosition == hiderPos && Mathf.Abs(views.PeekedAnomaly.CurrentHeight - heightBefore) < 0.0001f,
+                "AN: ...and still does later in the hold");
+            WorldFrames(root, 70);
             Check(!lamp.Locked && (root.Session.PeekAnomaliesGone & bit) == 0, "AN: the plain wide lamp is not done at about 2.8 seconds (it is slow)");
             WorldFrames(root, 20);
             Check(lamp.Locked && (root.Session.PeekAnomaliesGone & bit) != 0 && (root.Session.ClearedRooms & bit) != 0,

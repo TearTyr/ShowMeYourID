@@ -70,7 +70,7 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | How often the white caption text may show, and which captions always show | `GameLogic/CaptionPolicy.cs`; urgent ones are sent as `EventIds.CaptionUrgent` |
 | How often small wrong noises and lamp stutters happen on patrol | `Horror/HallucinationSystem.cs` > `TickDread` |
 | The peek lamp size | `World/PeekLight.cs` (`Radius`, `FocusRadius`) |
-| The figures in the peek rooms (where they stand, how big, how long the lamp must stay on them, who rushes, the black, the fade back) | `GameLogic/PeekSpots.cs`, `World/PeekAnomaly.cs`, `GameConfig.asset` > `peekClearSeconds` |
+| The figures in the peek rooms (where they stand, how big, how long the lamp must stay on them, the black, the fade back) | `GameLogic/PeekSpots.cs`, `World/PeekAnomaly.cs`, `GameConfig.asset` > `peekClearSeconds` |
 | How much a plain flashlight beam slows a patrol anomaly | `GameConfig.asset` > `beamPace` (0.5 = half speed) |
 | The Night 1 tutorial (the steps, their words, what each holds still) | `GameLogic/TutorialSteps.cs`; the box is `UI/TutorialGuide.cs`; the glue is `Core/GameRoot.Tutorial.cs` |
 | Lockdown (seconds per face, mistakes allowed, arrival speed, who comes) | `GameLogic/Lockdown.cs` (`LockdownRules`), the night row `LockdownNight` in `GameRules.Tables.cs` |
