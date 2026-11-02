@@ -285,7 +285,7 @@ namespace Hollowbrook.World
             EnsurePeekLight();
             _peekLight.Enter(Current);   // every peek starts with the lamp ON, so what waits in the room reacts at once
             if (_gameRoot.PeekAnomalyIn(id))
-                _peekAnomaly = PeekAnomaly.Place(_gameRoot, Current, _peekLight, _gameRoot.Session.Seed + _gameRoot.Session.CurrentShift * 131 + (int)id * 53);
+                _peekAnomaly = PeekAnomaly.Place(_gameRoot, Current, _peekLight);
             _cam.transform.position = new Vector3(0f, 0f, -10f);   // frozen frame of the room
             Transitioning = false;           // the player may already act, the fade-in is only looks
             if (_leaveWhenOpen) { _leaveWhenOpen = false; ExitPeek(); yield break; }

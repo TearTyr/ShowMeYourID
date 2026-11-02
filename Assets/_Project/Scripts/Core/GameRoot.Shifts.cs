@@ -125,11 +125,12 @@ namespace Hollowbrook.Core
             // anomalies are met at the window only and owe the patrol nothing
             bool noPatrol = CurrentShiftDef.HasAdministrator || CurrentShiftDef.Lockdown;   // Lockdown has no patrol at all
             int owedToPatrol = noPatrol ? 0 : CurrentShiftDef.AnomalyCount;
-            // the four kinds are dealt out in turn from a random start, so a patrol meets different ones
+            // the hallway kinds are dealt out in turn from a random start, so a patrol meets different ones
             // (a plain random pick could hand out the same kind every night)
-            int firstKind = krng.NextInt(0, 4);
+            var hallway = PatrolPool.HallwayKinds;
+            int firstKind = krng.NextInt(0, hallway.Length);
             for (int i = 0; i < owedToPatrol; i++)
-                kinds.Add((AnomalyBehaviorKind)((firstKind + i) % 4));
+                kinds.Add(hallway[(firstKind + i) % hallway.Length]);
             if (!keepPool) Session.Pool.Seed(kinds);
         }
 

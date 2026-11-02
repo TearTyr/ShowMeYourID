@@ -6,6 +6,16 @@ namespace Hollowbrook.Logic
     [Serializable]
     public class PatrolPool
     {
+        /// <summary>The only kinds that wander the hallway on patrol: the runner and the ceiling hanger. The crouched
+        /// picture (Blink and Slide) belongs to the peek rooms, so it never walks the hallway. The enum keeps all four
+        /// values so saves stay readable.</summary>
+        public static readonly AnomalyBehaviorKind[] HallwayKinds = { AnomalyBehaviorKind.Sprint, AnomalyBehaviorKind.CoverHug };
+
+        /// <summary>What a hallucination looks like: the ceiling hanger drifting, harmless and fading on its own.</summary>
+        public const AnomalyBehaviorKind PhantomKind = AnomalyBehaviorKind.CoverHug;
+
+        public static bool IsHallwayKind(AnomalyBehaviorKind kind) => System.Array.IndexOf(HallwayKinds, kind) >= 0;
+
         private readonly List<AnomalyBehaviorKind> _pending = new List<AnomalyBehaviorKind>();
         private AnomalyBehaviorKind _lastMet = (AnomalyBehaviorKind)(-1);   // the kind PeekKind handed out last
 
@@ -20,7 +30,7 @@ namespace Hollowbrook.Logic
 
         public AnomalyBehaviorKind PeekKind(GameRng rng)
         {
-            if (_pending.Count == 0) return (AnomalyBehaviorKind)rng.NextInt(0, 4);
+            if (_pending.Count == 0) return HallwayKinds[rng.NextInt(0, HallwayKinds.Length)];
             // a patrol meets a different kind each time: skip the kind it just met when another is waiting
             var choices = new List<AnomalyBehaviorKind>();
             foreach (var kind in _pending)
@@ -41,7 +51,7 @@ namespace Hollowbrook.Logic
             foreach (var part in s.Split(','))
             {
                 int v;
-                if (int.TryParse(part, out v) && v >= 0 && v <= 3) _pending.Add((AnomalyBehaviorKind)v);
+                if (int.TryParse(part, out v) && v >= 0 && v <= 3 && IsHallwayKind((AnomalyBehaviorKind)v)) _pending.Add((AnomalyBehaviorKind)v);   // an old save cannot bring the crouched one back
             }
         }
     }
