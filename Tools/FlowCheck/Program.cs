@@ -3941,6 +3941,7 @@ namespace FlowCheck
             var bodyPrompt = FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>();
             WorldFrames(root, 2);
             string ownPrompt = bodyPrompt.text;
+            root.Session.PeekLeftBehind = 0;   // (a figure left standing would make this door a jumpscare, not a peek)
             root.EnterRoomPeek(peekedRoom);
             AimAt(views.Current.Interactables[0].AnchorX, views.Current.Interactables[0].AnchorY);
             WorldFrames(root, 2);
@@ -3983,6 +3984,7 @@ namespace FlowCheck
 
             Check(fresh.Live == null, "AN: (the spawner test anomaly is cleared)");
             root.Session.PeekAnomaliesGone = 0;
+            root.Session.PeekLeftBehind = 0;
             root.Session.ClearedRooms = 0;
             var peekRooms = new[] { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 };
             int standing = 0;
@@ -4154,6 +4156,39 @@ namespace FlowCheck
                       "AN: an empty room has nothing in it and counts at once");
                 PressKey(root, KeyCode.S);
                 WorldFrames(root, 2);
+            }
+
+            // leaving a figure standing makes its door a jumpscare the next time it opens
+            {
+                root.Session.PeekAnomaliesGone = 0;
+                root.Session.ClearedRooms = 0;
+                root.Session.PeekLeftBehind = 0;
+                AimAt(40f, 40f);   // keep the lamp away from the figure
+                root.EnterRoomPeek(withOne);
+                WorldFrames(root, 5);
+                Check(views.PeekedAnomaly != null, "DOOR: the figure is standing in the room");
+                PressKey(root, KeyCode.S);
+                for (int f = 0; f < 400 && views.PeekActive; f++) WorldFrame(root);
+                Check(!views.PeekActive && (root.Session.PeekLeftBehind & bit) != 0, "DOOR: stepping out with it still there marks that door");
+                root.PersistRun();
+                Check(root.Saves.Read().Session.PeekLeftBehind == root.Session.PeekLeftBehind, "DOOR: the mark is saved");
+                root.Session.Sanity = 80f;
+                float sanityBeforeDoor = root.Session.Sanity;
+                root.EnterRoomPeek(withOne);
+                WorldFrames(root, 5);
+                Check(!views.PeekActive && root.State == AppViewState.Exploration, "DOOR: the door never opens, the player stays in the hallway");
+                Check(root.Session.Sanity < sanityBeforeDoor - 10f, "DOOR: the scare costs real sanity, like a catch (" + root.Session.Sanity + ")");
+                Check((root.Session.PeekAnomaliesGone & bit) != 0 && (root.Session.ClearedRooms & bit) != 0 && (root.Session.PeekLeftBehind & bit) == 0,
+                    "DOOR: the scare uses the figure up and the room counts as cleared");
+                root.EnterRoomPeek(withOne);
+                WorldFrames(root, 5);
+                Check(views.PeekActive && views.PeekedAnomaly == null, "DOOR: afterwards the room opens as an ordinary empty one");
+                PressKey(root, KeyCode.S);
+                for (int f = 0; f < 400 && views.PeekActive; f++) WorldFrame(root);
+                Check((root.Session.PeekLeftBehind & bit) == 0, "DOOR: an empty room leaves no mark");
+                root.Session.PeekAnomaliesGone = 0;
+                root.Session.PeekLeftBehind = 0;
+                root.Session.ClearedRooms = 0;
             }
 
             // ---- W9: spawn ownership under ambient pressure + the desk handoff

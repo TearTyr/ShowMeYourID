@@ -94,6 +94,7 @@ namespace Hollowbrook.Core
                 Session.AdmittedStudents.Clear();
                 Session.ClearedRooms = 0;
                 Session.PeekAnomaliesGone = 0;
+                Session.PeekLeftBehind = 0;
                 Session.BeginNight();            // pays last night's failure (less sanity, a stack, a roamer)
             }
             ShiftFailing = false;

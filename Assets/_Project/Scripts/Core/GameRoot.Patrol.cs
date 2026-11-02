@@ -45,6 +45,33 @@ namespace Hollowbrook.Core
             return PatrolCycle.StandingIn(Session.Seed, Session.CurrentShift, room);
         }
 
+        /// <summary>The player steps out of a peek. A figure still standing there makes that door a trap: the next time
+        /// it opens, the figure jumps them (see <see cref="PlayDoorScare"/>).</summary>
+        public void LeaveFigureBehind(RoomId room)
+        {
+            if (Session == null || !PeekAnomalyIn(room)) return;
+            Session.PeekLeftBehind |= PatrolCycle.Bit(room);
+        }
+
+        private bool DoorScareWaiting(RoomId room) =>
+            !TutorialActive && (Session.PeekLeftBehind & PatrolCycle.Bit(room)) != 0 && PeekAnomalyIn(room);
+
+        // The door opens and the figure is right there. The scare costs what a catch costs, it uses the figure up
+        // (the room counts as cleared, or the patrol could never be finished), and the player stays in the hallway.
+        private void PlayDoorScare(RoomId room)
+        {
+            int bit = PatrolCycle.Bit(room);
+            Session.PeekLeftBehind &= ~bit;
+            Session.PeekAnomaliesGone |= bit;
+            Session.ClearedRooms |= bit;
+            Session.ApplySanity(-GameRules.Current.CaughtSanity);
+            Bus.Publish(GameEvent.Of(EventIds.SanityChanged, Session.Sanity));
+            ObjectiveText = PatrolObjective();
+            Bus.Publish(GameEvent.Of(EventIds.ObjectiveChanged, ObjectiveText));
+            Bus.Publish(GameEvent.Of(EventIds.CaptionUrgent, "*it was waiting right behind the door*", 3f, null));
+            if (Scares != null) Scares.CaptureArt(PeekSpots.ArtKey(PeekSpots.KindIn(Session.Seed, Session.CurrentShift, room)));
+        }
+
         /// <summary>The lamp drove out the anomaly in the room being peeked: it is gone for the night
         /// and the room counts for the patrol. </summary>
         public void RepelPeekAnomaly()
@@ -86,6 +113,7 @@ namespace Hollowbrook.Core
         public void EnterRoomPeek(RoomId room)
         {
             if (Views == null) return;
+            if (DoorScareWaiting(room)) { PlayDoorScare(room); return; }
             PeekRoom = room;
             if (!PeekAnomalyIn(room)) Session.ClearedRooms |= PatrolCycle.Bit(room);
             ObjectiveText = PatrolObjective();   // the hallway shows it again after the peek

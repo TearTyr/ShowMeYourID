@@ -41,6 +41,7 @@ namespace Hollowbrook.LogicTests
             ContentTests();
             ShiftPlanTests();
             HuntFairnessTests();
+            HuntDoorTests();
             EveryStudentTurnsTests();
             RulesAreLiveTests();
             ClueRegistryTests();
@@ -159,6 +160,78 @@ namespace Hollowbrook.LogicTests
         }
 
         // ------------------------------------------------------------ shift plan
+        // Doors are not safe: step out of his room with him still there and that door is a catch; leave him until
+        // the room timer runs out and every door is a catch for a while.
+        private static void HuntDoorTests()
+        {
+            Group("Hunt: doors are not safe - the same door, and any door when he is left loose");
+            var tuning = HuntTuning.Default;
+            var inHall = new HuntInput { InHallway = true, PlayerRoom = RoomId.Hallway };
+            int tried = 0, firstLookCaught = 0, leftWarned = 0, otherDoorSafe = 0, sameDoorCaught = 0, caughtOnce = 0;
+            int looseTried = 0, looseCaught = 0, looseBehind = 0, looseFirstTick = 0, peekAfterLooseSafe = 0;
+            for (int seed = 1; seed <= 200; seed++)
+            {
+                var hunt = new AdminHunt(tuning, seed); hunt.Start();
+                int guard = 0;
+                while (hunt.Phase != HuntPhase.InRoom && !hunt.Finished && guard++ < 5000) hunt.Tick(0.1f, inHall);
+                if (hunt.Phase != HuntPhase.InRoom) continue;
+                tried++;
+                int caughtBefore = hunt.Catches;   // walking the hallway without a beam can already have cost a catch
+                RoomId his = hunt.Room;
+                var look = new HuntInput { Peeking = true, PlayerRoom = his, OnTarget = false };
+                if ((hunt.Tick(0.05f, look) & HuntEvent.Caught) != 0) firstLookCaught++;
+                for (int i = 0; i < 10; i++) hunt.Tick(0.05f, look);   // half a second of looking, the lamp not on his head
+                var stepOut = hunt.Tick(0.05f, inHall);
+                if ((stepOut & HuntEvent.LeftHim) != 0 && hunt.LeftHim) leftWarned++;
+                RoomId other = his == RoomId.Classroom1 ? RoomId.Classroom2 : RoomId.Classroom1;
+                var evOther = hunt.Tick(0.05f, new HuntInput { Peeking = true, PlayerRoom = other });
+                if ((evOther & HuntEvent.Caught) == 0 && hunt.Phase == HuntPhase.InRoom) otherDoorSafe++;
+                hunt.Tick(0.05f, inHall);
+                var again = hunt.Tick(0.05f, look);
+                if ((again & HuntEvent.Caught) != 0) sameDoorCaught++;
+                if (hunt.Catches == caughtBefore + 1) caughtOnce++;
+
+                // a new hunt: he is left in his room until the timer runs out, with the player in the hallway
+                var loose = new AdminHunt(tuning, seed); loose.Start();
+                guard = 0;
+                while (loose.Phase != HuntPhase.InRoom && !loose.Finished && guard++ < 5000) loose.Tick(0.1f, inHall);
+                if (loose.Phase != HuntPhase.InRoom) continue;
+                guard = 0;
+                while (loose.Phase == HuntPhase.InRoom && guard++ < 400) loose.Tick(0.1f, inHall);
+                if (loose.Phase != HuntPhase.Loose) continue;
+                looseTried++;
+                int looseBefore = loose.Catches;
+                var anyDoor = new HuntInput { Peeking = true, PlayerRoom = RoomId.ComfortRoom2 };
+                if ((loose.Tick(0.05f, anyDoor) & HuntEvent.Caught) != 0 && loose.Catches == looseBefore + 1) looseCaught++;
+
+                // and another: loose, the player keeps away for the whole time
+                var away = new AdminHunt(tuning, seed); away.Start();
+                guard = 0;
+                while (away.Phase != HuntPhase.InRoom && !away.Finished && guard++ < 5000) away.Tick(0.1f, inHall);
+                guard = 0;
+                while (away.Phase == HuntPhase.InRoom && guard++ < 400) away.Tick(0.1f, inHall);
+                int awayBefore = away.Catches;
+                var evAway = HuntEvent.None;
+                guard = 0;
+                while (away.Phase == HuntPhase.Loose && guard++ < 400) evAway |= away.Tick(0.1f, inHall);
+                if (away.Phase == HuntPhase.Behind && (evAway & HuntEvent.AppearedBehind) != 0 && away.Catches == awayBefore) looseBehind++;
+                if (away.PhaseTimer < 0.2f) looseFirstTick++;
+                // once he is behind them, a peek is an ordinary peek again (he never jumps into a peeked room)
+                if ((away.Tick(0.05f, anyDoor) & HuntEvent.Caught) == 0) peekAfterLooseSafe++;
+            }
+            Check(tried > 100, "enough hunts reached a room to test (" + tried + ")");
+            Eq(firstLookCaught, 0, "the first look into his room is never a catch");
+            Eq(leftWarned, tried, "stepping out with him still there marks the door");
+            Eq(otherDoorSafe, tried, "a different door is not the trap");
+            Eq(sameDoorCaught, tried, "opening the same door again is a catch");
+            Eq(caughtOnce, tried, "...and it is exactly one catch");
+            Check(looseTried > 0, "a room timer that runs out with the player in the hallway makes him Loose (" + looseTried + ")");
+            Eq(looseCaught, looseTried, "while he is Loose, any door is a catch");
+            Eq(looseBehind, looseTried, "a player who keeps away from the doors for the whole time is not caught: he comes up behind them");
+            Check(looseFirstTick > 0, "he comes up behind them with a fresh phase timer");
+            Eq(peekAfterLooseSafe, looseTried, "once he is behind them the doors are ordinary again");
+        }
+
         // He never catches a player who is not looking at him: every catch comes from a visible approach.
         private static void HuntFairnessTests()
         {
@@ -166,7 +239,7 @@ namespace Hollowbrook.LogicTests
             var tuning = HuntTuning.Default;
             tuning.RoomSeconds = 5f;
             var inHall = new HuntInput { InHallway = true, PlayerRoom = RoomId.Hallway };
-            int caughtUnseen = 0, followedRoom = 0, followedBehind = 0;
+            int caughtUnseen = 0, followedRoom = 0, followedBehind = 0, goneLoose = 0;
             for (int seed = 1; seed <= 300; seed++)
             {
                 var hunt = new AdminHunt(tuning, seed);
@@ -181,10 +254,15 @@ namespace Hollowbrook.LogicTests
                 guard = 0;
                 while (hunt.Phase == HuntPhase.InRoom && guard++ < 200) ev |= hunt.Tick(0.1f, inHall);
                 if ((ev & HuntEvent.Caught) != 0) caughtUnseen++;
+                if (hunt.Phase == HuntPhase.Loose && (ev & HuntEvent.Loose) != 0) goneLoose++;
+                guard = 0;
+                while (hunt.Phase == HuntPhase.Loose && guard++ < 200) ev |= hunt.Tick(0.1f, inHall);   // the player keeps away from the doors
+                if ((ev & HuntEvent.Caught) != 0) caughtUnseen++;
                 if (hunt.Phase == HuntPhase.Behind && (ev & HuntEvent.AppearedBehind) != 0) followedBehind++;
             }
             Eq(caughtUnseen, 0, "timing out while the player is in the hallway is not a catch");
-            Check(followedBehind > 0, "...he comes up behind them instead, where the beam can answer him");
+            Check(goneLoose > 0, "...he gets loose instead: every door is a trap for a while");
+            Check(followedBehind > 0, "...and once the player has kept away from the doors he comes up behind them, where the beam can answer him");
 
             // he never jumps into the room being peeked: he goes to wait behind the player instead
             int enteredPeeked = 0, waiting = 0;
@@ -1438,6 +1516,7 @@ namespace Hollowbrook.LogicTests
                 prevLeft = h.SurviveLeft;
                 float limit = h.Phase == HuntPhase.InRoom ? tun.RoomSeconds
                     : h.Phase == HuntPhase.Behind ? tun.BehindSeconds
+                    : h.Phase == HuntPhase.Loose ? GameRules.Current.HuntLooseSeconds
                     : h.Phase == HuntPhase.Retreat ? tun.RetreatSeconds
                     : h.Phase == HuntPhase.Stalking ? tun.StalkMaxSeconds + GameRules.Current.HuntAmbushPatienceSeconds : float.MaxValue;
                 if (h.PhaseTimer > limit + dt + 0.01f) { seconds = t; catches = -2; return HuntPhase.Stalking; }

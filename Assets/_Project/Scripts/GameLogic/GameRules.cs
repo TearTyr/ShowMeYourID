@@ -82,6 +82,7 @@ namespace Hollowbrook.Logic
         public float HuntAmbushDelayMinSeconds = 1f;    // after you step out of a peek he is behind you after a random wait of 1 to 2 s
         public float HuntAmbushDelayMaxSeconds = 2f;
         public float HuntAmbushPatienceSeconds = 5f;    // ...and if you stay in the peek, he gives up waiting and walks off after this long
+        public float HuntLooseSeconds = 6f;             // his room timed out with you in the hallway: for this long ANY door you open is a catch
         public float HuntSwapRetreatSeconds = 0.5f;     // harmless time after he is dealt with in the hallway
         public float HuntSwapAfterRepelSeconds = 2f;    // retreat and walk together: he is off to a classroom within this long
         public float Night6SwapScale = 0.6f;            // night 6 shortens every one of his waits above to this share

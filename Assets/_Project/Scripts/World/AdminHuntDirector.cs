@@ -191,6 +191,8 @@ namespace Hollowbrook.World
             if ((ev & HuntEvent.StalkStart) != 0) { HideFigure(); Say("*footsteps, somewhere down the hall*", 2.4f); }
             if ((ev & HuntEvent.EnteredRoom) != 0) OnEnteredRoom();
             if ((ev & HuntEvent.Spotted) != 0) OnSpotted();
+            if ((ev & HuntEvent.LeftHim) != 0) Say("*you left him in there. DO NOT open that door again*", 3f);
+            if ((ev & HuntEvent.Loose) != 0) { HideFigure(); Say("*he is out of the room. Stay away from the doors*", 3f); }
             if ((ev & HuntEvent.AppearedBehind) != 0) OnAppearedBehind();
             if ((ev & HuntEvent.Repelled) != 0) OnRepelled();
             if ((ev & HuntEvent.Caught) != 0) OnCaught();
@@ -265,7 +267,10 @@ namespace Hollowbrook.World
                            _hunt.Catches + "/" + _tuning.CatchesToLose;
             switch (_hunt.Phase)
             {
-                case HuntPhase.InRoom: return "PEEK INTO " + RoomName(_hunt.Room) + " AND LIGHT HIS HEAD   " + meter;
+                case HuntPhase.InRoom:
+                    if (_hunt.LeftHim) return "HE IS STILL IN " + RoomName(_hunt.Room) + ". DO NOT OPEN THAT DOOR   " + meter;
+                    return "PEEK INTO " + RoomName(_hunt.Room) + " AND LIGHT HIS HEAD   " + meter;
+                case HuntPhase.Loose: return "HE IS LOOSE. STAY AWAY FROM THE DOORS   " + meter;
                 case HuntPhase.Behind: return "AIM AT HIS FACE AND FLASH - F or Q!   " + meter;
                 default: return "Watch for where he stops. Stop him with the light. Survive until dawn.   " + meter;
             }
