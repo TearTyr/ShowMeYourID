@@ -7,7 +7,7 @@ namespace Hollowbrook.Logic
     public class StudentRow
     {
         public string FullName;
-        public string IdNumber;         // always valid: HB-YYYY-NNNN
+        public string IdNumber;         // always valid: HB-YYYY-NNN
         public int YearLevel;           // 1..4
         public int CourseIndex;         // index into Content.Courses
         public bool IsTransferee;
@@ -17,6 +17,7 @@ namespace Hollowbrook.Logic
         public int HairStyle, FaceVariant, Accessory;   // only for the code-drawn portrait if the art is missing
         public AwkwardSpeech Awkward;   // how the thing wearing this student speaks
         public string ScaredGreeting;   // what they say when they arrive frightened (student or anomaly)
+        public bool IsFaculty;          // a professor: status prints Faculty, the year is Professor
         public bool Off;                // true = not in the school yet (its art is missing); DefaultStudents leaves it out
     }
 
@@ -43,7 +44,7 @@ namespace Hollowbrook.Logic
                 VisitorCount = 4, AnomalyCount = 2, ScaredCount = 1,
                 Title = "Introduction",
                 Objective = "Learn the checkpoint: inspect IDs, pull the student file, ask a question or two, and stamp Allow or Reject. Take a walk - learn how to leave the security room and come back.",
-                RuleNoteAddendum = "NIGHT 1 - Welcome, custodian. Verify: ID number format (HB-YYYY-NNNN), photo vs. the person at the window, expiration date, year level, course, and Regular/Transferee status against the student file in the drawer. Your questions per student are limited. Not everyone tonight is a student. Some visitors arrive frightened: fear proves nothing, a student can be scared and so can the thing wearing their face. Trust the papers.",
+                RuleNoteAddendum = "NIGHT 1 - Welcome, custodian. Verify: ID number format (HB-YYYY-NNN), photo vs. the person at the window, expiration date, year level, course, and Regular/Transferee status against the student file in the drawer. Your questions per student are limited. Not everyone tonight is a student. Some visitors arrive frightened: fear proves nothing, a student can be scared and so can the thing wearing their face. Trust the papers.",
                 MaxDefectsPerAnomaly = 1,
             },
             new ShiftDef
@@ -107,7 +108,7 @@ namespace Hollowbrook.Logic
         {
             new StudentRow
             {
-                FullName = "Mark Mendoza", IdNumber = "HB-2024-0101", YearLevel = 3, CourseIndex = 0,
+                FullName = "Mark Angelo Mendoza", IdNumber = "HB-2024-101", YearLevel = 3, CourseIndex = 0,
                 FirstClassroom = RoomId.Classroom1, FirstClassSubject = "Networking",
                 Greeting = "Good evening. Night class.",
                 ScaredGreeting = "P-please. Is it safe to come in? Something was behind me.",
@@ -116,14 +117,14 @@ namespace Hollowbrook.Logic
                 {
                     Greeting = "Good evening to you and to the evening.",
                     Course = "The course that I am taking is the course of {0}.",
-                    Year = "The year that I am in is the year of {0}.",
+                    Year = "The year that I am is the year that is called {0}.",
                     Status = "The kind of student that I am is the kind that is {0}.",
                     Classroom = "The room that I am going to is the room of {0}.",
                 },
             },
             new StudentRow
             {
-                FullName = "Nathaniel Aquino", IdNumber = "HB-2026-0153", YearLevel = 1, CourseIndex = 0, IsTransferee = true,
+                FullName = "Nathaniel Aquino", IdNumber = "HB-2026-153", YearLevel = 1, CourseIndex = 0, IsTransferee = true,
                 FirstClassroom = RoomId.Classroom2, FirstClassSubject = "Programming Basics",
                 Greeting = "Hi… I'm running a bit late.",
                 ScaredGreeting = "H-hi... did you hear that? It followed me from the gate.",
@@ -139,7 +140,7 @@ namespace Hollowbrook.Logic
             },
             new StudentRow
             {
-                FullName = "Maria Clara Santos", IdNumber = "HB-2023-0143", YearLevel = 4, CourseIndex = 1,
+                FullName = "Maria Clara Santos", IdNumber = "HB-2023-183", YearLevel = 4, CourseIndex = 1,
                 FirstClassroom = RoomId.Classroom1, FirstClassSubject = "Algorithms",
                 Greeting = "Evening! Cold out there.",
                 ScaredGreeting = "Please, let me in. Something was walking the hall behind me.",
@@ -148,14 +149,14 @@ namespace Hollowbrook.Logic
                 {
                     Greeting = "Evening. The girl is cold. The girl has come inside.",
                     Course = "The girl is taking {0}.",
-                    Year = "The girl is in {0}.",
+                    Year = "The girl is a {0}.",
                     Status = "The girl is a {0}. That is what the girl is.",
                     Classroom = "The girl goes to {0}. She has been told this.",
                 },
             },
             new StudentRow
             {
-                FullName = "Liza May Ramos", IdNumber = "HB-2024-0341", YearLevel = 3, CourseIndex = 1,
+                FullName = "Liza May Ramos", IdNumber = "HB-2024-341", YearLevel = 3, CourseIndex = 1,
                 FirstClassroom = RoomId.Classroom2, FirstClassSubject = "Data Structures",
                 Greeting = "Let me in quick, please.",
                 ScaredGreeting = "Quick, please, quick. Don't look at the window. Let me in.",
@@ -164,14 +165,14 @@ namespace Hollowbrook.Logic
                 {
                     Greeting = "Quick me let in. Please, the please.",
                     Course = "Taking am I, {0}, the course.",
-                    Year = "In I am, {0}, the year.",
+                    Year = "A {0} I am, the year, yes.",
                     Status = "Student I am, a {0}, yes the student.",
                     Classroom = "Going I am, {0}, to there.",
                 },
             },
             new StudentRow
             {
-                FullName = "Raffy Isidro", IdNumber = "HB-2023-0129", YearLevel = 4, CourseIndex = 2,
+                FullName = "Raffy Isedru", IdNumber = "HB-2001-129", YearLevel = 5, CourseIndex = 2, IsFaculty = true,
                 FirstClassroom = RoomId.Classroom2, FirstClassSubject = "Media Ethics",
                 Greeting = "Good evening, officer… I mean, custodian.",
                 ScaredGreeting = "Officer... custodian... there is someone out there. Please.",
@@ -180,14 +181,14 @@ namespace Hollowbrook.Logic
                 {
                     Greeting = "Good evening, custodian. Good evening, custodian.",
                     Course = "I'm taking {0}. I'm taking {0}.",
-                    Year = "I'm in {0}. I'm in {0}.",
+                    Year = "I'm a {0}. I'm a {0}.",
                     Status = "I'm a {0}. I'm a {0}.",
                     Classroom = "{0}. {0}.",
                 },
             },
             new StudentRow
             {
-                FullName = "Renielle Waterbonia", IdNumber = "HB-2025-0187", YearLevel = 2, CourseIndex = 1, IsTransferee = true,
+                FullName = "Ranielle Waterbonia", IdNumber = "HB-2023-667", YearLevel = 4, CourseIndex = 1,
                 FirstClassroom = RoomId.Classroom1, FirstClassSubject = "Discrete Math",
                 Greeting = "Here's my ID.",
                 ScaredGreeting = "Here is my ID. Please, please just take it and let me in.",
@@ -203,7 +204,7 @@ namespace Hollowbrook.Logic
             },
             new StudentRow
             {
-                FullName = "Rhevster Estrellita", IdNumber = "HB-2025-0053", YearLevel = 2, CourseIndex = 2,
+                FullName = "Rhevster Estrellita", IdNumber = "HB-2025-053", YearLevel = 2, CourseIndex = 2,
                 FirstClassroom = RoomId.Classroom1, FirstClassSubject = "Digital Sketching",
                 Greeting = "Evening. Same routine as always.",
                 ScaredGreeting = "Evening. N-not the same routine tonight. Something is wrong.",
@@ -219,7 +220,7 @@ namespace Hollowbrook.Logic
             },
             new StudentRow
             {
-                FullName = "Jose Villanueva", IdNumber = "HB-2024-0212", YearLevel = 3, CourseIndex = 0,
+                FullName = "Paolo Garcia", IdNumber = "HB-2024-134", YearLevel = 3, CourseIndex = 1, IsTransferee = true,
                 FirstClassroom = RoomId.Classroom1, FirstClassSubject = "Cybersecurity Basics",
                 Greeting = "Evening. Long shift tonight?",
                 ScaredGreeting = "Evening. Did the lights just go out for you too?",
@@ -228,15 +229,15 @@ namespace Hollowbrook.Logic
                 {
                     Greeting = "Is it evening? It is evening, is it not?",
                     Course = "Am I taking {0}? I think I am taking {0}?",
-                    Year = "Am I in {0}? Is that what you are asking?",
+                    Year = "Am I a {0}? Is that what you are asking?",
                     Status = "Am I a {0}? Would you say I am?",
                     Classroom = "Am I going to {0}? Is that where I go?",
                 },
             },
             new StudentRow
             {
-                FullName = "Angelica Reyes", IdNumber = "HB-2025-0094", YearLevel = 2, CourseIndex = 2,
-                FirstClassroom = RoomId.Classroom2, FirstClassSubject = "Motion Graphics",
+                FullName = "Angelica Cruz", IdNumber = "HB-2023-190", YearLevel = 4, CourseIndex = 1,
+                FirstClassroom = RoomId.Classroom2, FirstClassSubject = "Data Visualization",
                 Greeting = "Hello! I stayed late to finish a poster.",
                 ScaredGreeting = "H-hello. I stayed too late. I should not have stayed.",
                 HairStyle = 2, FaceVariant = 4, Accessory = 1,
@@ -244,15 +245,15 @@ namespace Hollowbrook.Logic
                 {
                     Greeting = "Hello. I stayed late. I was always staying late.",
                     Course = "I was taking {0}. I have always been taking it.",
-                    Year = "I was in {0}. It was a long time ago.",
+                    Year = "I was a {0}. It was a long time ago.",
                     Status = "I was a {0}. I was that for a while.",
                     Classroom = "I was going to {0}. I had gone there.",
                 },
             },
             new StudentRow
             {
-                FullName = "Anthony Bautista", IdNumber = "HB-2023-0261", YearLevel = 4, CourseIndex = 1,
-                FirstClassroom = RoomId.Classroom1, FirstClassSubject = "Operating Systems",
+                FullName = "Mark Anthony Villanueva", IdNumber = "HB-2026-167", YearLevel = 1, CourseIndex = 0, IsTransferee = true,
+                FirstClassroom = RoomId.Classroom1, FirstClassSubject = "Intro to Computing",
                 Greeting = "Hey, sorry I'm so late.",
                 ScaredGreeting = "Sorry, sorry. Can I come in? I do not want to be out there.",
                 HairStyle = 3, FaceVariant = 1, Accessory = 2,
@@ -267,7 +268,7 @@ namespace Hollowbrook.Logic
             },
             new StudentRow
             {
-                FullName = "Bea Navarro", IdNumber = "HB-2026-0118", YearLevel = 1, CourseIndex = 0, IsTransferee = true,
+                FullName = "Bea Dela Cruz", IdNumber = "HB-2026-158", YearLevel = 1, CourseIndex = 0, IsTransferee = true,
                 FirstClassroom = RoomId.Classroom2, FirstClassSubject = "Web Fundamentals",
                 Greeting = "Hi. Is this the right gate?",
                 ScaredGreeting = "Hi. Is this the right gate? Please say it is the right gate.",
@@ -276,15 +277,15 @@ namespace Hollowbrook.Logic
                 {
                     Greeting = "Hi. . . . This. . . is. . . the gate. . .",
                     Course = "I. . . am taking. . . {0}. . . yes.",
-                    Year = "I. . . am in. . . {0}. . . yes.",
+                    Year = "I. . . am a. . . {0}. . . yes.",
                     Status = "I. . . am a. . . {0}. . . yes.",
                     Classroom = "I. . . am going to. . . {0}. . . yes.",
                 },
             },
             new StudentRow
             {
-                FullName = "Giones Acirfa", IdNumber = "HB-2024-0377", YearLevel = 3, CourseIndex = 2,
-                FirstClassroom = RoomId.Classroom1, FirstClassSubject = "Game Audio",
+                FullName = "Giones Acirfa", IdNumber = "HB-2025-143", YearLevel = 2, CourseIndex = 0, IsTransferee = true,
+                FirstClassroom = RoomId.Classroom1, FirstClassSubject = "Systems Administration",
                 Greeting = "Good evening. Rehearsal ran long.",
                 ScaredGreeting = "Good evening. The rehearsal room was empty and something answered.",
                 HairStyle = 5, FaceVariant = 2, Accessory = 3,
@@ -292,14 +293,14 @@ namespace Hollowbrook.Logic
                 {
                     Greeting = "It is written: good evening. It is written: rehearsal ran long.",
                     Course = "It is written that I take {0}.",
-                    Year = "It is written that I am in {0}.",
+                    Year = "It is written that I am a {0}.",
                     Status = "It is written that I am a {0}.",
                     Classroom = "It is written that I go to {0}.",
                 },
             },
             new StudentRow
             {
-                FullName = "Kristine Dizon", IdNumber = "HB-2025-0149", YearLevel = 2, CourseIndex = 1,
+                FullName = "Kristine Joy Bautista", IdNumber = "HB-2024-342", YearLevel = 3, CourseIndex = 1,
                 FirstClassroom = RoomId.Classroom2, FirstClassSubject = "Probability",
                 Greeting = "Hi, I'm only here for my notes.",
                 ScaredGreeting = "I only came for my notes. I want to go home now. Please.",
@@ -315,8 +316,8 @@ namespace Hollowbrook.Logic
             },
             new StudentRow   // Off: Art/Characters/Izzy_Neckerman only holds copies of Anthony's pictures
             {
-                FullName = "Izzy Neckerman", IdNumber = "HB-2023-0305", YearLevel = 4, CourseIndex = 0, Off = true,
-                FirstClassroom = RoomId.Classroom2, FirstClassSubject = "Capstone Project",
+                FullName = "Izzy Neckerman", IdNumber = "HB-2025-156", YearLevel = 2, CourseIndex = 1, Off = true,
+                FirstClassroom = RoomId.Classroom2, FirstClassSubject = "Software Engineering",
                 Greeting = "Evening. Capstone defence is tomorrow.",
                 ScaredGreeting = "Evening. Capstone defence tomorrow. I cannot be here. Please.",
                 HairStyle = 2, FaceVariant = 3, Accessory = 0,
@@ -324,7 +325,7 @@ namespace Hollowbrook.Logic
                 {
                     Greeting = "Evening. The defence is tomorrow. The tomorrow is defence.",
                     Course = "I take {0}. {0} takes me.",
-                    Year = "I am in {0}. {0} is in me.",
+                    Year = "I am a {0}. A {0} is in me.",
                     Status = "I am a {0}. A {0} is me.",
                     Classroom = "I go to {0}. {0} goes to me.",
                 },

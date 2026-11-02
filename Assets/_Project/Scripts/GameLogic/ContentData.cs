@@ -41,7 +41,7 @@ namespace Hollowbrook.Logic
     public class StudentIdentity
     {
         public string FullName;
-        public string IdNumber;        // registry ID, always valid format: HB-YYYY-NNNN
+        public string IdNumber;        // registry ID, always valid format: HB-YYYY-NNN
         public int YearLevel;          // 1..4
         public int CourseIndex;        // index into Content.Courses
         public bool IsTransferee;
@@ -52,7 +52,8 @@ namespace Hollowbrook.Logic
         public AwkwardSpeech Awkward;  // how an anomaly wearing this student talks
         public string ScaredGreeting;  // what they say when they arrive frightened (student or anomaly alike)
 
-        public string StatusString => IsTransferee ? "Transferee" : "Regular";
+        public bool IsFaculty;         // a professor: the year reads Professor, the status Faculty
+        public string StatusString => Content.StatusName(IsTransferee, IsFaculty);
         public string YearString => Content.YearNames[YearLevel - 1];
         public string CourseString => Content.Courses[CourseIndex];
         // as printed on the file: "Room 101 · Data Structures"
@@ -78,6 +79,7 @@ namespace Hollowbrook.Logic
         public int RecordCourseIndex;         // course printed on record
         public bool IdIsTransferee;           // status printed on ID
         public bool RecordIsTransferee;       // status printed on record
+        public bool IsFaculty;                // a professor: Faculty on the card and the file alike
         public int ExpirationDay;             // absolute day number (see Content.DayNumber)
         public string ExpirationDisplay;      // e.g. "2027-03-31"
         public Portrait WindowPortrait;       // the face at the window (what player sees)
@@ -129,10 +131,10 @@ namespace Hollowbrook.Logic
                     case DefectType.PhotoMismatch: lines.Add("The face at the window does not match the ID photo."); break;
                     case DefectType.PhotoSubtleMismatch: lines.Add("The ID photo differs subtly from the person (one feature)."); break;
                     case DefectType.ExpiredId: lines.Add("The ID expired on " + ExpirationDisplay + "."); break;
-                    case DefectType.IdFormatInvalid: lines.Add("ID number '" + IdNumber + "' is not in HB-YYYY-NNNN format."); break;
+                    case DefectType.IdFormatInvalid: lines.Add("ID number '" + IdNumber + "' is not in HB-YYYY-NNN format."); break;
                     case DefectType.YearMismatch: lines.Add("Year level: ID says " + Content.YearNames[IdYearLevel - 1] + ", the file says " + Content.YearNames[RecordYearLevel - 1] + "."); break;
                     case DefectType.CourseMismatch: lines.Add("Course: ID says " + Content.Courses[IdCourseIndex] + ", the file says " + Content.Courses[RecordCourseIndex] + "."); break;
-                    case DefectType.StatusMismatch: lines.Add("Status: ID says " + (IdIsTransferee ? "Transferee" : "Regular") + ", the file says " + (RecordIsTransferee ? "Transferee" : "Regular") + "."); break;
+                    case DefectType.StatusMismatch: lines.Add("Status: ID says " + Content.StatusName(IdIsTransferee, IsFaculty) + ", the file says " + Content.StatusName(RecordIsTransferee, IsFaculty) + "."); break;
                     case DefectType.RecordNameMismatch: lines.Add("The ID says '" + ClaimedName + "' but the file for this ID number says '" + RecordName + "'."); break;
                     case DefectType.NotInDatabase: lines.Add("ID number not found in the student database."); break;
                     case DefectType.DuplicateId: lines.Add("ID number already used by a visitor from " + DuplicateOfShift + "."); break;
@@ -200,7 +202,22 @@ namespace Hollowbrook.Logic
             "BS Information Technology", "BS Computer Science", "BS Entertainment Multimedia Computing",
         };
 
-        public static readonly string[] YearNames = { "1st Year", "2nd Year", "3rd Year", "4th Year" };
+        // year level 1 to 4 are the students, 5 is a professor
+        public static readonly string[] YearNames = { "Freshman", "Sophomore", "Junior", "Senior", "Professor" };
+
+        /// <summary>How a status reads on the card and the file: Faculty, Transferee or Regular.</summary>
+        public static string StatusName(bool transferee, bool faculty)
+        {
+            if (faculty) return "Faculty";
+            return transferee ? "Transferee" : "Regular";
+        }
+
+        /// <summary>The same status as a person says it: "faculty member", "transferee", "regular student".</summary>
+        public static string StatusWord(bool transferee, bool faculty)
+        {
+            if (faculty) return "faculty member";
+            return transferee ? "transferee" : "regular student";
+        }
 
         public static int ShiftDayNumber(int shift) => 1000 + shift; // arbitrary monotonic base
 
@@ -225,6 +242,7 @@ public static List<StudentIdentity> BuildStudentRoster()
                     YearLevel = row.YearLevel,
                     CourseIndex = row.CourseIndex,
                     IsTransferee = row.IsTransferee,
+                    IsFaculty = row.IsFaculty,
                     Portrait = new Portrait
                     {
                         HairStyle = row.HairStyle, FaceVariant = row.FaceVariant, Accessory = row.Accessory,

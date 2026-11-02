@@ -66,6 +66,7 @@ namespace Hollowbrook.LogicTests
             FaceTruthTests();
             FaceAssetMappingTests();
             ScaredVisitorTests();
+            StudentRecordTests();
             QueueBusyHurryTests();
             PatrolCycleTests();
             QueueInvariantTests();
@@ -98,28 +99,28 @@ namespace Hollowbrook.LogicTests
         // ------------------------------------------------------------------ IDs
         private static void IdRulesTests()
         {
-            Group("IdRules - HB-YYYY-NNNN format");
-            Check(IdRules.IsFormatValid("HB-2026-0001"), "valid id accepted");
-            Check(IdRules.IsFormatValid("HB-2023-9999"), "earliest/latest year+serial accepted");
-            Check(!IdRules.IsFormatValid("HB-2022-0001"), "year before 2023 rejected");
-            Check(!IdRules.IsFormatValid("HB-2028-0001"), "year after 2027 rejected");
-            Check(!IdRules.IsFormatValid("HB-2026-0000"), "serial 0000 rejected");
-            Check(!IdRules.IsFormatValid("hb-2026-0001"), "lowercase prefix rejected");
-            Check(!IdRules.IsFormatValid("XX-2026-0001"), "wrong prefix rejected");
-            Check(!IdRules.IsFormatValid("HB-20260001"), "missing second dash rejected");
-            Check(!IdRules.IsFormatValid("HB-20A6-0001"), "non-digit year rejected");
-            Check(!IdRules.IsFormatValid("HB-2026-001"), "too short rejected");
-            Check(!IdRules.IsFormatValid("HB-2026-00001"), "too long rejected");
+            Group("IdRules - HB-YYYY-NNN format");
+            Check(IdRules.IsFormatValid("HB-2026-001"), "valid id accepted");
+            Check(IdRules.IsFormatValid("HB-2023-999") && IdRules.IsFormatValid("HB-1999-001") && IdRules.IsFormatValid("HB-2001-129"), "student, professor and staff years accepted");
+            Check(!IdRules.IsFormatValid("HB-1989-001"), "year before 1990 rejected");
+            Check(!IdRules.IsFormatValid("HB-2028-001"), "year after 2027 rejected");
+            Check(!IdRules.IsFormatValid("HB-2026-000"), "serial 000 rejected");
+            Check(!IdRules.IsFormatValid("hb-2026-001"), "lowercase prefix rejected");
+            Check(!IdRules.IsFormatValid("XX-2026-001"), "wrong prefix rejected");
+            Check(!IdRules.IsFormatValid("HB-2026001"), "missing second dash rejected");
+            Check(!IdRules.IsFormatValid("HB-20A6-001"), "non-digit year rejected");
+            Check(!IdRules.IsFormatValid("HB-2026-01"), "too short rejected");
+            Check(!IdRules.IsFormatValid("HB-2026-0001"), "the old four digit serial is too long now");
             Check(!IdRules.IsFormatValid(""), "empty rejected");
             Check(!IdRules.IsFormatValid(null), "null rejected");
-            Eq(IdRules.SerialOf("HB-2026-0147"), 147, "SerialOf");
+            Eq(IdRules.SerialOf("HB-2026-147"), 147, "SerialOf");
             Eq(IdRules.SerialOf("DA-0233"), -1, "SerialOf on invalid id is -1");
             Eq(IdRules.Prefix, "HB-", "prefix constant");
 
-            var registry = new HashSet<string> { "HB-2026-0001" };
-            Check(IdRules.DatabaseLookup("HB-2026-0001", registry), "registry hit");
-            Check(!IdRules.DatabaseLookup("HB-2026-0002", registry), "registry miss");
-            Check(!IdRules.DatabaseLookup("HB-2026-0001", null), "null registry is a miss, not a crash");
+            var registry = new HashSet<string> { "HB-2026-001" };
+            Check(IdRules.DatabaseLookup("HB-2026-001", registry), "registry hit");
+            Check(!IdRules.DatabaseLookup("HB-2026-002", registry), "registry miss");
+            Check(!IdRules.DatabaseLookup("HB-2026-001", null), "null registry is a miss, not a crash");
         }
 
         // -------------------------------------------------------------- content
@@ -132,9 +133,9 @@ namespace Hollowbrook.LogicTests
             Eq(roster.Select(s => s.FullName).Distinct().Count(), roster.Count, "roster names unique");
             Eq(roster.Select(s => s.IdNumber).Distinct().Count(), roster.Count, "roster IDs unique");
             Check(roster.All(s => IdRules.IsFormatValid(s.IdNumber)), "every canon ID is format-valid");
-            Check(roster.All(s => s.YearLevel >= 1 && s.YearLevel <= 4), "year levels in 1..4");
+            Check(roster.All(s => s.YearLevel >= 1 && s.YearLevel <= 5 && (s.YearLevel == 5) == s.IsFaculty), "year levels 1..4 for students, 5 only for the professor");
             Check(roster.All(s => s.CourseIndex >= 0 && s.CourseIndex < Content.Courses.Length), "course indices in range");
-            Check(Content.Courses.Length > 0 && Content.YearNames.Length == 4, "course/year pools populated");
+            Check(Content.Courses.Length > 0 && Content.YearNames.Length == 5, "course/year pools populated");
             // day-number mapping must be strictly monotonic ACROSS THE WINDOW THE GAME
             // ACTUALLY GENERATES (Jun 2026 .. Mar 2027). The model uses 30-day months, so
             // it is only an approximation: 2026-12-31 and 2027-01-01 both map to 1060.
@@ -643,7 +644,7 @@ namespace Hollowbrook.LogicTests
 
             AdminTalkContext Fresh() => new AdminTalkContext
             {
-                BadgeName = "V. Marlowe", MemoName = "R. Vance", BadgeNumber = "DA-0233", MemoNumber = "DA-1147",
+                BadgeName = "V. Marlowe", MemoName = "R. Vance", BadgeNumber = "HB-1999-010", MemoNumber = "HB-1999-001",
                 AnswerClassroom = "My first stop is your server room.",
             };
 
@@ -879,7 +880,7 @@ namespace Hollowbrook.LogicTests
             var rf = new RosterFactory(7);
             var admin = rf.BuildAdministrator(ShiftPlan.Get(5));
             Check(admin.IsAdministrator && admin.IsAnomaly, "administrator is flagged as both admin and anomaly");
-            Check(!IdRules.IsFormatValid(admin.IdNumber), "staff badge is not a student ID format");
+            Check(admin.IdNumber != admin.RecordIdNumber, "badge number differs from the number on the memo");
             Check(!IdRules.DatabaseLookup(admin.IdNumber, rf.Registry), "badge number is not in the student registry");
             Check(admin.ClaimedName != admin.RecordName, "badge name differs from the roster memo");
             Check(admin.IdNumber != admin.RecordIdNumber, "badge number differs from the roster memo");
@@ -927,7 +928,7 @@ namespace Hollowbrook.LogicTests
             {
                 case QuestionId.Course: return InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex], awkward);
                 case QuestionId.Year: return InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1], awkward);
-                case QuestionId.Status: return InterviewRules.StatusSpeech(v.IdIsTransferee, awkward);
+                case QuestionId.Status: return InterviewRules.StatusSpeech(Content.StatusWord(v.IdIsTransferee, v.IsFaculty), awkward);
                 default: return v.ClassroomAnswer;
             }
         }
@@ -2783,10 +2784,10 @@ namespace Hollowbrook.LogicTests
             Check(seen.Count == FaceAssets.StudentFaceCount,
                 "every shipped student face maps to exactly one identity slot (no shared faces)");
             var names = Content.BuildStudentRoster();
-            string[] want = { "Mark Mendoza", "Nathaniel Aquino", "Maria Clara Santos", "Liza May Ramos",
-                              "Raffy Isidro", "Renielle Waterbonia", "Rhevster Estrellita",
-                              "Jose Villanueva", "Angelica Reyes", "Anthony Bautista", "Bea Navarro",
-                              "Giones Acirfa", "Kristine Dizon" };   // Izzy Neckerman is Off until her art arrives
+            string[] want = { "Mark Angelo Mendoza", "Nathaniel Aquino", "Maria Clara Santos", "Liza May Ramos",
+                              "Raffy Isedru", "Ranielle Waterbonia", "Rhevster Estrellita",
+                              "Paolo Garcia", "Angelica Cruz", "Mark Anthony Villanueva", "Bea Dela Cruz",
+                              "Giones Acirfa", "Kristine Joy Bautista" };   // Izzy Neckerman is Off until her art arrives
             bool namesOk = names.Count == want.Length && Content.TotalStudents == FaceAssets.StudentFaceCount;
             for (int i = 0; namesOk && i < want.Length; i++) namesOk = names[i].FullName == want[i];
             Check(namesOk, "the registry has the thirteen students in face-art order (row N wears char_student_NN)");
@@ -2858,6 +2859,52 @@ namespace Hollowbrook.LogicTests
             foreach (var night in plan)
                 Check(a.GenerateShift(night).Select(v => v.IsScared).SequenceEqual(b.GenerateShift(night).Select(v => v.IsScared)),
                     $"night {night.Number}: the same seed picks the same scared visitors");
+        }
+
+        // The owner's student list: a professor who still comes to the window, years that are titles, three
+        // digit IDs, and fake IDs that look like real ones.
+        private static void StudentRecordTests()
+        {
+            Group("Student records - faculty, year titles, three digit IDs");
+            var roster = Content.BuildStudentRoster();
+            var raffy = roster.First(s => s.FullName == "Raffy Isedru");
+            Check(raffy.IsFaculty && raffy.YearString == "Professor" && raffy.StatusString == "Faculty", "Raffy is a professor: year Professor, status Faculty");
+            Eq(roster.Count(s => s.IsFaculty), 1, "only Raffy is faculty");
+            Eq(string.Join(",", Content.YearNames), "Freshman,Sophomore,Junior,Senior,Professor", "the year titles");
+            Eq(InterviewRules.YearSpeech("Junior"), "I'm a Junior.", "a year is said as a title");
+            Eq(InterviewRules.StatusSpeech(Content.StatusWord(false, true)), "I'm a faculty member.", "faculty say what they are");
+
+            int fakes = 0, professorsSeen = 0, studentYearLies = 0;
+            for (int seed = 1; seed <= 150; seed++)
+            {
+                var factory = new RosterFactory(seed);
+                foreach (var night in ShiftPlan.Build())
+                    foreach (var v in factory.GenerateShift(night))
+                    {
+                        if (v.IsAdministrator) continue;
+                        if (v.IsFaculty)
+                        {
+                            professorsSeen++;
+                            Check(!v.Defects.Contains(DefectType.YearMismatch) && !v.Defects.Contains(DefectType.StatusMismatch),
+                                "a professor never gets a year or status lie");
+                            Eq(v.IdYearLevel, 5, "the professor's card says Professor");
+                        }
+                        else if (v.Defects.Contains(DefectType.YearMismatch))
+                        {
+                            studentYearLies++;
+                            Check(v.IdYearLevel >= 1 && v.IdYearLevel <= 4, "a student's wrong year is still a student year");
+                        }
+                        if (v.Defects.Contains(DefectType.NotInDatabase))
+                        {
+                            fakes++;
+                            Check(IdRules.IsFormatValid(v.IdNumber) && !factory.Registry.Contains(v.IdNumber),
+                                $"seed {seed}: a fake ID looks like a real one ('{v.IdNumber}') but is not in the registry");
+                        }
+                        if (v.Defects.Contains(DefectType.IdFormatInvalid))
+                            Check(!IdRules.IsFormatValid(v.IdNumber), $"seed {seed}: a broken ID really is broken ('{v.IdNumber}')");
+                    }
+            }
+            Check(fakes > 20 && professorsSeen > 20 && studentYearLies > 20, $"the runs covered fakes, professors and year lies ({fakes}, {professorsSeen}, {studentYearLies})");
         }
 
         private static void CheckpointQueueTests()

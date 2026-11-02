@@ -159,9 +159,9 @@ namespace Hollowbrook.Logic
             Topic(s, "name",
                 "Marlowe, Vance. District paperwork is a river, custodian; names bend in it. The memo confirms an administrator is expected tonight. It confirms me.",
                 "Then read the memo with me. Out loud.",
-                "…'R. Vance - DA-1147.' Fine. Vance is my supervisor's line-item. The district sends a face, not a surname. You stamp for the face in front of you.");
+                "…'R. Vance - HB-1999-001.' Fine. Vance is my supervisor's line-item. The district sends a face, not a surname. You stamp for the face in front of you.");
             Topic(s, "num",
-                "DA-0233 is my field number. DA-1147 is my office number. The district issues both. I did not expect a night custodian to have opinions about its numbering scheme.",
+                "HB-1999-010 is my field number. HB-1999-001 is my office number. The district issues both. I did not expect a night custodian to have opinions about its numbering scheme.",
                 "The rule says badge and memo must match. They don't.",
                 "Then phone the district and confirm me. Go on. I will wait here, in the cold, while you ask my own office whether I exist. …No? You memorised the note. How diligent.");
             Topic(s, "face",

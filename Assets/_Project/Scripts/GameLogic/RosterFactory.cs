@@ -134,6 +134,7 @@ namespace Hollowbrook.Logic
             {
                 IsAnomaly = false,
                 IsScared = scared,
+                IsFaculty = id.IsFaculty,
                 ClaimedName = id.FullName,
                 RecordName = id.FullName,
                 IdNumber = id.IdNumber,
@@ -173,6 +174,7 @@ namespace Hollowbrook.Logic
             {
                 IsAnomaly = true,
                 IsScared = scared,
+                IsFaculty = id.IsFaculty,
                 ClaimedName = id.FullName,
                 RecordName = id.FullName,
                 IdNumber = id.IdNumber,
@@ -210,6 +212,7 @@ namespace Hollowbrook.Logic
                 if (applied >= defectCount) break;
                 bool isIdFamily = d == DefectType.IdFormatInvalid || d == DefectType.NotInDatabase || d == DefectType.DuplicateId;
                 bool isPhotoFamily = d == DefectType.PhotoMismatch || d == DefectType.PhotoSubtleMismatch;
+                if (id.IsFaculty && (d == DefectType.YearMismatch || d == DefectType.StatusMismatch)) continue;   // a professor has no year or transfer status to lie about
                 if (isIdFamily && idDefectTaken) continue;
                 if (isPhotoFamily && photoDefectTaken) continue;
                 if (d == DefectType.DuplicateId && !HasDuplicateCandidate(id)) continue;
@@ -236,12 +239,12 @@ namespace Hollowbrook.Logic
         private static string MutateSerial(string id)
         {
             // format-broken IDs (a defect of their own) still get a visibly different slip
-            if (id == null || id.Length != 12) return id + "X";
-            if (!int.TryParse(id.Substring(8, 4), System.Globalization.NumberStyles.Integer,
+            if (id == null || id.Length != 11) return id + "X";
+            if (!int.TryParse(id.Substring(8, 3), System.Globalization.NumberStyles.Integer,
                               System.Globalization.CultureInfo.InvariantCulture, out int serial))
-                return id.Substring(0, 11) + (id[11] == '7' ? '8' : '7');
-            serial = serial > 5000 ? serial - 1 : serial + 1;
-            return id.Substring(0, 8) + serial.ToString("D4", System.Globalization.CultureInfo.InvariantCulture);
+                return id.Substring(0, 10) + (id[10] == '7' ? '8' : '7');
+            serial = serial > 500 ? serial - 1 : serial + 1;
+            return id.Substring(0, 8) + serial.ToString("D3", System.Globalization.CultureInfo.InvariantCulture);
         }
 
         private bool HasDuplicateCandidate(StudentIdentity self)
@@ -317,7 +320,12 @@ namespace Hollowbrook.Logic
                 {
                     string candidate;
                     int guard = 0;
-                    do { candidate = "HB-2026-" + _rng.NextInt(9000, 10000).ToString("D4", System.Globalization.CultureInfo.InvariantCulture); guard++; }
+                    // a believable number (a real year, a serial like the real ones), just not in the registry
+                    do
+                    {
+                        candidate = "HB-" + _rng.NextInt(2023, 2027) + "-" + _rng.NextInt(100, 1000).ToString("D3", System.Globalization.CultureInfo.InvariantCulture);
+                        guard++;
+                    }
                     while (_registry.Contains(candidate) && guard < 32);
                     v.IdNumber = candidate;
                     v.RecordIdNumber = candidate;
@@ -363,10 +371,10 @@ namespace Hollowbrook.Logic
             {
                 case 0: return "HC-" + valid.Substring(3);                       // wrong prefix
                 case 1: return valid.Replace("-", "");                            // missing dashes
-                case 2: return valid.Substring(0, 10) + "A" + valid[11];          // letter in serial
-                case 3: return valid.Substring(0, 11);                            // short
+                case 2: return valid.Substring(0, 9) + "A" + valid[10];           // letter in serial
+                case 3: return valid.Substring(0, 10);                            // short
                 case 4: return "HB-2099-" + valid.Substring(8);                   // implausible year
-                default: return "HB-" + valid.Substring(3, 4) + "-0000";          // serial 0000
+                default: return "HB-" + valid.Substring(3, 4) + "-000";            // serial 000
             }
         }
 
@@ -388,7 +396,7 @@ namespace Hollowbrook.Logic
             else if (awkward != null) v.Greeting = awkward.Greeting;
             v.Answers[(int)QuestionId.Course] = InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex], awkward);
             v.Answers[(int)QuestionId.Year] = InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1], awkward);
-            v.Answers[(int)QuestionId.Status] = InterviewRules.StatusSpeech(v.IdIsTransferee, awkward);
+            v.Answers[(int)QuestionId.Status] = InterviewRules.StatusSpeech(Content.StatusWord(v.IdIsTransferee, v.IsFaculty), awkward);
             string classroom = v.Defects.Contains(DefectType.ClassroomMismatch) ? LieAboutClassroom(id) : id.ClassroomSpeech;
             v.ClassroomAnswer = InterviewRules.ClassroomSpeech(classroom, awkward);
             v.Answers[(int)QuestionId.Classroom] = v.ClassroomAnswer;
@@ -410,7 +418,7 @@ namespace Hollowbrook.Logic
                     v.Answers[(int)q] = InterviewRules.YearSpeech(Content.YearNames[year - 1], awkward);
                     break;
                 default:
-                    v.Answers[(int)q] = InterviewRules.StatusSpeech(!v.IdIsTransferee, awkward);
+                    v.Answers[(int)q] = InterviewRules.StatusSpeech(Content.StatusWord(!v.IdIsTransferee, false), awkward);
                     break;
             }
         }
@@ -452,8 +460,8 @@ namespace Hollowbrook.Logic
                 ShiftNumber = shift.Number,
                 ClaimedName = "V. Marlowe",
                 RecordName = "R. Vance",                  // roster memo lists a different administrator
-                IdNumber = "DA-0233",                     // staff badge number, not on the roster memo
-                RecordIdNumber = "DA-1147",               // memo: "R. Vance - DA-1147"
+                IdNumber = "HB-1999-010",                  // badge number, one off from the roster memo
+                RecordIdNumber = "HB-1999-001",            // memo: "R. Vance - HB-1999-001"
                 IdYearLevel = 1, RecordYearLevel = 1,     // unused for staff (no year level)
                 IdCourseIndex = 0, RecordCourseIndex = 0, // unused ("District Administration")
                 IdIsTransferee = false, RecordIsTransferee = false,
