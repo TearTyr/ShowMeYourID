@@ -20,10 +20,10 @@ namespace Hollowbrook.Core
         /// <summary>The SKIP TUTORIAL button: the lesson is over, the night goes on as normal.</summary>
         public void SkipTutorial() => SetTutorialStep(TutorialStep.Done);
 
-        /// <summary>The GOT IT button of the last step.</summary>
+        /// <summary>The button of a step that waits for one: CONTINUE after the keybinds, GOT IT at the end.</summary>
         public void TutorialGotIt()
         {
-            if (TutorialSteps.NeedsGotIt(TutorialStep)) SetTutorialStep(TutorialStep.Done);
+            if (TutorialSteps.NeedsGotIt(TutorialStep)) SetTutorialStep(TutorialSteps.AfterButton(TutorialStep));
         }
 
         /// <summary>May the player peek into this room? Before the lesson reaches it, no.</summary>

@@ -1018,19 +1018,26 @@ namespace Hollowbrook.LogicTests
             Check(TutorialSteps.Advance(TutorialStep.PeekAnomaly, f) == TutorialStep.Finish, "stepped back: training over");
             Check(TutorialSteps.Advance(TutorialStep.Finish, f) == TutorialStep.Finish, "the last step ends only with GOT IT");
             Check(TutorialSteps.Advance(TutorialStep.Done, f) == TutorialStep.Done, "a finished tutorial never comes back");
-            Check(TutorialSteps.Advance(TutorialSteps.First, f) == TutorialStep.Finish, "a Continue after everything was done lands on the last step");
+            Check(TutorialSteps.Advance(TutorialStep.FirstStudent, f) == TutorialStep.Finish, "a Continue after everything was done lands on the last step");
+            Check(TutorialSteps.First == TutorialStep.Controls, "the tutorial opens with the keybinds");
+            Check(TutorialSteps.Advance(TutorialStep.Controls, f) == TutorialStep.Controls, "the keybinds wait for their CONTINUE button, whatever the game is doing");
+            Check(TutorialSteps.AfterButton(TutorialStep.Controls) == TutorialStep.FirstStudent && TutorialSteps.AfterButton(TutorialStep.Finish) == TutorialStep.Done,
+                "CONTINUE leads to the first lesson and GOT IT ends the tutorial");
+            Check(TutorialSteps.AfterButton(TutorialStep.HallAnomaly) == TutorialStep.HallAnomaly, "a step without a button stays where it is");
 
             foreach (TutorialStep step in Enum.GetValues(typeof(TutorialStep)))
             {
-                bool lesson = step >= TutorialStep.GoPatrol && step <= TutorialStep.PeekAnomaly;
-                Check(TutorialSteps.HoldsLine(step) == lesson, step + ": the line waits during the lessons away from the window only");
+                bool lesson = step == TutorialStep.Controls || (step >= TutorialStep.GoPatrol && step <= TutorialStep.PeekAnomaly);
+                Check(TutorialSteps.HoldsLine(step) == lesson, step + ": the line waits during the keybinds and the lessons away from the window only");
                 Check(TutorialSteps.OpensPatrol(step) == (step == TutorialStep.GoPatrol), step + ": only the patrol step opens the patrol early");
-                Check(TutorialSteps.NeedsGotIt(step) == (step == TutorialStep.Finish), step + ": only the last step has GOT IT");
+                Check(TutorialSteps.NeedsGotIt(step) == (step == TutorialStep.Controls || step == TutorialStep.Finish), step + ": only the keybinds and the last step have a button");
+                Check(TutorialSteps.IsKeyList(step) == (step == TutorialStep.Controls), step + ": only the keybinds are a list");
                 bool active = step != TutorialStep.Done;
                 Check(TutorialSteps.Active(step) == active, step + ": active unless done");
                 Check((TutorialSteps.Title(step).Length > 0 && TutorialSteps.Body(step).Length > 0) == active, step + ": a step has words, Done has none");
                 Check(!TutorialSteps.Title(step).Contains("\u2014") && !TutorialSteps.Body(step).Contains("\u2014"), step + ": no em dash");
-                Check(TutorialSteps.Body(step).Length <= 200, step + ": short enough for the box (" + TutorialSteps.Body(step).Length + ")");
+                int room = TutorialSteps.IsKeyList(step) ? 420 : 200;
+                Check(TutorialSteps.Body(step).Length <= room, step + ": short enough for the box (" + TutorialSteps.Body(step).Length + ")");
                 Check(TutorialSteps.PeekAllowed(step, RoomId.Hallway) && TutorialSteps.PeekAllowed(step, RoomId.Security), step + ": the hallway and security doors are never guarded");
             }
             Check(TutorialSteps.PeekAllowed(TutorialStep.Done, RoomId.Classroom2) && TutorialSteps.PeekAllowed(TutorialStep.Finish, RoomId.ComfortRoom),
@@ -1065,7 +1072,7 @@ namespace Hollowbrook.LogicTests
             var back = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = s })).Session;
             Check(back.TutorialStep == TutorialStep.PeekAnomaly, "the step survives a save");
             s.RewindNight();
-            Check(s.TutorialStep == TutorialStep.FirstStudent, "rewinding the night restarts a lesson in progress");
+            Check(s.TutorialStep == TutorialStep.Controls, "rewinding the night restarts a lesson in progress, from the keybinds");
             s.TutorialStep = TutorialStep.Done;
             s.RewindNight();
             Check(s.TutorialStep == TutorialStep.Done, "rewinding never starts a finished tutorial again");

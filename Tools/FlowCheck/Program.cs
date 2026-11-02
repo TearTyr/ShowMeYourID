@@ -126,6 +126,9 @@ namespace FlowCheck
                   captionAllow.GetSiblingIndex() < sticky.GetSiblingIndex(),
                 "STAMPS: the APPROVE caption sits under the sheets and the sticky note, not above their dimmers");
             ClickStickyNote(root);
+            Check(sticky.gameObject.activeSelf && !root.Queue.Started, "the keybind card comes first: the note waits for CONTINUE");
+            root.TutorialGotIt();   // CONTINUE
+            ClickStickyNote(root);
             Check(!sticky.gameObject.activeSelf, "the note hides on click");
             Check(cp0.CurrentVisitor != null, "P10: clicking the note presents the first visitor");
             Check(root.Queue.Started && root.Queue.ArrivalCount == 1 && root.Queue.WaitingCount == 0,

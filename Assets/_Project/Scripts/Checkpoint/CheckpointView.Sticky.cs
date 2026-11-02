@@ -78,6 +78,11 @@ namespace Hollowbrook.Checkpoint
         private void OnStickyClicked()
         {
             if (Queue == null || Queue.Started || !_flowActive) return;
+            if (_gameRoot.TutorialHoldsLine)   // the keybinds come first: nobody steps up until CONTINUE
+            {
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, "Read the controls first, then press CONTINUE."));
+                return;
+            }
             _gameRoot.Audio.PlaySfx("sfx_ui_open", 0.7f);
             _stickyRoot.SetActive(false);
             Queue.MarkStarted();

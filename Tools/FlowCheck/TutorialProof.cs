@@ -58,15 +58,29 @@ namespace FlowCheck
             DeskScene.Build(root);
             AdvanceDialogue(root);
             var cp = root.Checkpoint;
-            Check(root.TutorialStep == TutorialStep.FirstStudent && root.TutorialActive, "TUT: a new story starts with the lesson");
-            Check(GuideShown(root) && GuideTitle(root) == TutorialSteps.Title(TutorialStep.FirstStudent), "TUT: the guide box shows the first step");
+            Check(root.TutorialStep == TutorialStep.Controls && root.TutorialActive, "TUT: a new story starts with the keybinds");
+            Check(GuideShown(root) && GuideTitle(root) == "CONTROLS", "TUT: the guide box shows the keybinds first");
+            var keys = FindDeep(root.HUD.transform, "body").GetComponent<UnityEngine.UI.Text>().text;
+            Check(keys.Contains("TAB") && keys.Contains("SHIFT") && keys.Contains("Focus light") && keys.Contains("step back"), "TUT: the keybind card lists the desk and patrol keys");
             Check(FindDeep(root.HUD.transform, "skip").gameObject.activeSelf, "TUT: SKIP TUTORIAL is there");
-            Check(!FindDeep(root.HUD.transform, "gotit").gameObject.activeSelf, "TUT: GOT IT waits for the last step");
+            var button = FindDeep(root.HUD.transform, "gotit");
+            Check(button.gameObject.activeSelf && button.GetComponentInChildren<UnityEngine.UI.Text>().text == "CONTINUE", "TUT: the keybinds have a CONTINUE button");
+
+            // nobody steps up until the player has read them
+            ClickStickyNote(root);
+            Check(!root.Queue.Started && cp.CurrentVisitor == null, "TUT: the sticky note does nothing until CONTINUE is pressed");
+            string clock = root.ClockString;
+            float sanity = root.Session.Sanity;
+            RunUpdates(root, 60);
+            Check(root.ClockString == clock && root.Session.Sanity == sanity, "TUT: the clock and sanity stand still during the keybinds");
+            button.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Check(root.TutorialStep == TutorialStep.FirstStudent && GuideTitle(root) == TutorialSteps.Title(TutorialStep.FirstStudent),
+                "TUT: CONTINUE starts the first lesson");
+            Check(!button.gameObject.activeSelf, "TUT: the button goes away for the lessons");
 
             // the clock and the sanity wait while a lesson is showing
             ClickStickyNote(root);
-            string clock = root.ClockString;
-            float sanity = root.Session.Sanity;
+            Check(root.Queue.Started, "TUT: now the sticky note starts the night");
             RunUpdates(root, 60);
             Check(root.ClockString == clock && root.Session.Sanity == sanity, "TUT: the clock and sanity stand still during the lesson (" + root.ClockString + ")");
 
@@ -171,7 +185,7 @@ namespace FlowCheck
             root.StartNewGame(GameMode.Normal);
             DeskScene.Build(root);
             AdvanceDialogue(root);
-            Check(GuideShown(root), "TUT: a second new story has the lesson again");
+            Check(GuideShown(root) && root.TutorialStep == TutorialStep.Controls, "TUT: a second new story has the keybinds and the lesson again");
             FindDeep(root.HUD.transform, "skip").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Check(!root.TutorialActive && !GuideShown(root), "TUT: SKIP TUTORIAL ends it at once");
             Check(root.Session.TutorialStep == TutorialStep.Done, "TUT: and the save says so");
@@ -180,6 +194,7 @@ namespace FlowCheck
             root.StartNewGame(GameMode.Normal);
             DeskScene.Build(root);
             AdvanceDialogue(root);
+            root.TutorialGotIt();   // past the keybinds
             ClickStickyNote(root);
             StampLessonVisitor(root);
             StampLessonVisitor(root);

@@ -7,16 +7,17 @@ using L = Hollowbrook.Checkpoint.CheckpointLayout;
 
 namespace Hollowbrook.UI
 {
-    /// <summary>The Night 1 tutorial's text box: a title, a few lines, SKIP TUTORIAL always, and GOT IT
-    /// on the last step. It lives in the HUD frame, so it shows at the desk, in the hallway and in a peek.
-    /// TutorialSteps decides what it says; this class only draws it.</summary>
+    /// <summary>The Night 1 tutorial's text box: a title, a few lines, SKIP TUTORIAL always, and a button on the steps
+    /// that wait for one (CONTINUE after the keybinds, GOT IT at the end). It lives in the HUD frame, so it shows at
+    /// the desk, in the hallway and in a peek. TutorialSteps decides what it says; this class only draws it.</summary>
     public class TutorialGuide : MonoBehaviour
     {
-        private static readonly L.Region Box = new L.Region(470, 82, 430, 98);
-        private static readonly L.Region TitleSlot = new L.Region(10, 4, 410, 18);
-        private static readonly L.Region BodySlot = new L.Region(10, 22, 410, 52);
-        private static readonly L.Region GotItSlot = new L.Region(10, 74, 100, 20);
-        private static readonly L.Region SkipSlot = new L.Region(290, 74, 130, 20);
+        // the lessons' box is short; the keybind card is a list, so its box is taller
+        private static readonly L.Region LessonBox = new L.Region(470, 82, 430, 98);
+        private static readonly L.Region KeysBox = new L.Region(470, 82, 430, 190);
+        private const float TitleHeight = 18f;
+        private const float ButtonHeight = 20f;
+        private const float Pad = 10f;
         private const int ButtonFontSize = 11;
 
         private GameRoot _root;
@@ -24,30 +25,40 @@ namespace Hollowbrook.UI
         private Text _title;
         private Text _body;
         private Button _gotIt;
+        private Text _gotItLabel;
+        private Button _skip;
         private readonly List<EventSubscription> _subs = new List<EventSubscription>();
 
         public void Init(GameRoot root, RectTransform frame)
         {
             _root = root;
             _box = UIFactory.BorderedPanel(frame, "tutorialguide", UIFactory.PanelBase, UIFactory.AccentBright, 2);
-            L.Place(_box, Box);
             _title = UIFactory.Label(_box, "title", "", 14, UIFactory.AccentBright, TextAnchor.UpperLeft);
             _title.font = UIFactory.UiFontBold;
-            L.Place(_title.rectTransform, TitleSlot);
             _body = UIFactory.Label(_box, "body", "", 13, UIFactory.Ink, TextAnchor.UpperLeft);
-            L.Place(_body.rectTransform, BodySlot);
-            _gotIt = SmallButton("gotit", "GOT IT", root.TutorialGotIt, GotItSlot);
-            SmallButton("skip", "SKIP TUTORIAL", root.SkipTutorial, SkipSlot);
+            _gotIt = SmallButton("gotit", "GOT IT", root.TutorialGotIt, 100);
+            _gotItLabel = _gotIt.GetComponentInChildren<Text>();
+            _skip = SmallButton("skip", "SKIP TUTORIAL", root.SkipTutorial, 130);
             _subs.Add(root.Bus.Subscribe(EventIds.TutorialChanged, e => Refresh()));
             Refresh();
         }
 
-        private Button SmallButton(string name, string label, System.Action onClick, L.Region slot)
+        private Button SmallButton(string name, string label, System.Action onClick, int width)
         {
-            var button = UIFactory.StandardButton(_box, name, label, onClick, (int)slot.W, (int)slot.H);
-            L.Place(button.GetComponent<RectTransform>(), slot);
+            var button = UIFactory.StandardButton(_box, name, label, onClick, width, (int)ButtonHeight);
             UIFactory.SetBaseFontSize(button.GetComponentInChildren<Text>(), ButtonFontSize);
             return button;
+        }
+
+        // The box, the words and the buttons for the box's height: the buttons sit along the bottom edge.
+        private void Layout(L.Region box)
+        {
+            L.Place(_box, box);
+            float bottom = box.H - ButtonHeight - 4f;
+            L.Place(_title.rectTransform, new L.Region(Pad, 4f, box.W - 2f * Pad, TitleHeight));
+            L.Place(_body.rectTransform, new L.Region(Pad, 4f + TitleHeight, box.W - 2f * Pad, bottom - 4f - TitleHeight));
+            L.Place(_gotIt.GetComponent<RectTransform>(), new L.Region(Pad, bottom, 100f, ButtonHeight));
+            L.Place(_skip.GetComponent<RectTransform>(), new L.Region(box.W - Pad - 130f, bottom, 130f, ButtonHeight));
         }
 
         /// <summary>Show the current step, or nothing when the tutorial is over.</summary>
@@ -58,9 +69,11 @@ namespace Hollowbrook.UI
             var state = _root.State;
             bool playing = state == AppViewState.Checkpoint || state == AppViewState.Exploration || state == AppViewState.RoomPeek;
             _box.gameObject.SetActive(TutorialSteps.Active(step) && playing);   // not over the night card or the map
+            Layout(TutorialSteps.IsKeyList(step) ? KeysBox : LessonBox);
             _title.text = TutorialSteps.Title(step);
             _body.text = TutorialSteps.Body(step);
             _gotIt.gameObject.SetActive(TutorialSteps.NeedsGotIt(step));
+            if (_gotItLabel != null) _gotItLabel.text = TutorialSteps.ButtonLabel(step);
         }
 
         private void OnDestroy()

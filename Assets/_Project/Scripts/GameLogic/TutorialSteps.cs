@@ -5,6 +5,7 @@ namespace Hollowbrook.Logic
     public enum TutorialStep
     {
         Done = 0,
+        Controls,       // the keybinds first, before anything is taught or any visitor arrives
         FirstStudent,   // visitor 1 is a real student: the whole desk routine
         FirstAnomaly,   // visitor 2 has a broken rule: find it, and meet the Security Log
         GoPatrol,       // the line waits, the patrol opens early
@@ -30,7 +31,7 @@ namespace Hollowbrook.Logic
     /// holds still. One teaching round of the core ideas, then no more training wheels.</summary>
     public static class TutorialSteps
     {
-        public static TutorialStep First => TutorialStep.FirstStudent;
+        public static TutorialStep First => TutorialStep.Controls;
 
         public static bool Active(TutorialStep step) => step != TutorialStep.Done;
 
@@ -66,7 +67,7 @@ namespace Hollowbrook.Logic
 
         /// <summary>The line of visitors waits while the lessons away from the window run.</summary>
         public static bool HoldsLine(TutorialStep step) =>
-            step >= TutorialStep.GoPatrol && step <= TutorialStep.PeekAnomaly;
+            step == TutorialStep.Controls || (step >= TutorialStep.GoPatrol && step <= TutorialStep.PeekAnomaly);
 
         /// <summary>The patrol opens early for the lesson: only the first lesson needs the line to be done.</summary>
         public static bool OpensPatrol(TutorialStep step) => step == TutorialStep.GoPatrol;
@@ -81,12 +82,27 @@ namespace Hollowbrook.Logic
             return false;
         }
 
-        public static bool NeedsGotIt(TutorialStep step) => step == TutorialStep.Finish;
+        /// <summary>These steps wait for a button instead of for something the player does in the game.</summary>
+        public static bool NeedsGotIt(TutorialStep step) => step == TutorialStep.Controls || step == TutorialStep.Finish;
+
+        /// <summary>Where the button of a step leads: the keybinds to the first lesson, the last step to the end.</summary>
+        public static TutorialStep AfterButton(TutorialStep step)
+        {
+            if (step == TutorialStep.Controls) return TutorialStep.FirstStudent;
+            if (step == TutorialStep.Finish) return TutorialStep.Done;
+            return step;
+        }
+
+        public static string ButtonLabel(TutorialStep step) => step == TutorialStep.Controls ? "CONTINUE" : "GOT IT";
+
+        /// <summary>The keybind card is a list, so its box is taller than the lessons' box.</summary>
+        public static bool IsKeyList(TutorialStep step) => step == TutorialStep.Controls;
 
         public static string Title(TutorialStep step)
         {
             switch (step)
             {
+                case TutorialStep.Controls: return "CONTROLS";
                 case TutorialStep.FirstStudent: return "VISITOR 1: A REAL STUDENT";
                 case TutorialStep.FirstAnomaly: return "VISITOR 2: SOMETHING IS OFF";
                 case TutorialStep.GoPatrol: return "TIME TO PATROL";
@@ -102,6 +118,14 @@ namespace Hollowbrook.Logic
         {
             switch (step)
             {
+                case TutorialStep.Controls:
+                    return "AT THE DESK (mouse)\n" +
+                           "F  flip the ID      1 to 4  ask a question      TAB  file drawer\n" +
+                           "Drag a stamp onto the slip, then drag the ID back to the window.\n" +
+                           "ON PATROL (keys)\n" +
+                           "A / D  walk      SHIFT  run      MOUSE  aim the flashlight\n" +
+                           "F  flashlight      Q  Focus light      E  use a door      S  step back from a peek\n" +
+                           "M  map (at the desk)      ESC  pause";
                 case TutorialStep.FirstStudent:
                     return "Press F to flip the ID. Open the FILE drawer and compare the name, ID, grade and status. " +
                            "Ask a question. If it all matches, drag APPROVE onto the slip, then drag the ID back to the window.";
