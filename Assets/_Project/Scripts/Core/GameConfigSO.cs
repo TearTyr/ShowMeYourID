@@ -128,23 +128,23 @@ namespace Hollowbrook.Core
         [Tooltip("Catches until he reaches the server door on night 6.")][Range(1, 10)]
         public int night6CatchesToLose = 2;
         [Tooltip("Seconds to survive until dawn on night 6.")][Range(30f, 900f)]
-        public float night6SurviveSeconds = 270f;
+        public float night6SurviveSeconds = 300f;
         [Tooltip("Seconds taken off night 6 for every lie exposed.")][Range(0f, 60f)]
         public float night6SecondsPerLie = 10f;
         [Tooltip("Night 6 is never shorter than this.")][Range(30f, 600f)]
-        public float night6MinSurviveSeconds = 150f;
+        public float night6MinSurviveSeconds = 180f;
         [Tooltip("How long he walks between stops on night 6 (min / max).")][Range(1f, 30f)]
-        public float night6StalkMinSeconds = 2f;
+        public float night6StalkMinSeconds = 1.5f;
         [Range(1f, 40f)]
-        public float night6StalkMaxSeconds = 4f;
+        public float night6StalkMaxSeconds = 3f;
         [Tooltip("Seconds to find him in the room he stopped in, night 6.")][Range(3f, 30f)]
-        public float night6RoomSeconds = 6f;
+        public float night6RoomSeconds = 5f;
         [Tooltip("Seconds the lamp must stay on his head, night 6.")][Range(0.3f, 10f)]
-        public float night6RoomHoldSeconds = 2.4f;
+        public float night6RoomHoldSeconds = 2.6f;
         [Tooltip("Seconds he takes to walk up to you from off screen, night 6.")][Range(1f, 10f)]
-        public float night6BehindSeconds = 3.5f;
+        public float night6BehindSeconds = 3.2f;
         [Tooltip("Seconds of beam on his face that count as a hit, night 6.")][Range(0.1f, 2f)]
-        public float night6BeamHitSeconds = 0.5f;
+        public float night6BeamHitSeconds = 0.55f;
 
         [Header("Encounter - repel meter")]
         [Tooltip("Meter per second while Focus holds the anomaly's body (the only way to progress).")][Range(0.05f, 2f)]
