@@ -30,6 +30,13 @@ namespace FlowCheck
 
         private static void Main(string[] args)
         {
+            // each run keeps its own save folder, so two runs at the same time (for example from two git worktrees)
+            // never trample each other's saves
+            UnityEngine.Application.persistentDataPath =
+                System.IO.Path.Combine(System.IO.Path.GetTempPath(), "smyid-persistent-" + Environment.ProcessId);
+            // the tutorial is parked in the game, but its code stays proven: every proof below runs with it switched
+            // on, except TutorialParkedProof, which checks the shipped (parked) behaviour
+            TutorialSteps.Enabled = true;
             // opt-in: boot to the desk and dump the file drawer as SVG at three points of its
             // travel, so the animation can be LOOKED AT rather than inferred from numbers.
             // Not part of the proof run: `dotnet run --project Tools/FlowCheck -- --dump-drawer=DIR`
@@ -179,6 +186,7 @@ namespace FlowCheck
             RetryProof(root);
             NightLogProof(root);
             TutorialProof(root);
+            TutorialParkedProof(root);
             LockdownProof(root);
             MoreFlawsProof(root);
             SanityProof(root);

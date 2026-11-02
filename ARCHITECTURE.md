@@ -67,7 +67,7 @@ plays intro dialogue, and on the last click sets state Checkpoint and calls `Beg
 attaches the desk to `GameRoot.Queue`. If the scene script never runs, `CheckSceneHandshake` logs and
 returns to the menu after 3.5 s.
 
-**Night 1 tutorial:** `GameLogic/TutorialSteps` (pure) holds the order (it opens with the `Controls` step, a keybind card that waits for its CONTINUE button), the texts and what each step holds still;
+**Night 1 tutorial (PARKED: `TutorialSteps.Enabled = false`, so `GameRoot.TutorialStep` always reads `Done`; set it to true to bring it back):** `GameLogic/TutorialSteps` (pure) holds the order (it opens with the `Controls` step, a keybind card that waits for its CONTINUE button), the texts and what each step holds still;
 `GameSession.TutorialStep` is saved (`Done` = none, which is also every old save and every other mode). `GameRoot.Tutorial.cs` feeds it
 facts once a frame (`TickTutorial`), pauses the clock and sanity in `Update` while a step is active, holds the line
 (`CheckpointQueue.HoldLine`), opens the patrol early (`CheckpointView.PatrolOpen`), guards the peek doors (`Doorway.Interact`) and

@@ -243,7 +243,7 @@ namespace Hollowbrook.Logic
             QueueState = null;
             NightRecords.Clear();
             LogSigned = false;
-            if (TutorialStep != TutorialStep.Done) TutorialStep = TutorialSteps.First;   // a lesson starts over with its night
+            if (TutorialStep != TutorialStep.Done) TutorialStep = TutorialSteps.Start;   // a lesson starts over with its night (none while it is parked)
             VisitorIndexAtSave = 0;
             ShiftClockMinutes = 0f;
             AdminAllowed = false;

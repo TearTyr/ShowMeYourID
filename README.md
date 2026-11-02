@@ -55,7 +55,11 @@ Folder rules and naming are in [docs/ART-NAMING.md](docs/ART-NAMING.md), the ful
    interrogate him (`T`) as often as you like, catch his lies, turn him away with the DENY stamp, and he
    forces his way in. He speaks only through the dialogue box. Survive until dawn (see below).
 
-### The Night 1 tutorial
+### The Night 1 tutorial (parked for now)
+
+**The tutorial is switched off** because it was unstable: night 1 plays like any other night (the first click on the sticky note brings the
+first visitor, and every door is open). All of its code is still in the project. To bring it back, set `TutorialSteps.Enabled = true` in
+`GameLogic/TutorialSteps.cs` and playtest it. What it does when it is on:
 
 A new story starts with a guided Night 1 that teaches the core ideas once and then leaves you alone. It opens with a card of the
 keybinds (desk and patrol) and a CONTINUE button: nobody arrives until you press it. After that a box at the top of the screen

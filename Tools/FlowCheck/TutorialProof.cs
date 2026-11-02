@@ -51,6 +51,34 @@ namespace FlowCheck
             return who;
         }
 
+        // The shipped game: the tutorial is parked, so night 1 is an ordinary night that starts at the first click.
+        private static void TutorialParkedProof(GameRoot root)
+        {
+            Console.WriteLine("== the tutorial is parked: night 1 plays like any night ==");
+            TutorialSteps.Enabled = false;
+            try
+            {
+                root.StartNewGame(GameMode.Normal);
+                DeskScene.Build(root);
+                AdvanceDialogue(root);
+                var cp = root.Checkpoint;
+                Check(root.TutorialStep == TutorialStep.Done && !root.TutorialActive && !root.TutorialHoldsLine && !root.TutorialOpensPatrol,
+                    "PARK: a new story starts with no tutorial and nothing held still");
+                Check(!GuideShown(root), "PARK: no guide box and no keybind card");
+                ClickStickyNote(root);
+                Check(root.Queue.Started && cp.CurrentVisitor != null && !root.Queue.HoldLine,
+                    "PARK: the first click on the sticky note starts the night with the first visitor (no CONTINUE step)");
+                string clock = root.ClockString;
+                RunUpdates(root, 60);
+                Check(root.ClockString != clock, "PARK: the clock runs from the start");
+                Check(root.TutorialAllowsPeek(RoomId.Classroom1) && root.TutorialAllowsPeek(RoomId.Classroom2) && root.TutorialAllowsPeek(RoomId.ComfortRoom),
+                    "PARK: every door opens");
+                root.Session.TutorialStep = TutorialStep.PeekAnomaly;   // an old save that was in the middle of a lesson
+                Check(!root.TutorialActive && root.TutorialStep == TutorialStep.Done, "PARK: an old save in the middle of a lesson reads as no tutorial");
+            }
+            finally { TutorialSteps.Enabled = true; }
+        }
+
         private static void TutorialProof(GameRoot root)
         {
             Console.WriteLine("== night 1 tutorial: the desk, the hallway, two peeks, then alone ==");
