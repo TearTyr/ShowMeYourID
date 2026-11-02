@@ -81,6 +81,53 @@ namespace FlowCheck
             Check(!Btn(root, "endshift").interactable, tag + ": END SHIFT is locked");
         }
 
+        private static void NightLogProof(GameRoot root)
+        {
+            Console.WriteLine("== security log: counted, signed, graded at END SHIFT, explained next night ==");
+            FreshGame(root); ClickStickyNote(root);
+            var cp = root.Checkpoint;
+            Check(root.LogRequired && !root.LogReady, "LOG: night 1 needs a signed log before the night can end");
+            cp.DebugOpenOverlay("log");
+            var sheet = FindDeep(cp.transform, "OverlayLog");
+            var sign = FindDeep(sheet, "sign").GetComponent<UnityEngine.UI.Button>();
+            Check(sign.gameObject.activeSelf, "LOG: the sheet has a SIGN LOG button on night 1");
+            sign.onClick.Invoke();
+            Check(root.Session.LogSigned && root.LogReady, "LOG: signing is what unlocks the night");
+            var box = FindDeep(sheet, "logbox_student_encounters").GetComponent<LogBox>();
+            box.OnPointerClick(new UnityEngine.EventSystems.PointerEventData());
+            Check(!root.Session.LogSigned && !root.LogReady, "LOG: changing a box takes the signature back");
+
+            // one real call at the window, then clock out with the boxes left wrong on purpose
+            root.Session.LogCounts[0] = 0;
+            StampCorrectly(root);
+            Check(root.Session.NightRecords.Count == 1, "LOG: the call is written to the saved list of who came (" + root.Session.NightRecords.Count + ")");
+            root.PersistRun();
+            Check(root.Saves.Read().Session.NightRecords.Count == 1, "LOG: the list survives a save, so patrol and Continue keep it");
+            string listed = FindDeep(sheet, "text").GetComponent<UnityEngine.UI.Text>().text;
+            cp.DebugOpenOverlay("log");   // closes it
+            cp.DebugOpenOverlay("log");   // opens it again, refreshed
+            listed = FindDeep(sheet, "text").GetComponent<UnityEngine.UI.Text>().text;
+            Check(listed.Contains("ALLOWED") || listed.Contains("REJECTED"), "LOG: the sheet lists who came and what was stamped");
+            Check(!listed.Contains("BREACHES") && !listed.Contains("FALSE REJECTIONS"), "LOG: the sheet never shows totals that give a verdict away");
+
+            root.Session.LogCounts[1] = 7;   // wrong on purpose
+            SignLog(root);
+            root.RequestEndShift();           // graded now, the next night begins
+            AdvanceDialogue(root);
+            Check(root.Session.LogNote.Contains("Student encounters") && root.Session.LogNote.Contains("Penalty"),
+                "LOG: the wrong boxes are named in the note (" + root.Session.LogNote.Replace("\n", " / ") + ")");
+            Check(root.Session.PendingLogLoss == 0 && root.Session.Sanity <= 100f - NightLogRules.SanityLossPerMistake,
+                "LOG: the penalty was paid in sanity when the next night began (" + root.Session.Sanity + ")");
+            Check(root.Session.NightRecords.Count == 0 && !root.Session.LogSigned, "LOG: the new night starts with an empty list and an unsigned log");
+            root.Checkpoint.DebugOpenOverlay("rules");
+            string rules = FindDeep(FindDeep(root.Checkpoint.transform, "OverlayRules"), "text").GetComponent<UnityEngine.UI.Text>().text;
+            Check(rules.Contains("LAST NIGHT'S LOG") && rules.Contains("Student encounters"),
+                "LOG: only the next night's Rules sheet says what the log got wrong");
+            root.Checkpoint.DebugOpenOverlay("rules");
+            root.PersistRun();
+            Check(root.Saves.Read().Session.LogNote == root.Session.LogNote, "LOG: the note is saved, so Continue still shows it");
+        }
+
         private static void RetryProof(GameRoot root)
         {
             Console.WriteLine("== retry: a lost night comes back empty ==");

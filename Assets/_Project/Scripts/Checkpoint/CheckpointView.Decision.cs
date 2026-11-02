@@ -365,7 +365,7 @@ namespace Hollowbrook.Checkpoint
             RefreshQuestionsPanel(atWindow);
             RefreshStamps(live);
             bool patrolOn = PatrolOpen && !atWindow;
-            bool endOn = Queue != null && Queue.ShiftComplete && _gameRoot.PatrolDone && _gameRoot.NightResolved &&
+            bool endOn = Queue != null && Queue.ShiftComplete && _gameRoot.PatrolDone && _gameRoot.NightResolved && _gameRoot.LogReady &&
                          _gameRoot.Session.Mode == GameMode.Normal && !_gameRoot.HuntActive && !_gameRoot.HuntReady;
             if (_kitOn) { ApplyKitPill(_patrolBtn, patrolOn); ApplyKitPill(_endShiftBtn, endOn); }
             else
@@ -384,11 +384,6 @@ namespace Hollowbrook.Checkpoint
 
             // the thud already played when the stamp landed; hand-back owns its own sound
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VerdictStamped, outcome));
-
-            // silent verdict: the log records the call, never whether it was right
-            _tonightsLog.Append("  ").Append(_current.IsAdministrator ? "ADMINISTRATOR" : _current.ClaimedName)
-                .Append(" (").Append(_current.IdNumber).Append(")")
-                .Append(" - ").Append(verdict == Verdict.Allow ? "ALLOWED" : "REJECTED").Append("\n");
 
             var resolved = _current;
             _gameRoot.OnVerdictResolved(resolved, outcome);           // counters update BEFORE the banner reads them

@@ -80,6 +80,7 @@ namespace Hollowbrook.LogicTests
             AdminRosterSuite();
             SlipFairnessTests();
             NightLogTests();
+            NightLogGradingTests();
             CultureRoundTripTests();
             ResumeReplayTests();
 
@@ -931,6 +932,60 @@ namespace Hollowbrook.LogicTests
                 case QuestionId.Status: return InterviewRules.StatusSpeech(Content.StatusWord(v.IdIsTransferee, v.IsFaculty), awkward);
                 default: return v.ClassroomAnswer;
             }
+        }
+
+        // The log is graded against what really happened. Pure rules, plus the save and the night start.
+        private static void NightLogGradingTests()
+        {
+            Group("Night log grading - compared with the night, explained only in the next night's note");
+            var records = new List<NightRecord>
+            {
+                new NightRecord { Name = "Liza May Ramos", WasAnomaly = false, Allowed = true, Why = "" },
+                new NightRecord { Name = "Paolo Garcia", WasAnomaly = true, Allowed = false, Why = "The ID expired on 2026-09-04." },
+                new NightRecord { Name = "Bea Dela Cruz", WasAnomaly = true, Allowed = true, Why = "The face at the window does not match the ID photo." },
+            };
+            var right = NightLogRules.Check(new[] { 3, 2, 1 }, records, 1);
+            Check(right.Mistakes == 0 && right.SanityLoss == 0 && right.Right.All(r => r), "three right counts: no mistakes, no penalty");
+            Check(right.Note.Contains("matched"), "a matching log says so");
+
+            var wrong = NightLogRules.Check(new[] { 3, 1, 0 }, records, 1);
+            Eq(wrong.Mistakes, 2, "two wrong boxes");
+            Check(wrong.Right[0] && !wrong.Right[1] && !wrong.Right[2], "each box is judged on its own");
+            Eq(wrong.SanityLoss, 2 * NightLogRules.SanityLossPerMistake, "the penalty is per wrong box");
+            Check(wrong.Note.Contains("Anomalies detected: you wrote 1, there were 2") && wrong.Note.Contains("Paolo Garcia: The ID expired on 2026-09-04"),
+                "the note names the anomalies and what was wrong with them");
+            Check(wrong.Note.Contains("Security incidents: you wrote 0, there was 1") && wrong.Note.Contains("Penalty: 10 sanity"),
+                "the note names the incident count and the penalty");
+            Check(!wrong.Note.Contains("Student encounters"), "a right box is not mentioned");
+            Eq(NightLogRules.Check(null, records, 0).Mistakes, 2, "no counts at all means zeros: the encounters and anomalies are wrong");
+            Check(NightLogRules.Check(new[] { 0, 0, 0 }, new List<NightRecord>(), 0).Mistakes == 0, "an empty night with empty boxes is right");
+
+            // session: signing, grading, the next night paying, saving
+            var s = new GameSession();
+            foreach (var r in records) s.NightRecords.Add(r);
+            Check(!s.LogSigned, "a new log is unsigned");
+            s.SignLog();
+            Check(s.LogSigned, "signing signs");
+            s.ChangeLog(0, +1);
+            Check(!s.LogSigned, "changing a box takes the signature back");
+            s.ChangeLog(0, -1);
+            s.SignLog();
+            s.ChangeLog(0, 0);
+            Check(s.LogSigned, "a click that changes nothing keeps the signature");
+            var grade = s.GradeNight(1);
+            Check(s.PendingLogLoss == grade.SanityLoss && s.LogNote == grade.Note && grade.Mistakes == 3, "grading books the penalty and the note");
+            var back = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = s })).Session;
+            Check(back.NightRecords.Count == 3 && back.NightRecords[1].Name == "Paolo Garcia" && back.NightRecords[1].WasAnomaly && !back.NightRecords[1].Allowed
+                  && back.NightRecords[1].Why == "The ID expired on 2026-09-04.", "who came survives a save");
+            Check(back.LogSigned && back.PendingLogLoss == s.PendingLogLoss && back.LogNote == s.LogNote, "the signature, the penalty and the note survive a save");
+            s.Sanity = 90f;
+            s.BeginNight();
+            Check(Math.Abs(s.Sanity - (90f - grade.SanityLoss)) < 0.01f && s.PendingLogLoss == 0, "the next night pays the penalty once");
+            Check(s.NightRecords.Count == 0 && !s.LogSigned && s.LogNote == grade.Note, "a new night clears the list and the signature but keeps last night's note to read");
+            var odd = new GameSession();
+            odd.NightRecords.Add(new NightRecord { Name = "A|B^C", WasAnomaly = true, Allowed = true, Why = "x|y^z" });
+            var oddBack = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = odd })).Session;
+            Check(oddBack.NightRecords.Count == 1 && oddBack.NightRecords[0].WasAnomaly, "odd characters in a name cannot break the save");
         }
 
         private static void NightLogTests()

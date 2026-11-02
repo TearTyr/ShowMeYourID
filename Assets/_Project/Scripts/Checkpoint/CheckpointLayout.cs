@@ -244,6 +244,7 @@ namespace Hollowbrook.Checkpoint
             public static readonly Region PaperSlip = new Region(405, 594, 470, 118);
             public static readonly Region PaperSlipBody = new Region(14, 8, 442, 102);
             public static readonly Region PaperClose = new Region(688, 42, 140, 36);
+            public static readonly Region PaperSign = new Region(688, 84, 140, 36);   // SIGN LOG, under CLOSE on the log sheet
 
             // day banner: night label on top, queue readout underneath
             public static readonly Region BannerTop = new Region(0, 0, 700, 30);   // pre-squeeze width

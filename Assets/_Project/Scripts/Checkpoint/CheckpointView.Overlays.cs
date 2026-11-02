@@ -24,8 +24,31 @@ namespace Hollowbrook.Checkpoint
             _notesRoot = BuildPaperOverlay("OverlayRules", "sec_rules_paper", out _notesText);
             _recordsRoot = BuildPaperOverlay("OverlayLog", "sec_log_paper", out _recordsText);
             BuildLogBoxes();
+            BuildSignButton();
 
             // there is no yes/no confirm popup: stamping IS confirming
+        }
+
+        // SIGN LOG: nights 1 to 4 cannot be ended until the player has counted the night and signed.
+        private Button _signBtn;
+
+        private void BuildSignButton()
+        {
+            var rootRt = _recordsRoot.GetComponent<RectTransform>();
+            _signBtn = GridButton(rootRt, "sign", "SIGN LOG", SignLog, L.Inner.PaperSign, 14);
+            L.Place(_signBtn.GetComponent<RectTransform>(), L.Inner.PaperSign);
+            SkinButton(_signBtn, "sec_btn_pill");
+            var label = _signBtn.GetComponentInChildren<Text>();
+            if (label != null) label.color = UIFactory.NsInk;
+        }
+
+        private void SignLog()
+        {
+            if (!_gameRoot.LogRequired) return;
+            _gameRoot.Session.SignLog();
+            _gameRoot.Audio.PlaySfx("sfx_paper", 0.4f);
+            RefreshRecords();
+            RefreshHud();   // END SHIFT may light up now
         }
 
         // The reading sheet IS the owner's photographed document: sec_rules_paper /
@@ -163,6 +186,10 @@ namespace Hollowbrook.Checkpoint
         {
             var sb = new StringBuilder();
             sb.Append("BASE RULES - Check every ID against the file in the drawer: number format, photo, expiry, year, course, status, name. Ask where they are going and check that too. Decisions are permanent.\n\n");
+            // last night's log: the only place the player learns what the three boxes got wrong
+            string lastLog = _gameRoot.Session.LogNote;
+            if (!string.IsNullOrEmpty(lastLog))
+                sb.Append("LAST NIGHT'S LOG\n").Append(lastLog).Append("\n\n");
             if (_shift != null) { sb.Append(_shift.RuleNoteAddendum).Append('\n'); }
             _notesText.text = sb.ToString();
         }
@@ -170,17 +197,28 @@ namespace Hollowbrook.Checkpoint
         private void RefreshRecords()
         {
             RefreshLogBoxes();
+            var session = _gameRoot.Session;
             var sb = new StringBuilder();
-            sb.Append("LOG: click a box to count up, right click to count down.\n\n");
-            sb.Append("PRESENTED TONIGHT:\n");
-            sb.Append(_tonightsLog.Length == 0 ? "  (no one yet)\n" : _tonightsLog.ToString());
-            if (Queue != null && Queue.MissingIncidents > 0)
-                sb.Append("\nROSTER DISCREPANCY: ").Append(Queue.MissingIncidents)
-                  .Append(" expected student(s) never reached the window.\n");
-            sb.Append("\nBREACHES (anomalies allowed in): ").Append(_gameRoot.Session.Breaches).Append(" / ").Append(EndingRules.LoseThreshold).Append("\n");
-            sb.Append("FALSE REJECTIONS: ").Append(_gameRoot.Session.FalseRejections).Append(" / ").Append(EndingRules.LoseThreshold).Append("\n");
-            sb.Append("FINDINGS DISCOVERED: ").Append(_gameRoot.Session.Clues.FoundCount).Append(" / ").Append(_gameRoot.Session.Clues.TotalCount).Append("\n");
+            if (_gameRoot.LogRequired)
+                sb.Append("COUNT THE NIGHT: left click a box to count up, right click to count down. Then sign. END SHIFT waits for the signature.\n\n");
+            else sb.Append("No log duty tonight.\n\n");
+            sb.Append("AT THE WINDOW TONIGHT:\n");
+            if (session.NightRecords.Count == 0) sb.Append("  (no one yet)\n");
+            foreach (var r in session.NightRecords)
+                sb.Append("  ").Append(r.Name).Append(" - ").Append(r.Allowed ? "ALLOWED" : "REJECTED").Append("\n");
+            sb.Append("\nFINDINGS DISCOVERED: ").Append(session.Clues.FoundCount).Append(" / ").Append(session.Clues.TotalCount).Append("\n");
+            if (_gameRoot.LogRequired && session.LogSigned) sb.Append("\nLOG SIGNED.\n");
             _recordsText.text = sb.ToString();
+            RefreshSignButton();
+        }
+
+        private void RefreshSignButton()
+        {
+            if (_signBtn == null) return;
+            bool duty = _gameRoot.LogRequired;
+            _signBtn.gameObject.SetActive(duty);
+            var label = _signBtn.GetComponentInChildren<Text>();
+            if (label != null) label.text = _gameRoot.Session.LogSigned ? "SIGNED" : "SIGN LOG";
         }
     }
 }

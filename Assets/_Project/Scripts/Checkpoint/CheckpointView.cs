@@ -57,7 +57,6 @@ namespace Hollowbrook.Checkpoint
         private Image _idArt, _idStripe;   // the card's printed art and its flip handle (see LayoutIdCard)
         private Image _idPhoto;
         private Text _recName, _recNumber, _recYear, _recCourse, _recStatus, _recClassroom, _recHeader, _recEnrolled;
-        private StringBuilder _tonightsLog = new StringBuilder();
 
         private Button[] _questionBtns = new Button[InterviewRules.Count];
         private Text _qKeyHint;   // "2/2": questions left for this student
@@ -198,7 +197,6 @@ namespace Hollowbrook.Checkpoint
         // (back from patrol): clear per-visitor state.
         private void ResetShiftState()
         {
-            _tonightsLog.Clear();
             HideBubbleNow();
             _flowActive = true;
             _current = null;

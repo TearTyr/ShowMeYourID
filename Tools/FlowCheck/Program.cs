@@ -173,6 +173,7 @@ namespace FlowCheck
             SceneReuseProof(root);
             ShiftFailureProof(root);
             RetryProof(root);
+            NightLogProof(root);
             MoreFlawsProof(root);
             SanityProof(root);
             Night6Proof(root);
@@ -2202,6 +2203,11 @@ namespace FlowCheck
                 root.Session.ClearedRooms |= PatrolCycle.Bit(RoomId.ComfortRoom2);
                 cp.RefreshHud();
             }
+            if (root.LogRequired)
+            {
+                Check(!live("endshift"), "END SHIFT stays locked until the Security Log is signed");
+                SignLog(root);
+            }
             Check(live("endshift"), "END SHIFT lights up when the roster is done");
             {
                 // nobody at the window: the custodian rests (the only passive recovery there is)
@@ -2521,6 +2527,7 @@ namespace FlowCheck
             root.Session.ClearedRooms = PatrolCycle.Bit(RoomId.Classroom1) | PatrolCycle.Bit(RoomId.Classroom2) | PatrolCycle.Bit(RoomId.ComfortRoom);
             cp.RefreshHud();
             ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
+            SignLog(root);
             Btn(root, "endshift").onClick.Invoke();
             Check(root.State == AppViewState.ShiftIntro && root.Session.CurrentShift == 2, "Q10: clocking out runs straight into the next night");
             root.QuitToMenu(true);
@@ -2697,6 +2704,10 @@ namespace FlowCheck
         // the production config -> tuning wiring is asserted in Q1 before any override
         private static void IsolateMissingStudent(GameRoot root) =>
             root.Queue.Tuning.MissingStudentChance = 0f;
+
+        // sign the Security Log the way a click on the sheet's button does (the sheet need not be open)
+        private static void SignLog(GameRoot root) =>
+            FindDeep(root.Checkpoint.transform, "sign").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
 
         private static void ClickStickyNote(GameRoot root)
         {
