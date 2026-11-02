@@ -34,8 +34,11 @@ namespace Hollowbrook.UI
             outline.effectColor = new Color(0f, 0f, 0f, 0.95f);
             outline.effectDistance = new Vector2(1.5f, -1.5f);
             _bg.SetActive(false);
+            _sub?.Dispose();   // a second Init must not leave the first handler behind
             _sub = root.Bus.Subscribe(EventIds.CaptionRequested, e =>
             {
+                // the scene that owned this bar is gone (its text was destroyed): stop listening instead of failing on every caption
+                if (this == null || _text == null) { _sub?.Dispose(); return; }
                 if (_gameRoot.Settings == null || !_gameRoot.Settings.Captions) return;
                 // callers send the words as the event's data (GameEvent.Of(id, text, seconds, null)), others
                 // as its Text: either works. This used to read only Text, so every caption showed an EMPTY

@@ -6,7 +6,8 @@ BEGIN", on night 1 the how to play card)** -> the shutter opens for the first st
 **checkpoint desk** <-> **patrol** (hallway + 2 classrooms) -> shift results -> next
 night -> ending.
 
-**Night 1 tutorial:** a new story opens with a guided night (`GameLogic/TutorialSteps`, the box is `UI/TutorialGuide`). Steps: a real
+**Night 1 tutorial:** a new story opens with a guided night (`GameLogic/TutorialSteps`, the box is `UI/TutorialGuide`). It starts with a
+keybind card and a CONTINUE button (the sticky note does nothing until then). Steps: a real
 student, a student with an expired ID, the patrol (opens early, the line waits), a slow hallway anomaly that cannot catch you (beam slows
 it, Focus drives it out), Room 101 (clean), Room 202 (a figure to clear), then GOT IT and the player finishes alone. The clock and sanity stand
 still while it runs, only the room the lesson is about opens, and SKIP TUTORIAL is always shown. Night 1 always has Room 101 empty and Room 202

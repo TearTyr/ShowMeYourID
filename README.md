@@ -57,7 +57,8 @@ Folder rules and naming are in [docs/ART-NAMING.md](docs/ART-NAMING.md), the ful
 
 ### The Night 1 tutorial
 
-A new story starts with a guided Night 1 that teaches the core ideas once and then leaves you alone. A box at the top of the screen
+A new story starts with a guided Night 1 that teaches the core ideas once and then leaves you alone. It opens with a card of the
+keybinds (desk and patrol) and a CONTINUE button: nobody arrives until you press it. After that a box at the top of the screen
 says what to do; the clock and your sanity wait while it does. Visitor 1 is a real student (the whole desk routine). Visitor 2 has an
 expired ID (find the broken rule, DECLINE, and meet the Security Log). Then the patrol opens early: a slow anomaly walks the hallway
 (the plain light slows it, the Focus light `Q` drives it out and it cannot catch you), Room 101 is a clean peek, Room 202 holds a figure to
