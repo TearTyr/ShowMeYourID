@@ -185,6 +185,7 @@ namespace FlowCheck
             ShiftFailureProof(root);
             RetryProof(root);
             NightLogProof(root);
+            EndingProof(root);
             TutorialProof(root);
             TutorialParkedProof(root);
             LockdownProof(root);
