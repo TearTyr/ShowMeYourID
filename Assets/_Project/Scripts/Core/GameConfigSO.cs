@@ -155,8 +155,10 @@ namespace Hollowbrook.Core
         public float focusGraceSeconds = TrackingPolicy.GraceSeconds;
         [Tooltip("Meter needed before accurate Focus exposes the corrupted identity.")][Range(0.05f, 0.95f)]
         public float exposeMeterThreshold = 0.55f;
-        [Tooltip("Seconds a repelled anomaly visibly retreats before it slips away.")][Range(0.2f, 5f)]
+        [Tooltip("The shortest time a repelled anomaly visibly retreats before it slips away (it also has to be off screen).")][Range(0.2f, 5f)]
         public float repelBeatSeconds = 0.9f;
+        [Tooltip("The longest a repelled anomaly may take to get off screen. After this it leaves anyway, so it can never get stuck.")][Range(1f, 10f)]
+        public float repelRetreatMaxSeconds = 4f;
         [Tooltip("Off-stage seconds before a repelled anomaly may return elsewhere.")][Range(2f, 60f)]
         public float anomalyRecoverySeconds = 14f;
 
@@ -181,8 +183,8 @@ namespace Hollowbrook.Core
         public float sprintRecoverSeconds = 1.4f;
         [Tooltip("Distance inside which Sprint winds up.")][Range(2f, 16f)]
         public float sprintAggroRange = 9f;
-        [Tooltip("How fast a repelled anomaly withdraws from the player.")][Range(1f, 8f)]
-        public float anomalyRetreatSpeed = 3.2f;
+        [Tooltip("How fast a repelled anomaly runs backwards, away from the player (units per second).")][Range(1f, 20f)]
+        public float anomalyRetreatSpeed = 9f;
         [Tooltip("Speed multiplier while any flashlight beam is on an anomaly (0.5 = half speed). Focus is still what repels it.")][Range(0.1f, 1f)]
         public float beamPace = 0.5f;
         [Tooltip("Continuous threatening seconds before each behavior catches the player. Fair warning cue plays first.")][Range(0.5f, 6f)]

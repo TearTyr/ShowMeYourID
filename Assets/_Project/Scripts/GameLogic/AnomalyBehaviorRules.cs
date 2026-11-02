@@ -18,7 +18,7 @@ namespace Hollowbrook.Logic
         public float CatchGraceSlide;
         public float CatchGraceSprint;
         public float CatchGraceCoverHug;
-        public float RetreatSpeed;        // how fast a repelled anomaly withdraws
+        public float RetreatSpeed;        // how fast a repelled anomaly runs backwards, away from the player
         public float BeamPace;            // 1 = normal, 0.5 = half speed while any flashlight beam is on it
 
         public static BehaviorTuning Default => new BehaviorTuning
@@ -37,7 +37,7 @@ namespace Hollowbrook.Logic
             CatchGraceSlide = 2.4f,
             CatchGraceSprint = 1.8f,
             CatchGraceCoverHug = 2.6f,
-            RetreatSpeed = 3.2f,
+            RetreatSpeed = 9f,   // fast, so the player SEES it run backwards off screen instead of vanishing
             BeamPace = 0.5f,
         };
     }

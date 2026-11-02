@@ -72,6 +72,7 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | The peek lamp size | `World/PeekLight.cs` (`Radius`, `FocusRadius`) |
 | The figures in the peek rooms (where they stand, how big, how long the lamp must stay on them, the black, the fade back) | `GameLogic/PeekSpots.cs`, `World/PeekAnomaly.cs`, `GameConfig.asset` > `peekClearSeconds` |
 | How much a plain flashlight beam slows a patrol anomaly | `GameConfig.asset` > `beamPace` (0.5 = half speed) |
+| How a repelled hallway anomaly leaves (how fast it runs backwards, how long it must be seen, the timeout) | `GameConfig.asset` > `anomalyRetreatSpeed`, `repelBeatSeconds`, `repelRetreatMaxSeconds`; it is only removed once it is off screen (`Horror/WanderingAnomaly.cs` > `HasLeftScreen`) |
 | Turn the (parked) Night 1 tutorial back on | `GameLogic/TutorialSteps.cs` > `Enabled` (set it to `true`, then playtest) |
 | The Night 1 tutorial (the steps, their words, what each holds still) | `GameLogic/TutorialSteps.cs`; the box is `UI/TutorialGuide.cs`; the glue is `Core/GameRoot.Tutorial.cs` |
 | Lockdown (seconds per face, mistakes allowed, arrival speed, who comes) | `GameLogic/Lockdown.cs` (`LockdownRules`), the night row `LockdownNight` in `GameRules.Tables.cs` |

@@ -1972,6 +1972,14 @@ namespace Hollowbrook.LogicTests
                 "losing focus before the meter fills falls back with no free repel");
             Check(S(AnomalyState.Repelled, 1f, t2.ExposedBeatSeconds, true, true, 9f).State == AnomalyState.Recovering,
                 "after the retreat beat the anomaly leaves the stage");
+            Check(AnomalyEncounter.Step(AnomalyState.Repelled, 1f, t2.ExposedBeatSeconds + 0.5f, true, true, true, 9f, 0.1f, t2, false).State == AnomalyState.Repelled,
+                "a repelled anomaly that is still on screen keeps running, even after the beat");
+            Check(AnomalyEncounter.Step(AnomalyState.Repelled, 1f, t2.ExposedBeatSeconds - 0.1f, true, true, true, 9f, 0.1f, t2, true).State == AnomalyState.Repelled,
+                "even if it is already off screen it shows the whole retreat beat first");
+            Check(AnomalyEncounter.Step(AnomalyState.Repelled, 1f, t2.RetreatMaxSeconds, true, true, true, 9f, 0.1f, t2, false).State == AnomalyState.Recovering,
+                "the timeout takes it away even if it never got off screen, so it can never get stuck");
+            Check(t2.RetreatMaxSeconds > t2.ExposedBeatSeconds, "the retreat timeout is longer than the retreat beat");
+            Check(BehaviorTuning.Default.RetreatSpeed >= 8f, "a repelled anomaly runs backwards fast (at least 8 units a second)");
             var rec = S(AnomalyState.Recovering, 0f, t2.RecoverSeconds, false, false, 9f);
             Check(rec.State == AnomalyState.Roaming && rec.JustRecovered, "recovery completes exactly once");
             Check(!S(AnomalyState.Repelled, 1f, 0f, true, true, 0.4f).Threatening, "a repelled anomaly next to you is not threatening");

@@ -3506,13 +3506,23 @@ namespace FlowCheck
             float px = views.Player.transform.localPosition.x;
             float distAtRepel = Mathf.Abs(an.Pos.x - px);
             float maxApproach = 0f;
+            float lastX = an.Pos.x, topSpeed = 0f;
+            bool keptFacing = true, wasOnScreenWhenGone = false;
             g = 0;
-            while (!an.Gone && g++ < 200)
+            while (!an.Gone && g++ < 300)
             {
+                lastX = an.Pos.x;
                 WorldFrame(root);
                 maxApproach = Mathf.Max(maxApproach, distAtRepel - Mathf.Abs(an.Pos.x - px));
+                if (an.Gone) { wasOnScreenWhenGone = !views.IsOffScreen(lastX, 0f); break; }
+                topSpeed = Mathf.Max(topSpeed, Mathf.Abs(an.Pos.x - lastX) / Time.deltaTime);
+                keptFacing &= an.Renderer.flipX == (px < an.Pos.x);
             }
             Check(an.Gone, $"W5: after the retreat beat the anomaly leaves the stage (frames={g})");
+            Check(!wasOnScreenWhenGone, "W5: it is only taken away once it is off screen: nobody sees it vanish");
+            Check(topSpeed >= 8f, $"W5: it runs backwards fast ({topSpeed:F1} units a second)");
+            Check(keptFacing, "W5: it keeps facing the player while it retreats, it never turns to run");
+            Check(g <= 60f * (cfg.repelRetreatMaxSeconds + 0.5f), $"W5: the retreat timeout holds, it cannot get stuck on screen (frames={g})");
             Check(maxApproach < 0.2f, $"W5: while repelled it never closes back on the player (max approach {maxApproach:F2}u)");
             Check(views.Anomalies.Count == 0 && views.Spawner.Live == null, "W5: the live slot is released");
             Check(root.Session.Pool.Pending == poolBefore - 1,
