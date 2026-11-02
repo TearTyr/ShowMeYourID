@@ -289,7 +289,7 @@ namespace Hollowbrook.UI
             // the plan fills the sheet between the title band and the control band
             float contentW = fit.ContentW;
             UIFactory.Anchor(_plan, new Vector2(0.5f, 0.5f),
-                new Vector2(FloorPlan.DesignW * _planScale, FloorPlan.DesignH * _planScale),
+                new Vector2(FloorPlan.PlanW * _planScale, FloorPlan.PlanH * _planScale),
                 new Vector2(0f, fit.PlanCentreY));
 
             // title band, top to bottom: hand-written title, a ruled line, then the file stamp

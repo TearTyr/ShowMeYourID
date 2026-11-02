@@ -2386,10 +2386,10 @@ namespace Hollowbrook.LogicTests
             Check(sec.Value.Top >= hall.Value.Bottom - 0.01f && sec.Value.X < hall.Value.X,
                 $"the security checkpoint hangs BELOW the hallway's west end ({sec.Value.Top} >= {hall.Value.Bottom})");
             var crN = FloorPlan.ForKey("room_cr1").Value;
-            Check(crN.Left >= hall.Value.Right - 0.01f,
-                "the comfort room hangs off the EAST end, clear of the corridor");
-            Check(server.Value.Left >= hall.Value.Right - 0.01f,
-                $"the sealed room is on the RIGHT ({server.Value.Left} >= {hall.Value.Right})");
+            Check(crN.Left >= c2.Value.Right - 0.01f && crN.Bottom <= hall.Value.Top + 0.01f,
+                "CR-1 is north of the hallway, east of Room 202, clear of it");
+            Check(server.Value.X > hall.Value.X && server.Value.Top >= hall.Value.Bottom - 0.01f,
+                $"the sealed room is on the RIGHT half, south of the hallway ({server.Value.X} > {hall.Value.X})");
             Check(hall.Value.W > 2.5f * Math.Max(hall.Value.H, 1f) &&
                   hall.Value.W > c1.Value.W && hall.Value.W > sec.Value.W,
                 $"the hallway is the long central passage ({hall.Value.W}x{hall.Value.H})");
@@ -2430,11 +2430,56 @@ namespace Hollowbrook.LogicTests
                   Math.Abs(mx - hall.Value.X) < 1e-4f && Math.Abs(my - hall.Value.Y) < 1e-4f,
                 "the position marker for a room is that room's centre");
 
+            // the plan is ACCURATE: every door sits on the sheet at its real place along the hallway
+            // (design x = HallX times UnitsPerWorldX), so the rooms come in the order you walk past them
+            bool toScale = true;
+            foreach (var r in FloorPlan.Rooms)
+            {
+                if (!r.HallX.HasValue) continue;
+                float want = r.HallX.Value * FloorPlan.UnitsPerWorldX;
+                if (!r.DoorX.HasValue || Math.Abs(r.DoorX.Value - want) > 0.6f || Math.Abs(r.X - want) > 0.6f)
+                { toScale = false; Console.WriteLine("   not to scale: " + r.Key + " door " + r.DoorX + " want " + want); }
+            }
+            Check(toScale, "every room and its door stand at HallX times UnitsPerWorldX along the hallway (the map is to scale)");
+
+            // ...and the rooms use the whole sheet: nothing is bunched on one side
+            float minLeft = float.MaxValue, maxRight = float.MinValue;
+            foreach (var r in FloorPlan.Rooms)
+            {
+                minLeft = Math.Min(minLeft, r.Left);
+                maxRight = Math.Max(maxRight, r.Right);
+            }
+            float spread = (maxRight - minLeft) / FloorPlan.DesignW;
+            Check(spread >= 0.8f, $"the rooms span at least 80 percent of the sheet width ({spread * 100f:F0} percent)");
+            Check(Math.Abs((minLeft + maxRight) / 2f) <= FloorPlan.DesignW * 0.06f,
+                $"...and sit centred on the sheet, not to one side (middle at {(minLeft + maxRight) / 2f:F0})");
+            float westOfMiddle = 0f, eastOfMiddle = 0f;
+            foreach (var r in FloorPlan.Rooms)
+            {
+                if (r.Key == "room_hallway") continue;
+                if (r.X < 0f) westOfMiddle += r.W; else eastOfMiddle += r.W;
+            }
+            Check(westOfMiddle > 0.3f * (westOfMiddle + eastOfMiddle) && eastOfMiddle > 0.3f * (westOfMiddle + eastOfMiddle),
+                "...with a fair share of the rooms on each side of the middle");
+
+            // the desk map card shows the same plan inside its 290 wide card, spread the same way
+            float miniLeft = float.MaxValue, miniRight = float.MinValue, miniTop = float.MaxValue, miniBottom = float.MinValue;
+            foreach (var r in FloorPlan.Rooms)
+            {
+                FloorPlan.MiniBox(r, out float bx, out float by, out float bw, out float bh);
+                miniLeft = Math.Min(miniLeft, bx); miniRight = Math.Max(miniRight, bx + bw);
+                miniTop = Math.Min(miniTop, by); miniBottom = Math.Max(miniBottom, by + bh);
+            }
+            Check(miniLeft >= 4f && miniRight <= 286f && miniTop >= 40f && miniBottom <= 146f,
+                $"the desk map keeps every room inside its card ({miniLeft:F0}..{miniRight:F0} x {miniTop:F0}..{miniBottom:F0})");
+            Check((miniRight - miniLeft) / 290f >= 0.8f && Math.Abs(miniLeft - (290f - miniRight)) <= 14f,
+                "the desk map spreads over the whole card width and is centred in it");
+
             // the fit maths the map view centres itself with
-            Eq(FloorPlan.FitScale(FloorPlan.DesignW, FloorPlan.DesignH), 1f, "the design space fits itself at 1x");
-            Eq(FloorPlan.FitScale(FloorPlan.DesignW / 2f, FloorPlan.DesignH), 0.5f,
+            Eq(FloorPlan.FitScale(FloorPlan.PlanW, FloorPlan.PlanH), 1f, "the plan area fits itself at 1x");
+            Eq(FloorPlan.FitScale(FloorPlan.PlanW / 2f, FloorPlan.PlanH), 0.5f,
                "a half-width area scales the plan to half (uniform, never stretched)");
-            Eq(FloorPlan.FitScale(FloorPlan.DesignW, FloorPlan.DesignH / 2f), 0.5f,
+            Eq(FloorPlan.FitScale(FloorPlan.PlanW, FloorPlan.PlanH / 2f), 0.5f,
                "a half-height area does the same");
             Eq(FloorPlan.FitScale(0f, 0f), 1f, "a degenerate area falls back to 1x instead of dividing by zero");
         }

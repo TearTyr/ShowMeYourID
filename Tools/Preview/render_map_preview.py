@@ -23,10 +23,14 @@ SHEET_CS = os.path.join(ROOT, "Assets/_Project/Scripts/GameLogic/MapSheetLayout.
 MAP_CS = os.path.join(ROOT, "Assets/_Project/Scripts/UI/MapView, ShiftResultsView, EndingView.cs")
 
 # ---------------------------------------------------------------- parse FloorPlan
+PLAN_W = PLAN_H = 1.0   # the plan area, read from FloorPlan.cs by parse_floor_plan
 def parse_floor_plan(path):
     src = open(path, encoding="utf-8").read()
     dw = float(re.search(r"DesignW\s*=\s*([0-9.]+)f", src).group(1))
     dh = float(re.search(r"DesignH\s*=\s*([0-9.]+)f", src).group(1))
+    global PLAN_W, PLAN_H
+    PLAN_W = float(re.search(r"PlanW\s*=\s*([0-9.]+)f", src).group(1))
+    PLAN_H = float(re.search(r"PlanH\s*=\s*([0-9.]+)f", src).group(1))
     title = re.search(r'Title\s*=\s*"([^"]+)"', src).group(1)
 
     rooms = []
@@ -118,8 +122,8 @@ def layout(screen_w, screen_h, dw, dh, C):
 
     content_w = dw - C["Margin"] * 2
     content_h = dh - C["Margin"] * 2 - C["TitleBandH"] - C["ControlBandH"]
-    plan_scale = min((content_w - C["PlanPad"] * 2) / dw,
-                     (content_h - C["PlanPad"] * 2) / dh) * paper_scale
+    plan_scale = min((content_w - C["PlanPad"] * 2) / PLAN_W,
+                     (content_h - C["PlanPad"] * 2) / PLAN_H) * paper_scale
     plan_text = min(max(plan_scale, C["PlanTextMin"]), C["PlanTextMax"])
     chrome_text = min(max(paper_scale, C["ChromeTextMin"]), C["ChromeTextMax"])
 
