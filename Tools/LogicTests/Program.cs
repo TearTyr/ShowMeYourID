@@ -82,6 +82,7 @@ namespace Hollowbrook.LogicTests
             SlipFairnessTests();
             NightLogTests();
             NightLogGradingTests();
+            TutorialTests();
             CultureRoundTripTests();
             ResumeReplayTests();
 
@@ -987,6 +988,86 @@ namespace Hollowbrook.LogicTests
             odd.NightRecords.Add(new NightRecord { Name = "A|B^C", WasAnomaly = true, Allowed = true, Why = "x|y^z" });
             var oddBack = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = odd })).Session;
             Check(oddBack.NightRecords.Count == 1 && oddBack.NightRecords[0].WasAnomaly, "odd characters in a name cannot break the save");
+        }
+
+        private static void TutorialTests()
+        {
+            Group("Night 1 tutorial - step order, what each step holds, the lesson roster");
+            var f = new TutorialFacts();
+            Check(TutorialSteps.Advance(TutorialStep.FirstStudent, f) == TutorialStep.FirstStudent, "nothing done: the first step stays");
+            f.Processed = 1;
+            Check(TutorialSteps.Advance(TutorialStep.FirstStudent, f) == TutorialStep.FirstAnomaly, "one stamp: on to the second visitor");
+            f.Processed = 2;
+            Check(TutorialSteps.Advance(TutorialStep.FirstStudent, f) == TutorialStep.GoPatrol, "two stamps: time to patrol");
+            Check(TutorialSteps.Advance(TutorialStep.GoPatrol, f) == TutorialStep.GoPatrol, "still at the desk: the patrol step waits");
+            f.OnPatrol = true;
+            Check(TutorialSteps.Advance(TutorialStep.GoPatrol, f) == TutorialStep.HallAnomaly, "in the hallway: the anomaly lesson");
+            Check(TutorialSteps.Advance(TutorialStep.HallAnomaly, f) == TutorialStep.HallAnomaly, "the anomaly is still there: the lesson waits");
+            f.HallAnomalyDriven = true;
+            Check(TutorialSteps.Advance(TutorialStep.HallAnomaly, f) == TutorialStep.PeekClean, "driven out: on to Room 101");
+            f.ClearedRooms = PatrolCycle.Bit(RoomId.Classroom1);
+            f.Peeking = true;
+            Check(TutorialSteps.Advance(TutorialStep.PeekClean, f) == TutorialStep.PeekClean, "still looking into Room 101: wait for the step back");
+            f.Peeking = false;
+            Check(TutorialSteps.Advance(TutorialStep.PeekClean, f) == TutorialStep.PeekAnomaly, "stepped back: on to Room 202");
+            f.PeekAnomaliesGone = PatrolCycle.Bit(RoomId.Classroom2);
+            f.Peeking = true;
+            Check(TutorialSteps.Advance(TutorialStep.PeekAnomaly, f) == TutorialStep.PeekAnomaly, "the figure is gone but the player is still peeking");
+            f.Peeking = false;
+            Check(TutorialSteps.Advance(TutorialStep.PeekAnomaly, f) == TutorialStep.Finish, "stepped back: training over");
+            Check(TutorialSteps.Advance(TutorialStep.Finish, f) == TutorialStep.Finish, "the last step ends only with GOT IT");
+            Check(TutorialSteps.Advance(TutorialStep.Done, f) == TutorialStep.Done, "a finished tutorial never comes back");
+            Check(TutorialSteps.Advance(TutorialSteps.First, f) == TutorialStep.Finish, "a Continue after everything was done lands on the last step");
+
+            foreach (TutorialStep step in Enum.GetValues(typeof(TutorialStep)))
+            {
+                bool lesson = step >= TutorialStep.GoPatrol && step <= TutorialStep.PeekAnomaly;
+                Check(TutorialSteps.HoldsLine(step) == lesson, step + ": the line waits during the lessons away from the window only");
+                Check(TutorialSteps.OpensPatrol(step) == (step == TutorialStep.GoPatrol), step + ": only the patrol step opens the patrol early");
+                Check(TutorialSteps.NeedsGotIt(step) == (step == TutorialStep.Finish), step + ": only the last step has GOT IT");
+                bool active = step != TutorialStep.Done;
+                Check(TutorialSteps.Active(step) == active, step + ": active unless done");
+                Check((TutorialSteps.Title(step).Length > 0 && TutorialSteps.Body(step).Length > 0) == active, step + ": a step has words, Done has none");
+                Check(!TutorialSteps.Title(step).Contains("\u2014") && !TutorialSteps.Body(step).Contains("\u2014"), step + ": no em dash");
+                Check(TutorialSteps.Body(step).Length <= 200, step + ": short enough for the box (" + TutorialSteps.Body(step).Length + ")");
+                Check(TutorialSteps.PeekAllowed(step, RoomId.Hallway) && TutorialSteps.PeekAllowed(step, RoomId.Security), step + ": the hallway and security doors are never guarded");
+            }
+            Check(TutorialSteps.PeekAllowed(TutorialStep.Done, RoomId.Classroom2) && TutorialSteps.PeekAllowed(TutorialStep.Finish, RoomId.ComfortRoom),
+                "after the lessons every door opens");
+            Check(!TutorialSteps.PeekAllowed(TutorialStep.HallAnomaly, RoomId.Classroom1), "before Room 101 is the lesson, its door is shut");
+            Check(TutorialSteps.PeekAllowed(TutorialStep.PeekClean, RoomId.Classroom1) && !TutorialSteps.PeekAllowed(TutorialStep.PeekClean, RoomId.Classroom2)
+                  && !TutorialSteps.PeekAllowed(TutorialStep.PeekClean, RoomId.ComfortRoom), "Room 101 lesson: only Room 101 opens");
+            Check(TutorialSteps.PeekAllowed(TutorialStep.PeekAnomaly, RoomId.Classroom2) && !TutorialSteps.PeekAllowed(TutorialStep.PeekAnomaly, RoomId.Classroom1)
+                  && !TutorialSteps.PeekAllowed(TutorialStep.PeekAnomaly, RoomId.ComfortRoom2), "Room 202 lesson: only Room 202 opens");
+
+            // the lesson roster: a real student, then one clear broken rule, nobody frightened yet
+            var night1 = ShiftPlan.Build()[0];
+            for (int seed = 1; seed <= 300; seed++)
+            {
+                var roster = new RosterFactory(seed).GenerateShift(night1);
+                Check(roster.Count == 4 && roster.Count(v => v.IsAnomaly) == 2 && roster.Count(v => v.IsScared) == 1, "seed " + seed + ": still four visitors, two anomalies, one frightened");
+                Check(!roster[0].IsAnomaly && !roster[0].IsScared, "seed " + seed + ": visitor 1 is a calm real student");
+                Check(roster[1].IsAnomaly && !roster[1].IsScared && roster[1].Defects.Count == 1 && roster[1].Defects[0] == DefectType.ExpiredId,
+                    "seed " + seed + ": visitor 2 has exactly one defect, the expired ID");
+                Check(!roster[2].IsScared == roster[3].IsScared, "seed " + seed + ": the frightened one comes later in the night");
+                for (int i = 0; i < roster.Count; i++) Check(roster[i].VisitorIndex == i, "seed " + seed + ": visitor numbers follow the order");
+                Check(PatrolCycle.StandingIn(seed, 1, RoomId.Classroom2) && !PatrolCycle.StandingIn(seed, 1, RoomId.Classroom1)
+                      && !PatrolCycle.StandingIn(seed, 1, RoomId.ComfortRoom) && !PatrolCycle.StandingIn(seed, 1, RoomId.ComfortRoom2),
+                    "seed " + seed + ": on night 1 only Room 202 holds a standing anomaly");
+            }
+            Check(!ShiftPlan.Build()[1].TutorialOpening && !ShiftPlan.Build()[4].TutorialOpening, "only night 1 opens with the lesson");
+
+            // saving and starting over
+            var s = new GameSession();
+            Check(s.TutorialStep == TutorialStep.Done, "a plain session has no tutorial");
+            s.TutorialStep = TutorialStep.PeekAnomaly;
+            var back = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = s })).Session;
+            Check(back.TutorialStep == TutorialStep.PeekAnomaly, "the step survives a save");
+            s.RewindNight();
+            Check(s.TutorialStep == TutorialStep.FirstStudent, "rewinding the night restarts a lesson in progress");
+            s.TutorialStep = TutorialStep.Done;
+            s.RewindNight();
+            Check(s.TutorialStep == TutorialStep.Done, "rewinding never starts a finished tutorial again");
         }
 
         private static void NightLogTests()

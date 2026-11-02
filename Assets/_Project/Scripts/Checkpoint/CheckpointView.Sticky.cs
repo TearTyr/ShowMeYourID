@@ -22,10 +22,10 @@ namespace Hollowbrook.Checkpoint
 
         // Night 1 only: the five steps, short enough to read on a sticky note.
         private static string HowToPlay =>
-            "1. READ the ID and the slip. Click the ID's black spine to flip it.\n" +
+            "1. READ the ID and the slip. Press F to flip the ID.\n" +
             "2. ASK up to " + InterviewRules.Budget + " of the " + InterviewRules.Count + " questions. Some unlock after you flip the ID or open the file.\n" +
             "3. CHECK their file: click the cabinet, pick the room, pick the name.\n" +
-            "4. STAMP: drag ACCEPT or DECLINE onto the slip.\n" +
+            "4. STAMP: drag APPROVE or DECLINE onto the slip.\n" +
             "5. HAND BACK: drag the ID to the window. That decision is final.\n" +
             "\nWhen every student is done, PATROL: peek into Room 101, Room 202 and a CR, then END SHIFT.\n" +
             "A and D walk, the mouse aims, E uses what you stand at, F is your flashlight.";

@@ -349,6 +349,7 @@ namespace Hollowbrook.Checkpoint
                 if (_gameRoot.HuntReady) return true;
                 if (_gameRoot.CurrentShiftDef != null && _gameRoot.CurrentShiftDef.HasAdministrator) return false;
                 if (Queue == null || !Queue.Started || Queue.Collapsed) return false;
+                if (_gameRoot.TutorialOpensPatrol) return true;   // the lesson walks before the line is done
                 return !_gameRoot.PatrolRequired || Queue.ShiftComplete;
             }
         }

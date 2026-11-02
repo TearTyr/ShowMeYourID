@@ -36,6 +36,7 @@ namespace Hollowbrook.Core
             Queue = new CheckpointQueue();   // the last run's line must never be saved into this one
             _resolvedVisitorIndices.Clear();
             _continuePending = false;
+            if (mode == GameMode.Normal) Session.TutorialStep = TutorialSteps.First;   // a new story starts with the lesson
 
             // the Challenge is night 6 on its own: it never touches the story save (see PersistRun)
             QueueSceneAction(() => BeginShift(mode == GameMode.Challenge ? ShiftPlan.Night6Number : 1));
@@ -205,6 +206,7 @@ if (!string.IsNullOrEmpty(CurrentShiftDef.IntroWarning))
             t.OverwhelmedAt = Config.queueOverwhelmedAt;
             t.MissingStudentChance = Config.missingStudentChance;
             t.MissingStudentLimit = Config.missingStudentLimit;
+            if (Session.CurrentShift == 1) t.MissingStudentChance = 0f;   // the lesson night loses nobody
             return t;
         }
 

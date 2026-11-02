@@ -174,6 +174,7 @@ namespace FlowCheck
             ShiftFailureProof(root);
             RetryProof(root);
             NightLogProof(root);
+            TutorialProof(root);
             MoreFlawsProof(root);
             SanityProof(root);
             Night6Proof(root);
@@ -2310,7 +2311,7 @@ namespace FlowCheck
                   root.Queue.Tuning.ArrivalMaxSeconds == root.Config.queueArrivalMaxSeconds &&
                   root.Queue.Tuning.PressureWarnAt == root.Config.queuePressureWarnAt &&
                   root.Queue.Tuning.OverwhelmedAt == root.Config.queueOverwhelmedAt &&
-                  Math.Abs(root.Queue.Tuning.MissingStudentChance - root.Config.missingStudentChance) < 1e-6f &&
+                  root.Queue.Tuning.MissingStudentChance == 0f &&   // night 1 loses nobody (the lesson night); later nights use the config
                   root.Queue.Tuning.MissingStudentLimit == root.Config.missingStudentLimit,
                   "Q1: production config feeds the queue tuning before any override");
             IsolateMissingStudent(root);
@@ -2695,7 +2696,7 @@ namespace FlowCheck
         // ------------------------------------------------------------ queue helpers
         private static void FreshGame(GameRoot root)
         {
-            root.StartNewGame(GameMode.Normal);
+            root.StartNewGame(GameMode.Normal); root.SkipTutorial();   // the older proofs are about other things; the tutorial has its own proof
             DeskScene.Build(root);        // what Unity does after LoadScene(Gameplay)
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
         }
@@ -2776,7 +2777,7 @@ namespace FlowCheck
             Check(root.Saves.Read() != null, "issue #8: a corrupt main save falls back to the .bak copy");
             System.IO.File.WriteAllText(path, before);
 
-            root.StartNewGame(GameMode.Normal);
+            root.StartNewGame(GameMode.Normal); root.SkipTutorial();   // the older proofs are about other things; the tutorial has its own proof
             DeskScene.Build(root);
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
             ClickStickyNote(root);
@@ -2864,7 +2865,7 @@ namespace FlowCheck
             Console.WriteLine("== PATROL world loop (flashlight + roaming anomaly), headless frames ==");
 
             // a fresh normal run, then patrol - through the real scene handoffs the game uses.
-            root.StartNewGame(GameMode.Normal);
+            root.StartNewGame(GameMode.Normal); root.SkipTutorial();   // the older proofs are about other things; the tutorial has its own proof
             DeskScene.Build(root);
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
             Check(root.State == AppViewState.Checkpoint, "W0: a fresh run reaches the desk");
@@ -3947,6 +3948,7 @@ namespace FlowCheck
                 else { haveNone = true; withNone = r; }
             }
             Check(standing >= 1, "AN: every night at least one peek room holds a standing anomaly");
+            if (haveNone && !root.PeekAnomalyIn(RoomId.Classroom1)) withNone = RoomId.Classroom1;   // a door well inside the hallway: there is room to push back
             int bit = PatrolCycle.Bit(withOne);
             root.EnterRoomPeek(withOne);
             WorldFrames(root, 2);

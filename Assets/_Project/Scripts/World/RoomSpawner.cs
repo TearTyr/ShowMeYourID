@@ -30,6 +30,7 @@ namespace Hollowbrook.World
         private int _anomaliesInside;
         private float _returnTimer = -1f;
         private AnomalyBehaviorKind _returnKind;
+        private bool _lessonSpawned;        // the tutorial's hallway anomaly comes once per visit to the hallway
 
         public WanderingAnomaly Live => _liveAnomaly;
         public bool ReturnPending => _returnTimer >= 0f;
@@ -72,6 +73,14 @@ namespace Hollowbrook.World
             // a scheduled recovery is the continuation of an EXISTING threat, not ambient
             // spawning - it runs regardless of the shift gate below.
             TickReturn(dt);
+
+            // the tutorial runs its own show: one slow anomaly in the hallway, nothing else until training is over
+            if (_root.TutorialActive)
+            {
+                if (_root.TutorialStep == TutorialStep.HallAnomaly && !_lessonSpawned && _liveAnomaly == null)
+                    _lessonSpawned = SpawnKind(AnomalyBehaviorKind.Slide, RoomId.Hallway) != null;
+                return;
+            }
 
             // a failed night's penalty: an anomaly is already roaming when this night's patrol starts
             if (_root.Session.RoamingAtStart && _liveAnomaly == null)
@@ -190,7 +199,10 @@ namespace Hollowbrook.World
             // pool resolution exactly once per entity (the anomaly guards its own despawn):
             // only REPELLED anomalies are dealt with; caught ones stay outstanding and return.
             if (!a.IsHallucination && a.WasRevealed)
+            {
                 _root.Session.Pool.Resolve(a.Kind);
+                _root.NoteLessonAnomalyDriven();
+            }
         }
     }
 }

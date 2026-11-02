@@ -192,7 +192,7 @@ namespace Hollowbrook.Checkpoint
             {
                 if (_slipStamped) want = "CHANGE YOUR MIND? STAMP AGAIN. OTHERWISE DRAG THE ID BACK TO THE WINDOW";
                 else if (_questionMask == 0 && !_current.IsAdministrator)
-                    want = "ASK UP TO 2 QUESTIONS [1-4], THEN CHECK THEIR FILE IN THE DRAWER";
+                    want = "ASK UP TO " + InterviewRules.Budget + " QUESTIONS [1-" + InterviewRules.Count + "], THEN CHECK THEIR FILE IN THE DRAWER";
                 else want = "CHECK THE PAPERS AND THE FILE, THEN DRAG A STAMP ONTO THE SLIP";
             }
             else if (_gameRoot.HuntReady) want = "HE IS INSIDE THE SCHOOL. PATROL WHEN YOU ARE READY";

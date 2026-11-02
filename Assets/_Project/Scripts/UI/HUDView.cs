@@ -60,6 +60,7 @@ namespace Hollowbrook.UI
         private GameObject _batteryBar;
         private Image _batteryFill;
         private GameObject _peekExitBand;   // bottom band: click to step back from a peek
+        private TutorialGuide _guide;       // the Night 1 lesson box, on top of everything else in the frame
         private float _toastUntil;
         private readonly List<EventSubscription> _subs = new List<EventSubscription>();
 
@@ -144,6 +145,9 @@ namespace Hollowbrook.UI
             _peekExitBand = bandRt.gameObject;
             _peekExitBand.SetActive(false);
 
+            _guide = gameObject.GetOrAdd<TutorialGuide>();
+            _guide.Init(root, _frame);
+
             _subs.Add(root.Bus.Subscribe(EventIds.SanityChanged, e => SetSanity(e.Value)));
             _subs.Add(root.Bus.Subscribe(EventIds.SanityStageChanged, e =>
             {
@@ -215,6 +219,7 @@ namespace Hollowbrook.UI
             if (exploring) _objective.text = _gameRoot.ObjectiveText;   // restore after a peek overwrote the hint
             if (_peekExitBand != null) _peekExitBand.SetActive(peeking);
             RefreshFindings();
+            if (_guide != null) _guide.Refresh();
             _findings.gameObject.SetActive(s != AppViewState.Checkpoint);   // the desk art has no findings line
             SetSanity(_gameRoot.Session != null ? _gameRoot.Session.Sanity : 100f);
         }

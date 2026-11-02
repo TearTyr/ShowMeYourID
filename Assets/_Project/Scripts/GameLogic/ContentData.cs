@@ -182,6 +182,7 @@ namespace Hollowbrook.Logic
         public bool SlipMismatchAllowed; // the paper slip can disagree with the card
         public bool NearExpiryAllowed;   // real students' IDs can be close to running out
         public bool ExplorationFocus;    // this night nudges investigation
+        public bool TutorialOpening;     // the first two visitors teach the desk: a real student, then an expired ID
 
         /// <summary>Its own copy, so nothing can change the table by accident.</summary>
         public ShiftDef Copy() => (ShiftDef)MemberwiseClone();

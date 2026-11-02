@@ -214,7 +214,7 @@ namespace Hollowbrook.Checkpoint
                 ClearWindow();
                 if (Queue.ResolutionPending) Queue.CompleteActive();   // a quit mid-banner finishes the step-up
                 if (Queue.Active != null) PresentFromQueue(Queue.Active, true);
-                else ApplyTickResult(Queue.ResumePresentation(), true);
+                else if (!_gameRoot.TutorialHoldsLine) ApplyTickResult(Queue.ResumePresentation(), true);
             }
             else
             {
@@ -263,6 +263,7 @@ namespace Hollowbrook.Checkpoint
             if (_gameRoot.State != AppViewState.Checkpoint) return;
             if (!gameObject.activeInHierarchy) return;
             if (_gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive) return;
+            if (_gameRoot.TutorialHoldsLine) return;   // nobody steps up while a lesson is away from the window
             var r = Queue.Tick(dt);
             ApplyTickResult(r, false);
             if (r.Any) RefreshHud();

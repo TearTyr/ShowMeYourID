@@ -6,7 +6,7 @@ You are the newest temporary night custodian of **Hollowbrook College**, a schoo
 mid-year without an official explanation, yet still open at night so its students can finish the
 term. Students come to the window of your security booth. Check their ID and paper slip, ask
 up to two questions, check the answers against their file in the cabinet, and stamp
-**ACCEPT** or **DECLINE**. Not everyone at the window is a student. Between visitors you patrol
+**APPROVE** or **DECLINE**. Not everyone at the window is a student. Between visitors you patrol
 the hallway and peek into the classrooms and the comfort rooms. On the last night eight students come first,
 then a district administrator, and turning him away is only the start.
 
@@ -54,6 +54,15 @@ Folder rules and naming are in [docs/ART-NAMING.md](docs/ART-NAMING.md), the ful
 8. **Night 5** - eight students (the usual checks), then the administrator last. The student questions do not apply to him:
    interrogate him (`T`) as often as you like, catch his lies, turn him away with the DENY stamp, and he
    forces his way in. He speaks only through the dialogue box. Survive until dawn (see below).
+
+### The Night 1 tutorial
+
+A new story starts with a guided Night 1 that teaches the core ideas once and then leaves you alone. A box at the top of the screen
+says what to do; the clock and your sanity wait while it does. Visitor 1 is a real student (the whole desk routine). Visitor 2 has an
+expired ID (find the broken rule, DECLINE, and meet the Security Log). Then the patrol opens early: a slow anomaly walks the hallway
+(the plain light slows it, the Focus light `Q` drives it out and it cannot catch you), Room 101 is a clean peek, Room 202 holds a figure to
+clear, and other doors stay shut until their turn. Then GOT IT, and you finish the night alone: a CR, the rest of the line, count and sign the
+Security Log, END SHIFT. SKIP TUTORIAL is always on the box. Night 2 onward has none.
 
 ### Night 5: surviving the administrator
 

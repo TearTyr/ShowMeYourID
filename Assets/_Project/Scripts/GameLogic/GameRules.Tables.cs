@@ -46,6 +46,7 @@ namespace Hollowbrook.Logic
                 Objective = "Learn the checkpoint: inspect IDs, pull the student file, ask a question or two, and stamp Allow or Reject. Take a walk - learn how to leave the security room and come back.",
                 RuleNoteAddendum = "NIGHT 1 - Welcome, custodian. Verify: ID number format (HB-YYYY-NNN), photo vs. the person at the window, expiration date, year level, course, and Regular/Transferee status against the student file in the drawer. Your questions per student are limited. Not everyone tonight is a student. Some visitors arrive frightened: fear proves nothing, a student can be scared and so can the thing wearing their face. Trust the papers.",
                 MaxDefectsPerAnomaly = 1,
+                TutorialOpening = true,
             },
             new ShiftDef
             {

@@ -298,6 +298,7 @@ namespace Hollowbrook.Horror
         private void TickCatch(float dt, bool threatening, bool observed, bool active)
         {
             bool pinned = _profile.FreezesWhenObserved && observed;
+            if (_gameRoot.TutorialActive) threatening = false;   // nothing can catch the player while training
             if (_catchGrace > 0f) { _catchGrace -= dt; threatening = false; }
             if (!threatening || !active || pinned)
             {
@@ -605,7 +606,7 @@ namespace Hollowbrook.Horror
 
         private void ProximityEffects(float dt, ViewManager views)
         {
-            if (views.Player == null) return;
+            if (views.Player == null || _gameRoot.TutorialActive) return;   // training costs nothing
             float d = Mathf.Abs(views.Player.transform.localPosition.x - transform.localPosition.x);
             var rules = GameRules.Current;
             if (d < rules.NearRange)

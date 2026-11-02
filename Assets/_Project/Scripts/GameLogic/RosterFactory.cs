@@ -42,13 +42,16 @@ namespace Hollowbrook.Logic
             var isAnomaly = new bool[shift.VisitorCount];
             for (int i = 0; i < isAnomaly.Length; i++)
                 isAnomaly[i] = i >= honestSlots || turning.Contains(identities[i]);
+            if (shift.TutorialOpening) OpenWithLesson(identities, isAnomaly);
             var scared = PickScared(isAnomaly, shift.ScaredCount);
+            if (shift.TutorialOpening) KeepLessonCalm(scared, isAnomaly.Length, shift.ScaredCount);
 
             for (int i = 0; i < shift.VisitorCount; i++)
             {
                 var id = identities[i];
                 bool afraid = scared.Contains(i);
-                var v = isAnomaly[i] ? BuildAnomaly(id, shift, afraid) : BuildLegit(id, shift, afraid);
+                bool lesson = shift.TutorialOpening && i == 1;   // the lesson anomaly has one clear defect
+                var v = isAnomaly[i] ? BuildAnomaly(id, shift, afraid, lesson) : BuildLegit(id, shift, afraid);
                 v.VisitorIndex = i;
                 v.ShiftNumber = shift.Number;
                 visitors.Add(v);
@@ -168,7 +171,34 @@ namespace Hollowbrook.Logic
             return Content.DisplayDate(date.Year, date.Month, date.Day);
         }
 
-        private VisitorData BuildAnomaly(StudentIdentity id, ShiftDef shift, bool scared)
+        // The first night teaches the desk with its first two visitors: a real student, then a broken rule.
+        private static void OpenWithLesson(List<StudentIdentity> identities, bool[] isAnomaly)
+        {
+            MoveToPlace(0, false, identities, isAnomaly);
+            MoveToPlace(1, true, identities, isAnomaly);
+        }
+
+        // Swap the first visitor from this place on who is (or is not) an anomaly into the place.
+        private static void MoveToPlace(int place, bool wantAnomaly, List<StudentIdentity> identities, bool[] isAnomaly)
+        {
+            for (int i = place; i < isAnomaly.Length; i++)
+            {
+                if (isAnomaly[i] != wantAnomaly) continue;
+                var who = identities[place]; identities[place] = identities[i]; identities[i] = who;
+                bool flag = isAnomaly[place]; isAnomaly[place] = isAnomaly[i]; isAnomaly[i] = flag;
+                return;
+            }
+        }
+
+        // Nobody frightened during the first two lessons: the scared ones come later in the night.
+        private static void KeepLessonCalm(HashSet<int> scared, int visitors, int wanted)
+        {
+            scared.Remove(0);
+            scared.Remove(1);
+            for (int i = 2; i < visitors && scared.Count < wanted; i++) scared.Add(i);
+        }
+
+        private VisitorData BuildAnomaly(StudentIdentity id, ShiftDef shift, bool scared, bool expiredOnly = false)
         {
             var v = new VisitorData
             {
@@ -202,6 +232,7 @@ namespace Hollowbrook.Logic
 
             int defectCount = _rng.NextInt(1, shift.MaxDefectsPerAnomaly + 1);
             var pool = BuildDefectPool(shift, scared);
+            if (expiredOnly) { pool.Clear(); pool.Add(DefectType.ExpiredId); defectCount = 1; }
             _rng.Shuffle(pool);
 
             bool idDefectTaken = false; // {IdFormatInvalid, NotInDatabase, DuplicateId} are exclusive
