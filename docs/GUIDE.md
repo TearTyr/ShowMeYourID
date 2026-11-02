@@ -68,7 +68,12 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | Move something on the desk | `Checkpoint/CheckpointLayout.cs` (all desk positions are numbers here) |
 | Flashlight battery, beam size | `GameConfig.asset` (battery, beam), `World/FlashlightRig.cs` |
 | The peek lamp size | `World/PeekLight.cs` (`Radius`, `FocusRadius`) |
-| The hooded figure in the peek rooms (how long the lamp must stay on it, the black, the fade back) | `World/PeekAnomaly.cs`, `GameConfig.asset` > `peekRepelSeconds` |
+| The figures in the peek rooms (where they stand, how big, how long the lamp must stay on them, who rushes, the black, the fade back) | `GameLogic/PeekSpots.cs`, `World/PeekAnomaly.cs`, `GameConfig.asset` > `peekClearSeconds` |
+| How much a plain flashlight beam slows a patrol anomaly | `GameConfig.asset` > `beamPace` (0.5 = half speed) |
+| The Night 1 tutorial (the steps, their words, what each holds still) | `GameLogic/TutorialSteps.cs`; the box is `UI/TutorialGuide.cs`; the glue is `Core/GameRoot.Tutorial.cs` |
+| Lockdown (seconds per face, mistakes allowed, arrival speed, who comes) | `GameLogic/Lockdown.cs` (`LockdownRules`), the night row `LockdownNight` in `GameRules.Tables.cs` |
+| How big the main menu buttons are | `UI/MainMenuView.cs` > `MenuScale` |
+| What a wrong Security Log box costs, and what the Rules sheet says about it | `GameLogic/NightLog.cs` (`SanityLossPerMistake`) |
 | How big the sliding anomaly is and where it sits on the floor | `GameLogic/AnomalyBehaviorRules.cs` (`GroundCentreY`), `FilePpus` in `Generated/ProceduralArt.cs` |
 | Night 6 (the Challenge): his questions, how hard the hunt is | `GameLogic/AdminTalk.cs` (`n6_hub`), `GameConfig.asset` group **Night 6** |
 | The ten findings (the token is number 7) | `GameLogic/ClueRegistry.cs`, `World/RoomBuilder.cs` |
@@ -85,7 +90,8 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 bash Tools/run_all.sh
 ```
 
-It tells you PASS or FAIL for the rules, the whole desk/patrol/hunt flow, and the Unity compile.
+It tells you PASS or FAIL for the rules, the whole desk/patrol/hunt flow, the Unity compile, and that no file contains an em dash
+(the project never uses them: write a hyphen, a colon or a new sentence).
 If a test fails after a change you MEANT to make, the test describes the old behaviour: edit it
 (`Tools/LogicTests/Program.cs` for rules, `Tools/FlowCheck/Program.cs` for screens).
 

@@ -146,7 +146,8 @@ bash Tools/run_all.sh
 
 That runs, in order: the rules tests (`Tools/LogicTests`), the button-level flow check
 (`Tools/FlowCheck`, which plays the desk, patrol and the hunt headlessly), and the compile against
-the **real Unity assemblies** (`Tools/Verify`, downloads them once). Each prints PASS/FAIL.
+the **real Unity assemblies** (`Tools/Verify`, downloads them once), and a check that no file contains an em dash
+(`Tools/check_no_em_dashes.py`; the project never uses them). Each prints PASS/FAIL.
 
 What these cannot tell you: how it **looks**, **sounds** and **feels**. That needs the editor.
 

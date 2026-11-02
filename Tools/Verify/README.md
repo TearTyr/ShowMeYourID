@@ -65,7 +65,7 @@ plain .NET - see `Tools/LogicTests/`:
 
 ```bash
 dotnet run --project Tools/LogicTests/LogicTests.csproj
-#  PASS 27075   FAIL 0   TOTAL 27075
+#  PASS <count>   FAIL 0   TOTAL <count>
 ```
 
 It generates 2,040 visitors over 60 seeds × 5 shifts and asserts the fairness invariants (legit =
@@ -73,6 +73,8 @@ zero defects ⇒ Allow; anomaly = ≥1 defect and always detectable ⇒ Reject),
 progression, shift-gated defect unlocks, the ≤2 question cap, the administrator encounter, ending
 priority (Lose > Secret > Win), save round-trip + tamper rejection, clue-sequence gating and the
 sanity maths. Add `-- --debug-dup` for a focused dump of duplicate-ID evidence.
+
+`bash Tools/run_all.sh` runs this, the flow check, the compile and the em dash check (`Tools/check_no_em_dashes.py`) in one go.
 
 Point it at another tree with `-p:GameLogicSrc=/path/to/Assets/_Project/Scripts/GameLogic`.
 
