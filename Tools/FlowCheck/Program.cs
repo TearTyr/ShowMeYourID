@@ -1955,15 +1955,16 @@ namespace FlowCheck
             float hallX = hallNode.GetComponent<RectTransform>().anchoredPosition.x;
             Check(c1X < c2X - 40f,
                 $"MAP: Room 101 sits WEST of Room 202 along the north wall ({c1X:F0} / {c2X:F0})");
-            Check(secY < hallY - 40f && secX < hallX,
-                $"MAP: the checkpoint hangs BELOW the hallway's west end ({secX:F0},{secY:F0})");
+            Check(secY > hallY + 40f && secX < c1X,
+                $"MAP: the checkpoint stands in the same row as the classrooms, west of Room 101, above the hallway ({secX:F0},{secY:F0})");
             float crNY = crNorth.GetComponent<RectTransform>().anchoredPosition.y;
             float crNX = crNorth.GetComponent<RectTransform>().anchoredPosition.x;
             Check(crNY > hallY + 20f && crNX > hallX,
-                "MAP: CR-1 hangs off the east end, north of the sealed room");
-            Check(serverNode.GetComponent<RectTransform>().anchoredPosition.x >
-                  hallNode.GetComponent<RectTransform>().anchoredPosition.x,
-                "MAP: the server / identification room is on the RIGHT");
+                "MAP: CR-1 is in the row above the hallway, east of the middle");
+            float serverX = serverNode.GetComponent<RectTransform>().anchoredPosition.x;
+            Check(serverX > hallX && serverX > crNX && serverX < crSouth.GetComponent<RectTransform>().anchoredPosition.x &&
+                  Mathf.Abs(serverNode.GetComponent<RectTransform>().anchoredPosition.y - crNY) < 40f,
+                "MAP: the server / identification room is on the RIGHT, in the same row, between CR-1 and CR-2");
             Check(hallNode.GetComponent<RectTransform>().sizeDelta.x >
                   2.5f * c1Node.GetComponent<RectTransform>().sizeDelta.x / 2f,
                 "MAP: the hallway reads as the long central passage");
@@ -2020,8 +2021,8 @@ namespace FlowCheck
                 $"MAP: the drawn rooms spread over the sheet ({(drawnRight - drawnLeft) / sheet.sizeDelta.x * 100f:F0} percent of its width), centred, not bunched on one side");
             Check(MapSheetLayout.ToAnchoredY(c1.Value.Y, 1f) > MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f) &&
                   MapSheetLayout.ToAnchoredY(c2.Value.Y, 1f) > MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f) &&
-                  MapSheetLayout.ToAnchoredY(sec.Value.Y, 1f) < MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f),
-                "MAP: the design-y flip is right way up - both classrooms above the corridor on screen, the checkpoint below");
+                  MapSheetLayout.ToAnchoredY(sec.Value.Y, 1f) > MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f),
+                "MAP: the design-y flip is right way up - the classrooms and the checkpoint are all above the corridor on screen");
 
             // ---- the sealed room stays sealed ----
             Check(serverNode.GetComponent<UnityEngine.UI.Button>() == null &&

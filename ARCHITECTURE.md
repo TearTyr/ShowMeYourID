@@ -109,9 +109,9 @@ clicks reverse the same animation. Files in a drawer are listed A-Z (`RecordSear
 
 **The map** works the same way: `GameLogic/FloorPlan` owns the rooms in a fixed design space,
 `GameLogic/MapSheetLayout.Fit` turns the visible reference area into sheet size / plan scale / type
-scales, and `UI/MapView` only applies those numbers. The plan is to scale: every door sits at its
-real hallway position times `FloorPlan.UnitsPerWorldX`, so the rooms spread over the whole sheet in
-the order you walk past them. The plan is fitted to the sheet from `PlanW` x `PlanH` (the rooms plus
+scales, and `UI/MapView` only applies those numbers. The game is a side scroller, so the plan draws
+ALL six rooms in ONE row along the top, evenly spaced and in the order you walk past their doors
+(`HallX`), with the hallway under them and nothing below it. The plan is fitted to the sheet from `PlanW` x `PlanH` (the rooms plus
 a little air), not from the whole sheet.
 
 **Add a clue:** add a `ClueDef` to `ClueRegistry.Build` (order, room, text) and an interactable in

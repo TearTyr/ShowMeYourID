@@ -75,7 +75,7 @@ open from the first student to the last. Then it closes and Patrol unlocks.
 **Patrol (A/D or arrows, Shift run, E interact):** the mouse only aims the flashlight, it selects
 nothing. Doors and items go by where the guard stands. The corridor is one painted image, always
 dark. The doors follow the desk map: Security, Room 101, Room 202, CR-1, the sealed server room, CR-2
-(FloorPlan.cs draws the hallway and both maps). The **flashlight** points at the cursor (`F` sweep
+(FloorPlan.cs draws the hallway and both maps, with every room in one row above the hallway because it is a side scroller). The **flashlight** points at the cursor (`F` sweep
 on/off, `Q` focus, `L` off). While it is lit it turns the guard to face it; while it is off he faces
 the way he walks. **One patrol cycle** is required before END SHIFT: peek into Room 101, Room 202 and
 a CR (either one). **Anomalies** (the four legged **crawler** that runs on the floor or upside down on the ceiling, the crouched one, and one that hangs from the top of the hallway above the doors) roam the hallway, from night 1, with one already waiting when each patrol starts: hold the Focus beam on it to repel it, and it is gone for a while. The crawler is small and always runs fast (`anomalySpeedSprint`), straight at you once you are within 9 units. The wide Sweep beam only shows what is there and slows any anomaly, the crawler included, to half speed while it is on it (`beamPace`), so there is time to switch to Focus (`Q`); it never repels or freezes anything. The guard carries only a weak light, so what is ahead of him is black until the flashlight finds it: sweep it along the walls, up at the ceiling and down at the floor. Every room is a

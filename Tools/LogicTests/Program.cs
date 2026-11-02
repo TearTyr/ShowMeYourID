@@ -2648,20 +2648,23 @@ namespace Hollowbrook.LogicTests
                 "the sealed room says what it is (got '" + server.Value.Label.Replace("\n", " / ") + "')");
 
             // the reference drawing's spatial relationships
-            Check(sec.Value.Left < hall.Value.Left && sec.Value.Top >= hall.Value.Bottom,
-                "the security checkpoint hangs under the hallway's west end, as on the desk map");
+            Check(sec.Value.Bottom <= hall.Value.Top + 0.01f && sec.Value.Right <= c1.Value.Left + 0.01f,
+                "the security checkpoint is the west-most room, in the same row as the classrooms, above the hallway");
             Check(c1.Value.Bottom <= hall.Value.Top + 0.01f && c2.Value.Bottom <= hall.Value.Top + 0.01f,
                 $"BOTH classrooms are ABOVE the hallway, as the reference plan draws them " +
                 $"({c1.Value.Bottom} / {c2.Value.Bottom} <= {hall.Value.Top})");
             Check(c1.Value.Right <= c2.Value.Left + 0.01f,
                 $"Room 101 sits WEST of Room 202 along the north wall ({c1.Value.Right} <= {c2.Value.Left})");
-            Check(sec.Value.Top >= hall.Value.Bottom - 0.01f && sec.Value.X < hall.Value.X,
-                $"the security checkpoint hangs BELOW the hallway's west end ({sec.Value.Top} >= {hall.Value.Bottom})");
+            bool oneRow = true;
+            foreach (var r in FloorPlan.Rooms)
+                if (r.Key != "room_hallway" && (Math.Abs(r.Bottom - sec.Value.Bottom) > 0.01f || r.Bottom > hall.Value.Top + 0.01f)) oneRow = false;
+            Check(oneRow, "it is a side scroller: EVERY room stands in ONE row on the hallway's back wall, none below the hallway");
             var crN = FloorPlan.ForKey("room_cr1").Value;
             Check(crN.Left >= c2.Value.Right - 0.01f && crN.Bottom <= hall.Value.Top + 0.01f,
                 "CR-1 is north of the hallway, east of Room 202, clear of it");
-            Check(server.Value.X > hall.Value.X && server.Value.Top >= hall.Value.Bottom - 0.01f,
-                $"the sealed room is on the RIGHT half, south of the hallway ({server.Value.X} > {hall.Value.X})");
+            var crS = FloorPlan.ForKey("room_cr2").Value;
+            Check(server.Value.X > hall.Value.X && server.Value.Left >= crN.Right - 0.01f && server.Value.Right <= crS.Left + 0.01f && server.Value.Bottom <= hall.Value.Top + 0.01f,
+                $"the sealed room is on the RIGHT half, in the row between CR-1 and CR-2 ({server.Value.X})");
             Check(hall.Value.W > 2.5f * Math.Max(hall.Value.H, 1f) &&
                   hall.Value.W > c1.Value.W && hall.Value.W > sec.Value.W,
                 $"the hallway is the long central passage ({hall.Value.W}x{hall.Value.H})");
@@ -2702,17 +2705,21 @@ namespace Hollowbrook.LogicTests
                   Math.Abs(mx - hall.Value.X) < 1e-4f && Math.Abs(my - hall.Value.Y) < 1e-4f,
                 "the position marker for a room is that room's centre");
 
-            // the plan is ACCURATE: every door sits on the sheet at its real place along the hallway
-            // (design x = HallX times UnitsPerWorldX), so the rooms come in the order you walk past them
-            bool toScale = true;
-            foreach (var r in FloorPlan.Rooms)
+            // the rooms stand in the order you walk past their doors (HallX, west to east), evenly spaced,
+            // and each door is in its room's bottom wall, straight above the hallway
+            var row = new List<FloorRoom>();
+            foreach (var r in FloorPlan.Rooms) if (r.HallX.HasValue) row.Add(r);
+            row.Sort((p1, p2) => p1.X.CompareTo(p2.X));
+            bool inOrder = row.Count == 6, even = true, doorsDown = true;
+            for (int i = 0; i < row.Count; i++)
             {
-                if (!r.HallX.HasValue) continue;
-                float want = r.HallX.Value * FloorPlan.UnitsPerWorldX;
-                if (!r.DoorX.HasValue || Math.Abs(r.DoorX.Value - want) > 0.6f || Math.Abs(r.X - want) > 0.6f)
-                { toScale = false; Console.WriteLine("   not to scale: " + r.Key + " door " + r.DoorX + " want " + want); }
+                if (i > 0 && !(row[i].HallX.Value > row[i - 1].HallX.Value)) inOrder = false;
+                if (i > 0 && Math.Abs((row[i].X - row[i - 1].X) - (row[1].X - row[0].X)) > 0.01f) even = false;
+                if (!row[i].DoorX.HasValue || Math.Abs(row[i].DoorX.Value - row[i].X) > 0.01f || Math.Abs(row[i].DoorY.Value - row[i].Bottom) > 0.01f) doorsDown = false;
             }
-            Check(toScale, "every room and its door stand at HallX times UnitsPerWorldX along the hallway (the map is to scale)");
+            Check(inOrder, "the six rooms come in the order their hallway doors do: Security, 101, 202, CR-1, the sealed room, CR-2");
+            Check(even, "...evenly spaced along the row");
+            Check(doorsDown, "...and every door is in the middle of its room's bottom wall");
 
             // ...and the rooms use the whole sheet: nothing is bunched on one side
             float minLeft = float.MaxValue, maxRight = float.MinValue;
