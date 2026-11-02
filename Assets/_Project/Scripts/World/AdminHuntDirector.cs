@@ -23,7 +23,8 @@ namespace Hollowbrook.World
         private const float FigureHeight = 3.9f;          // world units, the picture's height (big enough to hover when he is fast)
         private const int FigureSortingOrder = 40;        // under the darkness overlay (70): only light reveals him
         private const float StatusEverySeconds = 0.4f;    // how often the HUD line is rewritten
-        private const float BehindStartDistance = 4.5f;   // how far away he starts when he comes at your back (a slow walk, not a dash)
+        private const float BehindStartDistance = 11f;    // how far away he starts when he comes at your back: past the edge of the screen
+        private const float HallEdgeMargin = 0.5f;        // he never starts outside the hallway
 
         private GameRoot _root;
         private ViewManager _views;
@@ -177,7 +178,9 @@ namespace Hollowbrook.World
         private void PlaceBehindPlayer()
         {
             float playerX = _views.Player != null ? _views.Player.transform.localPosition.x : 0f;
-            _behindFromX = playerX + (playerX > 0f ? -1f : 1f) * BehindStartDistance;
+            // he comes from the side with the most hallway, far off screen, and walks up slowly
+            float reach = _views.Room(RoomId.Hallway) != null ? _views.Room(RoomId.Hallway).HalfWidth - HallEdgeMargin : BehindStartDistance;
+            _behindFromX = Mathf.Clamp(playerX + (playerX > 0f ? -1f : 1f) * BehindStartDistance, -reach, reach);
             ShowFigureIn(RoomId.Hallway, new Vector3(_behindFromX, RoomInstance.FloorY + FigureHeight * 0.5f, 0f));
         }
 

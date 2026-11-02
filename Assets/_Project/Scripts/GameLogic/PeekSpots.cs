@@ -2,11 +2,9 @@ using System;
 
 namespace Hollowbrook.Logic
 {
-    /// <summary>What stands in a peek room. Any room can hold any of the three.</summary>
-    public enum PeekKind { Hood, Slide, Coverhug }
-
-    /// <summary>What it does while the lamp is on it: stays where it stands, or rushes at the camera.</summary>
-    public enum PeekReaction { Still, Rush }
+    /// <summary>What stands in a peek room. Any room can hold any of the four: the hooded figure, the crouched
+    /// slider, the ceiling hanger, or the runner low on the floor.</summary>
+    public enum PeekKind { Hood, Slide, Coverhug, Runner }
 
     public struct PeekSpot
     {
@@ -78,6 +76,7 @@ namespace Hollowbrook.Logic
             {
                 case PeekKind.Hood: return 4.4f;
                 case PeekKind.Slide: return 3.4f;
+                case PeekKind.Runner: return 2.5f;   // it lies low on the floor, about 4.5 wide
                 default: return 1.9f;   // the hanger does not stand: it hangs, at this height
             }
         }
@@ -96,6 +95,7 @@ namespace Hollowbrook.Logic
             {
                 case PeekKind.Slide: return "char_anomaly";
                 case PeekKind.Coverhug: return "char_anomaly_coverhug";
+                case PeekKind.Runner: return "char_anomaly_sprint_a";
                 default: return "char_hood";
             }
         }
@@ -103,11 +103,11 @@ namespace Hollowbrook.Logic
         /// <summary>Half the width and half the height of the part of the figure the lamp must be on, from its height.</summary>
         public static float BodyHalfWidth(PeekKind kind, float height)
         {
-            if (kind == PeekKind.Coverhug) return height * 0.9f;   // it is wide and low
+            if (kind == PeekKind.Coverhug || kind == PeekKind.Runner) return height * 0.9f;   // they are wide and low
             return height * (kind == PeekKind.Slide ? 0.30f : 0.25f);
         }
 
-        public static float BodyHalfHeight(PeekKind kind, float height) => height * (kind == PeekKind.Coverhug ? 0.5f : 0.45f);
+        public static float BodyHalfHeight(PeekKind kind, float height) => height * (kind == PeekKind.Coverhug || kind == PeekKind.Runner ? 0.5f : 0.45f);
 
         // ---- the night's rolls: the same room and the same night always give the same answer
 
@@ -125,23 +125,17 @@ namespace Hollowbrook.Logic
             }
         }
 
-        /// <summary>Any room can hold any kind. The night picks a starting kind and the rooms take the three
+        /// <summary>Any room can hold any kind. The night picks a starting kind and the four rooms take the four
         /// kinds in turn, so a night with several figures shows different ones, and no night is all hoods.</summary>
         public static PeekKind KindIn(int seed, int shift, RoomId room)
         {
-            int start = Roll(seed, shift, RoomId.Hallway, 0x11).NextInt(0, 3);
-            return (PeekKind)((start + Slot(room)) % 3);
+            int kinds = 4;
+            int start = Roll(seed, shift, RoomId.Hallway, 0x11).NextInt(0, kinds);
+            return (PeekKind)((start + Slot(room)) % kinds);
         }
 
         /// <summary>Which of the room's three spots it stands at tonight.</summary>
         public static int SpotIndexIn(int seed, int shift, RoomId room) => Roll(seed, shift, room, 0x22).NextInt(0, 3);
-
-        /// <summary>Some rush at the camera while the lamp is on them, some just stand there. The hanger never moves.</summary>
-        public static PeekReaction ReactionIn(int seed, int shift, RoomId room)
-        {
-            if (KindIn(seed, shift, room) == PeekKind.Coverhug) return PeekReaction.Still;
-            return Roll(seed, shift, room, 0x33).Chance(0.5f) ? PeekReaction.Rush : PeekReaction.Still;
-        }
     }
 
     /// <summary>How fast the lamp clears a figure it is held on (pure). The plain wide lamp works, it is just

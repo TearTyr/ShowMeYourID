@@ -115,8 +115,8 @@ namespace Hollowbrook.Core
         public float huntRoomHoldSeconds = 1.8f;
         [Tooltip("How close (world units) the cursor must be to his head.")][Range(0.3f, 3f)]
         public float huntHeadRadius = 1.5f;
-        [Tooltip("Seconds to flash him when he appears behind you.")][Range(1f, 8f)]
-        public float huntBehindSeconds = 2.2f;
+        [Tooltip("Seconds he takes to walk up to you from off screen, which is also the time you have to flash him.")][Range(1f, 10f)]
+        public float huntBehindSeconds = 5f;
         [Tooltip("Seconds of beam on his face that count as a hit.")][Range(0.1f, 2f)]
         public float huntBeamHitSeconds = 0.35f;
         [Tooltip("Sanity lost each time he catches you.")][Range(0f, 40f)]
@@ -141,8 +141,8 @@ namespace Hollowbrook.Core
         public float night6RoomSeconds = 6f;
         [Tooltip("Seconds the lamp must stay on his head, night 6.")][Range(0.3f, 10f)]
         public float night6RoomHoldSeconds = 2.4f;
-        [Tooltip("Seconds to flash him when he appears behind you, night 6.")][Range(1f, 8f)]
-        public float night6BehindSeconds = 1.6f;
+        [Tooltip("Seconds he takes to walk up to you from off screen, night 6.")][Range(1f, 10f)]
+        public float night6BehindSeconds = 3.5f;
         [Tooltip("Seconds of beam on his face that count as a hit, night 6.")][Range(0.1f, 2f)]
         public float night6BeamHitSeconds = 0.5f;
 

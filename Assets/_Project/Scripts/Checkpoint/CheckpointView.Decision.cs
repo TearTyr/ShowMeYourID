@@ -190,8 +190,8 @@ namespace Hollowbrook.Checkpoint
 
         private void BuildStampTray()
         {
-            // both stamps are plain black-and-white ink like the concept art; the caption
-            // pill under each one (added by the kit skin) says which is which
+            // the stamp tool stands on a white card that shows a check or a cross (added by the kit skin),
+            // so the card says which stamp is which
             BuildStamp("stamp_allow", "APPROVE", Color.white, L.StampAllow, Verdict.Allow, 0, 20);
             BuildStamp("stamp_deny", "DECLINE", Color.white, L.StampDeny, Verdict.Reject, 1, 20);
         }
@@ -200,7 +200,7 @@ namespace Hollowbrook.Checkpoint
         {
             var dim = new Color(tint.r, tint.g, tint.b, 0.35f);   // born dim; RefreshStamps wakes them
             var panel = UIFactory.Panel(_desk, goName, dim);
-            Reg(goName, panel.rectTransform, region);
+            Reg(goName, panel.rectTransform, L.StampTool(region));
             // NO word over the artwork: the stamp illustration stays clean ink. The
             // verdict is told by the stamp's own colour and the check/cross badge on its head.
             var drag = panel.gameObject.GetOrAdd<DragPaper>();
@@ -304,7 +304,6 @@ namespace Hollowbrook.Checkpoint
         }
 
         private bool _stampsLive;
-        private const float TrayGhostAlpha = 0.3f;   // the tray mark while its stamp is out in the hand
 
         // A dragged stamp is moved to the top of the desk; once let go it goes back down beside its tray
         // mark, under the sheets and the sticky note, so it cannot be grabbed through them.
@@ -325,14 +324,13 @@ namespace Hollowbrook.Checkpoint
                 var c = _stampBase[i];
                 float dim = live ? 1f : 0.35f;       // without the kit art the stamp dims until an inspection is live
                 bool tray = _trayCircles[i] != null; // with the kit art the stamp is always drawn in full
-                // The stamp in the hand never fades (a click, a drag or a drop can not make it vanish). While it
-                // is out on the desk its tray mark shows a faint ghost, so the empty spot still reads.
+                // The stamp never fades (a click, a drag or a drop can not make it vanish), and its card stays put
                 c.a = tray ? 1f : dim;
                 _stampTints[i].color = c;
                 if (tray)
                 {
                     var cc = _trayCircles[i].color;
-                    cc.a = _stampHeld[i] ? TrayGhostAlpha : 1f;
+                    cc.a = 1f;
                     _trayCircles[i].color = cc;
                 }
             }

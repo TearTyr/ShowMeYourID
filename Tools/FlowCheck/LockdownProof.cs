@@ -46,7 +46,7 @@ namespace FlowCheck
             Check(buttons.Find("LOCKDOWN") != null && buttons.Find("NEW GAME") != null && buttons.Find("CONTINUE") != null && buttons.Find("NIGHT 6") != null,
                 "LD: the menu has four buttons: NEW GAME, CONTINUE, NIGHT 6 and LOCKDOWN");
             var lockBtn = buttons.Find("LOCKDOWN").GetComponent<UnityEngine.UI.Button>();
-            Check(lockBtn.interactable, "LD: LOCKDOWN is open from the start");
+            Check(!lockBtn.interactable, "LD: LOCKDOWN is locked until Night 6 has been beaten (or the secret code is used)");
             var wide = buttons.Find("NEW GAME").GetComponent<RectTransform>().sizeDelta;
             Check(wide.x < 320f && wide.x > 280f && wide.y < 66f && wide.y > 56f, "LD: the wide buttons are about 70 percent of their old size (" + wide.x + " x " + wide.y + ")");
             float lastBottom = buttons.Find("LOCKDOWN").GetComponent<RectTransform>().anchoredPosition.y - wide.y / 2f;
@@ -109,7 +109,7 @@ namespace FlowCheck
             for (int i = 0; i < 13 && root.State != AppViewState.Ending; i++) StampCorrectly(root);
             Check(root.State == AppViewState.Ending && root.Session.LockdownStrikes == 0, "LD: thirteen right calls clear the line and win");
             Check(AgainLabel(root) == "TRY AGAIN", "LD: and the win offers TRY AGAIN too");
-            var summary = FindDeep(root.Ending.transform, "body").GetComponent<UnityEngine.UI.Text>().text;
+            var summary = root.Ending.SummaryText;
             Check(summary.Contains("FLAWLESS"), "LD: no mistakes ranks FLAWLESS (" + summary.Replace("\n", " / ") + ")");
             Check(SaveText() == storyBefore, "LD: the win leaves the story save untouched too");
 

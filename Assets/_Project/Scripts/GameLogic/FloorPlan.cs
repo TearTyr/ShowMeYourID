@@ -13,7 +13,7 @@ namespace Hollowbrook.Logic
         public string Key;
         /// <summary>Hand-written label, \n separated.</summary>
         public string Label;
-        /// <summary>Centre in the floor plan's own design space (see FloorPlan.DesignW/H).</summary>
+        /// <summary>Centre in the floor plan's own design space (see FloorPlan.PlanW/H).</summary>
         public float X, Y;
         public float W, H;
         /// <summary>The patrol room this square represents. The sealed server room carries null:
@@ -51,88 +51,97 @@ namespace Hollowbrook.Logic
 
     /// <summary>HOLLOWBROOK COLLEGE - GROUND FLOOR: the single source of truth for the school.
     /// The small map on the desk, the full plan and the walkable hallway are all built from this
-    /// table. It follows the desk map: the security room at the south-west, Room 101 and Room 202
-    /// along the north of the main hall, and CR-1, the sealed server room and CR-2 down the east
-    /// end. Walking east along the hallway you pass them in that order.
+    /// table. The hallway strip is the walkable hallway to scale: world x from -15 to 15 maps to
+    /// design x from -390 to 390 (UnitsPerWorldX per world unit), and every room's door sits at
+    /// its real HallX on that scale. Walking east you pass, in order: the Security Room (south),
+    /// Room 101, Room 202, CR-1 (north), the sealed server room (south) and CR-2 (north). The
+    /// plan therefore spreads over the whole width of the sheet.
     ///
-    /// Everything is expressed in a fixed DESIGN SPACE with the origin at the sheet's centre,
+    /// Everything is expressed in a fixed DESIGN SPACE with the origin at the sheet centre,
     /// y down. MapView scales that space uniformly to whatever the screen can show, and the desk
     /// map is the same plan drawn smaller (MiniBox).</summary>
     public static class FloorPlan
     {
         public static readonly float DesignW = 940f;
         public static readonly float DesignH = 440f;
+        /// <summary>The drawn plan's own area (all the rooms with a little air), centred on the
+        /// design origin. The plan is scaled to fill the content area of the sheet from THIS size, not
+        /// from the whole sheet, so it uses the full width of the paper.</summary>
+        public static readonly float PlanW = 900f;
+        public static readonly float PlanH = 270f;
+        /// <summary>Design units on the sheet per world unit along the hallway.</summary>
+        public const float UnitsPerWorldX = 26f;
         public const string Title = "HOLLOWBROOK COLLEGE - GROUND FLOOR";
 
-        /// <summary>The plan's own rooms, in draw order (hallway first so rooms sit on it).</summary>
+        /// <summary>The plan rooms, in draw order (hallway first so rooms sit on it).</summary>
         public static readonly FloorRoom[] Rooms =
         {
             new FloorRoom
             {
                 Key = "room_hallway", Label = "MAIN HALLWAY", MiniLabel = "MAIN HALL",
-                X = -29f, Y = 10f, W = 518f, H = 64f, Room = RoomId.Hallway,
+                X = 0f, Y = 10f, W = 780f, H = 64f, Room = RoomId.Hallway,
             },
             new FloorRoom
             {
                 Key = "room_security", Label = "SECURITY ROOM\nSecurity Checkpoint", MiniLabel = "SECURITY",
-                X = -317f, Y = 99f, W = 160f, H = 77f, Room = RoomId.Security,
-                DoorX = -262f, DoorY = 60.5f,
+                X = -358.8f, Y = 95.5f, W = 160f, H = 70f, Room = RoomId.Security,
+                DoorX = -358.8f, DoorY = 60.5f,
                 HallX = -13.8f, DoorName = "Security", DoorArt = "prop_door_security",
             },
             new FloorRoom
             {
                 Key = "room_classroom1", Label = "CLASSROOM 1\nRoom 101", MiniLabel = "ROOM 101",
-                X = -150f, Y = -93f, W = 186f, H = 90f, Room = RoomId.Classroom1,
-                DoorX = -150f, DoorY = -48f,
+                X = -228.8f, Y = -88f, W = 170f, H = 80f, Room = RoomId.Classroom1,
+                DoorX = -228.8f, DoorY = -48f,
                 HallX = -8.8f, DoorName = "Room 101",
             },
             new FloorRoom
             {
                 Key = "room_classroom2", Label = "CLASSROOM 2\nRoom 202", MiniLabel = "ROOM 202",
-                X = 58f, Y = -93f, W = 186f, H = 90f, Room = RoomId.Classroom2,
-                DoorX = 58f, DoorY = -48f,
+                X = 10.4f, Y = -88f, W = 170f, H = 80f, Room = RoomId.Classroom2,
+                DoorX = 10.4f, DoorY = -48f,
                 HallX = 0.4f, DoorName = "Room 202",
             },
             new FloorRoom
             {
                 Key = "room_cr1", Label = "CR-1", MiniLabel = "CR-1",
-                X = 294f, Y = -106f, W = 128f, H = 64f, Room = RoomId.ComfortRoom, Comfort = true,
-                DoorX = 230f, DoorY = -106f,
+                X = 223.6f, Y = -76f, W = 100f, H = 56f, Room = RoomId.ComfortRoom, Comfort = true,
+                DoorX = 223.6f, DoorY = -48f,
                 HallX = 8.6f, DoorName = "CR-1", DoorArt = "prop_door_comfort",
             },
             new FloorRoom
             {
                 Key = "room_server", Label = "SERVER - SEALED", MiniLabel = "SERVER - SEALED",
-                X = 314f, Y = -6f, W = 166f, H = 83f, Room = null, Sealed = true,
-                DoorX = 231f, DoorY = -6f,
+                X = 286f, Y = 95.5f, W = 140f, H = 70f, Room = null, Sealed = true,
+                DoorX = 286f, DoorY = 60.5f,
                 HallX = 11.0f, DoorArt = "prop_server_door",
             },
             new FloorRoom
             {
                 Key = "room_cr2", Label = "CR-2", MiniLabel = "CR-2",
-                X = 294f, Y = 93f, W = 128f, H = 64f, Room = RoomId.ComfortRoom2, Comfort = true,
-                DoorX = 230f, DoorY = 93f,
+                X = 345.8f, Y = -76f, W = 100f, H = 56f, Room = RoomId.ComfortRoom2, Comfort = true,
+                DoorX = 345.8f, DoorY = -48f,
                 HallX = 13.3f, DoorName = "CR-2", DoorArt = "prop_door_comfort",
             },
         };
 
-        /// <summary>Thin chalk runs joining each room to the hallway (x0,y0 -> x1,y1). Decoration.</summary>
+        /// <summary>Thin chalk runs joining each room door to the hallway wall (x0,y0 -> x1,y1). Decoration.</summary>
         public static readonly float[][] Corridors =
         {
-            new[] { -262f, 60.5f, -262f, 42f },   // security door -> hallway south wall
-            new[] { -150f, -48f, -150f, -22f },   // room 101 door -> hallway north wall
-            new[] { 58f, -48f, 58f, -22f },       // room 202 door -> hallway north wall
-            new[] { 225f, -22f, 225f, -106f },    // hallway east end -> up to CR-1
-            new[] { 225f, -106f, 230f, -106f },
-            new[] { 225f, 42f, 225f, 93f },       // hallway east end -> down to CR-2
-            new[] { 225f, 93f, 230f, 93f },
+            new[] { -358.8f, 60.5f, -358.8f, 42f },   // security door -> hallway south wall
+            new[] { -228.8f, -48f, -228.8f, -22f },   // room 101 door -> hallway north wall
+            new[] { 10.4f, -48f, 10.4f, -22f },       // room 202 door -> hallway north wall
+            new[] { 223.6f, -48f, 223.6f, -22f },     // CR-1 door -> hallway north wall
+            new[] { 286f, 60.5f, 286f, 42f },         // sealed server door -> hallway south wall
+            new[] { 345.8f, -48f, 345.8f, -22f },     // CR-2 door -> hallway north wall
         };
 
-        // The desk map is the same plan, drawn this many times smaller, around this point.
-        private const float MiniScale = 3.2f, MiniCentreX = 142f, MiniCentreY = 99f;
+        // The desk map is the same plan, drawn this many times smaller, around this point (the
+        // plan centre is a little west of the sheet centre, so the point is a little east).
+        private const float MiniScale = 3.3f, MiniCentreX = 150f, MiniCentreY = 99f;
 
         /// <summary>Where a room sits on the small desk map (top-left corner and size, in the
-        /// map card's own units).</summary>
+        /// map card own units).</summary>
         public static void MiniBox(FloorRoom r, out float x, out float y, out float w, out float h)
         {
             x = r.Left / MiniScale + MiniCentreX;
@@ -164,17 +173,17 @@ namespace Hollowbrook.Logic
             return list;
         }
 
-        /// <summary>True when no two rooms overlap and the whole plan stays inside the design
-        /// sheet - the layout invariant the reference drawing implies.</summary>
+        /// <summary>True when no two rooms overlap and the whole plan stays inside the plan area
+        /// (which itself sits inside the sheet) - the layout invariant the reference drawing implies.</summary>
         public static bool LayoutIsSane(out string problem)
         {
-            float halfW = DesignW / 2f, halfH = DesignH / 2f;
+            float halfW = PlanW / 2f, halfH = PlanH / 2f;
             for (int i = 0; i < Rooms.Length; i++)
             {
                 var a = Rooms[i];
                 if (a.Left < -halfW || a.Right > halfW || a.Top < -halfH || a.Bottom > halfH)
                 {
-                    problem = a.Key + " falls outside the sheet";
+                    problem = a.Key + " falls outside the plan area";
                     return false;
                 }
                 for (int j = i + 1; j < Rooms.Length; j++)
@@ -188,13 +197,13 @@ namespace Hollowbrook.Logic
             return true;
         }
 
-        /// <summary>Uniform scale that fits the design space inside (availW, availH) - the one
+        /// <summary>Uniform scale that fits the plan area inside (availW, availH) - the one
         /// number MapView multiplies every coordinate by, so the plan is centred and never
         /// clipped whatever the window size.</summary>
         public static float FitScale(float availW, float availH)
         {
-            if (DesignW <= 0f || DesignH <= 0f) return 1f;
-            float s = System.Math.Min(availW / DesignW, availH / DesignH);
+            if (PlanW <= 0f || PlanH <= 0f) return 1f;
+            float s = System.Math.Min(availW / PlanW, availH / PlanH);
             return s > 0f ? s : 1f;
         }
 

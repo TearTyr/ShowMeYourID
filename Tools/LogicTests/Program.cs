@@ -995,6 +995,9 @@ namespace Hollowbrook.LogicTests
         private static void TutorialTests()
         {
             Group("Night 1 tutorial - step order, what each step holds, the lesson roster");
+            Check(!TutorialSteps.Enabled && TutorialSteps.Start == TutorialStep.Done, "the tutorial is parked: a new story and a rewound night start with no lesson");
+            TutorialSteps.Enabled = true;   // the rest of this group proves the parked code still works
+            Check(TutorialSteps.Start == TutorialStep.Controls, "switched on, the tutorial opens with the keybinds");
             var f = new TutorialFacts();
             Check(TutorialSteps.Advance(TutorialStep.FirstStudent, f) == TutorialStep.FirstStudent, "nothing done: the first step stays");
             f.Processed = 1;
@@ -1077,6 +1080,10 @@ namespace Hollowbrook.LogicTests
             s.TutorialStep = TutorialStep.Done;
             s.RewindNight();
             Check(s.TutorialStep == TutorialStep.Done, "rewinding never starts a finished tutorial again");
+            TutorialSteps.Enabled = false;   // back to the shipped, parked state for the rest of the run
+            s.TutorialStep = TutorialStep.PeekAnomaly;
+            s.RewindNight();
+            Check(s.TutorialStep == TutorialStep.Done, "parked: rewinding a night never restarts a lesson");
         }
 
         private static void LockdownTests()
@@ -2386,10 +2393,10 @@ namespace Hollowbrook.LogicTests
             Check(sec.Value.Top >= hall.Value.Bottom - 0.01f && sec.Value.X < hall.Value.X,
                 $"the security checkpoint hangs BELOW the hallway's west end ({sec.Value.Top} >= {hall.Value.Bottom})");
             var crN = FloorPlan.ForKey("room_cr1").Value;
-            Check(crN.Left >= hall.Value.Right - 0.01f,
-                "the comfort room hangs off the EAST end, clear of the corridor");
-            Check(server.Value.Left >= hall.Value.Right - 0.01f,
-                $"the sealed room is on the RIGHT ({server.Value.Left} >= {hall.Value.Right})");
+            Check(crN.Left >= c2.Value.Right - 0.01f && crN.Bottom <= hall.Value.Top + 0.01f,
+                "CR-1 is north of the hallway, east of Room 202, clear of it");
+            Check(server.Value.X > hall.Value.X && server.Value.Top >= hall.Value.Bottom - 0.01f,
+                $"the sealed room is on the RIGHT half, south of the hallway ({server.Value.X} > {hall.Value.X})");
             Check(hall.Value.W > 2.5f * Math.Max(hall.Value.H, 1f) &&
                   hall.Value.W > c1.Value.W && hall.Value.W > sec.Value.W,
                 $"the hallway is the long central passage ({hall.Value.W}x{hall.Value.H})");
@@ -2430,11 +2437,56 @@ namespace Hollowbrook.LogicTests
                   Math.Abs(mx - hall.Value.X) < 1e-4f && Math.Abs(my - hall.Value.Y) < 1e-4f,
                 "the position marker for a room is that room's centre");
 
+            // the plan is ACCURATE: every door sits on the sheet at its real place along the hallway
+            // (design x = HallX times UnitsPerWorldX), so the rooms come in the order you walk past them
+            bool toScale = true;
+            foreach (var r in FloorPlan.Rooms)
+            {
+                if (!r.HallX.HasValue) continue;
+                float want = r.HallX.Value * FloorPlan.UnitsPerWorldX;
+                if (!r.DoorX.HasValue || Math.Abs(r.DoorX.Value - want) > 0.6f || Math.Abs(r.X - want) > 0.6f)
+                { toScale = false; Console.WriteLine("   not to scale: " + r.Key + " door " + r.DoorX + " want " + want); }
+            }
+            Check(toScale, "every room and its door stand at HallX times UnitsPerWorldX along the hallway (the map is to scale)");
+
+            // ...and the rooms use the whole sheet: nothing is bunched on one side
+            float minLeft = float.MaxValue, maxRight = float.MinValue;
+            foreach (var r in FloorPlan.Rooms)
+            {
+                minLeft = Math.Min(minLeft, r.Left);
+                maxRight = Math.Max(maxRight, r.Right);
+            }
+            float spread = (maxRight - minLeft) / FloorPlan.DesignW;
+            Check(spread >= 0.8f, $"the rooms span at least 80 percent of the sheet width ({spread * 100f:F0} percent)");
+            Check(Math.Abs((minLeft + maxRight) / 2f) <= FloorPlan.DesignW * 0.06f,
+                $"...and sit centred on the sheet, not to one side (middle at {(minLeft + maxRight) / 2f:F0})");
+            float westOfMiddle = 0f, eastOfMiddle = 0f;
+            foreach (var r in FloorPlan.Rooms)
+            {
+                if (r.Key == "room_hallway") continue;
+                if (r.X < 0f) westOfMiddle += r.W; else eastOfMiddle += r.W;
+            }
+            Check(westOfMiddle > 0.3f * (westOfMiddle + eastOfMiddle) && eastOfMiddle > 0.3f * (westOfMiddle + eastOfMiddle),
+                "...with a fair share of the rooms on each side of the middle");
+
+            // the desk map card shows the same plan inside its 290 wide card, spread the same way
+            float miniLeft = float.MaxValue, miniRight = float.MinValue, miniTop = float.MaxValue, miniBottom = float.MinValue;
+            foreach (var r in FloorPlan.Rooms)
+            {
+                FloorPlan.MiniBox(r, out float bx, out float by, out float bw, out float bh);
+                miniLeft = Math.Min(miniLeft, bx); miniRight = Math.Max(miniRight, bx + bw);
+                miniTop = Math.Min(miniTop, by); miniBottom = Math.Max(miniBottom, by + bh);
+            }
+            Check(miniLeft >= 4f && miniRight <= 286f && miniTop >= 40f && miniBottom <= 146f,
+                $"the desk map keeps every room inside its card ({miniLeft:F0}..{miniRight:F0} x {miniTop:F0}..{miniBottom:F0})");
+            Check((miniRight - miniLeft) / 290f >= 0.8f && Math.Abs(miniLeft - (290f - miniRight)) <= 14f,
+                "the desk map spreads over the whole card width and is centred in it");
+
             // the fit maths the map view centres itself with
-            Eq(FloorPlan.FitScale(FloorPlan.DesignW, FloorPlan.DesignH), 1f, "the design space fits itself at 1x");
-            Eq(FloorPlan.FitScale(FloorPlan.DesignW / 2f, FloorPlan.DesignH), 0.5f,
+            Eq(FloorPlan.FitScale(FloorPlan.PlanW, FloorPlan.PlanH), 1f, "the plan area fits itself at 1x");
+            Eq(FloorPlan.FitScale(FloorPlan.PlanW / 2f, FloorPlan.PlanH), 0.5f,
                "a half-width area scales the plan to half (uniform, never stretched)");
-            Eq(FloorPlan.FitScale(FloorPlan.DesignW, FloorPlan.DesignH / 2f), 0.5f,
+            Eq(FloorPlan.FitScale(FloorPlan.PlanW, FloorPlan.PlanH / 2f), 0.5f,
                "a half-height area does the same");
             Eq(FloorPlan.FitScale(0f, 0f), 1f, "a degenerate area falls back to 1x instead of dividing by zero");
         }
@@ -3152,7 +3204,7 @@ namespace Hollowbrook.LogicTests
                 Check(cr2[i].X == -cr1[i].X && cr2[i].FeetY == cr1[i].FeetY, "CR-2 is CR-1 mirrored, spot " + i);
 
             // perspective: the further back the feet, the smaller the figure, and full size at the front edge
-            foreach (var kind in new[] { PeekKind.Hood, PeekKind.Slide })
+            foreach (var kind in new[] { PeekKind.Hood, PeekKind.Slide, PeekKind.Runner })
             {
                 Check(Math.Abs(PeekSpots.HeightAt(kind, RoomId.Classroom1, PeekSpots.FrontFeetY) - PeekSpots.FrontHeight(kind)) < 1e-3f, kind + ": full size at the front edge");
                 Check(PeekSpots.HeightAt(kind, RoomId.Classroom1, -1.4f) < PeekSpots.HeightAt(kind, RoomId.Classroom1, -2.9f), kind + ": smaller further back");
@@ -3162,32 +3214,29 @@ namespace Hollowbrook.LogicTests
             Check(PeekSpots.FrontHeight(PeekKind.Hood) > 3.2f, "the hooded figure is bigger than the first version (3.2)");
 
             // what a room holds, and the night's rolls
-            int slides = 0, hangers = 0, hoods = 0, rushes = 0, stills = 0, slidesInClassrooms = 0, hangersInClassrooms = 0;
+            int slides = 0, hangers = 0, hoods = 0, runners = 0, slidesInClassrooms = 0, hangersInClassrooms = 0;
             for (int seed = 1; seed <= 200; seed++)
                 for (int night = 1; night <= 4; night++)
                 {
                     var seen = new System.Collections.Generic.HashSet<PeekKind>();
-                    for (int r = 0; r < 3; r++) seen.Add(PeekSpots.KindIn(seed, night, rooms[r]));
-                    Eq(seen.Count, 3, "the first three rooms of a night hold three different kinds (seed " + seed + ", night " + night + ")");
+                    for (int r = 0; r < 4; r++) seen.Add(PeekSpots.KindIn(seed, night, rooms[r]));
+                    Eq(seen.Count, 4, "the four rooms of a night hold four different kinds (seed " + seed + ", night " + night + ")");
                     foreach (var room in rooms)
                     {
                         var kind = PeekSpots.KindIn(seed, night, room);
                         bool classroom = room == RoomId.Classroom1 || room == RoomId.Classroom2;
                         if (kind == PeekKind.Hood) hoods++;
+                        if (kind == PeekKind.Runner) runners++;
                         if (kind == PeekKind.Slide) { slides++; if (classroom) slidesInClassrooms++; }
                         if (kind == PeekKind.Coverhug) { hangers++; if (classroom) hangersInClassrooms++; }
-                        var reaction = PeekSpots.ReactionIn(seed, night, room);
-                        if (kind == PeekKind.Coverhug) Check(reaction == PeekReaction.Still, "the hanger never moves");
-                        if (reaction == PeekReaction.Rush) rushes++; else stills++;
                         int index = PeekSpots.SpotIndexIn(seed, night, room);
                         Check(index >= 0 && index < 3, "the spot index is one of three");
-                        Check(PeekSpots.KindIn(seed, night, room) == kind && PeekSpots.ReactionIn(seed, night, room) == reaction
+                        Check(PeekSpots.KindIn(seed, night, room) == kind
                               && PeekSpots.SpotIndexIn(seed, night, room) == index, "the same night gives the same answers");
                     }
                 }
-            Check(slides > 200 && hangers > 200 && hoods > 200, "every kind turns up (" + hoods + " / " + slides + " / " + hangers + ")");
+            Check(slides > 200 && hangers > 200 && hoods > 200 && runners > 200, "every kind turns up (" + hoods + " / " + slides + " / " + hangers + " / " + runners + ")");
             Check(slidesInClassrooms > 100 && hangersInClassrooms > 100, "the crouched one and the hanger also stand in classrooms (" + slidesInClassrooms + " / " + hangersInClassrooms + ")");
-            Check(rushes > 200 && stills > 200, "some rush and some stay still (" + rushes + " / " + stills + ")");
 
             // clearing speed: 2 seconds plain, 1.3 times faster with Focus, draining when the lamp leaves
             Check(Math.Abs(PeekClear.SecondsToClear(false, 2f) - 2f) < 1e-4f, "plain: two seconds");
@@ -3212,6 +3261,24 @@ namespace Hollowbrook.LogicTests
             Check(!CaptionPolicy.Allow(112f, 100f, "a", "a", false), "the same words are not shown again so soon");
             Check(CaptionPolicy.Allow(103f, 100f, "b", "a", true), "an urgent caption is always shown");
 
+            // the secret code: typed in full it fires once, a wrong key starts it again, a long pause too
+            var reader = new UnlockCodeReader();
+            bool fired = false;
+            foreach (char c in UnlockCodeReader.Code) fired = reader.Feed(c, 1f);
+            Check(fired, "the whole code fires the unlock");
+            reader = new UnlockCodeReader();
+            bool early = false;
+            string wrong = "wwssaaddggx";
+            foreach (char c in wrong) early |= reader.Feed(c, 1f);
+            Check(!early && reader.Feed('e', 1f) == false && reader.Feed('z', 1f) == false, "a wrong key before the end starts the code again");
+            reader = new UnlockCodeReader();
+            for (int i = 0; i < 6; i++) reader.Feed(UnlockCodeReader.Code[i], 1f);
+            Check(reader.Feed(UnlockCodeReader.Code[6], 1f + UnlockCodeReader.GapSeconds + 1f) == false && reader.Progress == 0,
+                "a long pause starts the code again");
+            reader = new UnlockCodeReader();
+            foreach (char c in "wwwssaaddggez") fired = reader.Feed(c, 1f);
+            Check(fired, "an extra w at the start does not stop the code");
+
             var pool = new PatrolPool();
             pool.Seed(new[] { AnomalyBehaviorKind.Blink, AnomalyBehaviorKind.Slide, AnomalyBehaviorKind.Sprint, AnomalyBehaviorKind.CoverHug });
             var rng = new GameRng(77);
@@ -3224,6 +3291,21 @@ namespace Hollowbrook.LogicTests
                 last = next;
             }
             Check(never, "the pool never hands out the same kind twice in a row while others wait");
+
+            // every kind, the slide included, can walk the hallway on patrol
+            Check(PatrolPool.HallwayKinds.Length == 4 && PatrolPool.IsHallwayKind(AnomalyBehaviorKind.Sprint) && PatrolPool.IsHallwayKind(AnomalyBehaviorKind.CoverHug),
+                "the hallway kinds are the slider, the runner, the hanger and the creeper");
+            Check(PatrolPool.IsHallwayKind(AnomalyBehaviorKind.Slide) && PatrolPool.IsHallwayKind(AnomalyBehaviorKind.Blink),
+                "Slide and Blink can show up on patrol");
+            var empty = new PatrolPool();
+            bool onlyHallway = true;
+            var emptyRng = new GameRng(5);
+            for (int i = 0; i < 200; i++) onlyHallway &= PatrolPool.IsHallwayKind(empty.PeekKind(emptyRng));
+            Check(onlyHallway, "an empty pool still only hands out hallway kinds");
+            var saved = new PatrolPool();
+            saved.Decode("0,1,2,3");
+            Eq(saved.Pending, 4, "an old save loads all four kinds");
+            Check(PatrolPool.IsHallwayKind(PatrolPool.PhantomKind), "a hallucination uses a hallway shape");
         }
 
         private static void CheckpointQueueTests()

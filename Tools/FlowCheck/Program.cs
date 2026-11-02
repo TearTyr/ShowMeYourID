@@ -30,6 +30,13 @@ namespace FlowCheck
 
         private static void Main(string[] args)
         {
+            // each run keeps its own save folder, so two runs at the same time (for example from two git worktrees)
+            // never trample each other's saves
+            UnityEngine.Application.persistentDataPath =
+                System.IO.Path.Combine(System.IO.Path.GetTempPath(), "smyid-persistent-" + Environment.ProcessId);
+            // the tutorial is parked in the game, but its code stays proven: every proof below runs with it switched
+            // on, except TutorialParkedProof, which checks the shipped (parked) behaviour
+            TutorialSteps.Enabled = true;
             // opt-in: boot to the desk and dump the file drawer as SVG at three points of its
             // travel, so the animation can be LOOKED AT rather than inferred from numbers.
             // Not part of the proof run: `dotnet run --project Tools/FlowCheck -- --dump-drawer=DIR`
@@ -120,11 +127,12 @@ namespace FlowCheck
             // the very start of the game: no visitor, the note up. The stamps are already there to see.
             Check(StampAlpha(root, "stamp_allow") > 0.99f && StampAlpha(root, "stamp_deny") > 0.99f,
                 "STAMPS: both stamps are fully visible at the start of the game, before any visitor");
-            var captionAllow = FindDeep(cp0.transform, "stampcaption_APPROVE");
-            var overlayRules = FindDeep(cp0.transform, "OverlayRules");
-            Check(captionAllow != null && overlayRules != null && captionAllow.GetSiblingIndex() < overlayRules.GetSiblingIndex() &&
-                  captionAllow.GetSiblingIndex() < sticky.GetSiblingIndex(),
-                "STAMPS: the APPROVE caption sits under the sheets and the sticky note, not above their dimmers");
+            Check(FindDeep(cp0.transform, "stampcaption_APPROVE") == null && FindDeep(cp0.transform, "stampcaption_DECLINE") == null,
+                "STAMPS: no APPROVE or DECLINE word pills: the card with the check or the cross says which stamp is which");
+            var toolAllow = FindDeep(cp0.transform, "stamp_allow");
+            var cardAllow = FindDeep(cp0.transform, "sec_tray_allow");
+            Check(toolAllow != null && cardAllow != null && toolAllow.GetSiblingIndex() > cardAllow.GetSiblingIndex(),
+                "STAMPS: the stamp tool stands on top of its card (Stamp BG)");
             ClickStickyNote(root);
             Check(sticky.gameObject.activeSelf && !root.Queue.Started, "the keybind card comes first: the note waits for CONTINUE");
             root.TutorialGotIt();   // CONTINUE
@@ -177,7 +185,9 @@ namespace FlowCheck
             ShiftFailureProof(root);
             RetryProof(root);
             NightLogProof(root);
+            EndingProof(root);
             TutorialProof(root);
+            TutorialParkedProof(root);
             LockdownProof(root);
             MoreFlawsProof(root);
             SanityProof(root);
@@ -277,6 +287,27 @@ namespace FlowCheck
             FreshGame(root);   // leave a live game for whatever runs next
         }
 
+        // The Lockdown lock and the secret code on the main menu: the code opens Night 6 first, then Lockdown.
+        private static void UnlockCodeProof(GameRoot root)
+        {
+            root.MainMenu.RefreshContinue();
+            var lockBtn = root.MainMenu.transform.Find("buttons/LOCKDOWN").GetComponent<UnityEngine.UI.Button>();
+            var nightBtn = root.MainMenu.transform.Find("buttons/NIGHT 6").GetComponent<UnityEngine.UI.Button>();
+            Check(!root.LockdownUnlocked && !lockBtn.interactable, "UC: Lockdown is locked and greyed on a fresh game");
+            Check(!nightBtn.interactable, "UC: Night 6 is locked and greyed on a fresh game");
+            foreach (char c in UnlockCodeReader.Code) root.MainMenu.FeedCodeKey(c);
+            Check(root.Night6Unlocked && !root.LockdownUnlocked && nightBtn.interactable && !lockBtn.interactable,
+                "UC: the code the first time opens Night 6 only");
+            foreach (char c in UnlockCodeReader.Code) root.MainMenu.FeedCodeKey(c);
+            Check(root.Night6Unlocked && root.LockdownUnlocked && lockBtn.interactable,
+                "UC: the code the second time opens Lockdown");
+            foreach (char c in UnlockCodeReader.Code) root.MainMenu.FeedCodeKey(c);
+            Check(root.UnlockCodeStage == 2, "UC: a third time changes nothing");
+            UnityEngine.PlayerPrefs.DeleteKey("hollowbrook.unlock.codestage");
+            root.MainMenu.RefreshContinue();
+            Check(!root.LockdownUnlocked && !lockBtn.interactable, "UC: clearing the unlock locks Lockdown again");
+        }
+
         // --------------------------------------------- night 6, the Challenge
         // Unlocked by finishing the story, the same hunt with harder numbers, its own conversation,
         // and it never touches the story save.
@@ -287,7 +318,10 @@ namespace FlowCheck
 
             // locked until the story has been finished (a Win or the Secret ending)
             root.Saves.Delete();
+            UnityEngine.PlayerPrefs.DeleteKey("hollowbrook.unlock.codestage");
+            UnityEngine.PlayerPrefs.DeleteKey("hollowbrook.unlock.night6beaten");
             Check(!root.Night6Unlocked, "N6: locked with no save");
+            UnlockCodeProof(root);
             var story = new SaveGame();
             story.Session.CurrentShift = 3;
             story.Records.EndingsSeen.Add("lose");
@@ -1956,6 +1990,17 @@ namespace FlowCheck
             Check(inside, "MAP: every room is drawn inside the plan area (nothing clipped or overflowing)");
             Check(scaled, "MAP: every room is sized from the design table by the ONE plan scale");
             Check(faithful, "MAP: every room sits exactly where FloorPlan puts it (the drawing is faithful to the data)");
+            // the drawn rooms use the whole paper: at least 80 percent of the sheet width, centred, not bunched on one side
+            float drawnLeft = float.MaxValue, drawnRight = float.MinValue;
+            foreach (var def in FloorPlan.Rooms)
+            {
+                var rt = map.RoomNode(def.Key).GetComponent<RectTransform>();
+                drawnLeft = Mathf.Min(drawnLeft, rt.anchoredPosition.x - rt.sizeDelta.x / 2f);
+                drawnRight = Mathf.Max(drawnRight, rt.anchoredPosition.x + rt.sizeDelta.x / 2f);
+            }
+            Check((drawnRight - drawnLeft) >= 0.8f * sheet.sizeDelta.x * 0.95f &&
+                  Mathf.Abs((drawnLeft + drawnRight) / 2f) <= 0.06f * sheet.sizeDelta.x,
+                $"MAP: the drawn rooms spread over the sheet ({(drawnRight - drawnLeft) / sheet.sizeDelta.x * 100f:F0} percent of its width), centred, not bunched on one side");
             Check(MapSheetLayout.ToAnchoredY(c1.Value.Y, 1f) > MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f) &&
                   MapSheetLayout.ToAnchoredY(c2.Value.Y, 1f) > MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f) &&
                   MapSheetLayout.ToAnchoredY(sec.Value.Y, 1f) < MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f),
@@ -2133,7 +2178,7 @@ namespace FlowCheck
                 var hand = FindDeep(root.Checkpoint.transform, pair[0]).GetComponent<DragPaper>();
                 hand.BeginDrag();
                 Check(StampHandAlpha(root, pair[0]) > 0.99f, "STAMPS: " + pair[0] + " shows in the hand while it is held");
-                Check(StampAlpha(root, pair[0]) < 0.9f, "STAMPS: the tray mark ghosts while its stamp is out, so the spot still reads");
+                Check(StampAlpha(root, pair[0]) > 0.99f, "STAMPS: the card stays fully visible while its stamp is out");
                 hand.EndDrag();
                 Check(StampHandAlpha(root, pair[0]) > 0.99f && StampAlpha(root, pair[0]) > 0.9f,
                     "STAMPS: " + pair[0] + " is still fully visible and back on its tray mark when let go");
@@ -3905,7 +3950,8 @@ namespace FlowCheck
             Check(fresh.Live != null, "AN: an anomaly is already waiting when the patrol starts, from night 1, without a dice roll");
             if (fresh.Live != null)
             {
-                Check(fresh.Live.Renderer.sprite == ProceduralArt.Get("char_anomaly"), "AN: it uses the real creature art");
+                Check(fresh.Live.Renderer.sprite != null && ProceduralArt.IsFileBacked(fresh.Live.Renderer.sprite.name) && PatrolPool.IsHallwayKind(fresh.Live.Kind),
+                    "AN: it is a hallway kind and uses real creature art");
                 Check(fresh.Live.Room.Id == RoomId.Hallway, "AN: roaming anomalies walk the hallway only");
             }
             {
@@ -3969,23 +4015,27 @@ namespace FlowCheck
             WorldFrames(root, 200);
             Check((root.Session.PeekAnomaliesGone & bit) == 0 && !views.PeekedAnomaly.Playing, "AN: a dark lamp does nothing to it");
             lamp.ToggleLamp();
-            AimAt(hiderPos.x + 1.9f, hiderPos.y);   // the lit circle reaches him, the light is not on him
-            WorldFrames(root, 150);
-            Check(!views.PeekedAnomaly.Playing && views.PeekedAnomaly.transform.localPosition == hiderPos,
-                "AN: standing in the edge of the light does nothing, he does not move");
+            // the lit circle reaches him, the light is not on him (a wide figure may be too wide for that)
+            float edge = PeekSpots.BodyHalfWidth(kindHere, heightBefore) + 0.1f;
+            if (edge < lamp.EffectiveRadius - 0.05f)
+            {
+                AimAt(hiderPos.x + edge, hiderPos.y);
+                WorldFrames(root, 150);
+                Check(!views.PeekedAnomaly.Playing && views.PeekedAnomaly.transform.localPosition == hiderPos,
+                    "AN: standing in the edge of the light does nothing, he does not move");
+            }
             AimAt(hiderPos.x, hiderPos.y);          // the plain lamp on his body
             WorldFrames(root, 30);
             Check(views.PeekedAnomaly.Playing && !lamp.Locked && (root.Session.PeekAnomaliesGone & bit) == 0,
                 "AN: the plain lamp on his body starts to clear him, and he is still there after half a second");
             Check(views.Flashlight.Battery < 0.999f && views.Flashlight.Battery > 0.5f,
                 "AN: the peek lamp runs the same battery down while it is lit (" + views.Flashlight.Battery.ToString("F3") + ")");
-            if (views.PeekedAnomaly.Reaction == PeekReaction.Rush)
-                Check(views.PeekedAnomaly.transform.localPosition != hiderPos && views.PeekedAnomaly.CurrentHeight > heightBefore,
-                    "AN: one that rushes jumps closer and bigger while the lamp holds");
-            else
-                Check(views.PeekedAnomaly.transform.localPosition == hiderPos,
-                    "AN: one that stays still stays exactly where it stands while the lamp holds");
-            WorldFrames(root, 140);
+            Check(views.PeekedAnomaly.transform.localPosition == hiderPos && Mathf.Abs(views.PeekedAnomaly.CurrentHeight - heightBefore) < 0.0001f,
+                "AN: every figure stays exactly where it stands, at its size, while the lamp holds (nothing shakes or grows)");
+            WorldFrames(root, 70);
+            Check(views.PeekedAnomaly.transform.localPosition == hiderPos && Mathf.Abs(views.PeekedAnomaly.CurrentHeight - heightBefore) < 0.0001f,
+                "AN: ...and still does later in the hold");
+            WorldFrames(root, 70);
             Check(!lamp.Locked && (root.Session.PeekAnomaliesGone & bit) == 0, "AN: the plain wide lamp is not done at about 2.8 seconds (it is slow)");
             WorldFrames(root, 20);
             Check(lamp.Locked && (root.Session.PeekAnomaliesGone & bit) != 0 && (root.Session.ClearedRooms & bit) != 0,

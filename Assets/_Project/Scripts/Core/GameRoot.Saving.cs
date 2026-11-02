@@ -19,6 +19,7 @@ namespace Hollowbrook.Core
         public void ResetAllData()
         {
             Saves.Delete();
+            ClearUnlocks();
             Records = new RecordsData();
             Session = new GameSession();
             Bus.Publish(GameEvent.Of(EventIds.Notification, "All save data erased."));

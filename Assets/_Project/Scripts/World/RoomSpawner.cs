@@ -136,13 +136,13 @@ namespace Hollowbrook.World
         }
 
         /// <summary>Ambient spawn entry: real anomalies take a kind from the shared pool
-        /// (uncaught == outstanding); phantoms are always the gliding shape (they never grab).</summary>
+        /// (uncaught == outstanding); phantoms are always the drifting ceiling shape (they never grab).</summary>
         public void SpawnAnomaly(bool hallucination)
         {
             if (_views.Current == null) return;
             if (!hallucination && _liveAnomaly != null) return;
             if (_rng == null) _rng = new GameRng(_root.Session.Seed + 31 + _root.Session.CurrentShift);
-            var kind = hallucination ? AnomalyBehaviorKind.Slide : _root.Session.Pool.PeekKind(_rng);
+            var kind = hallucination ? PatrolPool.PhantomKind : _root.Session.Pool.PeekKind(_rng);
             Spawn(kind, _views.Current, hallucination);
         }
 

@@ -114,10 +114,11 @@ namespace Hollowbrook.UI
             _night6Hint = HintLabel(col, "night6_hint", Wide3Y);
             OnHover(_night6Btn, ShowNight6Hint, () => _night6Hint.gameObject.SetActive(false));
 
-            // LOCKDOWN: every student at the gate at once, open from the start
+            // LOCKDOWN: every student at the gate at once. Opens once Night 6 is beaten (or by the secret code)
             WideButton(col, "LOCKDOWN", "LOCKDOWN", "menu_icon_newgame",
                 new Vector2(44.89f, 52f), new Vector2(0f, 0.9f), () =>
                 {
+                    if (!_gameRoot.LockdownUnlocked) return;
                     Click();
                     _gameRoot.StartNewGame(GameMode.Lockdown);
                 }, b => _lockdownBtn = b, WideX, Wide4Y);
@@ -308,6 +309,9 @@ namespace Hollowbrook.UI
             if (_night6Btn == null) return;
             SetGrey(_night6Btn, _gameRoot.Night6Unlocked);
             if (_night6Hint != null) _night6Hint.gameObject.SetActive(false);
+            if (_lockdownBtn == null) return;
+            SetGrey(_lockdownBtn, _gameRoot.LockdownUnlocked);
+            if (_lockdownHint != null) _lockdownHint.gameObject.SetActive(false);
         }
 
         // Really grey, not just see-through: the frame, icon and label all lose their colour.
@@ -338,7 +342,7 @@ namespace Hollowbrook.UI
         internal void ShowLockdownHint()
         {
             if (_lockdownHint == null) return;
-            _lockdownHint.text = "ALL AT ONCE. NO PATROL.";
+            _lockdownHint.text = _gameRoot.LockdownUnlocked ? "ALL AT ONCE. NO PATROL." : "BEAT NIGHT 6 TO UNLOCK";
             _lockdownHint.gameObject.SetActive(true);
         }
 
@@ -371,6 +375,38 @@ namespace Hollowbrook.UI
             et.triggers.Add(onExit);
         }
 
+        // The secret code: the menu watches the few keys it uses. Typed in full it opens the next hidden mode.
+        private readonly UnlockCodeReader _codeReader = new UnlockCodeReader();
+
+        private void ReadUnlockCode()
+        {
+            foreach (char key in UnlockCodeReader.Keys)
+                if (Input.GetKeyDown(CodeKeyCode(key))) FeedCodeKey(key);
+        }
+
+        private static KeyCode CodeKeyCode(char key)
+        {
+            switch (key)
+            {
+                case 'w': return KeyCode.W;
+                case 's': return KeyCode.S;
+                case 'a': return KeyCode.A;
+                case 'd': return KeyCode.D;
+                case 'g': return KeyCode.G;
+                case 'e': return KeyCode.E;
+                default: return KeyCode.Z;
+            }
+        }
+
+        // internal so the headless flow check can type the code
+        internal void FeedCodeKey(char key)
+        {
+            if (!_codeReader.Feed(key, Time.unscaledTime)) return;
+            ShowNote(_gameRoot.ApplyUnlockCode());
+            _gameRoot.Audio.PlaySfx("sfx_glitch", 0.4f);
+            RefreshContinue();
+        }
+
         private void Update()
         {
             if (_gameRoot == null) return;
@@ -381,6 +417,8 @@ namespace Hollowbrook.UI
                 _noteUntil = -1f;
                 if (_menuNote != null) _menuNote.text = "";
             }
+
+            ReadUnlockCode();
 
             if (Input.GetKeyDown(KeyCode.F2))
             {

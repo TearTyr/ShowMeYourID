@@ -31,7 +31,15 @@ namespace Hollowbrook.Logic
     /// holds still. One teaching round of the core ideas, then no more training wheels.</summary>
     public static class TutorialSteps
     {
+        /// <summary>THE TUTORIAL SWITCH. It is parked (false) because the lessons were unstable: with it off
+        /// there is no guide box, no keybind card, nothing is held still and night 1 plays like any other
+        /// night. All the tutorial code stays in place. To bring it back, set this to true and playtest.</summary>
+        public static bool Enabled = false;
+
         public static TutorialStep First => TutorialStep.Controls;
+
+        /// <summary>Where a new story (or a rewound night) starts: the first lesson, or no lesson at all while parked.</summary>
+        public static TutorialStep Start => Enabled ? First : TutorialStep.Done;
 
         public static bool Active(TutorialStep step) => step != TutorialStep.Done;
 

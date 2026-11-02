@@ -111,9 +111,12 @@ namespace Hollowbrook.Checkpoint
         // Re-baselined to the owner's SecurityRoom kit: the tray circles sit where the kit's
         // Stamp BG layer paints them (measured from the 2880x1620 export), enlarged to keep the
         // >=96px grab area the audit demands. Allow left, Deny right, one aligned row.
-        // 545 puts the stamps and their captions lower on the desk, nearer the concept art (the caption ends at 706)
-        public static readonly Region StampAllow = new Region(900, 545, 140, 125);   // APPROVE stamp block
-        public static readonly Region StampDeny = new Region(1055, 545, 140, 125);  // DECLINE stamp block
+        // Each block is the stamp tool standing on its white card (Stamp BG): the card carries the check or
+        // the cross, so the player can see which stamp is which without any word. Tool on top, card below.
+        public static readonly Region StampAllow = new Region(900, 535, 140, 160);   // APPROVE block
+        public static readonly Region StampDeny = new Region(1055, 535, 140, 160);  // DECLINE block
+        public static Region StampTool(Region block) => new Region(block.X + 28f, block.Y, 84f, 92f);
+        public static Region StampCard(Region block) => new Region(block.X, block.Y + 85f, 140f, 75f);
 
         // ---- the Shift-5 conversation (tag A: mutually exclusive with the questions panel
         // and the inline map, which it borrows the column from while it is open) ----------

@@ -50,12 +50,16 @@ Folder rules and naming are in [docs/ART-NAMING.md](docs/ART-NAMING.md), the ful
 7. **Patrol** (between visitors) - walk the hallway, peek into classrooms, find the ten findings.
    The hallway passes the rooms in the desk map's order: Security, Room 101, Room 202, CR-1, the
    sealed server room, CR-2. Every room is a peek (`E` at its door).
-   Each night needs one patrol: peek into Room 101, Room 202 and a CR, then END SHIFT. Only the hallway has roaming anomalies. Some peek rooms hold a figure standing on the floor (the hooded figure in the classrooms, the crouched one or the ceiling hanger in the comfort rooms): hold the lamp on it for about two seconds (the Focus lamp, `Q`, is 1.3 times faster). Some rush at the camera meanwhile and some stay still; then the lamp dies and when the light slowly returns it is gone. It never attacks. In the hallway the guard only has a weak light around him, so sweep the flashlight, up at the ceiling and down at the floor too.
+   Each night needs one patrol: peek into Room 101, Room 202 and a CR, then END SHIFT. Only the hallway has roaming anomalies. Some peek rooms hold a figure standing on the floor (the hooded figure, the crouched one or the ceiling hanger, in any room): hold the lamp on it for about three seconds (the Focus lamp, `Q`, is 1.3 times faster). It stays perfectly still meanwhile; then the lamp dies and when the light slowly returns it is gone. It never attacks. In the hallway the guard only has a weak light around him, so sweep the flashlight, up at the ceiling and down at the floor too.
 8. **Night 5** - eight students (the usual checks), then the administrator last. The student questions do not apply to him:
    interrogate him (`T`) as often as you like, catch his lies, turn him away with the DENY stamp, and he
    forces his way in. He speaks only through the dialogue box. Survive until dawn (see below).
 
-### The Night 1 tutorial
+### The Night 1 tutorial (parked for now)
+
+**The tutorial is switched off** because it was unstable: night 1 plays like any other night (the first click on the sticky note brings the
+first visitor, and every door is open). All of its code is still in the project. To bring it back, set `TutorialSteps.Enabled = true` in
+`GameLogic/TutorialSteps.cs` and playtest it. What it does when it is on:
 
 A new story starts with a guided Night 1 that teaches the core ideas once and then leaves you alone. It opens with a card of the
 keybinds (desk and patrol) and a CONTINUE button: nobody arrives until you press it. After that a box at the top of the screen
@@ -101,7 +105,7 @@ night: quitting it ends it, and it never touches your story save. The numbers ar
 
 ## Lockdown
 
-The **LOCKDOWN** button on the main menu is open from the start. It is one finite night with every student at the gate at
+The **LOCKDOWN** button on the main menu is locked until Night 6 has been beaten. A secret code typed on the main menu (`wwssaaddggez`, one key after another) opens the hidden modes one at a time: the first time it opens Night 6, the next time Lockdown. It is one finite night with every student at the gate at
 once: all 13 students, 6 of them anomalies, all frightened, arriving fast (8 to 11 seconds apart). There is no patrol, no Security
 Log and no sanity drain. Instead there is a clock on every face: **35 seconds** at the window, then the thing outside takes them.
 Three **mistakes** and the gate falls (you lose): an anomaly let in, a student turned away, or a real student taken when the
