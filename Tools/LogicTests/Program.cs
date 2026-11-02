@@ -42,6 +42,7 @@ namespace Hollowbrook.LogicTests
             ShiftPlanTests();
             HuntFairnessTests();
             HuntDoorTests();
+            HuntDodgeTests();
             EveryStudentTurnsTests();
             RulesAreLiveTests();
             ClueRegistryTests();
@@ -160,6 +161,75 @@ namespace Hollowbrook.LogicTests
         }
 
         // ------------------------------------------------------------ shift plan
+        // Night 6: he circles and dodges the lamp. Hard to follow, never impossible, and no use to park the lamp.
+        private static void HuntDodgeTests()
+        {
+            Group("AdminHuntDodge - night 6: he circles about his spot and dodges the lamp");
+            var tun = HuntTuning.Default;
+            Check(!tun.DodgesLamp, "the default hunt (night 5) does not dodge");
+            Check(AdminHuntDodge.Radius > tun.HeadRadius, "the circle is wider than the lamp's reach, so parking the lamp in the middle never lights him");
+
+            // geometry and determinism
+            float minR = 99f, maxR = 0f;
+            bool same = true;
+            var a = new AdminHuntDodge(5); var b = new AdminHuntDodge(5);
+            for (int i = 0; i < 2000; i++)
+            {
+                bool lit = i % 200 < 100;
+                a.Step(0.02f, lit); b.Step(0.02f, lit);
+                a.Offset(out float ax, out float ay); b.Offset(out float bx, out float by);
+                same &= ax == bx && ay == by;
+                float r = (float)Math.Sqrt(ax * ax + ay * ay);
+                minR = Math.Min(minR, r); maxR = Math.Max(maxR, r);
+            }
+            Check(minR > AdminHuntDodge.Radius - 1e-3f && maxR < AdminHuntDodge.Radius + 1e-3f, "he always stays on his circle (" + minR + " to " + maxR + ")");
+            Check(same, "the same seed dodges the same way");
+
+            // faster while lit, and he turns round
+            float calmPath = 0f, litPath = 0f;
+            int turns = 0;
+            var calm = new AdminHuntDodge(9); var lit9 = new AdminHuntDodge(9);
+            float lastCalm = calm.Angle, lastLit = lit9.Angle, lastSign = 0f;
+            for (int i = 0; i < 500; i++)
+            {
+                calm.Step(0.02f, false); lit9.Step(0.02f, true);
+                calmPath += Math.Abs(calm.Angle - lastCalm); litPath += Math.Abs(lit9.Angle - lastLit);
+                float sign = Math.Sign(calm.Angle - lastCalm);
+                if (lastSign != 0f && sign != lastSign) turns++;
+                lastSign = sign; lastCalm = calm.Angle; lastLit = lit9.Angle;
+            }
+            Check(litPath > calmPath * 1.5f, "he runs faster while the lamp is on him (" + litPath + " against " + calmPath + " radians in 10 s)");
+            Check(turns >= 3, "he turns round at random (" + turns + " turns in 10 s)");
+
+            // a player who follows him with a short delay can still clear him inside the night 6 room time (2.6 s of lamp, 5 s)
+            int Cleared(float lag, bool parked)
+            {
+                int ok = 0;
+                for (int seed = 1; seed <= 200; seed++)
+                {
+                    var d = new AdminHuntDodge(seed);
+                    var hist = new List<float[]>();
+                    float hold = 0f; bool lit = false;
+                    for (float t = 0f; t < 5f && hold < 1f; t += 0.02f)
+                    {
+                        d.Step(0.02f, lit);
+                        d.Offset(out float x, out float y);
+                        hist.Add(new[] { x, y });
+                        var lamp = parked ? new[] { 0f, 0f } : hist[Math.Max(0, hist.Count - 1 - (int)Math.Round(lag / 0.02f))];
+                        float dist = (float)Math.Sqrt((x - lamp[0]) * (x - lamp[0]) + (y - lamp[1]) * (y - lamp[1]));
+                        lit = dist <= tun.HeadRadius;
+                        hold = lit ? hold + 0.02f / 2.6f : Math.Max(0f, hold - 0.02f * tun.HoldDecayPerSecond);
+                    }
+                    if (hold >= 1f) ok++;
+                }
+                return ok;
+            }
+            int quick = Cleared(0.15f, false), slow = Cleared(0.45f, false), parkedOk = Cleared(0f, true);
+            Check(quick >= 180, "a player who follows him with a 0.15 s delay clears him in time almost every time (" + quick + "/200)");
+            Check(slow < quick, "a slower follower (0.45 s) has a harder time (" + slow + "/200 against " + quick + ")");
+            Eq(parkedOk, 0, "a lamp parked in the middle never clears him");
+        }
+
         // Doors are not safe: step out of his room with him still there and that door is a catch; leave him until
         // the room timer runs out and every door is a catch for a while.
         private static void HuntDoorTests()

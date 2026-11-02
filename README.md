@@ -99,7 +99,7 @@ The numbers are in `GameConfig.asset` under "Administrator hunt".
 Finish the story (the Win or the Secret ending) and the **NIGHT 6** button on the main menu opens.
 It is Night 5 again, harder: he comes back, says he does not give up and asks you to make the
 right decision. He has a new set of questions. Deny him again and the pursuit starts, with only 2
-catches allowed, shorter walks between stops, less time to find him and a longer night. It is one
+catches allowed, shorter walks between stops, less time to find him and a longer night. He also runs up the hallway faster, and in a room he circles and dodges the lamp instead of wandering. It is one
 night: quitting it ends it, and it never touches your story save. The numbers are under "Night 6" in
 `GameConfig.asset`.
 

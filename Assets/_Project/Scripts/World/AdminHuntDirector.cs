@@ -37,6 +37,8 @@ namespace Hollowbrook.World
         private int _motionSeed;
         private float _statusClock;
         private float _behindFromX;
+        private AdminHuntDodge _dodge;   // night 6: how he moves in a room
+        private bool _onTarget;          // the lamp was on his head at the last tick
 
         public bool Running { get; private set; }
         public AdminHunt Model => _hunt;
@@ -76,6 +78,7 @@ namespace Hollowbrook.World
             if (_views.Transitioning) return;   // a fade is a short pause for the whole hunt
 
             var input = ReadInput();
+            _onTarget = input.OnTarget;
             var ev = _hunt.Tick(dt, input);
             UpdateFigure(dt);
             React(ev);
@@ -153,6 +156,7 @@ namespace Hollowbrook.World
             float y = 0.2f + (rng.NextFloat() * 2f - 1f) * 0.7f;
             _anchor = new Vector3(x, y, 0f);
             _trackClock = 0f;
+            _dodge = _tuning.DodgesLamp ? new AdminHuntDodge(_motionSeed + _hunt.Repels * 101 + 7) : null;
             ShowFigureIn(_hunt.Room, _anchor);
         }
 
@@ -163,7 +167,8 @@ namespace Hollowbrook.World
             {
                 _trackClock += dt;
                 float ox, oy;
-                AdminHuntMotion.HeadOffset(_trackClock, _hunt.Repels, _motionSeed, out ox, out oy);
+                if (_dodge != null) { _dodge.Step(dt, _onTarget); _dodge.Offset(out ox, out oy); }
+                else AdminHuntMotion.HeadOffset(_trackClock, _hunt.Repels, _motionSeed, out ox, out oy);
                 _figure.transform.localPosition = _anchor + new Vector3(ox, oy, 0f);
             }
             else if (_hunt.Phase == HuntPhase.Behind)

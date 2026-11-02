@@ -98,7 +98,7 @@ away (there is no refuse button). He speaks only through the dialogue box. Allow
 back and leaves. The security game is over and only Patrol works; the hunt starts when it is clicked.
 Then it plays like Nightmare Fredbear's night in FNaF 4, with captions instead of audio. He is the
 only anomaly and can be anywhere: in **Room 101, Room 202, CR-1 or CR-2** (peek in and hold the lamp
-on his head within 12 s) or **right behind you** (aim at him and flash his face within 2.6 s). He goes for you: in the hallway he
+on his head within 12 s) or **right behind you** (aim at him and flash his face within 2.8 s: he **runs** up the hallway at your back, about 3.9 units a second). He goes for you: in the hallway he
 comes up behind you more often than not, and while you peek into a room he is often in that very room. Only
 the light stops him, and each success gives 8 sanity. Too slow and he catches you: sanity drops and
 you are thrown back. **3 catches** = he reaches the server door (lose). Survive **210 s** to dawn.
@@ -116,7 +116,7 @@ taken. Three lose; clearing the line wins, ranked FLAWLESS, STEADY or BARELY HEL
 
 **Night 6 (the Challenge):** opens on the main menu after the story's Win or Secret ending. He is back
 and says he does not give up; he asks for the right decision and has a new set of questions. DENY him
-again and the pursuit starts, harder: 2 catches, shorter stalks, less time to react, a longer night.
+again and the pursuit starts, harder: 2 catches, shorter stalks, less time to react, a longer night. He runs up the hallway faster (1.8 s, as fast as you run), and in a room he does not wander: like Monster Vinnie in FNaC 3 he **circles about his spot and dodges the lamp**, faster while the light is on him, turning round at random (`AdminHuntDodge`). A lamp parked in the middle never finds him.
 Surviving to dawn is its own ending. It is one night and never touches the story save.
 
 **End of a night:** nights 1 to 4 run on without the menu: the screen dims, then the next night starts (a marathon). Clocking out with an anomaly let in

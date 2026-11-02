@@ -383,8 +383,10 @@ namespace FlowCheck
             Check(t6.RoomHoldSeconds > t5.RoomHoldSeconds && t6.BeamHitSeconds > t5.BeamHitSeconds && t6.StalkMinSeconds < t5.StalkMinSeconds,
                 "N6: the lamp must stay longer on him, the beam longer on his face, and he walks less between stops than night 5");
             Check(t6.AmbushDelayMaxSeconds < t5.AmbushDelayMaxSeconds && t6.SwapAfterRepelSeconds < t5.SwapAfterRepelSeconds &&
-                  t6.AmbushDelayMinSeconds > 0.3f && t6.BehindSeconds >= 3f,
-                "N6: his swaps come quicker than night 5 (still a breath after a peek) and he still walks up over at least 3 seconds");
+                  t6.AmbushDelayMinSeconds > 0.3f && t6.BehindSeconds >= 1.5f,
+                "N6: his swaps come quicker than night 5 (still a breath after a peek) and he still runs up over at least 1.5 seconds");
+            Check(t6.BehindSeconds < t5.BehindSeconds && t5.BehindSeconds <= 3.2f, "N6: he runs up the hallway, faster than night 5 (" + t6.BehindSeconds + " s against " + t5.BehindSeconds + " s)");
+            Check(t6.DodgesLamp && !t5.DodgesLamp, "N6: in a room he circles and dodges the lamp, night 5's Principal only wanders");
             Check(GameRules.Current.ChallengeDrainScale > 1.5f, "N6: sanity drains faster than night 5");
 
             // the DENY stamp starts the pursuit, like night 5
