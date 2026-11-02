@@ -99,6 +99,8 @@ namespace Hollowbrook.Horror
             }
         }
 
+        private float _pace = 1f;   // speed multiplier for this frame (see MoveBehavior)
+
         private static BehaviorTuning BehaviorTuningFrom(GameConfigSO c)
         {
             if (c == null) return BehaviorTuning.Default;
@@ -119,6 +121,7 @@ namespace Hollowbrook.Horror
                 CatchGraceSprint = c.catchGraceSprint,
                 CatchGraceCoverHug = c.coverHugCatchSeconds,
                 RetreatSpeed = c.anomalyRetreatSpeed,
+                BeamPace = c.beamPace,
             };
         }
 
@@ -183,7 +186,7 @@ namespace Hollowbrook.Horror
             if (active)
             {
                 var p = transform.localPosition;
-                p.x = Mathf.MoveTowards(p.x, _targetX, _profile.MoveSpeed * dt);
+                p.x = Mathf.MoveTowards(p.x, _targetX, _profile.MoveSpeed * _pace * dt);
                 if (Mathf.Abs(p.x - _targetX) < 0.2f) PickWanderTarget(PlayerPos());
                 transform.localPosition = p;
 
@@ -215,7 +218,7 @@ namespace Hollowbrook.Horror
             else _graceLeft = Mathf.Max(0f, _graceLeft - dt);
 
             // Focus ADVANCES; a lit room or the short grace window only HOLDS - ambient light can
-            // never resolve an encounter by itself. The plain Sweep beam does nothing at all.
+            // never resolve an encounter by itself. The plain Sweep beam only slows it (see _pace).
             bool observed = sameRoom && views.RoomLit;
             var cfg = _gameRoot.Config;
             float rate = TrackingPolicy.RatePerSecond(focus, observed || _graceLeft > 0f,
@@ -362,6 +365,10 @@ namespace Hollowbrook.Horror
             bool stalking = _state == AnomalyState.Stalking;
             float dist = Mathf.Abs(player.x - p.x);
 
+            // any flashlight beam on it slows it down: the player's time to reach for Focus. Only the
+            // speed changes, never the warning and recovery timers (a Sprint still telegraphs in full).
+            _pace = views.BeamCovers(p) ? _profile.BeamPace : 1f;
+
             // one method per behavior kind: each reads as its own little rule sheet
             switch (Kind)
             {
@@ -379,7 +386,7 @@ namespace Hollowbrook.Horror
         {
             if (views.IsFocusLit(p) || views.RoomLit) return p;
             float tx = stalking ? player.x : _targetX;
-            p.x = Mathf.MoveTowards(p.x, tx, _profile.MoveSpeed * dt);
+            p.x = Mathf.MoveTowards(p.x, tx, _profile.MoveSpeed * _pace * dt);
             if (!stalking && Mathf.Abs(p.x - _targetX) < 0.2f) PickWanderTarget(player);
             return p;
         }
@@ -388,7 +395,7 @@ namespace Hollowbrook.Horror
         // stalking it picks flank points near the player. No teleporting.
         private Vector3 MoveSlide(float dt, Vector3 player, bool stalking, Vector3 p)
         {
-            p.x = Mathf.MoveTowards(p.x, _targetX, _profile.MoveSpeed * dt);
+            p.x = Mathf.MoveTowards(p.x, _targetX, _profile.MoveSpeed * _pace * dt);
             if (Mathf.Abs(p.x - _targetX) < 0.2f) PickSlideTarget(player, stalking);
             return p;
         }
@@ -400,7 +407,7 @@ namespace Hollowbrook.Horror
             if (_dashTimer > 0f)
             {
                 _dashTimer -= dt;
-                p.x = Mathf.MoveTowards(p.x, player.x, _profile.DashSpeed * dt);
+                p.x = Mathf.MoveTowards(p.x, player.x, _profile.DashSpeed * _pace * dt);
                 if (Mathf.Abs(p.x - player.x) < 0.15f || _dashTimer <= 0f)
                 { _dashTimer = 0f; _dashRecover = _profile.DashRecoverSeconds; }
                 return p;
@@ -427,7 +434,7 @@ namespace Hollowbrook.Horror
             else
             {
                 _telegraph = -1f;
-                p.x = Mathf.MoveTowards(p.x, _targetX, _profile.MoveSpeed * dt);
+                p.x = Mathf.MoveTowards(p.x, _targetX, _profile.MoveSpeed * _pace * dt);
                 if (Mathf.Abs(p.x - _targetX) < 0.2f) PickWanderTarget(player);
             }
             return p;
@@ -437,7 +444,7 @@ namespace Hollowbrook.Horror
         private Vector3 MoveCoverHug(float dt, Vector3 player, bool stalking, Vector3 p)
         {
             float tx = stalking ? player.x : _targetX;
-            p.x = Mathf.MoveTowards(p.x, tx, _profile.MoveSpeed * dt);
+            p.x = Mathf.MoveTowards(p.x, tx, _profile.MoveSpeed * _pace * dt);
             if (!stalking && Mathf.Abs(p.x - _targetX) < 0.2f) PickWanderTarget(player);
             return p;
         }

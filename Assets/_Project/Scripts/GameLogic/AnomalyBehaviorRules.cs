@@ -19,6 +19,7 @@ namespace Hollowbrook.Logic
         public float CatchGraceSprint;
         public float CatchGraceCoverHug;
         public float RetreatSpeed;        // how fast a repelled anomaly withdraws
+        public float BeamPace;            // 1 = normal, 0.5 = half speed while any flashlight beam is on it
 
         public static BehaviorTuning Default => new BehaviorTuning
         {
@@ -37,6 +38,7 @@ namespace Hollowbrook.Logic
             CatchGraceSprint = 1.8f,
             CatchGraceCoverHug = 2.6f,
             RetreatSpeed = 3.2f,
+            BeamPace = 0.5f,
         };
     }
 
@@ -61,6 +63,7 @@ namespace Hollowbrook.Logic
         public bool FreezesWhenObserved;  // Blink: the Focus beam or room light holds it still
         public bool CeilingLurker;        // CoverHug: only the Focus beam finds it clearly
         public bool BeamInterruptsBurst;  // Sprint: the Focus beam on it cancels the windup
+        public float BeamPace;            // speed multiplier while any beam is on it: the player's time to reach for Focus
         public float RetreatSpeed;
 
         public static BehaviorProfile For(AnomalyBehaviorKind kind, BehaviorTuning t)
@@ -69,6 +72,7 @@ namespace Hollowbrook.Logic
             {
                 ThreatRange = t.ThreatRange,
                 RetreatSpeed = t.RetreatSpeed,
+                BeamPace = t.BeamPace > 0f ? t.BeamPace : 1f,   // an unset tuning must never freeze an anomaly
                 AggroRange = t.SprintAggroRange,
             };
             switch (kind)

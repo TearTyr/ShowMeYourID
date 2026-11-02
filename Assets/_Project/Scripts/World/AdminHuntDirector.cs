@@ -20,7 +20,7 @@ namespace Hollowbrook.World
     //  - Behind:   his picture closes in along the hallway. Flash the beam on his face.
     public class AdminHuntDirector : MonoBehaviour
     {
-        private const float FigureHeight = 2.6f;          // world units, the picture's height
+        private const float FigureHeight = 3.9f;          // world units, the picture's height (big enough to hover when he is fast)
         private const int FigureSortingOrder = 40;        // under the darkness overlay (70): only light reveals him
         private const float StatusEverySeconds = 0.4f;    // how often the HUD line is rewritten
         private const float BehindStartDistance = 6f;     // how far away he starts when he comes at your back

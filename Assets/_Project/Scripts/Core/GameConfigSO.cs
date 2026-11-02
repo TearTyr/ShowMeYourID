@@ -114,7 +114,7 @@ namespace Hollowbrook.Core
         [Tooltip("Seconds the lamp must stay on his head.")][Range(0.3f, 10f)]
         public float huntRoomHoldSeconds = 1.8f;
         [Tooltip("How close (world units) the cursor must be to his head.")][Range(0.3f, 3f)]
-        public float huntHeadRadius = 1.0f;
+        public float huntHeadRadius = 1.5f;
         [Tooltip("Seconds to flash him when he appears behind you.")][Range(1f, 8f)]
         public float huntBehindSeconds = 2.2f;
         [Tooltip("Seconds of beam on his face that count as a hit.")][Range(0.1f, 2f)]
@@ -183,6 +183,8 @@ namespace Hollowbrook.Core
         public float sprintAggroRange = 9f;
         [Tooltip("How fast a repelled anomaly withdraws from the player.")][Range(1f, 8f)]
         public float anomalyRetreatSpeed = 3.2f;
+        [Tooltip("Speed multiplier while any flashlight beam is on an anomaly (0.5 = half speed). Focus is still what repels it.")][Range(0.1f, 1f)]
+        public float beamPace = 0.5f;
         [Tooltip("Continuous threatening seconds before each behavior catches the player. Fair warning cue plays first.")][Range(0.5f, 6f)]
         public float catchGraceBlink = 2.2f;
         [Range(0.5f, 6f)] public float catchGraceSlide = 2.4f;

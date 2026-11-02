@@ -3541,6 +3541,26 @@ namespace FlowCheck
             }
             views.Spawner.DiscardLive();
 
+            // Slide: any beam on it slows it, so the player has time to switch to Focus. Only the speed
+            // changes: the path it walks in one second is about half with the beam on it.
+            var slideRun = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Slide);
+            Check(slideRun != null, "W6: Slide spawns for the pace proof");
+            if (slideRun != null)
+            {
+                TopUpBattery(root, rig);
+                views.Player.PlaceInRoom(hall, new Vector3(Mathf.Clamp(slideRun.Pos.x - 6f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), 0f, 0f));
+                SetBeam(root, rig, LightMode.Off);
+                float darkPath = 0f, lastSx = slideRun.Pos.x;
+                for (int i = 0; i < 60; i++) { WorldFrame(root); darkPath += Mathf.Abs(slideRun.Pos.x - lastSx); lastSx = slideRun.Pos.x; }
+                SetBeam(root, rig, LightMode.Sweep);
+                float beamPath = 0f;
+                for (int i = 0; i < 60; i++) { AimAt(slideRun.Pos.x, slideRun.Pos.y); WorldFrame(root); beamPath += Mathf.Abs(slideRun.Pos.x - lastSx); lastSx = slideRun.Pos.x; }
+                Check(darkPath > 0.5f && beamPath > darkPath * 0.3f && beamPath < darkPath * 0.7f,
+                    $"W6: the plain beam slows a Slide to about half its speed (dark {darkPath:F2}u, beam {beamPath:F2}u in one second)");
+                SetBeam(root, rig, LightMode.Off);
+            }
+            views.Spawner.DiscardLive();
+
             // Sprint: readable telegraph → dash → catch; the Focus beam interrupts the windup
             var sprint = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Sprint);
             Check(sprint != null, "W6: Sprint spawns");

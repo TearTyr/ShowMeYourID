@@ -57,6 +57,7 @@ MonoBehaviour:
   sprintRecoverSeconds: 1.4
   sprintAggroRange: 9
   anomalyRetreatSpeed: 3.2
+  beamPace: 0.5
   catchGraceBlink: 2.2
   catchGraceSlide: 2.4
   catchGraceSprint: 1.8

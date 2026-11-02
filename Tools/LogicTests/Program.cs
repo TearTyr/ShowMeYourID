@@ -1924,6 +1924,12 @@ namespace Hollowbrook.LogicTests
             var slide = BehaviorProfile.For(AnomalyBehaviorKind.Slide, bt);
             var sprint = BehaviorProfile.For(AnomalyBehaviorKind.Sprint, bt);
             var hug = BehaviorProfile.For(AnomalyBehaviorKind.CoverHug, bt);
+            foreach (var kind in new[] { AnomalyBehaviorKind.Blink, AnomalyBehaviorKind.Slide, AnomalyBehaviorKind.Sprint, AnomalyBehaviorKind.CoverHug })
+            {
+                Check(Math.Abs(BehaviorProfile.For(kind, bt).BeamPace - bt.BeamPace) < 1e-4f && bt.BeamPace > 0f && bt.BeamPace < 1f,
+                    kind + ": a beam on it slows it down (" + bt.BeamPace + ")");
+                Check(BehaviorProfile.For(kind, new BehaviorTuning()).BeamPace == 1f, kind + ": an unset tuning never freezes an anomaly");
+            }
             Check(blink.MoveSpeed == bt.BlinkSpeed && slide.MoveSpeed == bt.SlideSpeed &&
                   sprint.MoveSpeed == bt.SprintSpeed && hug.MoveSpeed == bt.CoverHugSpeed,
                 "each behavior moves at its own configured speed");
