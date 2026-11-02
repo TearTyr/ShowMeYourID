@@ -10,7 +10,10 @@ namespace Hollowbrook.Core
         // the hallway anomaly of the lesson was driven out (not saved: the step itself is)
         private bool _hallAnomalyDriven;
 
-        public TutorialStep TutorialStep => Session != null ? Session.TutorialStep : TutorialStep.Done;
+        // While the tutorial is parked (TutorialSteps.Enabled) every game reads as Done, even an old save
+        // that was saved in the middle of a lesson.
+        public TutorialStep TutorialStep =>
+            TutorialSteps.Enabled && Session != null ? Session.TutorialStep : TutorialStep.Done;
         public bool TutorialActive => TutorialSteps.Active(TutorialStep);
 
         /// <summary>While a lesson away from the window runs, nobody new steps up to it.</summary>

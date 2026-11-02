@@ -995,6 +995,9 @@ namespace Hollowbrook.LogicTests
         private static void TutorialTests()
         {
             Group("Night 1 tutorial - step order, what each step holds, the lesson roster");
+            Check(!TutorialSteps.Enabled && TutorialSteps.Start == TutorialStep.Done, "the tutorial is parked: a new story and a rewound night start with no lesson");
+            TutorialSteps.Enabled = true;   // the rest of this group proves the parked code still works
+            Check(TutorialSteps.Start == TutorialStep.Controls, "switched on, the tutorial opens with the keybinds");
             var f = new TutorialFacts();
             Check(TutorialSteps.Advance(TutorialStep.FirstStudent, f) == TutorialStep.FirstStudent, "nothing done: the first step stays");
             f.Processed = 1;
@@ -1077,6 +1080,10 @@ namespace Hollowbrook.LogicTests
             s.TutorialStep = TutorialStep.Done;
             s.RewindNight();
             Check(s.TutorialStep == TutorialStep.Done, "rewinding never starts a finished tutorial again");
+            TutorialSteps.Enabled = false;   // back to the shipped, parked state for the rest of the run
+            s.TutorialStep = TutorialStep.PeekAnomaly;
+            s.RewindNight();
+            Check(s.TutorialStep == TutorialStep.Done, "parked: rewinding a night never restarts a lesson");
         }
 
         private static void LockdownTests()

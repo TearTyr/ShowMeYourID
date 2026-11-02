@@ -36,7 +36,7 @@ namespace Hollowbrook.Core
             Queue = new CheckpointQueue();   // the last run's line must never be saved into this one
             _resolvedVisitorIndices.Clear();
             _continuePending = false;
-            if (mode == GameMode.Normal) Session.TutorialStep = TutorialSteps.First;   // a new story starts with the lesson
+            if (mode == GameMode.Normal) Session.TutorialStep = TutorialSteps.Start;   // a new story starts with the lesson (none while it is parked)
 
             // the Challenge is night 6 on its own: it never touches the story save (see PersistRun)
             int first = mode == GameMode.Normal ? 1 : ShiftPlan.LastNight(mode);   // Night 6 and Lockdown are one night each
