@@ -303,6 +303,7 @@ namespace Hollowbrook.World
             StopFade();
             yield return FadeTo(1f, 0.28f);
             var from = Current;
+            if (from != null) _gameRoot.LeaveFigureBehind(from.Id);   // a figure left standing makes this door a jumpscare next time
             if (_peekLight != null) _peekLight.Exit();
             if (_peekAnomaly != null) Destroy(_peekAnomaly.gameObject);   // it waits for the next peek
             _peekAnomaly = null;

@@ -14,6 +14,10 @@ namespace Hollowbrook.Logic
     // you get a breath). When he is dealt with in the hallway he is off to a classroom within 2 seconds.
     // Only the light stops him. Too slow and he catches you. CatchesToLose catches and he walks to the server door.
     //
+    // Doors are not safe. Look into his room and step out without sending him away, and that same door is a catch
+    // the next time it opens (LeftHim). Leave him in his room until the room timer runs out with you in the hallway,
+    // and he is Loose for a few seconds: ANY door you open is a catch.
+    //
     // The hard rule: nobody can ever get stuck. The dawn clock always runs and every phase has
     // a time limit, so the hunt ends in a win or a loss whatever the player does or does not do.
     // AdminHuntTests runs random and idle input to prove it.
@@ -23,6 +27,7 @@ namespace Hollowbrook.Logic
         Stalking,   // walking the halls: footsteps, no danger yet
         InRoom,     // in a peek room: find him with the lamp
         Behind,     // right behind the player in the hallway: flash him
+        Loose,      // left in his room too long: any door the player opens is a catch, then he comes up behind them
         Retreat,    // driven back or done catching you: harmless for a moment
         Won,        // dawn came
         Lost,       // caught too many times
@@ -39,7 +44,8 @@ namespace Hollowbrook.Logic
         public float RoomHoldSeconds;    // seconds of lamp on his head that send him away
         public float HoldDecayPerSecond; // how fast a hold drains when you let go
         public float HeadRadius;         // world units: how close the cursor must be to his head
-        public float BehindSeconds;      // time to flash him when he is behind you
+        public float BehindSeconds;      // time to flash him when he is behind you: he runs up the hallway in this long
+        public bool DodgesLamp;          // night 6: in a room he circles and dodges the lamp (AdminHuntDodge)
         public float BeamHitSeconds;     // seconds of beam on his face that count as a hit
         public float RetreatSeconds;     // harmless time after he leaves
         public float AmbushDelayMinSeconds;   // after you step out of a peek he is behind you this long after (shortest)
@@ -51,7 +57,7 @@ namespace Hollowbrook.Logic
         {
             CatchesToLose = 3, SurviveSeconds = 210f, StalkMinSeconds = 3f, StalkMaxSeconds = 6f,
             RoomSeconds = 9f, RoomHoldSeconds = 1.8f,
-            HoldDecayPerSecond = GameRules.Current.HuntHoldDecayPerSecond, HeadRadius = 1.5f, BehindSeconds = 5f, BeamHitSeconds = 0.35f,
+            HoldDecayPerSecond = GameRules.Current.HuntHoldDecayPerSecond, HeadRadius = 1.5f, BehindSeconds = 2.8f, BeamHitSeconds = 0.35f,
             RetreatSeconds = GameRules.Current.HuntRetreatSeconds,
             AmbushDelayMinSeconds = GameRules.Current.HuntAmbushDelayMinSeconds,
             AmbushDelayMaxSeconds = GameRules.Current.HuntAmbushDelayMaxSeconds,
@@ -82,6 +88,8 @@ namespace Hollowbrook.Logic
         Caught = 64,        // he reached the player
         Won = 128,
         Lost = 256,
+        LeftHim = 512,      // the player stepped out of his room without sending him away: that door is a trap now
+        Loose = 1024,       // his room timer ran out with the player in the hallway: every door is a trap for a while
     }
 
     public class AdminHunt
@@ -100,6 +108,7 @@ namespace Hollowbrook.Logic
         private bool _ambushWaiting, _ambushAfterRepel;
         private float _ambushHallSeconds, _ambushWaited, _ambushDelay;
         private bool _wasPeeking, _leftPeek;   // the player stepped out of a peek this frame
+        private bool _leftHim;                 // the player looked into his room and stepped out with him still there
         // Dealt with in the hallway: no extra wait, he swaps to a classroom within SwapAfterRepelSeconds.
         private bool _swapNext;
         private float _retreatSeconds;
@@ -116,6 +125,8 @@ namespace Hollowbrook.Logic
         public float PhaseTimer { get; private set; }
         public float BeamHit { get; private set; }
         public bool Finished => Phase == HuntPhase.Won || Phase == HuntPhase.Lost;
+        /// <summary>He is in a room the player looked into and left: opening that door again is a catch.</summary>
+        public bool LeftHim => Phase == HuntPhase.InRoom && _leftHim;
         /// <summary>0 at the start of the night, 1 at dawn.</summary>
         public float DawnProgress => Tuning.SurviveSeconds <= 0f ? 1f : 1f - SurviveLeft / Tuning.SurviveSeconds;
         /// <summary>0..1 how close he has come while behind the player.</summary>
@@ -160,6 +171,7 @@ namespace Hollowbrook.Logic
                 case HuntPhase.Stalking: return TickStalking(dt, input);
                 case HuntPhase.InRoom: return TickInRoom(dt, input);
                 case HuntPhase.Behind: return TickBehind(dt, input);
+                case HuntPhase.Loose: return TickLoose(input);
                 default: return PhaseTimer >= _retreatSeconds ? BeginStalking() : HuntEvent.None;
             }
         }
@@ -201,8 +213,11 @@ namespace Hollowbrook.Logic
         private HuntEvent TickInRoom(float dt, HuntInput input)
         {
             bool looking = input.Peeking && input.PlayerRoom == Room;
+            // Looked, stepped out with him still there, opened the same door again: no second chance.
+            if (looking && _leftHim) return Catch();
             var seen = HuntEvent.None;
             if (looking && !_spotted) { _spotted = true; seen = HuntEvent.Spotted; GiveFairChance(); }
+            if (_spotted && !looking && !_leftHim) { _leftHim = true; seen |= HuntEvent.LeftHim; }
             UpdateHold(dt, looking && input.OnTarget, Tuning.RoomHoldSeconds);
             if (Hold >= 1f) return seen | Repel(true);
             if (PhaseTimer < Tuning.RoomSeconds) return seen;
@@ -219,11 +234,11 @@ namespace Hollowbrook.Logic
             if (PhaseTimer > latest) PhaseTimer = latest;
         }
 
-        // The player did not look: he comes up behind them in the hallway, or waits for them to leave a peek.
-        // He never jumps into the room being peeked.
+        // The player did not finish him: in the hallway he is Loose (every door is a catch for a while, then he is
+        // behind them), or he waits for them to leave a peek. He never jumps into the room being peeked.
         private HuntEvent FollowPlayer(HuntInput input)
         {
-            if (input.InHallway) return Stop(BehindYou);
+            if (input.InHallway) return BeginLoose();
             var ev = BeginStalking();
             ArmAmbush();
             return ev;
@@ -234,6 +249,21 @@ namespace Hollowbrook.Logic
             if (input.BeamOnFace) BeamHit += dt;
             if (BeamHit >= Tuning.BeamHitSeconds) return Repel(false);
             return PhaseTimer >= Tuning.BehindSeconds ? Catch() : HuntEvent.None;
+        }
+
+        private HuntEvent BeginLoose()
+        {
+            Enter(HuntPhase.Loose);
+            Room = RoomId.Hallway;
+            return HuntEvent.Loose;
+        }
+
+        // Any peek is a catch. Staying out of the doors for HuntLooseSeconds is the safe way; then he comes up behind.
+        private HuntEvent TickLoose(HuntInput input)
+        {
+            if (input.Peeking) return Catch();
+            if (PhaseTimer < GameRules.Current.HuntLooseSeconds) return HuntEvent.None;
+            return input.InHallway ? Stop(BehindYou) : BeginStalking();
         }
 
         private void UpdateHold(float dt, bool holding, float seconds)
@@ -279,6 +309,7 @@ namespace Hollowbrook.Logic
             Enter(HuntPhase.InRoom);
             Room = Rooms[spot];
             _spotted = false;
+            _leftHim = false;
             return HuntEvent.EnteredRoom;
         }
 
@@ -338,7 +369,56 @@ namespace Hollowbrook.Logic
         }
     }
 
-    /// <summary>How his picture moves in a room. He wanders like the Rat in Five Nights at Candy's 3: he drifts
+    /// <summary>Night 6: in a room he does not wander, he dodges the lamp. In Five Nights at Candy's 3 the Rat
+    /// dodges the flashlight while it is held on his eyes, and night 6's Monster Vinnie can turn a full circle to
+    /// avoid the light. So he runs round a circle about the spot he appeared at: slowly while the lamp is off him,
+    /// faster while it is on him, and he turns round at random, more often while lit, so the player has to keep
+    /// following him. The circle is wider than the lamp's reach (HeadRadius), so parking the lamp in the middle
+    /// never lights him. Pure and seeded: the same hunt dodges the same way.</summary>
+    public class AdminHuntDodge
+    {
+        public const float Radius = 1.8f;                            // world units from the spot he appeared at
+        public const float CalmSpeed = 1.0f;                         // radians per second, lamp off him
+        public const float LitSpeed = 2.6f;                          // radians per second, lamp on him (about 4.7 units a second)
+        public const float CalmTurnMin = 1.5f, CalmTurnMax = 2.5f;   // seconds between turning round, lamp off him
+        public const float LitTurnMin = 0.8f, LitTurnMax = 1.6f;     // seconds between turning round, lamp on him
+
+        private readonly GameRng _rng;
+        private float _angle, _direction, _turnLeft;
+
+        public AdminHuntDodge(int seed)
+        {
+            _rng = new GameRng(seed ^ 0x3D0D6E);
+            _angle = _rng.NextFloat() * 6.2831853f;
+            _direction = _rng.Chance(0.5f) ? 1f : -1f;
+            _turnLeft = NextTurn(false);
+        }
+
+        /// <summary>Where he is on the circle, in radians.</summary>
+        public float Angle => _angle;
+
+        private float NextTurn(bool lit) => lit
+            ? LitTurnMin + (LitTurnMax - LitTurnMin) * _rng.NextFloat()
+            : CalmTurnMin + (CalmTurnMax - CalmTurnMin) * _rng.NextFloat();
+
+        public void Step(float dt, bool lampOnHim)
+        {
+            if (dt <= 0f) return;
+            if (lampOnHim && _turnLeft > LitTurnMax) _turnLeft = NextTurn(true);   // the lamp just found him: he is quicker to turn
+            _turnLeft -= dt;
+            if (_turnLeft <= 0f) { _direction = -_direction; _turnLeft = NextTurn(lampOnHim); }
+            _angle += _direction * (lampOnHim ? LitSpeed : CalmSpeed) * dt;
+        }
+
+        /// <summary>His offset from the spot he appeared at.</summary>
+        public void Offset(out float x, out float y)
+        {
+            x = (float)Math.Cos(_angle) * Radius;
+            y = (float)Math.Sin(_angle) * Radius;
+        }
+    }
+
+    /// <summary>How his picture moves in a room on night 5 (night 6 uses <see cref="AdminHuntDodge"/>): he drifts
     /// to a spot, stands there a moment, then drifts to another one somewhere else, slowly and never in a circle.
     /// The spots come from the hunt's seed, so a run always wanders the same way. Each time he has been sent away
     /// he drifts a little faster, and the whole picture is only ever a few units from its anchor.</summary>

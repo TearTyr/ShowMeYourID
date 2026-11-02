@@ -55,6 +55,7 @@ namespace Hollowbrook.Logic
             KV(sb, "pool", s.Pool.Encode());
             sb.Append("clearedRooms=").Append(s.ClearedRooms).Append('\n');
             sb.Append("peekGone=").Append(s.PeekAnomaliesGone).Append('\n');
+            sb.Append("peekLeft=").Append(s.PeekLeftBehind).Append('\n');
             KV(sb, "admitted", string.Join(",", s.AdmittedStudents.ConvertAll(st => st.VisitorIndex + ":" + (st.IsAnomaly ? 1 : 0))));
             sb.Append("adminAllowed=").Append(s.AdminAllowed ? 1 : 0).Append('\n');
             KV(sb, "adminTalk", s.AdminTalk != null ? s.AdminTalk.Encode() : "");
@@ -63,9 +64,8 @@ namespace Hollowbrook.Logic
             sb.Append("huntCatches=").Append(s.HuntCatches).Append('\n');
             KV(sb, "huntLeft", Inv(s.HuntSecondsLeft));
             sb.Append("shiftBreaches=").Append(s.ShiftBreaches).Append('\n');
-            KV(sb, "logCounts", string.Join(",", s.LogCounts));
             KV(sb, "nightRecords", EncodeRecords(s.NightRecords));
-            sb.Append("logSigned=").Append(s.LogSigned ? 1 : 0).Append('\n');
+            sb.Append("logReport=").Append(s.ReportedRecord).Append('\n');
             sb.Append("tutorialStep=").Append((int)s.TutorialStep).Append('\n');
             KV(sb, "logNote", (s.LogNote ?? "").Replace("\n", "~"));
             sb.Append("pendingLogLoss=").Append(s.PendingLogLoss).Append('\n');
@@ -165,6 +165,7 @@ namespace Hollowbrook.Logic
                 s.Pool.Decode(Str(map, "pool", ""));
                 s.ClearedRooms = Int(map, "clearedRooms", 0);
                 s.PeekAnomaliesGone = Int(map, "peekGone", 0);
+                s.PeekLeftBehind = Int(map, "peekLeft", 0);
                 foreach (var pair in Str(map, "admitted", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries))
                 {
                     var halved = pair.Split(':');
@@ -179,15 +180,10 @@ namespace Hollowbrook.Logic
                 s.HuntSecondsLeft = Flt(map, "huntLeft", -1f);
                 // absent in older saves: no failed night to pay for
                 s.ShiftBreaches = Int(map, "shiftBreaches", 0);
-                s.LogCounts = new int[GameSession.LogEntries];
-                if (map.TryGetValue("logCounts", out var logText) && logText != null)
-                {
-                    var parts = logText.Split(',');
-                    for (int i = 0; i < parts.Length && i < s.LogCounts.Length; i++)
-                        if (int.TryParse(parts[i], out int n)) s.LogCounts[i] = Math.Max(0, Math.Min(GameSession.LogMax, n));
-                }
                 DecodeRecords(Str(map, "nightRecords", ""), s.NightRecords);
-                s.LogSigned = Int(map, "logSigned", 0) == 1;
+                // absent in older saves (they had counted boxes and a signature instead): nobody reported
+                int reported = Int(map, "logReport", -1);
+                s.ReportedRecord = NightLogRules.CanReport(s.NightRecords, reported) ? reported : -1;
                 s.TutorialStep = (TutorialStep)Math.Max(0, Math.Min((int)TutorialStep.Finish, Int(map, "tutorialStep", 0)));
                 s.LogNote = Str(map, "logNote", "").Replace("~", "\n");
                 s.PendingLogLoss = Math.Max(0, Int(map, "pendingLogLoss", 0));

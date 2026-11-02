@@ -30,17 +30,19 @@ radio reports a roll-call discrepancy, and the absence is permanent.
 cabinet (pick Room 101 or Room 202, A-Z files), the **ID card** and **paper slip** (already on your
 desk), the **rules note** and **tonight's log** (with ID numbers), and the **questions panel**.
 
-- **The night security log (nights 1 to 4):** the log paper has three boxes, STUDENT ENCOUNTERS (everyone who
-  reached the window), ANOMALIES DETECTED (how many of them really were anomalies, whatever you stamped) and
-  SECURITY INCIDENTS (students who never arrived plus things driven out of a peek room). Left click a box to
-  count up, right click to count down. Under the boxes the sheet lists who came and what you stamped (it never
-  shows totals that would give a verdict away). **SIGN LOG** is a button on the sheet: END SHIFT stays locked
-  until the log is signed, and changing a box takes the signature back. At END SHIFT the game compares the
-  boxes with what really happened (`GameLogic/NightLog.cs`): each wrong box costs 5 sanity at the start of the
-  next night. You are never told on the spot. The next night's **Rules sheet** starts with LAST NIGHT'S LOG,
-  which says what was wrong (for example which anomaly you missed and why). Nights 5 and 6 have no log duty.
-  The list, the signature and the note are saved. The boxes are objects under `OverlayLog/paper` in the
-  Gameplay scene (positions are fractions of the picture, `LogBoxCentres` in `CheckpointView.Overlays.cs`).
+- **The night security log (nights 1 to 4):** the log paper has three boxes that fill themselves in, nobody
+  counts: STUDENT ENCOUNTERS (everyone who reached the window), ANOMALIES DETECTED (how many you rejected, not
+  how many really were anomalies, so it never gives a verdict away) and SECURITY INCIDENTS (students who never
+  arrived plus things driven out of a peek room). Under the paper, the slip lists **everyone you let in** as
+  buttons. Its job is a **second chance**: before END SHIFT you may **report one person** you doubt (click a
+  name, click again to take it back, one at a time). END SHIFT is never held up by the log. At END SHIFT
+  (`GameLogic/NightLog.cs`) a **right report** (they were an anomaly) cancels that one breach, so a night that
+  would have failed does not, and a **wrong report** (a real student) costs 5 sanity at the start of the next
+  night. You are never told on the spot: the next night's **Rules sheet** starts with LAST NIGHT'S LOG, which
+  says how the report went. No report, no effect. Nights 5 and 6 have no log duty. The list, the report and the
+  note are saved. The boxes are objects under `OverlayLog/paper` and the name buttons are `report_0` to
+  `report_7` under `OverlayLog/slip` (box positions are fractions of the picture, `LogBoxCentres` in
+  `CheckpointView.Overlays.cs`).
 
 - **The four questions:** your course, your year, regular or transferee, first classroom (buttons
   or keys `1` to `4`). You can ask only **2 per student** (the panel shows `2/2`), so choose. Year
@@ -76,10 +78,10 @@ dark. The doors follow the desk map: Security, Room 101, Room 202, CR-1, the sea
 (FloorPlan.cs draws the hallway and both maps). The **flashlight** points at the cursor (`F` sweep
 on/off, `Q` focus, `L` off). While it is lit it turns the guard to face it; while it is off he faces
 the way he walks. **One patrol cycle** is required before END SHIFT: peek into Room 101, Room 202 and
-a CR (either one). **Anomalies** (a four legged runner that runs on the floor or upside down on the ceiling, and one that hangs from the top of the hallway above the doors) roam the hallway only, from night 1, with one already waiting when each patrol starts: hold the Focus beam on it to repel it, and it is gone for a while. The wide Sweep beam only shows what is there and slows it to half speed while it is on it (`beamPace`), so there is time to switch to Focus (`Q`); it never repels, freezes or interrupts anything. The guard carries only a weak light, so what is ahead of him is black until the flashlight finds it: sweep it along the walls, up at the ceiling and down at the floor. Every room is a
+a CR (either one). **Anomalies** (the four legged **crawler** that runs on the floor or upside down on the ceiling, the crouched one, and one that hangs from the top of the hallway above the doors) roam the hallway, from night 1, with one already waiting when each patrol starts: hold the Focus beam on it to repel it, and it is gone for a while. The crawler is small and always runs fast (`anomalySpeedSprint`), straight at you once you are within 9 units. The wide Sweep beam only shows what is there and slows any anomaly, the crawler included, to half speed while it is on it (`beamPace`), so there is time to switch to Focus (`Q`); it never repels or freezes anything. The guard carries only a weak light, so what is ahead of him is black until the flashlight finds it: sweep it along the walls, up at the ceiling and down at the floor. Every room is a
 **peek** from its door: a black cover with a hole that follows the mouse shows the room behind it
 (on when the room opens; `F` on/off, `Q` wide/tight). `E` selects what the lit lamp is on, nothing else; `S` or the bottom
-edge steps back. Some peek rooms hold something that stands on the painted floor (never on furniture), smaller the further back it stands, in some rooms each night and always at least one. Any peek room can hold the **hooded figure**, the **crouched one** or the **ceiling hanger** (the crouched one only ever stands in a peek room, never in the hallway). Hold the lamp on its body (the cursor on it): about 3 seconds with the plain wide lamp, 1.3 times faster with the Focus lamp (`Q`), and the bar drains back if the light leaves. While it fills, every one of them **stays perfectly still**: nothing shakes, grows or moves, and the lamp only dims a little more. Then the lamp goes black, it is gone, and a slow fade brings the room back. From the black on, the lamp, `E` and stepping back are locked. It never attacks. Reduce Motion keeps a steadier, deeper dim. The patrol flashlight no longer paints a yellow cone: it clears the darkness, so the room shows its own art, like the peek lamp. A room does not count for the cycle until its anomaly is gone,. Besides the clues there
+edge steps back. Some peek rooms hold something that stands on the painted floor (never on furniture), smaller the further back it stands, in some rooms each night and always at least one. Any peek room can hold the **hooded figure**, the **crouched one** or the **ceiling hanger** (the crawler never stands in a peek room, it only patrols the hallway). Hold the lamp on its body (the cursor on it): about 3 seconds with the plain wide lamp, 1.3 times faster with the Focus lamp (`Q`), and the bar drains back if the light leaves. While it fills, every one of them **stays perfectly still**: nothing shakes, grows or moves, and the lamp only dims a little more. Then the lamp goes black, it is gone, and a slow fade brings the room back. From the black on, the lamp, `E` and stepping back are locked. It never attacks. Reduce Motion keeps a steadier, deeper dim. The patrol flashlight no longer paints a yellow cone: it clears the darkness, so the room shows its own art, like the peek lamp. A room does not count for the cycle until its anomaly is gone,. **Step out of a peek with its figure still standing and that door becomes a jumpscare**: the next time you open it the figure jumps you (the sanity cost of a catch, `CaughtSanity`) and the door never opens. The scare uses the figure up, so the room then counts as cleared. The mark is saved with the night (`PeekLeftBehind`). Besides the clues there
 are things to inspect: the patrol clipboard, the lockers, and each CR's mirror, sinks and stalls.
 The pocket watch token on Room 101's lost-and-found board is one of the ten: it is picked up when
 inspected (once) and is gone for good, with no other use. Ten clues, found
@@ -96,10 +98,14 @@ away (there is no refuse button). He speaks only through the dialogue box. Allow
 back and leaves. The security game is over and only Patrol works; the hunt starts when it is clicked.
 Then it plays like Nightmare Fredbear's night in FNaF 4, with captions instead of audio. He is the
 only anomaly and can be anywhere: in **Room 101, Room 202, CR-1 or CR-2** (peek in and hold the lamp
-on his head within 12 s) or **right behind you** (aim at him and flash his face within 2.6 s). He goes for you: in the hallway he
+on his head within 12 s) or **right behind you** (aim at him and flash his face within 2.8 s: he **runs** up the hallway at your back, about 3.9 units a second). He goes for you: in the hallway he
 comes up behind you more often than not, and while you peek into a room he is often in that very room. Only
 the light stops him, and each success gives 8 sanity. Too slow and he catches you: sanity drops and
 you are thrown back. **3 catches** = he reaches the server door (lose). Survive **210 s** to dawn.
+**Doors are not safe.** Look into his room and step out without sending him away, and **that same door is a
+catch** the next time it opens (the HUD says DO NOT OPEN THAT DOOR). Leave him in his room until its timer runs
+out while you stand in the hallway, and he is **loose** for 6 s (`HuntLooseSeconds`): **any door** you open is a
+catch. Staying away from the doors for those 6 s is safe, and then he comes up behind you as usual.
 The security door is locked and every phase has a time limit, so it cannot get stuck. Quit + CONTINUE
 restarts the hunt, or returns to the desk if it has not started.
 
@@ -110,7 +116,7 @@ taken. Three lose; clearing the line wins, ranked FLAWLESS, STEADY or BARELY HEL
 
 **Night 6 (the Challenge):** opens on the main menu after the story's Win or Secret ending. He is back
 and says he does not give up; he asks for the right decision and has a new set of questions. DENY him
-again and the pursuit starts, harder: 2 catches, shorter stalks, less time to react, a longer night.
+again and the pursuit starts, harder: 2 catches, shorter stalks, less time to react, a longer night. He runs up the hallway faster (1.8 s, as fast as you run), and in a room he does not wander: like Monster Vinnie in FNaC 3 he **circles about his spot and dodges the lamp**, faster while the light is on him, turning round at random (`AdminHuntDodge`). A lamp parked in the middle never finds him.
 Surviving to dawn is its own ending. It is one night and never touches the story save.
 
 **End of a night:** nights 1 to 4 run on without the menu: the screen dims, then the next night starts (a marathon). Clocking out with an anomaly let in

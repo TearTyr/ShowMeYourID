@@ -80,7 +80,7 @@ shown by `CheckpointView.AdminTalk`; it can never stamp or award clues, and he c
 Only the DENY stamp turns him away, and his words go through the dialogue box, never the bubble. A DENY on the administrator calls
 `GameRoot.BeginAdminHunt`: `Session.Hunt` becomes Active, the patrol scene loads and
 `ViewManager.StartAdminHunt` creates `World/AdminHuntDirector`. The RULES are the pure
-`GameLogic/AdminHunt` state machine (Stalking -> AtDoor, Closet or Behind -> Retreat;
+`GameLogic/AdminHunt` state machine (Stalking -> InRoom, Behind or Loose -> Retreat;
 every phase has a time limit and the dawn clock always runs down, so a hunt always ends in
 `Won` or `Lost`; `AdminHuntTests` proves it with idle, perfect, dodging, spamming and random
 players). The director reads the world (peek open, cursor on his head, beam on his face), feeds

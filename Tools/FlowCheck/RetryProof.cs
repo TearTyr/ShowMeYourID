@@ -81,48 +81,79 @@ namespace FlowCheck
             Check(!Btn(root, "endshift").interactable, tag + ": END SHIFT is locked");
         }
 
+        private static UnityEngine.UI.Button ReportButton(Transform sheet, int slot) =>
+            FindDeep(sheet, "report_" + slot).GetComponent<UnityEngine.UI.Button>();
+
         private static void NightLogProof(GameRoot root)
         {
-            Console.WriteLine("== security log: counted, signed, graded at END SHIFT, explained next night ==");
+            Console.WriteLine("== security log: fills itself in, one report is a second chance, settled at END SHIFT ==");
             FreshGame(root); ClickStickyNote(root);
             var cp = root.Checkpoint;
-            Check(root.LogRequired && !root.LogReady, "LOG: night 1 needs a signed log before the night can end");
+            Check(root.LogRequired, "LOG: night 1 has log duty");
             cp.DebugOpenOverlay("log");
             var sheet = FindDeep(cp.transform, "OverlayLog");
-            var sign = FindDeep(sheet, "sign").GetComponent<UnityEngine.UI.Button>();
-            Check(sign.gameObject.activeSelf, "LOG: the sheet has a SIGN LOG button on night 1");
-            sign.onClick.Invoke();
-            Check(root.Session.LogSigned && root.LogReady, "LOG: signing is what unlocks the night");
-            var box = FindDeep(sheet, "logbox_student_encounters").GetComponent<LogBox>();
-            box.OnPointerClick(new UnityEngine.EventSystems.PointerEventData());
-            Check(!root.Session.LogSigned && !root.LogReady, "LOG: changing a box takes the signature back");
+            Check(!ReportButton(sheet, 0).gameObject.activeSelf, "LOG: nobody let in yet, so no names to report");
 
-            // one real call at the window, then clock out with the boxes left wrong on purpose
-            root.Session.LogCounts[0] = 0;
+            // one real call at the window: the box counts it by itself, and the list is saved
             StampCorrectly(root);
             Check(root.Session.NightRecords.Count == 1, "LOG: the call is written to the saved list of who came (" + root.Session.NightRecords.Count + ")");
             root.PersistRun();
             Check(root.Saves.Read().Session.NightRecords.Count == 1, "LOG: the list survives a save, so patrol and Continue keep it");
-            string listed = FindDeep(sheet, "text").GetComponent<UnityEngine.UI.Text>().text;
             cp.DebugOpenOverlay("log");   // closes it
             cp.DebugOpenOverlay("log");   // opens it again, refreshed
-            listed = FindDeep(sheet, "text").GetComponent<UnityEngine.UI.Text>().text;
-            Check(listed.Contains("ALLOWED") || listed.Contains("REJECTED"), "LOG: the sheet lists who came and what was stamped");
+            Check(FindDeep(sheet, "logbox_student_encounters").Find("count").GetComponent<UnityEngine.UI.Text>().text == "1",
+                "LOG: the first box counted the visitor by itself");
+            string listed = FindDeep(sheet, "text").GetComponent<UnityEngine.UI.Text>().text;
             Check(!listed.Contains("BREACHES") && !listed.Contains("FALSE REJECTIONS"), "LOG: the sheet never shows totals that give a verdict away");
 
-            root.Session.LogCounts[1] = 7;   // wrong on purpose
-            SignLog(root);
-            root.RequestEndShift();           // graded now, the next night begins
+            // two people let in, set by hand so both kinds of report can be proven: an anomaly and a real student
+            var records = root.Session.NightRecords;
+            records.Clear();
+            records.Add(new NightRecord { Name = "Mara Test", WasAnomaly = true, Allowed = true, Why = "The ID expired." });
+            records.Add(new NightRecord { Name = "Ben Test", WasAnomaly = false, Allowed = true, Why = "" });
+            records.Add(new NightRecord { Name = "Cy Test", WasAnomaly = true, Allowed = false, Why = "Wrong photo." });
+            root.Session.ShiftBreaches = 1;
+            root.Session.Breaches = 1;
+            cp.DebugOpenOverlay("log");
+            cp.DebugOpenOverlay("log");
+            Check(ReportButton(sheet, 0).gameObject.activeSelf && ReportButton(sheet, 1).gameObject.activeSelf && !ReportButton(sheet, 2).gameObject.activeSelf,
+                "LOG: only the two people who were let in are listed");
+            Check(ReportButton(sheet, 0).GetComponentInChildren<UnityEngine.UI.Text>().text.Contains("Mara Test"), "LOG: a name button carries the name");
+            Check(FindDeep(sheet, "logbox_anomalies_detected").Find("count").GetComponent<UnityEngine.UI.Text>().text == "1",
+                "LOG: the middle box counts what was rejected, not what was really an anomaly");
+            ReportButton(sheet, 0).onClick.Invoke();
+            Check(root.Session.ReportedRecord == 0, "LOG: a click reports that person");
+            ReportButton(sheet, 1).onClick.Invoke();
+            Check(root.Session.ReportedRecord == 1, "LOG: another name moves the report, one at a time");
+            ReportButton(sheet, 1).onClick.Invoke();
+            Check(root.Session.ReportedRecord == -1, "LOG: clicking it again takes the report back");
+            ReportButton(sheet, 0).onClick.Invoke();
+            Check(ReportButton(sheet, 0).GetComponentInChildren<UnityEngine.UI.Text>().text.Contains("REPORTED"), "LOG: the reported name is marked");
+            root.PersistRun();
+            Check(root.Saves.Read().Session.ReportedRecord == 0, "LOG: the report is saved, so Continue keeps it");
+
+            // END SHIFT is never held up by the log; a right report means the let-in anomaly does not fail the night
+            root.RequestEndShift();
             AdvanceDialogue(root);
-            Check(root.Session.LogNote.Contains("Student encounters") && root.Session.LogNote.Contains("Penalty"),
-                "LOG: the wrong boxes are named in the note (" + root.Session.LogNote.Replace("\n", " / ") + ")");
-            Check(root.Session.PendingLogLoss == 0 && root.Session.Sanity <= 100f - NightLogRules.SanityLossPerMistake,
+            Check(root.Session.CurrentShift == 2, "LOG: a right report saves the night: it went on to night 2 instead of failing");
+            Check(root.Session.Breaches == 0, "LOG: ...and the breach was taken off the run");
+            Check(root.Session.LogNote.Contains("Mara Test") && root.Session.LogNote.Contains("you were right"),
+                "LOG: the note says the report was right (" + root.Session.LogNote.Replace("\n", " / ") + ")");
+            Check(root.Session.NightRecords.Count == 0 && root.Session.ReportedRecord == -1, "LOG: the new night starts with an empty list and no report");
+
+            // night 2: a wrong report costs sanity at the start of night 3, and only the next Rules sheet explains it
+            root.Session.NightRecords.Add(new NightRecord { Name = "Ben Test", WasAnomaly = false, Allowed = true, Why = "" });
+            root.Session.ToggleReport(0);
+            root.RequestEndShift();
+            AdvanceDialogue(root);
+            Check(root.Session.CurrentShift == 3, "LOG: a wrong report does not fail the night");
+            Check(root.Session.PendingLogLoss == 0 && root.Session.Sanity <= 100f - NightLogRules.SanityLossPerWrongReport,
                 "LOG: the penalty was paid in sanity when the next night began (" + root.Session.Sanity + ")");
-            Check(root.Session.NightRecords.Count == 0 && !root.Session.LogSigned, "LOG: the new night starts with an empty list and an unsigned log");
             root.Checkpoint.DebugOpenOverlay("rules");
             string rules = FindDeep(FindDeep(root.Checkpoint.transform, "OverlayRules"), "text").GetComponent<UnityEngine.UI.Text>().text;
-            Check(rules.Contains("LAST NIGHT'S LOG") && rules.Contains("Student encounters"),
-                "LOG: only the next night's Rules sheet says what the log got wrong");
+            Check(rules.Contains("LAST NIGHT'S LOG") && rules.Contains("real student"),
+                "LOG: only the next night's Rules sheet says what the report got wrong");
+            Check(rules.Contains("SECURITY LOG"), "LOG: the rules explain the report");
             root.Checkpoint.DebugOpenOverlay("rules");
             root.PersistRun();
             Check(root.Saves.Read().Session.LogNote == root.Session.LogNote, "LOG: the note is saved, so Continue still shows it");

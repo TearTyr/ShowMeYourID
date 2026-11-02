@@ -115,8 +115,8 @@ namespace Hollowbrook.Core
         public float huntRoomHoldSeconds = 1.8f;
         [Tooltip("How close (world units) the cursor must be to his head.")][Range(0.3f, 3f)]
         public float huntHeadRadius = 1.5f;
-        [Tooltip("Seconds he takes to walk up to you from off screen, which is also the time you have to flash him.")][Range(1f, 10f)]
-        public float huntBehindSeconds = 5f;
+        [Tooltip("Seconds he takes to RUN up to you from off screen (11 units: 2.8 s is about 3.9 units a second, faster than you walk), which is also the time you have to flash him.")][Range(1f, 10f)]
+        public float huntBehindSeconds = 2.8f;
         [Tooltip("Seconds of beam on his face that count as a hit.")][Range(0.1f, 2f)]
         public float huntBeamHitSeconds = 0.35f;
         [Tooltip("Sanity lost each time he catches you.")][Range(0f, 40f)]
@@ -141,8 +141,8 @@ namespace Hollowbrook.Core
         public float night6RoomSeconds = 5f;
         [Tooltip("Seconds the lamp must stay on his head, night 6.")][Range(0.3f, 10f)]
         public float night6RoomHoldSeconds = 2.6f;
-        [Tooltip("Seconds he takes to walk up to you from off screen, night 6.")][Range(1f, 10f)]
-        public float night6BehindSeconds = 3.2f;
+        [Tooltip("Seconds he takes to RUN up to you from off screen, night 6 (1.8 s is about 6 units a second, as fast as you run).")][Range(1f, 10f)]
+        public float night6BehindSeconds = 1.8f;
         [Tooltip("Seconds of beam on his face that count as a hit, night 6.")][Range(0.1f, 2f)]
         public float night6BeamHitSeconds = 0.55f;
 
@@ -169,19 +169,11 @@ namespace Hollowbrook.Core
         public float anomalySpeedBlink = 1.15f;
         [Tooltip("Lateral glide speed of the Slide anomaly.")][Range(0.2f, 4f)]
         public float anomalySpeedSlide = 0.9f;
-        [Tooltip("Patrol speed of the Sprint anomaly between bursts.")][Range(0.2f, 4f)]
-        public float anomalySpeedSprint = 1.3f;
+        [Tooltip("Speed of the crawler (Sprint anomaly). It always runs this fast; a flashlight beam on it halves it.")][Range(0.2f, 8f)]
+        public float anomalySpeedSprint = 4.5f;
         [Tooltip("Ceiling drift speed of the CoverHug anomaly.")][Range(0.1f, 3f)]
         public float anomalySpeedCoverHug = 0.55f;
-        [Tooltip("Burst speed of the Sprint anomaly after its telegraph.")][Range(1f, 10f)]
-        public float sprintDashSpeed = 4.5f;
-        [Tooltip("Readable warning before a Sprint burst; only the Focus beam interrupts it.")][Range(0.3f, 4f)]
-        public float sprintTelegraphSeconds = 1.1f;
-        [Tooltip("Sprint burst duration before it must recover.")][Range(0.2f, 5f)]
-        public float sprintDashSeconds = 1.4f;
-        [Tooltip("Sprint pause after a burst before it can wind up again.")][Range(0.2f, 5f)]
-        public float sprintRecoverSeconds = 1.4f;
-        [Tooltip("Distance inside which Sprint winds up.")][Range(2f, 16f)]
+        [Tooltip("Distance inside which the crawler runs straight at the player.")][Range(2f, 16f)]
         public float sprintAggroRange = 9f;
         [Tooltip("How fast a repelled anomaly runs backwards, away from the player (units per second).")][Range(1f, 20f)]
         public float anomalyRetreatSpeed = 9f;

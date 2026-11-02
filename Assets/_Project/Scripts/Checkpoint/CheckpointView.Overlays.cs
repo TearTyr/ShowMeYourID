@@ -24,31 +24,53 @@ namespace Hollowbrook.Checkpoint
             _notesRoot = BuildPaperOverlay("OverlayRules", "sec_rules_paper", out _notesText);
             _recordsRoot = BuildPaperOverlay("OverlayLog", "sec_log_paper", out _recordsText);
             BuildLogBoxes();
-            BuildSignButton();
+            BuildReportList();
 
             // there is no yes/no confirm popup: stamping IS confirming
         }
 
-        // SIGN LOG: nights 1 to 4 cannot be ended until the player has counted the night and signed.
-        private Button _signBtn;
+        // THE REPORT LIST (nights 1 to 4): the slip under the log paper lists everyone the player let in, as
+        // buttons. Clicking a name reports that person (one at a time, click again to take it back). At END SHIFT
+        // a right report cancels that anomaly and a wrong one costs sanity (see NightLogRules).
+        private const int ReportSlots = 8;   // the longest night lets in 8 at most
+        private readonly Button[] _reportBtns = new Button[ReportSlots];
+        private readonly int[] _reportRecord = new int[ReportSlots];   // which NightRecords entry each button stands for
 
-        private void BuildSignButton()
+        private void BuildReportList()
         {
-            var rootRt = _recordsRoot.GetComponent<RectTransform>();
-            _signBtn = GridButton(rootRt, "sign", "SIGN LOG", SignLog, L.Inner.PaperSign, 14);
-            L.Place(_signBtn.GetComponent<RectTransform>(), L.Inner.PaperSign);
-            SkinButton(_signBtn, "sec_btn_pill");
-            var label = _signBtn.GetComponentInChildren<Text>();
-            if (label != null) label.color = UIFactory.NsInk;
+            var slip = _recordsRoot.transform.Find("slip") as RectTransform;
+            if (slip == null) return;
+            // the typed text shrinks to a two line header, the buttons fill the rest of the slip
+            var host = _recordsText.transform.parent as RectTransform;
+            if (host != null) UIFactory.PlaceTL(host, 14f, 6f, 442f, 30f);
+            const float colWidth = 215f, rowHeight = 19f, rowPitch = 20f;
+            for (int i = 0; i < ReportSlots; i++)
+            {
+                int slot = i;
+                var b = UIFactory.StandardButton(slip, "report_" + i, "", () => Report(slot), (int)colWidth, (int)rowHeight);
+                SizeLabel(b, 11);
+                UIFactory.PlaceTL(b.GetComponent<RectTransform>(), 14f + (i % 2) * (colWidth + 12f), 38f + (i / 2) * rowPitch, colWidth, rowHeight);
+                SkinButton(b, "sec_btn_pill");
+                b.gameObject.SetActive(false);
+                _reportBtns[i] = b;
+            }
         }
 
-        private void SignLog()
+        private void Report(int slot)
         {
             if (!_gameRoot.LogRequired) return;
-            _gameRoot.Session.SignLog();
+            _gameRoot.Session.ToggleReport(_reportRecord[slot]);
             _gameRoot.Audio.PlaySfx("sfx_paper", 0.4f);
             RefreshRecords();
-            RefreshHud();   // END SHIFT may light up now
+            RefreshHud();   // the desk prompt stops asking for a report
+        }
+
+        /// <summary>True while the log could still be used tonight: someone was let in and nobody is reported yet.</summary>
+        private bool ReportPending()
+        {
+            var session = _gameRoot.Session;
+            if (!_gameRoot.LogRequired || session.ReportedRecord >= 0) return false;
+            return ReportListHasNames();
         }
 
         // The reading sheet IS the owner's photographed document: sec_rules_paper /
@@ -102,12 +124,12 @@ namespace Hollowbrook.Checkpoint
             return go;
         }
 
-        // The night security log's three boxes (STUDENT ENCOUNTERS, ANOMALIES DETECTED, SECURITY INCIDENTS):
-        // the player counts what they notice. Left click counts up, right click counts down. It is only a
-        // record for the experience: nothing reads it. Each box is a plain object under OverlayLog/paper, so
-        // when the paper art changes the boxes can simply be moved in the scene. Centres are fractions of the
-        // paper picture, measured on the SecurityLog art (789x879 after the 2x cut).
-        private readonly Text[] _logCounts = new Text[GameSession.LogEntries];
+        // The night security log's three boxes (STUDENT ENCOUNTERS, ANOMALIES DETECTED, SECURITY INCIDENTS).
+        // The game fills them in by itself, nobody counts. ANOMALIES DETECTED is what the player rejected, not what
+        // really was an anomaly, so the sheet never gives a verdict away. Each box is a plain object under
+        // OverlayLog/paper, so when the paper art changes the boxes can simply be moved in the scene. Centres are
+        // fractions of the paper picture, measured on the SecurityLog art (789x879 after the 2x cut).
+        private readonly Text[] _logCounts = new Text[3];
         private static readonly Vector2[] LogBoxCentres =
             { new Vector2(0.822f, 0.498f), new Vector2(0.836f, 0.589f), new Vector2(0.848f, 0.680f) };
         private static readonly string[] LogBoxNames = { "student_encounters", "anomalies_detected", "security_incidents" };
@@ -116,36 +138,26 @@ namespace Hollowbrook.Checkpoint
         {
             var paper = _recordsRoot.transform.Find("paper") as RectTransform;
             if (paper == null) return;
-            for (int i = 0; i < GameSession.LogEntries; i++)
+            for (int i = 0; i < _logCounts.Length; i++)
             {
-                int entry = i;
                 var box = UIFactory.NewUI(paper, "logbox_" + LogBoxNames[i]);
                 box.anchorMin = box.anchorMax = new Vector2(LogBoxCentres[i].x, 1f - LogBoxCentres[i].y);
                 box.pivot = new Vector2(0.5f, 0.5f);
                 box.sizeDelta = new Vector2(60f, 54f);
                 box.anchoredPosition = Vector2.zero;
-                var hit = box.gameObject.GetOrAdd<Image>();
-                hit.color = new Color(1f, 1f, 1f, 0f);   // invisible, but it catches the click
-                hit.raycastTarget = true;
                 var count = UIFactory.Label(box, "count", "0", 34, UIFactory.PaperInk, TextAnchor.MiddleCenter);
                 count.font = UIFactory.HandFont;
                 count.raycastTarget = false;
                 UIFactory.AnchorsFull(count.rectTransform);
                 _logCounts[i] = count;
-                box.gameObject.GetOrAdd<LogBox>().Init(delta =>
-                {
-                    _gameRoot.Session.ChangeLog(entry, delta);
-                    RefreshLogBoxes();
-                    _gameRoot.Audio.PlaySfx("sfx_click", 0.3f);
-                });
             }
         }
 
         private void RefreshLogBoxes()
         {
-            var counts = _gameRoot.Session.LogCounts;
+            var counts = NightLogRules.Boxes(_gameRoot.Session.NightRecords, _gameRoot.NightIncidents());
             for (int i = 0; i < _logCounts.Length; i++)
-                if (_logCounts[i] != null) _logCounts[i].text = counts != null && i < counts.Length ? counts[i].ToString() : "0";
+                if (_logCounts[i] != null) _logCounts[i].text = counts[i].ToString();
         }
 
         /// <summary>Headless dumps open a reading sheet exactly as its desk prop click
@@ -190,6 +202,8 @@ namespace Hollowbrook.Checkpoint
             string lastLog = _gameRoot.Session.LogNote;
             if (!string.IsNullOrEmpty(lastLog))
                 sb.Append("LAST NIGHT'S LOG\n").Append(lastLog).Append("\n\n");
+            if (_gameRoot.LogRequired)
+                sb.Append("SECURITY LOG - It fills itself in. Before END SHIFT you may report ONE person you let in. If they were an anomaly the night does not count it against you. If they were a real student it costs sanity.\n\n");
             if (_shift != null) { sb.Append(_shift.RuleNoteAddendum).Append('\n'); }
             _notesText.text = sb.ToString();
         }
@@ -199,26 +213,42 @@ namespace Hollowbrook.Checkpoint
             RefreshLogBoxes();
             var session = _gameRoot.Session;
             var sb = new StringBuilder();
-            if (_gameRoot.LogRequired)
-                sb.Append("COUNT THE NIGHT: left click a box to count up, right click to count down. Then sign. END SHIFT waits for the signature.\n\n");
-            else sb.Append("No log duty tonight.\n\n");
-            sb.Append("AT THE WINDOW TONIGHT:\n");
-            if (session.NightRecords.Count == 0) sb.Append("  (no one yet)\n");
-            foreach (var r in session.NightRecords)
-                sb.Append("  ").Append(r.Name).Append(" - ").Append(r.Allowed ? "ALLOWED" : "REJECTED").Append("\n");
-            sb.Append("\nFINDINGS DISCOVERED: ").Append(session.Clues.FoundCount).Append(" / ").Append(session.Clues.TotalCount).Append("\n");
-            if (_gameRoot.LogRequired && session.LogSigned) sb.Append("\nLOG SIGNED.\n");
+            if (!_gameRoot.LogRequired) sb.Append("No log duty tonight.\n");
+            else if (ReportListHasNames()) sb.Append("REPORT ONE PERSON YOU LET IN (right: cancelled, wrong: -5 sanity)\n");
+            else sb.Append("NOBODY LET IN YET. THE LOG FILLS ITSELF IN.\n");
+            sb.Append("FINDINGS DISCOVERED: ").Append(session.Clues.FoundCount).Append(" / ").Append(session.Clues.TotalCount);
             _recordsText.text = sb.ToString();
-            RefreshSignButton();
+            RefreshReportList();
         }
 
-        private void RefreshSignButton()
+        private bool ReportListHasNames()
         {
-            if (_signBtn == null) return;
-            bool duty = _gameRoot.LogRequired;
-            _signBtn.gameObject.SetActive(duty);
-            var label = _signBtn.GetComponentInChildren<Text>();
-            if (label != null) label.text = _gameRoot.Session.LogSigned ? "SIGNED" : "SIGN LOG";
+            foreach (var r in _gameRoot.Session.NightRecords) if (r.Allowed) return true;
+            return false;
+        }
+
+        // one button per person let in tonight, in the order they came; the reported one is marked
+        private void RefreshReportList()
+        {
+            var session = _gameRoot.Session;
+            int slot = 0;
+            for (int i = 0; i < session.NightRecords.Count && slot < ReportSlots; i++)
+            {
+                var r = session.NightRecords[i];
+                if (!r.Allowed || !_gameRoot.LogRequired || _reportBtns[slot] == null) continue;
+                bool reported = session.ReportedRecord == i;
+                _reportRecord[slot] = i;
+                var label = _reportBtns[slot].GetComponentInChildren<Text>();
+                if (label != null)
+                {
+                    label.text = reported ? r.Name + "  [REPORTED]" : r.Name + "  [REPORT]";
+                    label.color = reported ? UIFactory.AccentBright : UIFactory.NsInk;
+                }
+                _reportBtns[slot].gameObject.SetActive(true);
+                slot++;
+            }
+            for (; slot < ReportSlots; slot++)
+                if (_reportBtns[slot] != null) _reportBtns[slot].gameObject.SetActive(false);
         }
     }
 }

@@ -139,7 +139,7 @@ namespace Hollowbrook.Logic
                            "Ask a question. If it all matches, drag APPROVE onto the slip, then drag the ID back to the window.";
                 case TutorialStep.FirstAnomaly:
                     return "Read the Rules sheet, then look for the broken rule on the ID (check the date). " +
-                           "If something is wrong, drag DECLINE. Count every visitor in the Security Log: you sign it before END SHIFT.";
+                           "If something is wrong, drag DECLINE. The Security Log fills itself in: before END SHIFT you may report one person.";
                 case TutorialStep.GoPatrol:
                     return "The line waits while you walk. Click PATROL to leave the booth. " +
                            "A and D walk, F turns the flashlight on.";
@@ -154,7 +154,7 @@ namespace Hollowbrook.Logic
                            "The Focus light (Q) is faster. Step back with S when it is gone.";
                 case TutorialStep.Finish:
                     return "That is the job. Peek into a CR, go back to the desk, finish the line, " +
-                           "count and sign the Security Log, then END SHIFT. You are on your own now.";
+                           "report anyone you doubt in the Security Log, then END SHIFT. You are on your own now.";
                 default: return "";
             }
         }

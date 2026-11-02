@@ -40,11 +40,8 @@ namespace Hollowbrook.Horror
         private BehaviorTuning _behavior;
         private EncounterTuning _tuning;
         private float _targetX;                  // wander/slide waypoint in the owned room
-        private float _telegraph = -1f;          // >= 0 while Sprint winds up (readable warning)
-        private float _dashTimer;                // > 0 while Sprint bursts
         private GameRng _moveRng;                  // per-spawn seed for wander/retreat rolls
         private GameRng MoveRng => _moveRng ?? (_moveRng = new GameRng(0x5EED));
-        private float _dashRecover;              // > 0 while Sprint catches its breath
         private float _retreatTargetX;           // where Repelled movement withdraws to
         private const float RetreatTravel = 60f;     // far past any screen: the retreat target is never reached
         private const float OffScreenMargin = 2.6f;  // half the widest picture: it is only gone once all of it is off screen
@@ -112,10 +109,6 @@ namespace Hollowbrook.Horror
                 BlinkSpeed = c.anomalySpeedBlink,
                 SlideSpeed = c.anomalySpeedSlide,
                 SprintSpeed = c.anomalySpeedSprint,
-                SprintDashSpeed = c.sprintDashSpeed,
-                SprintTelegraphSeconds = c.sprintTelegraphSeconds,
-                SprintDashSeconds = c.sprintDashSeconds,
-                SprintRecoverSeconds = c.sprintRecoverSeconds,
                 SprintAggroRange = c.sprintAggroRange,
                 CoverHugSpeed = c.anomalySpeedCoverHug,
                 ThreatRange = c.anomalyThreatRange,
@@ -355,7 +348,7 @@ namespace Hollowbrook.Horror
             _sr.flipY = true;
         }
 
-        // The runner is three drawn frames: slow steps on patrol, fast on the dash, held still while it winds up.
+        // The crawler is three drawn frames. It always runs, so the legs go fast; under a beam it slows and so do they.
         private Sprite[] _runFrames;
         private float _frameClock;
 
@@ -367,10 +360,7 @@ namespace Hollowbrook.Horror
         private void AnimateRun(float dt)
         {
             if (_runFrames == null || _sr == null) return;
-            float fps = 5f;
-            if (_dashTimer > 0f) fps = 14f;
-            else if (_telegraph >= 0f || _dashRecover > 0f) fps = 0f;
-            _frameClock += fps * dt;
+            _frameClock += 14f * _pace * dt;
             _sr.sprite = _runFrames[(int)_frameClock % _runFrames.Length];
         }
 
@@ -414,7 +404,7 @@ namespace Hollowbrook.Horror
             float dist = Mathf.Abs(player.x - p.x);
 
             // any flashlight beam on it slows it down: the player's time to reach for Focus. Only the
-            // speed changes, never the warning and recovery timers (a Sprint still telegraphs in full).
+            // speed changes.
             _pace = views.BeamCovers(p) ? _profile.BeamPace : 1f;
 
             // one method per behavior kind: each reads as its own little rule sheet
@@ -448,43 +438,18 @@ namespace Hollowbrook.Horror
             return p;
         }
 
-        // Sprint: telegraphed burst - windup under darkness, dash, recover; the Focus beam on it
-        // interrupts the windup.
+        // Sprint, the crawler: it never walks. Close to the player it runs straight at them, otherwise it runs
+        // between wander points. Always the same fast speed; a beam on it halves the speed (_pace), and the
+        // Focus beam repels it as usual.
         private Vector3 MoveSprint(float dt, ViewManager views, Vector3 player, float dist, Vector3 p)
         {
-            if (_dashTimer > 0f)
+            if (dist < _profile.AggroRange)
             {
-                _dashTimer -= dt;
-                p.x = Mathf.MoveTowards(p.x, player.x, _profile.DashSpeed * _pace * dt);
-                if (Mathf.Abs(p.x - player.x) < 0.15f || _dashTimer <= 0f)
-                { _dashTimer = 0f; _dashRecover = _profile.DashRecoverSeconds; }
+                p.x = Mathf.MoveTowards(p.x, player.x, _profile.MoveSpeed * _pace * dt);
                 return p;
             }
-            if (_dashRecover > 0f) { _dashRecover -= dt; return p; }
-
-            if (dist < _profile.AggroRange && !views.IsFocusLit(p))
-            {
-                if (_telegraph < 0f)
-                {
-                    // understandable warning BEFORE the burst - the reaction window
-                    _telegraph = _profile.TelegraphSeconds;
-                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionUrgent, "*it tenses - MOVE*", 1.6f, null));
-                    _gameRoot.Audio.PlaySfx("sfx_heartbeat", 0.8f);
-                }
-                _telegraph -= dt;
-                if (_telegraph <= 0f)
-                {
-                    _telegraph = -1f;
-                    _dashTimer = _profile.DashSeconds;
-                    _gameRoot.Audio.PlaySfx("sfx_glitch", 0.8f);
-                }
-            }
-            else
-            {
-                _telegraph = -1f;
-                p.x = Mathf.MoveTowards(p.x, _targetX, _profile.MoveSpeed * _pace * dt);
-                if (Mathf.Abs(p.x - _targetX) < 0.2f) PickWanderTarget(player);
-            }
+            p.x = Mathf.MoveTowards(p.x, _targetX, _profile.MoveSpeed * _pace * dt);
+            if (Mathf.Abs(p.x - _targetX) < 0.2f) PickWanderTarget(player);
             return p;
         }
 

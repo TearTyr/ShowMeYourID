@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Hollowbrook.Logic
 {
@@ -15,77 +14,56 @@ namespace Hollowbrook.Logic
         public string Why;   // the first defect in words, "" for a real student
     }
 
-    /// <summary>The Security Log answer sheet (pure, no Unity). The player counts three things by hand during
-    /// a night; at END SHIFT the game compares them with what really happened. A wrong box costs sanity at the
-    /// start of the next night, and the only place the player learns what they missed is the Rules sheet of that
-    /// next night (the note this class writes).</summary>
+    /// <summary>The Security Log rules (pure, no Unity). The game fills in the three boxes by itself, so nobody
+    /// has to count. What the log is FOR is a second chance: before END SHIFT the player may REPORT one person
+    /// they let in. A right report (that person was an anomaly) cancels that one breach, so a night that would
+    /// have failed does not. A wrong report (a real student) costs sanity at the start of the next night, and
+    /// the next night's Rules sheet explains what happened (the note this class writes).</summary>
     public static class NightLogRules
     {
-        public const int SanityLossPerMistake = 5;
+        public const int SanityLossPerWrongReport = 5;
 
-        public class Grade
-        {
-            public bool[] Right = new bool[GameSession.LogEntries];
-            public int Mistakes;
-            public int SanityLoss;
-            public string Note = "";
-        }
+        public const int BoxEncounters = 0, BoxRejected = 1, BoxIncidents = 2;
 
-        /// <param name="counts">the three boxes the player filled in</param>
+        /// <summary>The three numbers on the sheet. The middle one counts what the player rejected, not what was
+        /// really an anomaly, so the sheet never gives a verdict away.</summary>
         /// <param name="records">everyone who reached the window tonight</param>
         /// <param name="incidents">students reported missing plus things driven out of the peek rooms</param>
-        public static Grade Check(int[] counts, IList<NightRecord> records, int incidents)
+        public static int[] Boxes(IList<NightRecord> records, int incidents)
         {
-            var grade = new Grade();
-            int anomalies = 0;
-            foreach (var r in records) if (r.WasAnomaly) anomalies++;
-            int[] truth = { records.Count, anomalies, incidents };
-
-            var lines = new StringBuilder();
-            for (int i = 0; i < truth.Length; i++)
-            {
-                int wrote = counts != null && i < counts.Length ? counts[i] : 0;
-                grade.Right[i] = wrote == truth[i];
-                if (grade.Right[i]) continue;
-                grade.Mistakes++;
-                lines.Append(MistakeLine(i, wrote, truth[i], records)).Append('\n');
-            }
-
-            grade.SanityLoss = grade.Mistakes * SanityLossPerMistake;
-            if (grade.Mistakes == 0)
-            {
-                grade.Note = "Your three counts matched the night.";
-                return grade;
-            }
-            lines.Append("Penalty: ").Append(grade.SanityLoss).Append(" sanity at the start of the night.");
-            grade.Note = lines.ToString();
-            return grade;
+            int rejected = 0;
+            foreach (var r in records) if (!r.Allowed) rejected++;
+            return new[] { records.Count, rejected, incidents };
         }
 
-        private static string MistakeLine(int box, int wrote, int truth, IList<NightRecord> records)
+        /// <summary>Only someone who was let in can be reported.</summary>
+        public static bool CanReport(IList<NightRecord> records, int index) =>
+            index >= 0 && index < records.Count && records[index].Allowed;
+
+        public class Outcome
         {
-            string said = "you wrote " + wrote + ", there " + (truth == 1 ? "was " : "were ") + truth;
-            switch (box)
-            {
-                case 0:
-                    return "Student encounters: " + said + ". Everyone who reached the window counts, whatever you stamped.";
-                case 1:
-                    return "Anomalies detected: " + said + AnomalyList(records) + ". Count what they were, not what you stamped.";
-                default:
-                    return "Security incidents: " + said + ". A student who never reached the window counts, and so does anything driven out of a room.";
-            }
+            public bool Reported;       // the player filed a report
+            public bool Cancels;        // it was right: that anomaly no longer counts as let in
+            public int SanityLoss;      // it was wrong: paid at the start of the next night
+            public string Note = "";    // for the Rules sheet of the next night
         }
 
-        // " (Name: the first thing wrong; Name: ...)" so the player can see what they missed
-        private static string AnomalyList(IList<NightRecord> records)
+        public static Outcome Resolve(IList<NightRecord> records, int index)
         {
-            var parts = new List<string>();
-            foreach (var r in records)
+            var o = new Outcome();
+            if (!CanReport(records, index)) return o;
+            var r = records[index];
+            o.Reported = true;
+            if (r.WasAnomaly)
             {
-                if (!r.WasAnomaly) continue;
-                parts.Add(string.IsNullOrEmpty(r.Why) ? r.Name : r.Name + ": " + r.Why.TrimEnd('.'));
+                o.Cancels = true;
+                string why = string.IsNullOrEmpty(r.Why) ? "" : " (" + r.Why.TrimEnd('.') + ")";
+                o.Note = "You reported " + r.Name + " and you were right" + why + ". That anomaly was dealt with, so it did not count against you.";
+                return o;
             }
-            return parts.Count == 0 ? "" : " (" + string.Join("; ", parts) + ")";
+            o.SanityLoss = SanityLossPerWrongReport;
+            o.Note = "You reported " + r.Name + ", but they were a real student. Penalty: " + o.SanityLoss + " sanity at the start of the night.";
+            return o;
         }
     }
 }

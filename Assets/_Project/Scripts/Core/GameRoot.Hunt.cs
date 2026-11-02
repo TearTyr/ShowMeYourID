@@ -46,6 +46,7 @@ namespace Hollowbrook.Core
             t.HeadRadius = Config.huntHeadRadius;
             t.BehindSeconds = n6 ? Config.night6BehindSeconds : Config.huntBehindSeconds;
             t.BeamHitSeconds = n6 ? Config.night6BeamHitSeconds : Config.huntBeamHitSeconds;
+            t.DodgesLamp = n6;   // night 6: he circles and dodges the lamp in a room
             if (n6) ScaleSwapWaits(ref t, GameRules.Current.Night6SwapScale);
             return t;
         }

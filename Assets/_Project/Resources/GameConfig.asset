@@ -50,12 +50,8 @@ MonoBehaviour:
   anomalyThreatRange: 1.6
   anomalySpeedBlink: 1.15
   anomalySpeedSlide: 0.9
-  anomalySpeedSprint: 1.3
+  anomalySpeedSprint: 4.5
   anomalySpeedCoverHug: 0.55
-  sprintDashSpeed: 4.5
-  sprintTelegraphSeconds: 1.1
-  sprintDashSeconds: 1.4
-  sprintRecoverSeconds: 1.4
   sprintAggroRange: 9
   anomalyRetreatSpeed: 9
   beamPace: 0.5

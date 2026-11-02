@@ -383,8 +383,10 @@ namespace FlowCheck
             Check(t6.RoomHoldSeconds > t5.RoomHoldSeconds && t6.BeamHitSeconds > t5.BeamHitSeconds && t6.StalkMinSeconds < t5.StalkMinSeconds,
                 "N6: the lamp must stay longer on him, the beam longer on his face, and he walks less between stops than night 5");
             Check(t6.AmbushDelayMaxSeconds < t5.AmbushDelayMaxSeconds && t6.SwapAfterRepelSeconds < t5.SwapAfterRepelSeconds &&
-                  t6.AmbushDelayMinSeconds > 0.3f && t6.BehindSeconds >= 3f,
-                "N6: his swaps come quicker than night 5 (still a breath after a peek) and he still walks up over at least 3 seconds");
+                  t6.AmbushDelayMinSeconds > 0.3f && t6.BehindSeconds >= 1.5f,
+                "N6: his swaps come quicker than night 5 (still a breath after a peek) and he still runs up over at least 1.5 seconds");
+            Check(t6.BehindSeconds < t5.BehindSeconds && t5.BehindSeconds <= 3.2f, "N6: he runs up the hallway, faster than night 5 (" + t6.BehindSeconds + " s against " + t5.BehindSeconds + " s)");
+            Check(t6.DodgesLamp && !t5.DodgesLamp, "N6: in a room he circles and dodges the lamp, night 5's Principal only wanders");
             Check(GameRules.Current.ChallengeDrainScale > 1.5f, "N6: sanity drains faster than night 5");
 
             // the DENY stamp starts the pursuit, like night 5
@@ -470,7 +472,7 @@ namespace FlowCheck
             Check(root.State == AppViewState.MainMenu && root.Session.PendingPenaltySeverity == ShiftFailureRules.BlackoutSeverity,
                 "FAIL: a blackout on patrol fails the night and lands on the main menu, penalty booked");
 
-            // the night security log: three boxes the player counts in by hand, recorded only
+            // the night security log: three boxes that fill themselves in, nothing to count by hand
             {
                 FreshGame(root); ClickStickyNote(root);
                 var cpLog = root.Checkpoint;
@@ -481,25 +483,14 @@ namespace FlowCheck
                 bool allThere = true;
                 foreach (var bn in boxNames) allThere &= FindDeep(paperLog, "logbox_" + bn) != null;
                 Check(allThere, "LOG: it has the three boxes: student encounters, anomalies detected, security incidents");
-                var box1 = FindDeep(paperLog, "logbox_anomalies_detected").GetComponent<LogBox>();
-                var left = new UnityEngine.EventSystems.PointerEventData();
-                var right = new UnityEngine.EventSystems.PointerEventData { button = UnityEngine.EventSystems.PointerEventData.InputButton.Right };
-                box1.OnPointerClick(left); box1.OnPointerClick(left); box1.OnPointerClick(left); box1.OnPointerClick(right);
-                Check(root.Session.LogCounts[1] == 2 && root.Session.LogCounts[0] == 0,
-                    "LOG: left click counts up, right click counts down, each box on its own");
-                Check(FindDeep(paperLog, "logbox_anomalies_detected").Find("count").GetComponent<UnityEngine.UI.Text>().text == "2",
-                    "LOG: the box shows its number");
-                for (int i = 0; i < 5; i++) box1.OnPointerClick(right);
-                Check(root.Session.LogCounts[1] == 0, "LOG: it never goes below zero");
-                box1.OnPointerClick(left);
-                root.PersistRun();
-                Check(root.Saves.Read().Session.LogCounts[1] == 1, "LOG: the numbers are saved, so Continue keeps them");
-                root.Session.BeginNight();
-                Check(root.Session.LogCounts[1] == 0, "LOG: a new night starts with a clean log");
+                Check(FindDeep(paperLog, "logbox_anomalies_detected").Find("count").GetComponent<UnityEngine.UI.Text>().text == "0",
+                    "LOG: an empty night shows zeros");
+                Check(FindDeep(paperLog, "sign") == null, "LOG: there is no signing any more");
                 var before = new[] { root.Session.Sanity, (float)root.Session.Score, (float)root.Session.Breaches };
-                box1.OnPointerClick(left);
+                cpLog.DebugOpenOverlay("log");
+                cpLog.DebugOpenOverlay("log");
                 Check(root.Session.Sanity == before[0] && root.Session.Score == (int)before[1] && root.Session.Breaches == (int)before[2],
-                    "LOG: counting changes nothing else: no sanity, score or breaches (it is only a record)");
+                    "LOG: opening the log changes nothing: no sanity, score or breaches");
             }
 
             // the caption bar has no box: an empty caption shows nothing, a real one is text only
@@ -1658,7 +1649,7 @@ namespace FlowCheck
             HandBack(root, true, true);
             FindDeep(desk, "records").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             string logText = FindDeep(FindDeep(desk, "OverlayLog"), "text").GetComponent<UnityEngine.UI.Text>().text;
-            Check(logText.Contains("ALLOWED") || logText.Contains("REJECTED"),
+            Check(root.Session.NightRecords.Count > 0,
                 "SP: tonight's log still books every verdict");
             Check(!logText.Contains("appearance:"),
                 "SP: the removed face check leaves no data in the verdict record");
@@ -2269,11 +2260,6 @@ namespace FlowCheck
                 root.Session.ClearedRooms |= PatrolCycle.Bit(RoomId.ComfortRoom2);
                 cp.RefreshHud();
             }
-            if (root.LogRequired)
-            {
-                Check(!live("endshift"), "END SHIFT stays locked until the Security Log is signed");
-                SignLog(root);
-            }
             Check(live("endshift"), "END SHIFT lights up when the roster is done");
             {
                 // nobody at the window: the custodian rests (the only passive recovery there is)
@@ -2593,7 +2579,6 @@ namespace FlowCheck
             root.Session.ClearedRooms = PatrolCycle.Bit(RoomId.Classroom1) | PatrolCycle.Bit(RoomId.Classroom2) | PatrolCycle.Bit(RoomId.ComfortRoom);
             cp.RefreshHud();
             ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
-            SignLog(root);
             Btn(root, "endshift").onClick.Invoke();
             Check(root.State == AppViewState.ShiftIntro && root.Session.CurrentShift == 2, "Q10: clocking out runs straight into the next night");
             root.QuitToMenu(true);
@@ -2766,10 +2751,6 @@ namespace FlowCheck
         // the production config -> tuning wiring is asserted in Q1 before any override
         private static void IsolateMissingStudent(GameRoot root) =>
             root.Queue.Tuning.MissingStudentChance = 0f;
-
-        // sign the Security Log the way a click on the sheet's button does (the sheet need not be open)
-        private static void SignLog(GameRoot root) =>
-            FindDeep(root.Checkpoint.transform, "sign").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
 
         private static void ClickStickyNote(GameRoot root)
         {
@@ -3633,49 +3614,44 @@ namespace FlowCheck
             }
             views.Spawner.DiscardLive();
 
-            // Sprint: readable telegraph → dash → catch; the Focus beam interrupts the windup
+            // Sprint, the crawler: it never walks. Always fast, slower only while a beam is on it, caught if you stand still
             var sprint = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Sprint);
             Check(sprint != null, "W6: Sprint spawns");
             if (sprint != null)
             {
                 views.Player.PlaceInRoom(hall, new Vector3(Mathf.Clamp(sprint.Pos.x - 4f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), 0f, 0f));
                 int tenses0 = tensesCaptions;
-                float sx0 = sprint.Pos.x;
-                WorldFrames(root, 30);                     // halfway through the 1.1s windup
-                Check(tensesCaptions == tenses0 + 1, "W6: Sprint's windup is announced exactly once, BEFORE the burst");
-                Check(Mathf.Abs(sprint.Pos.x - sx0) < 0.05f, "W6: Sprint holds position during the telegraph - the reaction window is real");
-                Check(Mathf.Abs(sprint.Pos.x - views.Player.transform.localPosition.x) > 3f,
-                    "W6: it has not reached the player during the telegraph (no instant catch on spawn)");
-                SetBeam(root, rig, LightMode.Sweep);       // the plain beam on it: the windup goes on
-                for (int i = 0; i < 20; i++) { AimAt(sprint.Pos.x, sprint.Pos.y); WorldFrame(root); }
-                Check(tensesCaptions == tenses0 + 1, "W6: the plain Sweep beam does not interrupt Sprint's windup");
-                SetBeam(root, rig, LightMode.Focus);       // Focus on it: interrupts the windup
+                SetBeam(root, rig, LightMode.Off);
+                float maxStepDark = 0f, lastDx = sprint.Pos.x;
+                for (int i = 0; i < 20; i++)
+                {
+                    WorldFrame(root);
+                    maxStepDark = Math.Max(maxStepDark, Mathf.Abs(sprint.Pos.x - lastDx));
+                    lastDx = sprint.Pos.x;
+                }
+                Check(maxStepDark > 3.5f / 60f, $"W6: the crawler runs at once, no windup (max step {maxStepDark:F4}u/frame)");
+                Check(tensesCaptions == tenses0, "W6: there is no 'it tenses' warning any more");
+
+                // the plain beam on it: about half the speed
+                views.Player.PlaceInRoom(hall, new Vector3(Mathf.Clamp(sprint.Pos.x - 8f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), 0f, 0f));
+                SetBeam(root, rig, LightMode.Sweep);
                 float maxStepBeam = 0f, lastBx = sprint.Pos.x;
-                for (int i = 0; i < 40; i++)
+                for (int i = 0; i < 20; i++)
                 {
                     AimAt(sprint.Pos.x, sprint.Pos.y);
                     WorldFrame(root);
                     maxStepBeam = Math.Max(maxStepBeam, Mathf.Abs(sprint.Pos.x - lastBx));
                     lastBx = sprint.Pos.x;
                 }
-                Check(maxStepBeam <= 1.35f / 60f + 1e-4f, $"W6: under the Focus beam Sprint never bursts (max step {maxStepBeam:F4}u/frame ≤ patrol speed)");
-                Check(tensesCaptions == tenses0 + 1, "W6: no re-windup while the Focus beam holds it");
+                Check(maxStepBeam > 0.5f * 4.5f / 60f * 0.8f && maxStepBeam < 0.7f * 4.5f / 60f,
+                    $"W6: a beam on the crawler halves its speed (max step {maxStepBeam:F4}u/frame, full {4.5f / 60f:F4})");
                 SetBeam(root, rig, LightMode.Off);
-                float maxStepDash = 0f, lastDx = sprint.Pos.x;
-                g = 0;
-                while (Mathf.Abs(sprint.Pos.x - views.Player.transform.localPosition.x) > 1.0f && !sprint.Gone && g++ < 420)
-                {
-                    WorldFrame(root);
-                    maxStepDash = Math.Max(maxStepDash, Mathf.Abs(sprint.Pos.x - lastDx));
-                    lastDx = sprint.Pos.x;
-                }
-                Check(g < 420 && !sprint.Gone, $"W6: with the beam off Sprint telegraphs, then dashes at the player (frames={g})");
-                Check(maxStepDash > 2.5f / 60f, $"W6: the dash really is fast (max step {maxStepDash:F4}u/frame)");
+
                 int caught0 = caughtEvents;
                 float sanity0 = root.Session.Sanity;
                 g = 0;
-                while (!sprint.Gone && g++ < 60 * 8) WorldFrame(root);   // stand still and eat the consequence
-                Check(sprint.WasCaught, "W6: standing next to a dashing Sprint gets you caught - after its grace, not instantly");
+                while (!sprint.Gone && g++ < 60 * 12) WorldFrame(root);   // stand still and eat the consequence
+                Check(sprint.WasCaught, "W6: standing still next to the crawler gets you caught, after its grace, not instantly");
                 Check(caughtEvents == caught0 + 1, "W6: the catch event fires exactly once");
                 Check(root.Session.Sanity < sanity0 - 10f, "W6: a catch costs real sanity");
                 Check(Mathf.Abs(views.Player.transform.localPosition.x - hall.PlayerSpawn.x) < 0.01f,
@@ -3967,6 +3943,7 @@ namespace FlowCheck
             var bodyPrompt = FindDeep(root.HUD.transform, "prompt").GetComponent<UnityEngine.UI.Text>();
             WorldFrames(root, 2);
             string ownPrompt = bodyPrompt.text;
+            root.Session.PeekLeftBehind = 0;   // (a figure left standing would make this door a jumpscare, not a peek)
             root.EnterRoomPeek(peekedRoom);
             AimAt(views.Current.Interactables[0].AnchorX, views.Current.Interactables[0].AnchorY);
             WorldFrames(root, 2);
@@ -4009,6 +3986,7 @@ namespace FlowCheck
 
             Check(fresh.Live == null, "AN: (the spawner test anomaly is cleared)");
             root.Session.PeekAnomaliesGone = 0;
+            root.Session.PeekLeftBehind = 0;
             root.Session.ClearedRooms = 0;
             var peekRooms = new[] { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 };
             int standing = 0;
@@ -4180,6 +4158,39 @@ namespace FlowCheck
                       "AN: an empty room has nothing in it and counts at once");
                 PressKey(root, KeyCode.S);
                 WorldFrames(root, 2);
+            }
+
+            // leaving a figure standing makes its door a jumpscare the next time it opens
+            {
+                root.Session.PeekAnomaliesGone = 0;
+                root.Session.ClearedRooms = 0;
+                root.Session.PeekLeftBehind = 0;
+                AimAt(40f, 40f);   // keep the lamp away from the figure
+                root.EnterRoomPeek(withOne);
+                WorldFrames(root, 5);
+                Check(views.PeekedAnomaly != null, "DOOR: the figure is standing in the room");
+                PressKey(root, KeyCode.S);
+                for (int f = 0; f < 400 && views.PeekActive; f++) WorldFrame(root);
+                Check(!views.PeekActive && (root.Session.PeekLeftBehind & bit) != 0, "DOOR: stepping out with it still there marks that door");
+                root.PersistRun();
+                Check(root.Saves.Read().Session.PeekLeftBehind == root.Session.PeekLeftBehind, "DOOR: the mark is saved");
+                root.Session.Sanity = 80f;
+                float sanityBeforeDoor = root.Session.Sanity;
+                root.EnterRoomPeek(withOne);
+                WorldFrames(root, 5);
+                Check(!views.PeekActive && root.State == AppViewState.Exploration, "DOOR: the door never opens, the player stays in the hallway");
+                Check(root.Session.Sanity < sanityBeforeDoor - 10f, "DOOR: the scare costs real sanity, like a catch (" + root.Session.Sanity + ")");
+                Check((root.Session.PeekAnomaliesGone & bit) != 0 && (root.Session.ClearedRooms & bit) != 0 && (root.Session.PeekLeftBehind & bit) == 0,
+                    "DOOR: the scare uses the figure up and the room counts as cleared");
+                root.EnterRoomPeek(withOne);
+                WorldFrames(root, 5);
+                Check(views.PeekActive && views.PeekedAnomaly == null, "DOOR: afterwards the room opens as an ordinary empty one");
+                PressKey(root, KeyCode.S);
+                for (int f = 0; f < 400 && views.PeekActive; f++) WorldFrame(root);
+                Check((root.Session.PeekLeftBehind & bit) == 0, "DOOR: an empty room leaves no mark");
+                root.Session.PeekAnomaliesGone = 0;
+                root.Session.PeekLeftBehind = 0;
+                root.Session.ClearedRooms = 0;
             }
 
             // ---- W9: spawn ownership under ambient pressure + the desk handoff

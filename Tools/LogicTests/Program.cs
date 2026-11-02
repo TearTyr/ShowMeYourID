@@ -41,6 +41,8 @@ namespace Hollowbrook.LogicTests
             ContentTests();
             ShiftPlanTests();
             HuntFairnessTests();
+            HuntDoorTests();
+            HuntDodgeTests();
             EveryStudentTurnsTests();
             RulesAreLiveTests();
             ClueRegistryTests();
@@ -159,6 +161,147 @@ namespace Hollowbrook.LogicTests
         }
 
         // ------------------------------------------------------------ shift plan
+        // Night 6: he circles and dodges the lamp. Hard to follow, never impossible, and no use to park the lamp.
+        private static void HuntDodgeTests()
+        {
+            Group("AdminHuntDodge - night 6: he circles about his spot and dodges the lamp");
+            var tun = HuntTuning.Default;
+            Check(!tun.DodgesLamp, "the default hunt (night 5) does not dodge");
+            Check(AdminHuntDodge.Radius > tun.HeadRadius, "the circle is wider than the lamp's reach, so parking the lamp in the middle never lights him");
+
+            // geometry and determinism
+            float minR = 99f, maxR = 0f;
+            bool same = true;
+            var a = new AdminHuntDodge(5); var b = new AdminHuntDodge(5);
+            for (int i = 0; i < 2000; i++)
+            {
+                bool lit = i % 200 < 100;
+                a.Step(0.02f, lit); b.Step(0.02f, lit);
+                a.Offset(out float ax, out float ay); b.Offset(out float bx, out float by);
+                same &= ax == bx && ay == by;
+                float r = (float)Math.Sqrt(ax * ax + ay * ay);
+                minR = Math.Min(minR, r); maxR = Math.Max(maxR, r);
+            }
+            Check(minR > AdminHuntDodge.Radius - 1e-3f && maxR < AdminHuntDodge.Radius + 1e-3f, "he always stays on his circle (" + minR + " to " + maxR + ")");
+            Check(same, "the same seed dodges the same way");
+
+            // faster while lit, and he turns round
+            float calmPath = 0f, litPath = 0f;
+            int turns = 0;
+            var calm = new AdminHuntDodge(9); var lit9 = new AdminHuntDodge(9);
+            float lastCalm = calm.Angle, lastLit = lit9.Angle, lastSign = 0f;
+            for (int i = 0; i < 500; i++)
+            {
+                calm.Step(0.02f, false); lit9.Step(0.02f, true);
+                calmPath += Math.Abs(calm.Angle - lastCalm); litPath += Math.Abs(lit9.Angle - lastLit);
+                float sign = Math.Sign(calm.Angle - lastCalm);
+                if (lastSign != 0f && sign != lastSign) turns++;
+                lastSign = sign; lastCalm = calm.Angle; lastLit = lit9.Angle;
+            }
+            Check(litPath > calmPath * 1.5f, "he runs faster while the lamp is on him (" + litPath + " against " + calmPath + " radians in 10 s)");
+            Check(turns >= 3, "he turns round at random (" + turns + " turns in 10 s)");
+
+            // a player who follows him with a short delay can still clear him inside the night 6 room time (2.6 s of lamp, 5 s)
+            int Cleared(float lag, bool parked)
+            {
+                int ok = 0;
+                for (int seed = 1; seed <= 200; seed++)
+                {
+                    var d = new AdminHuntDodge(seed);
+                    var hist = new List<float[]>();
+                    float hold = 0f; bool lit = false;
+                    for (float t = 0f; t < 5f && hold < 1f; t += 0.02f)
+                    {
+                        d.Step(0.02f, lit);
+                        d.Offset(out float x, out float y);
+                        hist.Add(new[] { x, y });
+                        var lamp = parked ? new[] { 0f, 0f } : hist[Math.Max(0, hist.Count - 1 - (int)Math.Round(lag / 0.02f))];
+                        float dist = (float)Math.Sqrt((x - lamp[0]) * (x - lamp[0]) + (y - lamp[1]) * (y - lamp[1]));
+                        lit = dist <= tun.HeadRadius;
+                        hold = lit ? hold + 0.02f / 2.6f : Math.Max(0f, hold - 0.02f * tun.HoldDecayPerSecond);
+                    }
+                    if (hold >= 1f) ok++;
+                }
+                return ok;
+            }
+            int quick = Cleared(0.15f, false), slow = Cleared(0.45f, false), parkedOk = Cleared(0f, true);
+            Check(quick >= 180, "a player who follows him with a 0.15 s delay clears him in time almost every time (" + quick + "/200)");
+            Check(slow < quick, "a slower follower (0.45 s) has a harder time (" + slow + "/200 against " + quick + ")");
+            Eq(parkedOk, 0, "a lamp parked in the middle never clears him");
+        }
+
+        // Doors are not safe: step out of his room with him still there and that door is a catch; leave him until
+        // the room timer runs out and every door is a catch for a while.
+        private static void HuntDoorTests()
+        {
+            Group("Hunt: doors are not safe - the same door, and any door when he is left loose");
+            var tuning = HuntTuning.Default;
+            var inHall = new HuntInput { InHallway = true, PlayerRoom = RoomId.Hallway };
+            int tried = 0, firstLookCaught = 0, leftWarned = 0, otherDoorSafe = 0, sameDoorCaught = 0, caughtOnce = 0;
+            int looseTried = 0, looseCaught = 0, looseBehind = 0, looseFirstTick = 0, peekAfterLooseSafe = 0;
+            for (int seed = 1; seed <= 200; seed++)
+            {
+                var hunt = new AdminHunt(tuning, seed); hunt.Start();
+                int guard = 0;
+                while (hunt.Phase != HuntPhase.InRoom && !hunt.Finished && guard++ < 5000) hunt.Tick(0.1f, inHall);
+                if (hunt.Phase != HuntPhase.InRoom) continue;
+                tried++;
+                int caughtBefore = hunt.Catches;   // walking the hallway without a beam can already have cost a catch
+                RoomId his = hunt.Room;
+                var look = new HuntInput { Peeking = true, PlayerRoom = his, OnTarget = false };
+                if ((hunt.Tick(0.05f, look) & HuntEvent.Caught) != 0) firstLookCaught++;
+                for (int i = 0; i < 10; i++) hunt.Tick(0.05f, look);   // half a second of looking, the lamp not on his head
+                var stepOut = hunt.Tick(0.05f, inHall);
+                if ((stepOut & HuntEvent.LeftHim) != 0 && hunt.LeftHim) leftWarned++;
+                RoomId other = his == RoomId.Classroom1 ? RoomId.Classroom2 : RoomId.Classroom1;
+                var evOther = hunt.Tick(0.05f, new HuntInput { Peeking = true, PlayerRoom = other });
+                if ((evOther & HuntEvent.Caught) == 0 && hunt.Phase == HuntPhase.InRoom) otherDoorSafe++;
+                hunt.Tick(0.05f, inHall);
+                var again = hunt.Tick(0.05f, look);
+                if ((again & HuntEvent.Caught) != 0) sameDoorCaught++;
+                if (hunt.Catches == caughtBefore + 1) caughtOnce++;
+
+                // a new hunt: he is left in his room until the timer runs out, with the player in the hallway
+                var loose = new AdminHunt(tuning, seed); loose.Start();
+                guard = 0;
+                while (loose.Phase != HuntPhase.InRoom && !loose.Finished && guard++ < 5000) loose.Tick(0.1f, inHall);
+                if (loose.Phase != HuntPhase.InRoom) continue;
+                guard = 0;
+                while (loose.Phase == HuntPhase.InRoom && guard++ < 400) loose.Tick(0.1f, inHall);
+                if (loose.Phase != HuntPhase.Loose) continue;
+                looseTried++;
+                int looseBefore = loose.Catches;
+                var anyDoor = new HuntInput { Peeking = true, PlayerRoom = RoomId.ComfortRoom2 };
+                if ((loose.Tick(0.05f, anyDoor) & HuntEvent.Caught) != 0 && loose.Catches == looseBefore + 1) looseCaught++;
+
+                // and another: loose, the player keeps away for the whole time
+                var away = new AdminHunt(tuning, seed); away.Start();
+                guard = 0;
+                while (away.Phase != HuntPhase.InRoom && !away.Finished && guard++ < 5000) away.Tick(0.1f, inHall);
+                guard = 0;
+                while (away.Phase == HuntPhase.InRoom && guard++ < 400) away.Tick(0.1f, inHall);
+                int awayBefore = away.Catches;
+                var evAway = HuntEvent.None;
+                guard = 0;
+                while (away.Phase == HuntPhase.Loose && guard++ < 400) evAway |= away.Tick(0.1f, inHall);
+                if (away.Phase == HuntPhase.Behind && (evAway & HuntEvent.AppearedBehind) != 0 && away.Catches == awayBefore) looseBehind++;
+                if (away.PhaseTimer < 0.2f) looseFirstTick++;
+                // once he is behind them, a peek is an ordinary peek again (he never jumps into a peeked room)
+                if ((away.Tick(0.05f, anyDoor) & HuntEvent.Caught) == 0) peekAfterLooseSafe++;
+            }
+            Check(tried > 100, "enough hunts reached a room to test (" + tried + ")");
+            Eq(firstLookCaught, 0, "the first look into his room is never a catch");
+            Eq(leftWarned, tried, "stepping out with him still there marks the door");
+            Eq(otherDoorSafe, tried, "a different door is not the trap");
+            Eq(sameDoorCaught, tried, "opening the same door again is a catch");
+            Eq(caughtOnce, tried, "...and it is exactly one catch");
+            Check(looseTried > 0, "a room timer that runs out with the player in the hallway makes him Loose (" + looseTried + ")");
+            Eq(looseCaught, looseTried, "while he is Loose, any door is a catch");
+            Eq(looseBehind, looseTried, "a player who keeps away from the doors for the whole time is not caught: he comes up behind them");
+            Check(looseFirstTick > 0, "he comes up behind them with a fresh phase timer");
+            Eq(peekAfterLooseSafe, looseTried, "once he is behind them the doors are ordinary again");
+        }
+
         // He never catches a player who is not looking at him: every catch comes from a visible approach.
         private static void HuntFairnessTests()
         {
@@ -166,7 +309,7 @@ namespace Hollowbrook.LogicTests
             var tuning = HuntTuning.Default;
             tuning.RoomSeconds = 5f;
             var inHall = new HuntInput { InHallway = true, PlayerRoom = RoomId.Hallway };
-            int caughtUnseen = 0, followedRoom = 0, followedBehind = 0;
+            int caughtUnseen = 0, followedRoom = 0, followedBehind = 0, goneLoose = 0;
             for (int seed = 1; seed <= 300; seed++)
             {
                 var hunt = new AdminHunt(tuning, seed);
@@ -181,10 +324,15 @@ namespace Hollowbrook.LogicTests
                 guard = 0;
                 while (hunt.Phase == HuntPhase.InRoom && guard++ < 200) ev |= hunt.Tick(0.1f, inHall);
                 if ((ev & HuntEvent.Caught) != 0) caughtUnseen++;
+                if (hunt.Phase == HuntPhase.Loose && (ev & HuntEvent.Loose) != 0) goneLoose++;
+                guard = 0;
+                while (hunt.Phase == HuntPhase.Loose && guard++ < 200) ev |= hunt.Tick(0.1f, inHall);   // the player keeps away from the doors
+                if ((ev & HuntEvent.Caught) != 0) caughtUnseen++;
                 if (hunt.Phase == HuntPhase.Behind && (ev & HuntEvent.AppearedBehind) != 0) followedBehind++;
             }
             Eq(caughtUnseen, 0, "timing out while the player is in the hallway is not a catch");
-            Check(followedBehind > 0, "...he comes up behind them instead, where the beam can answer him");
+            Check(goneLoose > 0, "...he gets loose instead: every door is a trap for a while");
+            Check(followedBehind > 0, "...and once the player has kept away from the doors he comes up behind them, where the beam can answer him");
 
             // he never jumps into the room being peeked: he goes to wait behind the player instead
             int enteredPeeked = 0, waiting = 0;
@@ -1025,54 +1173,79 @@ namespace Hollowbrook.LogicTests
             }
         }
 
-        // The log is graded against what really happened. Pure rules, plus the save and the night start.
+        // The log fills itself in and has one job: a single report. Pure rules, plus the save and the night start.
         private static void NightLogGradingTests()
         {
-            Group("Night log grading - compared with the night, explained only in the next night's note");
+            Group("Night log - the boxes fill themselves, one report is a second chance");
             var records = new List<NightRecord>
             {
                 new NightRecord { Name = "Liza May Ramos", WasAnomaly = false, Allowed = true, Why = "" },
                 new NightRecord { Name = "Paolo Garcia", WasAnomaly = true, Allowed = false, Why = "The ID expired on 2026-09-04." },
                 new NightRecord { Name = "Bea Dela Cruz", WasAnomaly = true, Allowed = true, Why = "The face at the window does not match the ID photo." },
             };
-            var right = NightLogRules.Check(new[] { 3, 2, 1 }, records, 1);
-            Check(right.Mistakes == 0 && right.SanityLoss == 0 && right.Right.All(r => r), "three right counts: no mistakes, no penalty");
-            Check(right.Note.Contains("matched"), "a matching log says so");
+            var boxes = NightLogRules.Boxes(records, 1);
+            Check(boxes[0] == 3 && boxes[1] == 1 && boxes[2] == 1, "the boxes: 3 came, 1 rejected, 1 incident (" + string.Join(",", boxes) + ")");
+            Check(NightLogRules.Boxes(new List<NightRecord>(), 0).All(n => n == 0), "an empty night has empty boxes");
+            var allAnomalies = new List<NightRecord> { new NightRecord { Name = "A", WasAnomaly = true, Allowed = true }, new NightRecord { Name = "B", WasAnomaly = true, Allowed = true } };
+            Eq(NightLogRules.Boxes(allAnomalies, 0)[1], 0, "the middle box counts what was rejected, never what was really an anomaly");
 
-            var wrong = NightLogRules.Check(new[] { 3, 1, 0 }, records, 1);
-            Eq(wrong.Mistakes, 2, "two wrong boxes");
-            Check(wrong.Right[0] && !wrong.Right[1] && !wrong.Right[2], "each box is judged on its own");
-            Eq(wrong.SanityLoss, 2 * NightLogRules.SanityLossPerMistake, "the penalty is per wrong box");
-            Check(wrong.Note.Contains("Anomalies detected: you wrote 1, there were 2") && wrong.Note.Contains("Paolo Garcia: The ID expired on 2026-09-04"),
-                "the note names the anomalies and what was wrong with them");
-            Check(wrong.Note.Contains("Security incidents: you wrote 0, there was 1") && wrong.Note.Contains("Penalty: 10 sanity"),
-                "the note names the incident count and the penalty");
-            Check(!wrong.Note.Contains("Student encounters"), "a right box is not mentioned");
-            Eq(NightLogRules.Check(null, records, 0).Mistakes, 2, "no counts at all means zeros: the encounters and anomalies are wrong");
-            Check(NightLogRules.Check(new[] { 0, 0, 0 }, new List<NightRecord>(), 0).Mistakes == 0, "an empty night with empty boxes is right");
+            Check(NightLogRules.CanReport(records, 0) && NightLogRules.CanReport(records, 2), "someone who was let in can be reported");
+            Check(!NightLogRules.CanReport(records, 1), "someone who was rejected cannot");
+            Check(!NightLogRules.CanReport(records, -1) && !NightLogRules.CanReport(records, 3), "nobody and nothing past the list can");
 
-            // session: signing, grading, the next night paying, saving
+            var none = NightLogRules.Resolve(records, -1);
+            Check(!none.Reported && !none.Cancels && none.SanityLoss == 0 && none.Note == "", "no report: nothing happens");
+            Check(!NightLogRules.Resolve(records, 1).Reported, "a report on a rejected person is ignored");
+            var right = NightLogRules.Resolve(records, 2);
+            Check(right.Reported && right.Cancels && right.SanityLoss == 0, "a right report cancels the anomaly and costs nothing");
+            Check(right.Note.Contains("Bea Dela Cruz") && right.Note.Contains("you were right") && right.Note.Contains("does not match the ID photo"),
+                "the note names them and what was wrong");
+            var wrong = NightLogRules.Resolve(records, 0);
+            Check(wrong.Reported && !wrong.Cancels && wrong.SanityLoss == NightLogRules.SanityLossPerWrongReport, "a wrong report costs sanity");
+            Check(wrong.Note.Contains("Liza May Ramos") && wrong.Note.Contains("real student") && wrong.Note.Contains("Penalty: 5 sanity"),
+                "the note says it was a real student and the penalty");
+
+            // session: one report at a time, settled at END SHIFT
             var s = new GameSession();
             foreach (var r in records) s.NightRecords.Add(r);
-            Check(!s.LogSigned, "a new log is unsigned");
-            s.SignLog();
-            Check(s.LogSigned, "signing signs");
-            s.ChangeLog(0, +1);
-            Check(!s.LogSigned, "changing a box takes the signature back");
-            s.ChangeLog(0, -1);
-            s.SignLog();
-            s.ChangeLog(0, 0);
-            Check(s.LogSigned, "a click that changes nothing keeps the signature");
-            var grade = s.GradeNight(1);
-            Check(s.PendingLogLoss == grade.SanityLoss && s.LogNote == grade.Note && grade.Mistakes == 3, "grading books the penalty and the note");
-            var back = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = s })).Session;
+            Eq(s.ReportedRecord, -1, "a new night has no report");
+            Check(!s.ToggleReport(1) && s.ReportedRecord == -1, "a rejected person cannot be reported in the session either");
+            Check(s.ToggleReport(0) && s.ReportedRecord == 0, "a click reports someone");
+            Check(s.ToggleReport(2) && s.ReportedRecord == 2, "reporting someone else moves the report: one at a time");
+            Check(!s.ToggleReport(2) && s.ReportedRecord == -1, "clicking the same name takes the report back");
+            s.ToggleReport(2);
+            var back0 = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = s })).Session;
+            Check(back0.ReportedRecord == 2 && back0.NightRecords.Count == 3, "the report survives a save");
+            var pointsNowhere = new GameSession();
+            pointsNowhere.NightRecords.Add(new NightRecord { Name = "A", Allowed = true });
+            pointsNowhere.ReportedRecord = 9;
+            Check(SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = pointsNowhere })).Session.ReportedRecord == -1,
+                "a report that points at nobody loads as no report");
+            s.ShiftBreaches = 2; s.Breaches = 5;
+            var settled = s.SettleReport();
+            Check(settled.Cancels && s.ShiftBreaches == 1 && s.Breaches == 4, "a right report takes one breach off the night and off the run");
+            Check(s.ReportedRecord == -1 && s.PendingLogLoss == 0 && s.LogNote == settled.Note, "it is settled once and the note is kept for the Rules sheet");
+            var lone = new GameSession();
+            foreach (var r in records) lone.NightRecords.Add(r);
+            lone.ToggleReport(2);
+            lone.SettleReport();
+            Check(lone.ShiftBreaches == 0 && lone.Breaches == 0, "breaches never go below zero");
+
+            var bad = new GameSession();
+            foreach (var r in records) bad.NightRecords.Add(r);
+            bad.ShiftBreaches = 1;
+            bad.ToggleReport(0);
+            bad.SettleReport();
+            Check(bad.PendingLogLoss == NightLogRules.SanityLossPerWrongReport && bad.ShiftBreaches == 1, "a wrong report books the penalty and cancels nothing");
+            var back = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = bad })).Session;
             Check(back.NightRecords.Count == 3 && back.NightRecords[1].Name == "Paolo Garcia" && back.NightRecords[1].WasAnomaly && !back.NightRecords[1].Allowed
                   && back.NightRecords[1].Why == "The ID expired on 2026-09-04.", "who came survives a save");
-            Check(back.LogSigned && back.PendingLogLoss == s.PendingLogLoss && back.LogNote == s.LogNote, "the signature, the penalty and the note survive a save");
-            s.Sanity = 90f;
-            s.BeginNight();
-            Check(Math.Abs(s.Sanity - (90f - grade.SanityLoss)) < 0.01f && s.PendingLogLoss == 0, "the next night pays the penalty once");
-            Check(s.NightRecords.Count == 0 && !s.LogSigned && s.LogNote == grade.Note, "a new night clears the list and the signature but keeps last night's note to read");
+            Check(back.PendingLogLoss == bad.PendingLogLoss && back.LogNote == bad.LogNote, "the penalty and the note survive a save");
+            bad.Sanity = 90f;
+            bad.BeginNight();
+            Check(Math.Abs(bad.Sanity - (90f - NightLogRules.SanityLossPerWrongReport)) < 0.01f && bad.PendingLogLoss == 0, "the next night pays the penalty once");
+            Check(bad.NightRecords.Count == 0 && bad.ReportedRecord == -1 && bad.LogNote.Contains("Liza May Ramos"),
+                "a new night clears the list and the report but keeps last night's note to read");
             var odd = new GameSession();
             odd.NightRecords.Add(new NightRecord { Name = "A|B^C", WasAnomaly = true, Allowed = true, Why = "x|y^z" });
             var oddBack = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = odd })).Session;
@@ -1219,23 +1392,20 @@ namespace Hollowbrook.LogicTests
 
         private static void NightLogTests()
         {
-            Group("Night security log - three hand counts, clamped, saved, cleared each night");
+            Group("Night security log - the report is empty at the start of a night and cleared by a retry");
             var s = new GameSession();
-            Check(s.LogCounts.Length == 3 && s.LogCounts[0] == 0 && s.LogCounts[1] == 0 && s.LogCounts[2] == 0, "a new session has three empty counts");
-            s.ChangeLog(0, +1); s.ChangeLog(0, +1); s.ChangeLog(2, +1);
-            Check(s.LogCounts[0] == 2 && s.LogCounts[1] == 0 && s.LogCounts[2] == 1, "each entry counts on its own");
-            for (int i = 0; i < 5; i++) s.ChangeLog(0, -1);
-            Check(s.LogCounts[0] == 0, "an entry never goes below zero");
-            for (int i = 0; i < 150; i++) s.ChangeLog(1, +1);
-            Check(s.LogCounts[1] == GameSession.LogMax, "an entry stops at " + GameSession.LogMax);
-            Check(s.ChangeLog(5, +1) == 0 && s.ChangeLog(-1, +1) == 0, "an entry that does not exist is ignored");
-            var back = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = s })).Session;
-            Check(back.LogCounts[0] == 0 && back.LogCounts[1] == GameSession.LogMax && back.LogCounts[2] == 1, "the counts survive a save and load");
+            Eq(s.ReportedRecord, -1, "a new session has no report");
+            Check(!s.ToggleReport(0), "with nobody at the window there is nobody to report");
             var fresh = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = new GameSession() })).Session;
-            Check(fresh.LogCounts.Length == 3 && fresh.LogCounts[0] + fresh.LogCounts[1] + fresh.LogCounts[2] == 0,
-                "an untouched log loads back empty");
+            Eq(fresh.ReportedRecord, -1, "an untouched log loads back with no report");
+            s.NightRecords.Add(new NightRecord { Name = "A", WasAnomaly = true, Allowed = true });
+            s.ToggleReport(0);
+            s.RewindNight();
+            Check(s.ReportedRecord == -1 && s.NightRecords.Count == 0, "a retried night starts without the report");
+            s.NightRecords.Add(new NightRecord { Name = "A", WasAnomaly = true, Allowed = true });
+            s.ToggleReport(0);
             s.BeginNight();
-            Check(s.LogCounts[1] == 0 && s.LogCounts[2] == 0, "a new night starts with a clean log");
+            Eq(s.ReportedRecord, -1, "a new night starts with no report");
         }
 
         private static void CreditsTests()
@@ -1416,6 +1586,7 @@ namespace Hollowbrook.LogicTests
                 prevLeft = h.SurviveLeft;
                 float limit = h.Phase == HuntPhase.InRoom ? tun.RoomSeconds
                     : h.Phase == HuntPhase.Behind ? tun.BehindSeconds
+                    : h.Phase == HuntPhase.Loose ? GameRules.Current.HuntLooseSeconds
                     : h.Phase == HuntPhase.Retreat ? tun.RetreatSeconds
                     : h.Phase == HuntPhase.Stalking ? tun.StalkMaxSeconds + GameRules.Current.HuntAmbushPatienceSeconds : float.MaxValue;
                 if (h.PhaseTimer > limit + dt + 0.01f) { seconds = t; catches = -2; return HuntPhase.Stalking; }
@@ -2185,10 +2356,9 @@ namespace Hollowbrook.LogicTests
             Check(blink.MoveSpeed == bt.BlinkSpeed && slide.MoveSpeed == bt.SlideSpeed &&
                   sprint.MoveSpeed == bt.SprintSpeed && hug.MoveSpeed == bt.CoverHugSpeed,
                 "each behavior moves at its own configured speed");
-            Check(sprint.DashSpeed > sprint.MoveSpeed, "Sprint's burst is faster than its patrol");
-            Check(sprint.TelegraphSeconds > 0f && blink.TelegraphSeconds == 0f && slide.TelegraphSeconds == 0f && hug.TelegraphSeconds == 0f,
-                "only Sprint has a windup telegraph - the reaction window is explicit");
-            Check(sprint.BeamInterruptsBurst && !blink.BeamInterruptsBurst, "only Sprint's windup is beam-interruptible");
+            Check(sprint.MoveSpeed > 3.4f && sprint.MoveSpeed * bt.BeamPace > blink.MoveSpeed,
+                "the crawler is always faster than a walking guard (3.4), and still fast under a beam");
+            Check(sprint.MoveSpeed * bt.BeamPace < 3.4f, "...but a beam on it brings it below the guard's walking speed");
             Check(blink.FreezesWhenObserved && !slide.FreezesWhenObserved && !sprint.FreezesWhenObserved && !hug.FreezesWhenObserved,
                 "only Blink freezes when observed");
             Check(hug.CeilingLurker && !blink.CeilingLurker && !slide.CeilingLurker && !sprint.CeilingLurker,
@@ -3299,7 +3469,7 @@ namespace Hollowbrook.LogicTests
                 Check(cr2[i].X == -cr1[i].X && cr2[i].FeetY == cr1[i].FeetY, "CR-2 is CR-1 mirrored, spot " + i);
 
             // perspective: the further back the feet, the smaller the figure, and full size at the front edge
-            foreach (var kind in new[] { PeekKind.Hood, PeekKind.Slide, PeekKind.Runner })
+            foreach (var kind in new[] { PeekKind.Hood, PeekKind.Slide })
             {
                 Check(Math.Abs(PeekSpots.HeightAt(kind, RoomId.Classroom1, PeekSpots.FrontFeetY) - PeekSpots.FrontHeight(kind)) < 1e-3f, kind + ": full size at the front edge");
                 Check(PeekSpots.HeightAt(kind, RoomId.Classroom1, -1.4f) < PeekSpots.HeightAt(kind, RoomId.Classroom1, -2.9f), kind + ": smaller further back");
@@ -3309,19 +3479,18 @@ namespace Hollowbrook.LogicTests
             Check(PeekSpots.FrontHeight(PeekKind.Hood) > 3.2f, "the hooded figure is bigger than the first version (3.2)");
 
             // what a room holds, and the night's rolls
-            int slides = 0, hangers = 0, hoods = 0, runners = 0, slidesInClassrooms = 0, hangersInClassrooms = 0;
+            int slides = 0, hangers = 0, hoods = 0, slidesInClassrooms = 0, hangersInClassrooms = 0;
             for (int seed = 1; seed <= 200; seed++)
                 for (int night = 1; night <= 4; night++)
                 {
                     var seen = new System.Collections.Generic.HashSet<PeekKind>();
                     for (int r = 0; r < 4; r++) seen.Add(PeekSpots.KindIn(seed, night, rooms[r]));
-                    Eq(seen.Count, 4, "the four rooms of a night hold four different kinds (seed " + seed + ", night " + night + ")");
+                    Eq(seen.Count, 3, "the four rooms of a night hold all three kinds (seed " + seed + ", night " + night + ")");
                     foreach (var room in rooms)
                     {
                         var kind = PeekSpots.KindIn(seed, night, room);
                         bool classroom = room == RoomId.Classroom1 || room == RoomId.Classroom2;
                         if (kind == PeekKind.Hood) hoods++;
-                        if (kind == PeekKind.Runner) runners++;
                         if (kind == PeekKind.Slide) { slides++; if (classroom) slidesInClassrooms++; }
                         if (kind == PeekKind.Coverhug) { hangers++; if (classroom) hangersInClassrooms++; }
                         int index = PeekSpots.SpotIndexIn(seed, night, room);
@@ -3330,7 +3499,8 @@ namespace Hollowbrook.LogicTests
                               && PeekSpots.SpotIndexIn(seed, night, room) == index, "the same night gives the same answers");
                     }
                 }
-            Check(slides > 200 && hangers > 200 && hoods > 200 && runners > 200, "every kind turns up (" + hoods + " / " + slides + " / " + hangers + " / " + runners + ")");
+            Check(slides > 200 && hangers > 200 && hoods > 200, "every kind turns up (" + hoods + " / " + slides + " / " + hangers + ")");
+            Check(!Enum.GetNames(typeof(PeekKind)).Contains("Runner"), "the crawler is not a peek kind: it only patrols");
             Check(slidesInClassrooms > 100 && hangersInClassrooms > 100, "the crouched one and the hanger also stand in classrooms (" + slidesInClassrooms + " / " + hangersInClassrooms + ")");
 
             // clearing speed: 2 seconds plain, 1.3 times faster with Focus, draining when the lamp leaves

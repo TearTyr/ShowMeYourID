@@ -59,9 +59,11 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | Change what the administrator says | `GameLogic/AdminTalk.cs` > `BuildScript` (plain text, copy a `Topic(...)` line) |
 | Change any rule number, a night or a student (their lines, even how they speak awkwardly) | `Resources/GameConfig.asset`, group **Game rules** (defaults in `GameLogic/GameRules.cs` and `GameRules.Tables.cs`) |
 | Tune night 5 (catches, seconds to dawn, door and lamp holds, seconds per lie) | `Resources/GameConfig.asset`, group **Administrator hunt** |
-| Tune night 6 (the Challenge). Now: 2 catches, 300 s dawn (180 s at least), stalks 1.5 to 3 s, 5 s to find him, lamp 2.6 s on his head, 3.2 s walk-up, beam 0.55 s on his face, sanity drains 2x, every swap wait times 0.6 | `Resources/GameConfig.asset`, group **Night 6**; `GameRules.cs` > `ChallengeDrainScale`, `Night6SwapScale` |
+| Tune night 6 (the Challenge). Now: 2 catches, 300 s dawn (180 s at least), stalks 1.5 to 3 s, 5 s to find him, lamp 2.6 s on his head, 1.8 s run-up, beam 0.55 s on his face, sanity drains 2x, every swap wait times 0.6 | `Resources/GameConfig.asset`, group **Night 6**; `GameRules.cs` > `ChallengeDrainScale`, `Night6SwapScale` |
 | His swaps (1 to 2 s after you step out of a peek, within 2 s after he is dealt with in the hallway, never into the room you peek, 5 s fair chance when you look into his room) | `GameRules.cs` > `HuntAmbushDelayMin/MaxSeconds`, `HuntSwapRetreatSeconds`, `HuntSwapAfterRepelSeconds`, `HuntFollowSeconds`; rules in `GameLogic/AdminHunt.cs` |
-| Change how he wanders in a room (speed, how far, how long he pauses) | `GameLogic/AdminHunt.cs` > `AdminHuntMotion`; how fast he walks up behind you: `World/AdminHuntDirector.cs` > `BehindStartDistance` |
+| How long every door is a catch when he was left in his room too long | `GameRules.cs` > `HuntLooseSeconds` (6) |
+| Change how he dodges the lamp on night 6 (circle size, speeds, how often he turns round) | `GameLogic/AdminHunt.cs` > `AdminHuntDodge` |
+| Change how he wanders in a room on night 5 (speed, how far, how long he pauses) | `GameLogic/AdminHunt.cs` > `AdminHuntMotion`; how fast he runs up behind you: `World/AdminHuntDirector.cs` > `BehindStartDistance` |
 | Give him a real picture | `char_admin.png` / `char_admin_glitch.png` come from the Director art (`Tools/prep_characters.py`); drop `char_admin_hunt.png` in `Resources/Art/` for a special hunt picture |
 | Add or change a student picture | put the busts in `Art/UI and Design Assets/Characters`, edit the list in `Tools/prep_characters.py`, run it, then add a row to the Students table in `GameRules.Tables.cs` |
 | Change the student ID card art | edit `Art/UI and Design Assets/ID/SMYI-ID.psd`, run `python Tools/prep_id_card.py` (needs `pip install psd-tools aggdraw pillow`); text positions are in `CheckpointView.Papers.cs` > `LayoutIdCard` |
@@ -73,6 +75,7 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | How often small wrong noises and lamp stutters happen on patrol | `Horror/HallucinationSystem.cs` > `TickDread` |
 | The peek lamp size | `World/PeekLight.cs` (`Radius`, `FocusRadius`) |
 | The figures in the peek rooms (where they stand, how big, how long the lamp must stay on them, the black, the fade back) | `GameLogic/PeekSpots.cs`, `World/PeekAnomaly.cs`, `GameConfig.asset` > `peekClearSeconds` |
+| How fast the crawler runs (it never slows down except under a beam) | `GameConfig.asset` > `anomalySpeedSprint` (4.5) |
 | How much a plain flashlight beam slows a patrol anomaly | `GameConfig.asset` > `beamPace` (0.5 = half speed) |
 | How a repelled hallway anomaly leaves (how fast it runs backwards, how long it must be seen, the timeout) | `GameConfig.asset` > `anomalyRetreatSpeed`, `repelBeatSeconds`, `repelRetreatMaxSeconds`; it is only removed once it is off screen (`Horror/WanderingAnomaly.cs` > `HasLeftScreen`) |
 | Turn the (parked) Night 1 tutorial back on | `GameLogic/TutorialSteps.cs` > `Enabled` (set it to `true`, then playtest) |
@@ -80,8 +83,8 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | Lockdown (seconds per face, mistakes allowed, arrival speed, who comes) | `GameLogic/Lockdown.cs` (`LockdownRules`), the night row `LockdownNight` in `GameRules.Tables.cs` |
 | How big the main menu buttons are | `UI/MainMenuView.cs` > `MenuScale` |
 | The secret unlock code and what it opens (Night 6, then Lockdown) | `GameLogic/UnlockCodeReader.cs` (the code), `Core/GameRoot.Unlocks.cs` (what it opens) |
-| How far away the Principal starts when he walks up behind you, and how long he takes | `World/AdminHuntDirector.cs` > `BehindStartDistance`, `GameConfig.asset` > `huntBehindSeconds` |
-| What a wrong Security Log box costs, and what the Rules sheet says about it | `GameLogic/NightLog.cs` (`SanityLossPerMistake`) |
+| How far away the Principal starts when he runs up behind you, and how long he takes to run up (2.8 s night 5, 1.8 s night 6) | `World/AdminHuntDirector.cs` > `BehindStartDistance`, `GameConfigSO.cs` > `huntBehindSeconds`, `night6BehindSeconds` |
+| What a wrong Security Log report costs, and what the Rules sheet says about it | `GameLogic/NightLog.cs` (`SanityLossPerWrongReport`) |
 | How big the sliding anomaly is and where it sits on the floor | `GameLogic/AnomalyBehaviorRules.cs` (`GroundCentreY`), `FilePpus` in `Generated/ProceduralArt.cs` |
 | Night 6 (the Challenge): his questions, how hard the hunt is | `GameLogic/AdminTalk.cs` (`n6_hub`), `GameConfig.asset` group **Night 6** |
 | The ten findings (the token is number 7) | `GameLogic/ClueRegistry.cs`, `World/RoomBuilder.cs` |

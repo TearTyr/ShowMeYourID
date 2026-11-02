@@ -57,6 +57,9 @@ namespace Hollowbrook.Horror
         /// <summary>The Principal caught the player: his glitched face zooms up the same way.</summary>
         public void CaptureAdmin() => CaptureWith(FaceAssets.AdminWindowKey);
 
+        /// <summary>Anything else that jumps the player (a figure waiting behind a door): its picture, by art key.</summary>
+        public void CaptureArt(string artKey) => CaptureWith(artKey);
+
         private void CaptureWith(string artKey)
         {
             if (Time.unscaledTime < _cooldownUntil) return;

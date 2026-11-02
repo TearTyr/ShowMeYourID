@@ -48,7 +48,7 @@ namespace Hollowbrook.Scenes
                 // high, so 129 px per unit keeps him the same size
                 { "char_hood", 190f },      // the hooded figure: 608 px tall = 3.2 units, feet on the floor
                 { "char_anomaly", 247f },   // 3.0 units tall (BehaviorProfile.CrouchedHeight): the crouched thing, centre height 1.5 (GroundCentreY)
-                { "char_anomaly_sprint_a", 63f }, { "char_anomaly_sprint_b", 63f }, { "char_anomaly_sprint_c", 63f },   // 282x158 px: 4.5 wide, 2.5 tall
+                { "char_anomaly_sprint_a", 79f }, { "char_anomaly_sprint_b", 79f }, { "char_anomaly_sprint_c", 79f },   // 282x158 px: 3.6 wide, 2.0 tall
                 { "char_anomaly_coverhug", 50f },   // 231x95 px: 4.6 wide, 1.9 tall, hangs from the top of the screen
                 { "char_guard_idle", 129f }, { "char_guard_walk_a", 129f }, { "char_guard_walk_b", 129f },
                 // backdrops: the three screen wide hallway covers 30 units, a room 17.8 (the camera's

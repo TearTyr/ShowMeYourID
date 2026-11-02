@@ -16,7 +16,8 @@ namespace Hollowbrook.World
     // lamp dims a little more as the bar fills.
     // When the bar is full the lamp goes black, the figure is removed and the room counts as cleared, then the
     // room slowly fades back with nothing in it. From the black on, the lamp and stepping back are locked.
-    // It never attacks. Reduce Motion and Photosensitive keep a steadier, deeper dim.
+    // It never attacks in the room, but stepping out with it still standing makes that door a jumpscare the next time
+    // it opens (GameRoot.LeaveFigureBehind). Reduce Motion and Photosensitive keep a steadier, deeper dim.
     public class PeekAnomaly : MonoBehaviour
     {
         private enum Phase { Waiting, Charging, Black, FadeBack }
