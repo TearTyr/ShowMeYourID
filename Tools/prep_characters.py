@@ -10,7 +10,9 @@ relative to each other. Names the game expects:
   char_student_NN_scared.png   the same person, frightened (a scared visitor, student or anomaly)
   char_admin.png / char_admin_glitch.png   the Night-5 administrator (the Director)
   char_guard_idle.png, char_guard_walk_a.png, char_guard_walk_b.png   the player's three poses
-  char_anomaly.png   the roaming anomaly (Slide_Anomaly/Anomaly_Slide.png, cropped to its drawing)
+  char_anomaly.png   the crouched anomaly (Slide_Anomaly/Anomaly_Slide.png, cropped to its drawing), Blink and Slide
+  char_anomaly_sprint_a/b/c.png   the running anomaly's three frames (Runner_Anomaly/Anomaly_Sprint1-3.png)
+  char_anomaly_coverhug.png   the one that hangs upside down from the ceiling (Anomaly_Coverhug)
   char_hood.png      the hooded figure standing in the peek rooms (Hood_Figure_/Hood_Figure.png)
 Re-run whenever the art changes. New .png files still need a .meta (Tools/generate_meta.py).
 """
@@ -68,6 +70,22 @@ def prep_guard():
         im.crop(box).save(os.path.join(STAFF_DST, name + ".png"))
 
 
+def prep_anomalies():
+    """The patrol anomalies, all in Characters/Anomalies. The three Sprint frames share one crop box so the
+    legs and the body stay where the artist drew them from frame to frame. The Coverhug art is cut off at
+    its top edge on purpose: it hangs from the top of the screen, so that edge is the ceiling."""
+    slide = load("Slide_Anomaly/Anomaly_Slide.png")
+    slide.crop(bbox(slide)).save(os.path.join(ANOMALY_DST, "char_anomaly.png"))
+    frames = [load("Runner_Anomaly/Anomaly_Sprint%d.png" % n) for n in (1, 2, 3)]
+    boxes = [bbox(f) for f in frames]
+    box = (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes))
+    for f, name in zip(frames, ("char_anomaly_sprint_a", "char_anomaly_sprint_b", "char_anomaly_sprint_c")):
+        f.crop(box).save(os.path.join(ANOMALY_DST, name + ".png"))
+    hug = load("Anomaly_Coverhug/Anomaly_Coverhug.png")
+    hug.crop(bbox(hug)).save(os.path.join(ANOMALY_DST, "char_anomaly_coverhug.png"))
+    print("anomalies: sprint crop", box, "coverhug", bbox(hug))
+
+
 def prep_hood():
     """The hooded figure is a small silhouette (90x152 px), so it is cropped to its drawing and
     enlarged 4x with a smooth filter: the game then draws it about 3.2 units tall without
@@ -81,6 +99,7 @@ def prep_hood():
 
 def main():
     prep_hood()
+    prep_anomalies()
     pairs = list(STUDENTS) + [ADMIN]
     crops = {}
     for pair in pairs:

@@ -1944,14 +1944,26 @@ namespace Hollowbrook.LogicTests
             Check(blink.CatchGraceSeconds == bt.CatchGraceBlink && slide.CatchGraceSeconds == bt.CatchGraceSlide &&
                   sprint.CatchGraceSeconds == bt.CatchGraceSprint && hug.CatchGraceSeconds == bt.CatchGraceCoverHug,
                 "catch windups are per-behavior - no shared coverHug-named constant");
-            Check(Math.Abs(hug.SpawnY - 4.4f) < 1e-3f && hug.SpawnY >= hug.MinY && hug.SpawnY <= hug.MaxY,
+            Check(Math.Abs(hug.SpawnY - BehaviorProfile.HangerCentreY) < 1e-3f && hug.SpawnY >= hug.MinY && hug.SpawnY <= hug.MaxY,
                 "CoverHug spawns INSIDE its own clamp band (no contradictory coordinates)");
-            Check(Math.Abs(blink.SpawnY - BehaviorProfile.GroundCentreY) < 1e-3f && slide.SpawnY == blink.SpawnY && sprint.SpawnY == blink.SpawnY,
-                  "ground anomalies sit low: their small body stands on the floor line");
-            Check(BehaviorProfile.GroundCentreY < 1.2f, "...a crouched thing, not a giant (the old body was 2.4 high)");
-            Check(hug.MinY > blink.MaxY, "the ceiling band sits above the ground walkers");
-            Check(blink.MinY == blink.MaxY && slide.MinY == slide.MaxY && sprint.MinY == sprint.MaxY,
-                "ground walkers stay on the floor line");
+            Check(Math.Abs(hug.SpawnY + BehaviorProfile.HangerHeight * 0.5f - BehaviorProfile.TopOfScreenY) < 1e-3f,
+                "CoverHug hangs from the top of the screen: its top edge is the ceiling");
+            Check(Math.Abs(blink.SpawnY - BehaviorProfile.GroundCentreY) < 1e-3f && slide.SpawnY == blink.SpawnY,
+                  "Blink and Slide stand on the floor line");
+            Check(Math.Abs(BehaviorProfile.GroundCentreY * 2f - BehaviorProfile.CrouchedHeight) < 1e-3f, "...their centre is half their height");
+            Check(Math.Abs(sprint.SpawnY - BehaviorProfile.RunnerFloorY) < 1e-3f && Math.Abs(sprint.MinY - BehaviorProfile.RunnerFloorY) < 1e-3f
+                  && Math.Abs(sprint.MaxY - BehaviorProfile.RunnerCeilingY) < 1e-3f,
+                "the runner may be on the floor or on the ceiling: its band spans both");
+            Check(Math.Abs(BehaviorProfile.RunnerCeilingY + BehaviorProfile.RunnerHeight * 0.5f - BehaviorProfile.TopOfScreenY) < 1e-3f,
+                "...on the ceiling its back touches the top of the screen");
+            Check(hug.MinY > blink.MaxY && hug.MinY > sprint.MinY, "the ceiling band sits above the ground walkers");
+            Check(blink.MinY == blink.MaxY && slide.MinY == slide.MaxY && hug.MinY == hug.MaxY,
+                "Blink, Slide and CoverHug stay at their one height");
+            Eq(BehaviorProfile.ArtKey(AnomalyBehaviorKind.Sprint), "char_anomaly_sprint_a", "the runner has its own drawing");
+            Eq(BehaviorProfile.ArtKey(AnomalyBehaviorKind.CoverHug), "char_anomaly_coverhug", "the hanger has its own drawing");
+            Eq(BehaviorProfile.ArtKey(AnomalyBehaviorKind.Blink) + BehaviorProfile.ArtKey(AnomalyBehaviorKind.Slide), "char_anomalychar_anomaly", "Blink and Slide share the crouched body");
+            Eq(BehaviorProfile.NearestDoorX(0.9f), 0.4f, "the hanger finds the nearest door");
+            Eq(BehaviorProfile.NearestDoorX(-50f), -13.8f, "...even far away");
             Check(bt.RetreatSpeed > blink.MoveSpeed && bt.RetreatSpeed > hug.MoveSpeed, "a repelled anomaly withdraws faster than it stalks");
             var customB = bt; customB.CatchGraceCoverHug = 5f;
             Eq(BehaviorProfile.For(AnomalyBehaviorKind.CoverHug, customB).CatchGraceSeconds, 5f, "CoverHug grace is tunable on its own");

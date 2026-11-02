@@ -46,9 +46,42 @@ namespace Hollowbrook.Logic
     /// floor line (world y = floorY + offset), so spawn and clamp bands can never contradict.</summary>
     public struct BehaviorProfile
     {
-        /// <summary>Height of a ground anomaly's centre above the floor line. Its art is 1.9 units
-        /// tall (ProceduralArt FilePpus), so half of that puts its feet on the floor.</summary>
-        public const float GroundCentreY = 0.95f;
+        /// <summary>The picture key of an anomaly kind. Blink and Slide share the crouched body.</summary>
+        public static string ArtKey(AnomalyBehaviorKind kind)
+        {
+            switch (kind)
+            {
+                case AnomalyBehaviorKind.Sprint: return "char_anomaly_sprint_a";
+                case AnomalyBehaviorKind.CoverHug: return "char_anomaly_coverhug";
+                default: return "char_anomaly";
+            }
+        }
+
+        /// <summary>Where the hallway doors are along its length (FloorPlan HallX). The ceiling hanger drifts above them.</summary>
+        public static readonly float[] DoorXs = { -13.8f, -8.8f, 0.4f, 8.6f, 11.0f, 13.3f };
+
+        public static float NearestDoorX(float x)
+        {
+            float best = DoorXs[0];
+            foreach (float d in DoorXs)
+                if (System.Math.Abs(d - x) < System.Math.Abs(best - x)) best = d;
+            return best;
+        }
+
+        // How tall each drawing is on screen, in world units (the picture sizes are set in ProceduralArt FilePpus).
+        public const float CrouchedHeight = 3.0f;   // Blink and Slide: the crouched thing, a bit more than the guard
+        public const float RunnerHeight = 2.5f;     // Sprint: the four legged runner (it is about 4.5 wide)
+        public const float HangerHeight = 1.9f;     // CoverHug: it hangs from the ceiling (about 4.6 wide)
+
+        /// <summary>The top of the screen, as a height above the floor line: the camera shows 5 units above its
+        /// middle and the floor line sits 3.1 below the middle. The hallway ceiling is up there.</summary>
+        public const float TopOfScreenY = 8.1f;
+
+        /// <summary>Height of a crouched anomaly's centre above the floor line: half its height puts its feet on the floor.</summary>
+        public const float GroundCentreY = CrouchedHeight * 0.5f;
+        public const float RunnerFloorY = RunnerHeight * 0.5f;                  // the runner on the floor
+        public const float RunnerCeilingY = TopOfScreenY - RunnerHeight * 0.5f; // the runner upside down on the ceiling
+        public const float HangerCentreY = TopOfScreenY - HangerHeight * 0.5f;  // hangs from the top edge of the screen
 
         public float MoveSpeed;
         public float SpawnY;              // floor-relative spawn height
@@ -90,7 +123,7 @@ namespace Hollowbrook.Logic
                     break;
                 case AnomalyBehaviorKind.Sprint:
                     p.MoveSpeed = t.SprintSpeed;
-                    p.SpawnY = GroundCentreY; p.MinY = GroundCentreY; p.MaxY = GroundCentreY;
+                    p.SpawnY = RunnerFloorY; p.MinY = RunnerFloorY; p.MaxY = RunnerCeilingY;   // the floor or the ceiling
                     p.CatchGraceSeconds = t.CatchGraceSprint;
                     p.TelegraphSeconds = t.SprintTelegraphSeconds;
                     p.DashSpeed = t.SprintDashSpeed;
@@ -100,7 +133,7 @@ namespace Hollowbrook.Logic
                     break;
                 default: // CoverHug - ceiling lurker; spawn inside its own band, never clamped out
                     p.MoveSpeed = t.CoverHugSpeed;
-                    p.SpawnY = 4.4f; p.MinY = 3.6f; p.MaxY = 4.6f;
+                    p.SpawnY = HangerCentreY; p.MinY = HangerCentreY; p.MaxY = HangerCentreY;
                     p.CatchGraceSeconds = t.CatchGraceCoverHug;
                     p.CeilingLurker = true;
                     break;

@@ -3611,16 +3611,40 @@ namespace FlowCheck
             }
             views.Spawner.DiscardLive();
 
+            // Sprint: on the floor or upside down on the ceiling, rolled once per spawn
+            int onFloor = 0, upsideDown = 0;
+            for (int n = 0; n < 16; n++)
+            {
+                var run = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Sprint);
+                if (run == null) break;
+                if (run.OnCeiling)
+                {
+                    upsideDown++;
+                    Check(Mathf.Abs(run.Pos.y - (RoomInstance.FloorY + BehaviorProfile.RunnerCeilingY)) < 1e-3f && run.Renderer.flipY,
+                        "W6: a ceiling runner is upside down at the top of the screen");
+                }
+                else
+                {
+                    onFloor++;
+                    Check(Mathf.Abs(run.Pos.y - (RoomInstance.FloorY + BehaviorProfile.RunnerFloorY)) < 1e-3f && !run.Renderer.flipY,
+                        "W6: a floor runner stands on the floor line, the right way up");
+                }
+                views.Spawner.DiscardLive();
+            }
+            Check(onFloor > 0 && upsideDown > 0, $"W6: the runner is sometimes on the floor and sometimes on the ceiling ({onFloor} / {upsideDown})");
+
             // CoverHug: ceiling band is spawn AND clamp; only Focus identifies it
             var hug = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.CoverHug);
             Check(hug != null, "W6: CoverHug spawns");
             if (hug != null)
             {
                 float floorY = RoomInstance.FloorY;
-                Check(hug.Pos.y >= floorY + 3.6f - 1e-3f && hug.Pos.y <= floorY + 4.6f + 1e-3f,
+                Check(Mathf.Abs(hug.Pos.y - (floorY + BehaviorProfile.HangerCentreY)) < 1e-3f,
                     $"W6: CoverHug spawns inside its ceiling band (y={hug.Pos.y:F2})");
+                Check(System.Array.Exists(BehaviorProfile.DoorXs, d => Mathf.Abs(d - hug.Pos.x) < 0.05f),
+                    $"W6: CoverHug starts right above a door (x={hug.Pos.x:F2})");
                 WorldFrames(root, 150);
-                Check(!hug.Gone && hug.Pos.y >= floorY + 3.6f - 1e-3f && hug.Pos.y <= floorY + 4.6f + 1e-3f,
+                Check(!hug.Gone && Mathf.Abs(hug.Pos.y - (floorY + BehaviorProfile.HangerCentreY)) < 1e-3f,
                     $"W6: CoverHug stays on the ceiling - no contradictory clamp drags it down (y={hug.Pos.y:F2})");
                 views.Player.PlaceInRoom(hall, new Vector3(Mathf.Clamp(hug.Pos.x - 3f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), 0f, 0f));
                 SetBeam(root, rig, LightMode.Sweep);

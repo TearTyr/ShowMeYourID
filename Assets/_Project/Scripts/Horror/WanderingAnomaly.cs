@@ -83,11 +83,13 @@ namespace Hollowbrook.Horror
             };
 
             _sr = gameObject.AddComponent<SpriteRenderer>();
-            _sr.sprite = ProceduralArt.Get("char_anomaly");   // one body for now, behaviours differ
+            _sr.sprite = ProceduralArt.Get(BehaviorProfile.ArtKey(kind));
+            if (kind == AnomalyBehaviorKind.Sprint) LoadRunFrames();
             _sr.sortingOrder = 40; // under the darkness overlay => silhouette in dim light
 
             // spawn INSIDE the behavior's own vertical band - no contradictory coordinates
-            transform.localPosition = new Vector3(spawn.x, RoomInstance.FloorY + _profile.SpawnY, 0);
+            float startX = kind == AnomalyBehaviorKind.CoverHug ? BehaviorProfile.NearestDoorX(spawn.x) : spawn.x;   // the hanger starts above a door
+            transform.localPosition = new Vector3(startX, RoomInstance.FloorY + _profile.SpawnY, 0);
             _lastX = spawn.x;
             _lifetime = hallucination ? GameRules.Current.PhantomLifetimeSeconds : GameRules.Current.AnomalyLifetimeSeconds;
             PickWanderTarget(PlayerPos());
@@ -173,6 +175,7 @@ namespace Hollowbrook.Horror
             }
             MoveBehavior(dt, views, sameRoom, active);
             FaceTheWayItMoves();
+            AnimateRun(dt);
             TickVisibility(views, sameRoom);
             if (active) ProximityEffects(dt, views);
         }
@@ -334,7 +337,42 @@ namespace Hollowbrook.Horror
 
         /// <summary>The spawner hands each anomaly a seed derived from the run rng, so
         /// wander targets and retreat sides replay identically for the same run.</summary>
-        public void SeedMovement(int seed) => _moveRng = new GameRng(seed);
+        public void SeedMovement(int seed)
+        {
+            _moveRng = new GameRng(seed);
+            // the runner is on the floor or upside down on the ceiling, rolled once per spawn
+            if (Kind == AnomalyBehaviorKind.Sprint && !IsHallucination && _moveRng.Chance(0.5f)) RunOnCeiling();
+        }
+
+        public bool OnCeiling { get; private set; }
+
+        private void RunOnCeiling()
+        {
+            OnCeiling = true;
+            var p = transform.localPosition;
+            p.y = RoomInstance.FloorY + _profile.MaxY;
+            transform.localPosition = p;
+            _sr.flipY = true;
+        }
+
+        // The runner is three drawn frames: slow steps on patrol, fast on the dash, held still while it winds up.
+        private Sprite[] _runFrames;
+        private float _frameClock;
+
+        private void LoadRunFrames()
+        {
+            _runFrames = new[] { ProceduralArt.Get("char_anomaly_sprint_a"), ProceduralArt.Get("char_anomaly_sprint_b"), ProceduralArt.Get("char_anomaly_sprint_c") };
+        }
+
+        private void AnimateRun(float dt)
+        {
+            if (_runFrames == null || _sr == null) return;
+            float fps = 5f;
+            if (_dashTimer > 0f) fps = 14f;
+            else if (_telegraph >= 0f || _dashRecover > 0f) fps = 0f;
+            _frameClock += fps * dt;
+            _sr.sprite = _runFrames[(int)_frameClock % _runFrames.Length];
+        }
 
         private void BeginRetreat(ViewManager views)
         {
@@ -459,9 +497,20 @@ namespace Hollowbrook.Horror
 
         private void PickWanderTarget(Vector3 player)
         {
+            if (Kind == AnomalyBehaviorKind.CoverHug) { PickDoorTarget(); return; }
             float half = _room != null ? _room.HalfWidth : 10f;
             _targetX = -half + 1f + MoveRng.NextFloat() * Mathf.Max(0.1f, (half - 1f) * 2f);
             if (Mathf.Abs(_targetX - player.x) < 2f) _targetX = -_targetX;
+        }
+
+        // The ceiling hanger drifts from door to door along the top of the hallway.
+        private void PickDoorTarget()
+        {
+            float here = transform.localPosition.x;
+            float door = here;
+            for (int tries = 0; tries < 6 && Mathf.Abs(door - here) < 1f; tries++)
+                door = BehaviorProfile.DoorXs[MoveRng.NextInt(0, BehaviorProfile.DoorXs.Length)];
+            _targetX = door;
         }
 
         private void PickSlideTarget(Vector3 player, bool stalking)
@@ -478,10 +527,16 @@ namespace Hollowbrook.Horror
         private void ShowFace()
         {
             if (_faceGo != null) { _faceGo.SetActive(true); return; }
+            // where the head is in each drawing, and how big the shown face is
+            var head = new Vector2(0.3f, 1.2f);   // the crouched thing: its bowed head
+            float size = 0.87f;
+            if (Kind == AnomalyBehaviorKind.Sprint) { head = new Vector2(1.7f, OnCeiling ? -0.45f : 0.45f); size = 0.7f; }
+            else if (Kind == AnomalyBehaviorKind.CoverHug) { head = new Vector2(-0.3f, -0.55f); size = 0.6f; }
+            if (_sr.flipX) head.x = -head.x;
             _faceGo = new GameObject("ExposedFace");
             _faceGo.transform.SetParent(transform, false);
-            _faceGo.transform.localPosition = new Vector3(0.2f, 0.75f, -0.1f);   // over the bowed head
-            _faceGo.transform.localScale = new Vector3(0.55f, 0.55f, 1f);
+            _faceGo.transform.localPosition = new Vector3(head.x, head.y, -0.1f);
+            _faceGo.transform.localScale = new Vector3(size, size, 1f);
             _face = _faceGo.AddComponent<SpriteRenderer>();
             _face.sprite = ProceduralArt.Portrait("anom",
                 new Portrait { HairStyle = 2, FaceVariant = 4, Accessory = 0, Distorted = true }, 96, 120);
