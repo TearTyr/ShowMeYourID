@@ -65,6 +65,9 @@ namespace Hollowbrook.LogicTests
             HallwayDarknessTests();
             FaceTruthTests();
             FaceAssetMappingTests();
+            ScaredVisitorTests();
+            StudentRecordTests();
+            PeekFigureTests();
             QueueBusyHurryTests();
             PatrolCycleTests();
             QueueInvariantTests();
@@ -78,6 +81,7 @@ namespace Hollowbrook.LogicTests
             AdminRosterSuite();
             SlipFairnessTests();
             NightLogTests();
+            NightLogGradingTests();
             CultureRoundTripTests();
             ResumeReplayTests();
 
@@ -97,28 +101,28 @@ namespace Hollowbrook.LogicTests
         // ------------------------------------------------------------------ IDs
         private static void IdRulesTests()
         {
-            Group("IdRules - HB-YYYY-NNNN format");
-            Check(IdRules.IsFormatValid("HB-2026-0001"), "valid id accepted");
-            Check(IdRules.IsFormatValid("HB-2023-9999"), "earliest/latest year+serial accepted");
-            Check(!IdRules.IsFormatValid("HB-2022-0001"), "year before 2023 rejected");
-            Check(!IdRules.IsFormatValid("HB-2028-0001"), "year after 2027 rejected");
-            Check(!IdRules.IsFormatValid("HB-2026-0000"), "serial 0000 rejected");
-            Check(!IdRules.IsFormatValid("hb-2026-0001"), "lowercase prefix rejected");
-            Check(!IdRules.IsFormatValid("XX-2026-0001"), "wrong prefix rejected");
-            Check(!IdRules.IsFormatValid("HB-20260001"), "missing second dash rejected");
-            Check(!IdRules.IsFormatValid("HB-20A6-0001"), "non-digit year rejected");
-            Check(!IdRules.IsFormatValid("HB-2026-001"), "too short rejected");
-            Check(!IdRules.IsFormatValid("HB-2026-00001"), "too long rejected");
+            Group("IdRules - HB-YYYY-NNN format");
+            Check(IdRules.IsFormatValid("HB-2026-001"), "valid id accepted");
+            Check(IdRules.IsFormatValid("HB-2023-999") && IdRules.IsFormatValid("HB-1999-001") && IdRules.IsFormatValid("HB-2001-129"), "student, professor and staff years accepted");
+            Check(!IdRules.IsFormatValid("HB-1989-001"), "year before 1990 rejected");
+            Check(!IdRules.IsFormatValid("HB-2028-001"), "year after 2027 rejected");
+            Check(!IdRules.IsFormatValid("HB-2026-000"), "serial 000 rejected");
+            Check(!IdRules.IsFormatValid("hb-2026-001"), "lowercase prefix rejected");
+            Check(!IdRules.IsFormatValid("XX-2026-001"), "wrong prefix rejected");
+            Check(!IdRules.IsFormatValid("HB-2026001"), "missing second dash rejected");
+            Check(!IdRules.IsFormatValid("HB-20A6-001"), "non-digit year rejected");
+            Check(!IdRules.IsFormatValid("HB-2026-01"), "too short rejected");
+            Check(!IdRules.IsFormatValid("HB-2026-0001"), "the old four digit serial is too long now");
             Check(!IdRules.IsFormatValid(""), "empty rejected");
             Check(!IdRules.IsFormatValid(null), "null rejected");
-            Eq(IdRules.SerialOf("HB-2026-0147"), 147, "SerialOf");
+            Eq(IdRules.SerialOf("HB-2026-147"), 147, "SerialOf");
             Eq(IdRules.SerialOf("DA-0233"), -1, "SerialOf on invalid id is -1");
             Eq(IdRules.Prefix, "HB-", "prefix constant");
 
-            var registry = new HashSet<string> { "HB-2026-0001" };
-            Check(IdRules.DatabaseLookup("HB-2026-0001", registry), "registry hit");
-            Check(!IdRules.DatabaseLookup("HB-2026-0002", registry), "registry miss");
-            Check(!IdRules.DatabaseLookup("HB-2026-0001", null), "null registry is a miss, not a crash");
+            var registry = new HashSet<string> { "HB-2026-001" };
+            Check(IdRules.DatabaseLookup("HB-2026-001", registry), "registry hit");
+            Check(!IdRules.DatabaseLookup("HB-2026-002", registry), "registry miss");
+            Check(!IdRules.DatabaseLookup("HB-2026-001", null), "null registry is a miss, not a crash");
         }
 
         // -------------------------------------------------------------- content
@@ -131,9 +135,9 @@ namespace Hollowbrook.LogicTests
             Eq(roster.Select(s => s.FullName).Distinct().Count(), roster.Count, "roster names unique");
             Eq(roster.Select(s => s.IdNumber).Distinct().Count(), roster.Count, "roster IDs unique");
             Check(roster.All(s => IdRules.IsFormatValid(s.IdNumber)), "every canon ID is format-valid");
-            Check(roster.All(s => s.YearLevel >= 1 && s.YearLevel <= 4), "year levels in 1..4");
+            Check(roster.All(s => s.YearLevel >= 1 && s.YearLevel <= 5 && (s.YearLevel == 5) == s.IsFaculty), "year levels 1..4 for students, 5 only for the professor");
             Check(roster.All(s => s.CourseIndex >= 0 && s.CourseIndex < Content.Courses.Length), "course indices in range");
-            Check(Content.Courses.Length > 0 && Content.YearNames.Length == 4, "course/year pools populated");
+            Check(Content.Courses.Length > 0 && Content.YearNames.Length == 5, "course/year pools populated");
             // day-number mapping must be strictly monotonic ACROSS THE WINDOW THE GAME
             // ACTUALLY GENERATES (Jun 2026 .. Mar 2027). The model uses 30-day months, so
             // it is only an approximation: 2026-12-31 and 2027-01-01 both map to 1060.
@@ -443,7 +447,7 @@ namespace Hollowbrook.LogicTests
                 r.AwkwardSpeechChance = 0f;
                 Check(new RosterFactory(1).GenerateShift(ShiftPlan.Get(5)).All(v => !v.SpeaksAwkwardly), "awkward chance 0: nobody");
                 r.AwkwardSpeechChance = 1f;
-                Check(new RosterFactory(1).GenerateShift(ShiftPlan.Get(5)).Where(v => v.IsAnomaly).All(v => v.SpeaksAwkwardly), "awkward chance 1: every anomaly");
+                Check(new RosterFactory(1).GenerateShift(ShiftPlan.Get(5)).Where(v => v.IsAnomaly && !v.IsScared).All(v => v.SpeaksAwkwardly), "awkward chance 1: every anomaly that is not scared (scared ones use the shared shaken words)");
 
                 r.RandomSeed = false; r.FixedSeed = 12345;
                 Eq(r.NewRunSeed(), 12345, "seed mode Fixed uses the number from the rules");
@@ -642,7 +646,7 @@ namespace Hollowbrook.LogicTests
 
             AdminTalkContext Fresh() => new AdminTalkContext
             {
-                BadgeName = "V. Marlowe", MemoName = "R. Vance", BadgeNumber = "DA-0233", MemoNumber = "DA-1147",
+                BadgeName = "V. Marlowe", MemoName = "R. Vance", BadgeNumber = "HB-1999-010", MemoNumber = "HB-1999-001",
                 AnswerClassroom = "My first stop is your server room.",
             };
 
@@ -878,7 +882,7 @@ namespace Hollowbrook.LogicTests
             var rf = new RosterFactory(7);
             var admin = rf.BuildAdministrator(ShiftPlan.Get(5));
             Check(admin.IsAdministrator && admin.IsAnomaly, "administrator is flagged as both admin and anomaly");
-            Check(!IdRules.IsFormatValid(admin.IdNumber), "staff badge is not a student ID format");
+            Check(admin.IdNumber != admin.RecordIdNumber, "badge number differs from the number on the memo");
             Check(!IdRules.DatabaseLookup(admin.IdNumber, rf.Registry), "badge number is not in the student registry");
             Check(admin.ClaimedName != admin.RecordName, "badge name differs from the roster memo");
             Check(admin.IdNumber != admin.RecordIdNumber, "badge number differs from the roster memo");
@@ -893,12 +897,19 @@ namespace Hollowbrook.LogicTests
             Check(rejected.Correct && !rejected.AnomalyBreach, "rejecting the administrator is correct");
         }
 
-        // ---------------------------------------------------- classroom question
+        // The words this visitor uses: a scared visitor the shared shaken words, an awkward anomaly its own
+        // student's awkward lines, everybody else plain speech (null).
+        private static AwkwardSpeech SpeechOf(VisitorData v)
+        {
+            if (v.IsScared) return Content.ScaredSpeech;
+            return v.SpeaksAwkwardly ? GameRules.Current.Students[v.FaceAssetIndex].Awkward : null;
+        }
+
         // "Rooms the file would say": the answer is "Room 202, Genetics." and the file prints
         // "Room 202 · Genetics" - the same room and class, spelled for a different reader.
         private static bool AnswerMatchesFile(VisitorData v)
         {
-            var awkward = v.SpeaksAwkwardly ? GameRules.Current.Students[v.FaceAssetIndex].Awkward : null;
+            var awkward = SpeechOf(v);
             string plain = v.RecordFirstClassroom.Replace(" · ", ", ") + ".";
             return v.ClassroomAnswer == InterviewRules.ClassroomSpeech(plain, awkward);
         }
@@ -914,14 +925,68 @@ namespace Hollowbrook.LogicTests
         // says the card's fact in its own student's awkward lines.
         private static string CardSpeech(VisitorData v, QuestionId q)
         {
-            var awkward = v.SpeaksAwkwardly ? GameRules.Current.Students[v.FaceAssetIndex].Awkward : null;
+            var awkward = SpeechOf(v);
             switch (q)
             {
                 case QuestionId.Course: return InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex], awkward);
                 case QuestionId.Year: return InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1], awkward);
-                case QuestionId.Status: return InterviewRules.StatusSpeech(v.IdIsTransferee, awkward);
+                case QuestionId.Status: return InterviewRules.StatusSpeech(Content.StatusWord(v.IdIsTransferee, v.IsFaculty), awkward);
                 default: return v.ClassroomAnswer;
             }
+        }
+
+        // The log is graded against what really happened. Pure rules, plus the save and the night start.
+        private static void NightLogGradingTests()
+        {
+            Group("Night log grading - compared with the night, explained only in the next night's note");
+            var records = new List<NightRecord>
+            {
+                new NightRecord { Name = "Liza May Ramos", WasAnomaly = false, Allowed = true, Why = "" },
+                new NightRecord { Name = "Paolo Garcia", WasAnomaly = true, Allowed = false, Why = "The ID expired on 2026-09-04." },
+                new NightRecord { Name = "Bea Dela Cruz", WasAnomaly = true, Allowed = true, Why = "The face at the window does not match the ID photo." },
+            };
+            var right = NightLogRules.Check(new[] { 3, 2, 1 }, records, 1);
+            Check(right.Mistakes == 0 && right.SanityLoss == 0 && right.Right.All(r => r), "three right counts: no mistakes, no penalty");
+            Check(right.Note.Contains("matched"), "a matching log says so");
+
+            var wrong = NightLogRules.Check(new[] { 3, 1, 0 }, records, 1);
+            Eq(wrong.Mistakes, 2, "two wrong boxes");
+            Check(wrong.Right[0] && !wrong.Right[1] && !wrong.Right[2], "each box is judged on its own");
+            Eq(wrong.SanityLoss, 2 * NightLogRules.SanityLossPerMistake, "the penalty is per wrong box");
+            Check(wrong.Note.Contains("Anomalies detected: you wrote 1, there were 2") && wrong.Note.Contains("Paolo Garcia: The ID expired on 2026-09-04"),
+                "the note names the anomalies and what was wrong with them");
+            Check(wrong.Note.Contains("Security incidents: you wrote 0, there was 1") && wrong.Note.Contains("Penalty: 10 sanity"),
+                "the note names the incident count and the penalty");
+            Check(!wrong.Note.Contains("Student encounters"), "a right box is not mentioned");
+            Eq(NightLogRules.Check(null, records, 0).Mistakes, 2, "no counts at all means zeros: the encounters and anomalies are wrong");
+            Check(NightLogRules.Check(new[] { 0, 0, 0 }, new List<NightRecord>(), 0).Mistakes == 0, "an empty night with empty boxes is right");
+
+            // session: signing, grading, the next night paying, saving
+            var s = new GameSession();
+            foreach (var r in records) s.NightRecords.Add(r);
+            Check(!s.LogSigned, "a new log is unsigned");
+            s.SignLog();
+            Check(s.LogSigned, "signing signs");
+            s.ChangeLog(0, +1);
+            Check(!s.LogSigned, "changing a box takes the signature back");
+            s.ChangeLog(0, -1);
+            s.SignLog();
+            s.ChangeLog(0, 0);
+            Check(s.LogSigned, "a click that changes nothing keeps the signature");
+            var grade = s.GradeNight(1);
+            Check(s.PendingLogLoss == grade.SanityLoss && s.LogNote == grade.Note && grade.Mistakes == 3, "grading books the penalty and the note");
+            var back = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = s })).Session;
+            Check(back.NightRecords.Count == 3 && back.NightRecords[1].Name == "Paolo Garcia" && back.NightRecords[1].WasAnomaly && !back.NightRecords[1].Allowed
+                  && back.NightRecords[1].Why == "The ID expired on 2026-09-04.", "who came survives a save");
+            Check(back.LogSigned && back.PendingLogLoss == s.PendingLogLoss && back.LogNote == s.LogNote, "the signature, the penalty and the note survive a save");
+            s.Sanity = 90f;
+            s.BeginNight();
+            Check(Math.Abs(s.Sanity - (90f - grade.SanityLoss)) < 0.01f && s.PendingLogLoss == 0, "the next night pays the penalty once");
+            Check(s.NightRecords.Count == 0 && !s.LogSigned && s.LogNote == grade.Note, "a new night clears the list and the signature but keeps last night's note to read");
+            var odd = new GameSession();
+            odd.NightRecords.Add(new NightRecord { Name = "A|B^C", WasAnomaly = true, Allowed = true, Why = "x|y^z" });
+            var oddBack = SaveFormat.Deserialize(SaveFormat.Serialize(new SaveGame { Session = odd })).Session;
+            Check(oddBack.NightRecords.Count == 1 && oddBack.NightRecords[0].WasAnomaly, "odd characters in a name cannot break the save");
         }
 
         private static void NightLogTests()
@@ -1860,6 +1925,12 @@ namespace Hollowbrook.LogicTests
             var slide = BehaviorProfile.For(AnomalyBehaviorKind.Slide, bt);
             var sprint = BehaviorProfile.For(AnomalyBehaviorKind.Sprint, bt);
             var hug = BehaviorProfile.For(AnomalyBehaviorKind.CoverHug, bt);
+            foreach (var kind in new[] { AnomalyBehaviorKind.Blink, AnomalyBehaviorKind.Slide, AnomalyBehaviorKind.Sprint, AnomalyBehaviorKind.CoverHug })
+            {
+                Check(Math.Abs(BehaviorProfile.For(kind, bt).BeamPace - bt.BeamPace) < 1e-4f && bt.BeamPace > 0f && bt.BeamPace < 1f,
+                    kind + ": a beam on it slows it down (" + bt.BeamPace + ")");
+                Check(BehaviorProfile.For(kind, new BehaviorTuning()).BeamPace == 1f, kind + ": an unset tuning never freezes an anomaly");
+            }
             Check(blink.MoveSpeed == bt.BlinkSpeed && slide.MoveSpeed == bt.SlideSpeed &&
                   sprint.MoveSpeed == bt.SprintSpeed && hug.MoveSpeed == bt.CoverHugSpeed,
                 "each behavior moves at its own configured speed");
@@ -1874,14 +1945,26 @@ namespace Hollowbrook.LogicTests
             Check(blink.CatchGraceSeconds == bt.CatchGraceBlink && slide.CatchGraceSeconds == bt.CatchGraceSlide &&
                   sprint.CatchGraceSeconds == bt.CatchGraceSprint && hug.CatchGraceSeconds == bt.CatchGraceCoverHug,
                 "catch windups are per-behavior - no shared coverHug-named constant");
-            Check(Math.Abs(hug.SpawnY - 4.4f) < 1e-3f && hug.SpawnY >= hug.MinY && hug.SpawnY <= hug.MaxY,
+            Check(Math.Abs(hug.SpawnY - BehaviorProfile.HangerCentreY) < 1e-3f && hug.SpawnY >= hug.MinY && hug.SpawnY <= hug.MaxY,
                 "CoverHug spawns INSIDE its own clamp band (no contradictory coordinates)");
-            Check(Math.Abs(blink.SpawnY - BehaviorProfile.GroundCentreY) < 1e-3f && slide.SpawnY == blink.SpawnY && sprint.SpawnY == blink.SpawnY,
-                  "ground anomalies sit low: their small body stands on the floor line");
-            Check(BehaviorProfile.GroundCentreY < 1.2f, "...a crouched thing, not a giant (the old body was 2.4 high)");
-            Check(hug.MinY > blink.MaxY, "the ceiling band sits above the ground walkers");
-            Check(blink.MinY == blink.MaxY && slide.MinY == slide.MaxY && sprint.MinY == sprint.MaxY,
-                "ground walkers stay on the floor line");
+            Check(Math.Abs(hug.SpawnY + BehaviorProfile.HangerHeight * 0.5f - BehaviorProfile.TopOfScreenY) < 1e-3f,
+                "CoverHug hangs from the top of the screen: its top edge is the ceiling");
+            Check(Math.Abs(blink.SpawnY - BehaviorProfile.GroundCentreY) < 1e-3f && slide.SpawnY == blink.SpawnY,
+                  "Blink and Slide stand on the floor line");
+            Check(Math.Abs(BehaviorProfile.GroundCentreY * 2f - BehaviorProfile.CrouchedHeight) < 1e-3f, "...their centre is half their height");
+            Check(Math.Abs(sprint.SpawnY - BehaviorProfile.RunnerFloorY) < 1e-3f && Math.Abs(sprint.MinY - BehaviorProfile.RunnerFloorY) < 1e-3f
+                  && Math.Abs(sprint.MaxY - BehaviorProfile.RunnerCeilingY) < 1e-3f,
+                "the runner may be on the floor or on the ceiling: its band spans both");
+            Check(Math.Abs(BehaviorProfile.RunnerCeilingY + BehaviorProfile.RunnerHeight * 0.5f - BehaviorProfile.TopOfScreenY) < 1e-3f,
+                "...on the ceiling its back touches the top of the screen");
+            Check(hug.MinY > blink.MaxY && hug.MinY > sprint.MinY, "the ceiling band sits above the ground walkers");
+            Check(blink.MinY == blink.MaxY && slide.MinY == slide.MaxY && hug.MinY == hug.MaxY,
+                "Blink, Slide and CoverHug stay at their one height");
+            Eq(BehaviorProfile.ArtKey(AnomalyBehaviorKind.Sprint), "char_anomaly_sprint_a", "the runner has its own drawing");
+            Eq(BehaviorProfile.ArtKey(AnomalyBehaviorKind.CoverHug), "char_anomaly_coverhug", "the hanger has its own drawing");
+            Eq(BehaviorProfile.ArtKey(AnomalyBehaviorKind.Blink) + BehaviorProfile.ArtKey(AnomalyBehaviorKind.Slide), "char_anomalychar_anomaly", "Blink and Slide share the crouched body");
+            Eq(BehaviorProfile.NearestDoorX(0.9f), 0.4f, "the hanger finds the nearest door");
+            Eq(BehaviorProfile.NearestDoorX(-50f), -13.8f, "...even far away");
             Check(bt.RetreatSpeed > blink.MoveSpeed && bt.RetreatSpeed > hug.MoveSpeed, "a repelled anomaly withdraws faster than it stalks");
             var customB = bt; customB.CatchGraceCoverHug = 5f;
             Eq(BehaviorProfile.For(AnomalyBehaviorKind.CoverHug, customB).CatchGraceSeconds, 5f, "CoverHug grace is tunable on its own");
@@ -2775,16 +2858,194 @@ namespace Hollowbrook.LogicTests
             Check(seen.Count == FaceAssets.StudentFaceCount,
                 "every shipped student face maps to exactly one identity slot (no shared faces)");
             var names = Content.BuildStudentRoster();
-            string[] want = { "Mark Mendoza", "Nathaniel Aquino", "Maria Clara Santos", "Liza May Ramos",
-                              "Raffy Isidro", "Renielle Waterbonia", "Rhevster Estrellita",
-                              "Jose Villanueva", "Angelica Reyes", "Anthony Bautista", "Bea Navarro",
-                              "Giones Acirfa", "Kristine Dizon" };   // Izzy Neckerman is Off until her art arrives
+            string[] want = { "Mark Angelo Mendoza", "Nathaniel Aquino", "Maria Clara Santos", "Liza May Ramos",
+                              "Raffy Isedru", "Ranielle Waterbonia", "Rhevster Estrellita",
+                              "Paolo Garcia", "Angelica Cruz", "Mark Anthony Villanueva", "Bea Dela Cruz",
+                              "Giones Acirfa", "Kristine Joy Bautista" };   // Izzy Neckerman is Off until her art arrives
             bool namesOk = names.Count == want.Length && Content.TotalStudents == FaceAssets.StudentFaceCount;
             for (int i = 0; namesOk && i < want.Length; i++) namesOk = names[i].FullName == want[i];
             Check(namesOk, "the registry has the thirteen students in face-art order (row N wears char_student_NN)");
             var numbers = new HashSet<string>();
             foreach (var st in names) numbers.Add(st.IdNumber);
             Check(numbers.Count == names.Count, "every student has their own ID number");
+        }
+
+        // A scared visitor can be a real student or an anomaly, and nothing about how they look or sound
+        // may tell the two apart: the same scared face art, the same shaken words. Only the papers can.
+        private static void ScaredVisitorTests()
+        {
+            Group("Scared visitors - the same face and the same words for students and anomalies");
+            var plan = ShiftPlan.Build();
+            var students = GameRules.Current.Students;
+            int honestScared = 0, wrongScared = 0;
+            for (int seed = 1; seed <= 100; seed++)
+            {
+                var factory = new RosterFactory(seed);
+                foreach (var night in plan)
+                {
+                    var roster = factory.GenerateShift(night);
+                    int scared = 0, scaredHonest = 0, scaredWrong = 0;
+                    foreach (var v in roster)
+                    {
+                        if (v.IsAdministrator) { Check(!v.IsScared, "the administrator is never scared"); continue; }
+                        if (!v.IsScared) continue;
+                        scared++;
+                        var row = students[v.FaceAssetIndex];
+                        Eq(v.Greeting, row.ScaredGreeting, $"seed {seed} night {night.Number}: a scared visitor says that student's scared greeting");
+                        Check(!v.SpeaksAwkwardly, "a scared anomaly never speaks awkwardly: speech cannot give them away");
+                        if (!v.Defects.Contains(DefectType.SpokenMismatch))
+                            Eq(v.Answers[(int)QuestionId.Course], InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex], Content.ScaredSpeech),
+                                "a scared visitor answers in the shared shaken words");
+                        if (v.IsAnomaly)
+                        {
+                            scaredWrong++; wrongScared++;
+                            Check(v.Defects.Count > 0 && !v.Defects.Contains(DefectType.PhotoSubtleMismatch),
+                                $"seed {seed} night {night.Number}: a scared anomaly never relies on a subtle photo change");
+                            bool paperTell = false;
+                            foreach (var d in v.Defects) if (d != DefectType.PhotoSubtleMismatch) paperTell = true;
+                            Check(paperTell, $"seed {seed} night {night.Number}: a scared anomaly still has a tell");
+                        }
+                        else { scaredHonest++; honestScared++; Check(v.Defects.Count == 0, "a scared student is still clean"); }
+                    }
+                    Eq(scared, night.ScaredCount, $"seed {seed} night {night.Number}: as many scared visitors as the row says");
+                    if (night.ScaredCount >= 2)
+                        Check(scaredHonest >= 1 && scaredWrong >= 1, $"seed {seed} night {night.Number}: scared visitors are both students and anomalies");
+                }
+            }
+            Check(honestScared > 0 && wrongScared > 0, $"over many runs both kinds arrive scared ({honestScared} students, {wrongScared} anomalies)");
+
+            for (int i = 0; i < FaceAssets.StudentFaceCount; i++)
+            {
+                Eq(FaceAssets.ScaredKey(i), FaceAssets.StudentKey(i) + "_scared", "the scared art is paired with its student");
+                Eq(FaceAssets.WindowKey(i, true, true), FaceAssets.ScaredKey(i), "a scared anomaly wears the scared art, not the monster art");
+                Eq(FaceAssets.WindowKey(i, false, true), FaceAssets.ScaredKey(i), "a scared student wears the same art");
+                Eq(FaceAssets.WindowKey(i, true, false), FaceAssets.AnomalyKey(i), "a calm anomaly still wears the monster art");
+                Eq(FaceAssets.WindowKey(i, false, false), FaceAssets.StudentKey(i), "a calm student still wears their own face");
+            }
+            Check(FaceAssets.WindowKey(-1, true, true) == null, "no asset index still means the procedural painter");
+            foreach (var row in students) Check(!string.IsNullOrEmpty(row.ScaredGreeting), row.FullName + " has a scared greeting");
+            Check(Content.ScaredSpeech.Course.Contains("{0}") && Content.ScaredSpeech.Year.Contains("{0}") &&
+                  Content.ScaredSpeech.Status.Contains("{0}") && Content.ScaredSpeech.Classroom.Contains("{0}"),
+                "the scared words keep the fact in them, so the papers can still be checked");
+
+            var a = new RosterFactory(31);
+            var b = new RosterFactory(31);
+            foreach (var night in plan)
+                Check(a.GenerateShift(night).Select(v => v.IsScared).SequenceEqual(b.GenerateShift(night).Select(v => v.IsScared)),
+                    $"night {night.Number}: the same seed picks the same scared visitors");
+        }
+
+        // The owner's student list: a professor who still comes to the window, years that are titles, three
+        // digit IDs, and fake IDs that look like real ones.
+        private static void StudentRecordTests()
+        {
+            Group("Student records - faculty, year titles, three digit IDs");
+            var roster = Content.BuildStudentRoster();
+            var raffy = roster.First(s => s.FullName == "Raffy Isedru");
+            Check(raffy.IsFaculty && raffy.YearString == "Professor" && raffy.StatusString == "Faculty", "Raffy is a professor: year Professor, status Faculty");
+            Eq(roster.Count(s => s.IsFaculty), 1, "only Raffy is faculty");
+            Eq(string.Join(",", Content.YearNames), "Freshman,Sophomore,Junior,Senior,Professor", "the year titles");
+            Eq(InterviewRules.YearSpeech("Junior"), "I'm a Junior.", "a year is said as a title");
+            Eq(InterviewRules.StatusSpeech(Content.StatusWord(false, true)), "I'm a faculty member.", "faculty say what they are");
+
+            int fakes = 0, professorsSeen = 0, studentYearLies = 0;
+            for (int seed = 1; seed <= 150; seed++)
+            {
+                var factory = new RosterFactory(seed);
+                foreach (var night in ShiftPlan.Build())
+                    foreach (var v in factory.GenerateShift(night))
+                    {
+                        if (v.IsAdministrator) continue;
+                        if (v.IsFaculty)
+                        {
+                            professorsSeen++;
+                            Check(!v.Defects.Contains(DefectType.YearMismatch) && !v.Defects.Contains(DefectType.StatusMismatch),
+                                "a professor never gets a year or status lie");
+                            Eq(v.IdYearLevel, 5, "the professor's card says Professor");
+                        }
+                        else if (v.Defects.Contains(DefectType.YearMismatch))
+                        {
+                            studentYearLies++;
+                            Check(v.IdYearLevel >= 1 && v.IdYearLevel <= 4, "a student's wrong year is still a student year");
+                        }
+                        if (v.Defects.Contains(DefectType.NotInDatabase))
+                        {
+                            fakes++;
+                            Check(IdRules.IsFormatValid(v.IdNumber) && !factory.Registry.Contains(v.IdNumber),
+                                $"seed {seed}: a fake ID looks like a real one ('{v.IdNumber}') but is not in the registry");
+                        }
+                        if (v.Defects.Contains(DefectType.IdFormatInvalid))
+                            Check(!IdRules.IsFormatValid(v.IdNumber), $"seed {seed}: a broken ID really is broken ('{v.IdNumber}')");
+                    }
+            }
+            Check(fakes > 20 && professorsSeen > 20 && studentYearLies > 20, $"the runs covered fakes, professors and year lies ({fakes}, {professorsSeen}, {studentYearLies})");
+        }
+
+        // Peek rooms: where things stand, how big they are there, what the lamp does to them.
+        private static void PeekFigureTests()
+        {
+            Group("Peek figures - floor spots, perspective size, clearing speed");
+            var rooms = new[] { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 };
+            foreach (var room in rooms)
+            {
+                var spots = PeekSpots.For(room);
+                Eq(spots.Length, 3, room + " has three floor spots");
+                foreach (var spot in spots)
+                {
+                    Check(spot.FeetY <= -1.3f && spot.FeetY >= PeekSpots.FrontFeetY, room + ": a spot's feet are on the lower part of the picture (" + spot.FeetY + ")");
+                    Check(Math.Abs(spot.X) <= 4f, room + ": a spot is inside the room (" + spot.X + ")");
+                }
+                Eq(PeekSpots.CeilingXs(room).Length, 3, room + " has three ceiling spots");
+            }
+            var cr1 = PeekSpots.For(RoomId.ComfortRoom);
+            var cr2 = PeekSpots.For(RoomId.ComfortRoom2);
+            for (int i = 0; i < 3; i++)
+                Check(cr2[i].X == -cr1[i].X && cr2[i].FeetY == cr1[i].FeetY, "CR-2 is CR-1 mirrored, spot " + i);
+
+            // perspective: the further back the feet, the smaller the figure, and full size at the front edge
+            foreach (var kind in new[] { PeekKind.Hood, PeekKind.Slide })
+            {
+                Check(Math.Abs(PeekSpots.HeightAt(kind, RoomId.Classroom1, PeekSpots.FrontFeetY) - PeekSpots.FrontHeight(kind)) < 1e-3f, kind + ": full size at the front edge");
+                Check(PeekSpots.HeightAt(kind, RoomId.Classroom1, -1.4f) < PeekSpots.HeightAt(kind, RoomId.Classroom1, -2.9f), kind + ": smaller further back");
+                Check(PeekSpots.HeightAt(kind, RoomId.Classroom1, -1.4f) > 0.4f * PeekSpots.FrontHeight(kind), kind + ": but never a doll");
+            }
+            Eq(PeekSpots.HeightAt(PeekKind.Coverhug, RoomId.ComfortRoom, 0f), PeekSpots.FrontHeight(PeekKind.Coverhug), "the hanger has no perspective, it hangs");
+            Check(PeekSpots.FrontHeight(PeekKind.Hood) > 3.2f, "the hooded figure is bigger than the first version (3.2)");
+
+            // what a room holds, and the night's rolls
+            int slides = 0, hangers = 0, rushes = 0, stills = 0;
+            for (int seed = 1; seed <= 200; seed++)
+                for (int night = 1; night <= 4; night++)
+                    foreach (var room in rooms)
+                    {
+                        var kind = PeekSpots.KindIn(seed, night, room);
+                        bool classroom = room == RoomId.Classroom1 || room == RoomId.Classroom2;
+                        Check(classroom == (kind == PeekKind.Hood), "classrooms hold the hood and nothing else does");
+                        if (kind == PeekKind.Slide) slides++;
+                        if (kind == PeekKind.Coverhug) hangers++;
+                        var reaction = PeekSpots.ReactionIn(seed, night, room);
+                        if (kind == PeekKind.Coverhug) Check(reaction == PeekReaction.Still, "the hanger never moves");
+                        if (reaction == PeekReaction.Rush) rushes++; else stills++;
+                        int index = PeekSpots.SpotIndexIn(seed, night, room);
+                        Check(index >= 0 && index < 3, "the spot index is one of three");
+                        Check(PeekSpots.KindIn(seed, night, room) == kind && PeekSpots.ReactionIn(seed, night, room) == reaction
+                              && PeekSpots.SpotIndexIn(seed, night, room) == index, "the same night gives the same answers");
+                    }
+            Check(slides > 100 && hangers > 100, "comfort rooms hold both the crouched one and the hanger (" + slides + " / " + hangers + ")");
+            Check(rushes > 200 && stills > 200, "some rush and some stay still (" + rushes + " / " + stills + ")");
+
+            // clearing speed: 2 seconds plain, 1.3 times faster with Focus, draining when the lamp leaves
+            Check(Math.Abs(PeekClear.SecondsToClear(false, 2f) - 2f) < 1e-4f, "plain: two seconds");
+            Check(Math.Abs(PeekClear.SecondsToClear(true, 2f) - 2f / 1.3f) < 1e-4f, "Focus: 1.3 times faster");
+            float bar = 0f; int frames = 0;
+            while (bar < 1f && frames < 1000) { bar = PeekClear.Advance(bar, 1f / 60f, true, false, 2f); frames++; }
+            Check(frames >= 119 && frames <= 121, "a plain lamp fills the bar in about 120 frames (" + frames + ")");
+            bar = 0f; frames = 0;
+            while (bar < 1f && frames < 1000) { bar = PeekClear.Advance(bar, 1f / 60f, true, true, 2f); frames++; }
+            Check(frames >= 91 && frames <= 93, "a Focus lamp fills it in about 92 frames (" + frames + ")");
+            Check(PeekClear.Advance(0.5f, 1f, false, true, 2f) == 0f && Math.Abs(PeekClear.Advance(1f, 1f, false, false, 2f) - 0.5f) < 1e-4f,
+                "off the body the bar drains, and never below zero");
+            Eq(PeekClear.Advance(0.3f, 0f, true, true, 2f), 0.3f, "no time passing changes nothing");
         }
 
         private static void CheckpointQueueTests()

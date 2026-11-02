@@ -72,7 +72,7 @@ namespace Hollowbrook.Checkpoint
             // is manual: documents, floor files and questions.)
             // the two desk papers are PROPS: the kit's printed sheets lying on the desk at
             // the concept art's angles, clickable to open their overlay sheet
-            _recordsBtn = PaperProp("records", "sec_log_paper",
+            _recordsBtn = PaperProp("records", "sec_log_prop",
                 () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, L.UtilityRecords, L.TiltLog);
             Reg("records", _recordsBtn, L.UtilityRecords);
             // the mockup's inline college map: a panel-button (click still opens the full
@@ -123,7 +123,7 @@ namespace Hollowbrook.Checkpoint
                 L.Place(tape.rectTransform, new L.Region(tI == 0 ? -8f : 244f, -6f, 46f, 14f));
                 tape.rectTransform.localEulerAngles = new Vector3(0, 0, tI == 0 ? 8f : -8f);
             }
-            _notesBtn = PaperProp("notes", "sec_rules_paper",
+            _notesBtn = PaperProp("notes", "sec_rules_prop",
                 () => ToggleOverlay(_notesRoot), L.UtilityNotes, L.TiltRules);
             Reg("notes", _notesBtn, L.UtilityNotes);
 
@@ -142,6 +142,7 @@ namespace Hollowbrook.Checkpoint
             if (sp != null) { img.sprite = sp; img.color = Color.white; }
             else img.color = UIFactory.Paper;
             img.raycastTarget = true;
+            img.preserveAspect = true;   // the prop pictures are narrower than their desk slot: never stretch them
             var b = rt.gameObject.GetOrAdd<UnityEngine.UI.Button>();
             b.targetGraphic = img;
             b.onClick.AddListener(() => onClick());
@@ -301,6 +302,16 @@ namespace Hollowbrook.Checkpoint
 
         private bool _stampsLive;
 
+        // A dragged stamp is moved to the top of the desk; once let go it goes back down beside its tray
+        // mark, under the sheets and the sticky note, so it cannot be grabbed through them.
+        private void SendStampHome(int idx)
+        {
+            var mark = _trayCircles[idx];
+            var stamp = _stampTints[idx];
+            if (mark == null || stamp == null) return;
+            stamp.transform.SetSiblingIndex(mark.transform.GetSiblingIndex() + 1);
+        }
+
         private void RefreshStamps(bool live)
         {
             _stampsLive = live;
@@ -308,14 +319,16 @@ namespace Hollowbrook.Checkpoint
             {
                 if (_stampTints[i] == null) continue;
                 var c = _stampBase[i];
-                float dim = live ? 1f : 0.35f;       // dim tray until an inspection is live
-                bool tray = _trayCircles[i] != null; // the tray picture is the round mark, the stamp only while held
+                float dim = live ? 1f : 0.35f;       // without the kit art the stamp dims until an inspection is live
+                bool tray = _trayCircles[i] != null; // with the kit art the tray mark IS the stamp at rest
+                // the tray mark is always fully visible (it used to fade with no visitor and hid the
+                // stamps at the start of the game); the stamp handle only appears in the hand
                 c.a = tray ? (_stampHeld[i] ? 1f : 0f) : dim;
                 _stampTints[i].color = c;
                 if (tray)
                 {
                     var cc = _trayCircles[i].color;
-                    cc.a = dim;
+                    cc.a = 1f;
                     _trayCircles[i].color = cc;
                 }
             }
@@ -324,6 +337,7 @@ namespace Hollowbrook.Checkpoint
         private void HoldStamp(int idx, bool held)
         {
             _stampHeld[idx] = held;
+            if (!held) SendStampHome(idx);
             RefreshStamps(_stampsLive);
         }
 
@@ -351,7 +365,7 @@ namespace Hollowbrook.Checkpoint
             RefreshQuestionsPanel(atWindow);
             RefreshStamps(live);
             bool patrolOn = PatrolOpen && !atWindow;
-            bool endOn = Queue != null && Queue.ShiftComplete && _gameRoot.PatrolDone && _gameRoot.NightResolved &&
+            bool endOn = Queue != null && Queue.ShiftComplete && _gameRoot.PatrolDone && _gameRoot.NightResolved && _gameRoot.LogReady &&
                          _gameRoot.Session.Mode == GameMode.Normal && !_gameRoot.HuntActive && !_gameRoot.HuntReady;
             if (_kitOn) { ApplyKitPill(_patrolBtn, patrolOn); ApplyKitPill(_endShiftBtn, endOn); }
             else
@@ -370,11 +384,6 @@ namespace Hollowbrook.Checkpoint
 
             // the thud already played when the stamp landed; hand-back owns its own sound
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.VerdictStamped, outcome));
-
-            // silent verdict: the log records the call, never whether it was right
-            _tonightsLog.Append("  ").Append(_current.IsAdministrator ? "ADMINISTRATOR" : _current.ClaimedName)
-                .Append(" (").Append(_current.IdNumber).Append(")")
-                .Append(" - ").Append(verdict == Verdict.Allow ? "ALLOWED" : "REJECTED").Append("\n");
 
             var resolved = _current;
             _gameRoot.OnVerdictResolved(resolved, outcome);           // counters update BEFORE the banner reads them

@@ -52,8 +52,14 @@ completion.
 canon roster behind the cabinet) is always the truth. A defect changes the CARD, the slip, the face
 or the spoken classroom answer so it disagrees with the file. Legitimate students always match
 exactly; every anomaly has at least one tell the tests prove. Faces: the ID always shows the real
-student's art; the window shows another student's face only on a `PhotoMismatch`, and the
-`_anomaly` art only on a `PhotoSubtleMismatch` (`GameLogic/FaceAssets`, `Generated/FaceArt`).
+student's art; every anomaly wears its `_anomaly` art at the window and a `PhotoMismatch` shows another
+student's face (`GameLogic/FaceAssets`, `Generated/FaceArt`).
+
+**Scared visitors:** each night row has a `ScaredCount`. `RosterFactory.PickScared` picks them before the
+defects, alternating real students and anomalies, never the administrator. A scared visitor wears the
+student's `_scared` art whether they are real or an anomaly (`FaceAssets.WindowKey` with the scared flag),
+says that student's `ScaredGreeting` and answers in the shared `Content.ScaredSpeech`, and a scared anomaly
+cannot get awkward speech or a subtle photo change. So only the papers and the file can catch one.
 
 **Intro -> checkpoint:** NEW GAME queues `BeginShift` then loads Hollowbrook; the new scene's
 scene script's Awake sets the views up and calls `RunQueuedSceneAction`; `BeginShift` shows the Loading card,

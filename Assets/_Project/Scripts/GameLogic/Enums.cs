@@ -23,7 +23,7 @@ namespace Hollowbrook.Logic
         PhotoMismatch,        // window face clearly differs from ID photo
         PhotoSubtleMismatch,  // single feature differs (harder, shift 3+)
         ExpiredId,            // expiration date is before the shift date
-        IdFormatInvalid,      // ID number breaks the HB-YYYY-NNNN format
+        IdFormatInvalid,      // ID number breaks the HB-YYYY-NNN format
         YearMismatch,         // year level on ID != year level on record
         CourseMismatch,       // course on ID != course on record
         StatusMismatch,       // regular/transferee on ID != record

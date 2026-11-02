@@ -39,11 +39,16 @@ namespace Hollowbrook.Logic
                 CountTurn(worn);
             }
 
+            var isAnomaly = new bool[shift.VisitorCount];
+            for (int i = 0; i < isAnomaly.Length; i++)
+                isAnomaly[i] = i >= honestSlots || turning.Contains(identities[i]);
+            var scared = PickScared(isAnomaly, shift.ScaredCount);
+
             for (int i = 0; i < shift.VisitorCount; i++)
             {
                 var id = identities[i];
-                bool anomaly = i >= honestSlots || turning.Contains(id);
-                var v = anomaly ? BuildAnomaly(id, shift) : BuildLegit(id, shift);
+                bool afraid = scared.Contains(i);
+                var v = isAnomaly[i] ? BuildAnomaly(id, shift, afraid) : BuildLegit(id, shift, afraid);
                 v.VisitorIndex = i;
                 v.ShiftNumber = shift.Number;
                 visitors.Add(v);
@@ -79,6 +84,33 @@ namespace Hollowbrook.Logic
 
         private void CountTurn(StudentIdentity s) => _timesAnomaly[s] = Turns(s) + 1;
 
+        // Who arrives frightened: spread over real students and anomalies (a real student first, then
+        // an anomaly, and so on), never the administrator. Decided BEFORE the defects, because a scared
+        // face hides the monster art and changes what an anomaly can be caught by.
+        private HashSet<int> PickScared(bool[] isAnomaly, int count)
+        {
+            var honest = new List<int>();
+            var wrong = new List<int>();
+            for (int i = 0; i < isAnomaly.Length; i++)
+            {
+                if (isAnomaly[i]) wrong.Add(i);
+                else honest.Add(i);
+            }
+            _rng.Shuffle(honest);
+            _rng.Shuffle(wrong);
+
+            var picked = new HashSet<int>();
+            for (int n = 0; n < count; n++)
+            {
+                var from = n % 2 == 0 ? honest : wrong;
+                if (from.Count == 0) from = honest.Count > 0 ? honest : wrong;
+                if (from.Count == 0) break;
+                picked.Add(from[0]);
+                from.RemoveAt(0);
+            }
+            return picked;
+        }
+
         // Tonight's line: everyone turning, the rest honest, in a random order.
         private List<StudentIdentity> PickNight(List<StudentIdentity> turning, int count)
         {
@@ -91,7 +123,7 @@ namespace Hollowbrook.Logic
             return night;
         }
 
-        private VisitorData BuildLegit(StudentIdentity id, ShiftDef shift)
+        private VisitorData BuildLegit(StudentIdentity id, ShiftDef shift, bool scared)
         {
             bool nearExpiry = shift.NearExpiryAllowed && _rng.Chance(GameRules.Current.NearExpiryChance);
             int expDay = nearExpiry
@@ -101,6 +133,8 @@ namespace Hollowbrook.Logic
             var v = new VisitorData
             {
                 IsAnomaly = false,
+                IsScared = scared,
+                IsFaculty = id.IsFaculty,
                 ClaimedName = id.FullName,
                 RecordName = id.FullName,
                 IdNumber = id.IdNumber,
@@ -134,11 +168,13 @@ namespace Hollowbrook.Logic
             return Content.DisplayDate(date.Year, date.Month, date.Day);
         }
 
-        private VisitorData BuildAnomaly(StudentIdentity id, ShiftDef shift)
+        private VisitorData BuildAnomaly(StudentIdentity id, ShiftDef shift, bool scared)
         {
             var v = new VisitorData
             {
                 IsAnomaly = true,
+                IsScared = scared,
+                IsFaculty = id.IsFaculty,
                 ClaimedName = id.FullName,
                 RecordName = id.FullName,
                 IdNumber = id.IdNumber,
@@ -165,7 +201,7 @@ namespace Hollowbrook.Logic
             v.SlipIdNumber = v.IdNumber;
 
             int defectCount = _rng.NextInt(1, shift.MaxDefectsPerAnomaly + 1);
-            var pool = BuildDefectPool(shift);
+            var pool = BuildDefectPool(shift, scared);
             _rng.Shuffle(pool);
 
             bool idDefectTaken = false; // {IdFormatInvalid, NotInDatabase, DuplicateId} are exclusive
@@ -176,6 +212,7 @@ namespace Hollowbrook.Logic
                 if (applied >= defectCount) break;
                 bool isIdFamily = d == DefectType.IdFormatInvalid || d == DefectType.NotInDatabase || d == DefectType.DuplicateId;
                 bool isPhotoFamily = d == DefectType.PhotoMismatch || d == DefectType.PhotoSubtleMismatch;
+                if (id.IsFaculty && (d == DefectType.YearMismatch || d == DefectType.StatusMismatch)) continue;   // a professor has no year or transfer status to lie about
                 if (isIdFamily && idDefectTaken) continue;
                 if (isPhotoFamily && photoDefectTaken) continue;
                 if (d == DefectType.DuplicateId && !HasDuplicateCandidate(id)) continue;
@@ -202,12 +239,12 @@ namespace Hollowbrook.Logic
         private static string MutateSerial(string id)
         {
             // format-broken IDs (a defect of their own) still get a visibly different slip
-            if (id == null || id.Length != 12) return id + "X";
-            if (!int.TryParse(id.Substring(8, 4), System.Globalization.NumberStyles.Integer,
+            if (id == null || id.Length != 11) return id + "X";
+            if (!int.TryParse(id.Substring(8, 3), System.Globalization.NumberStyles.Integer,
                               System.Globalization.CultureInfo.InvariantCulture, out int serial))
-                return id.Substring(0, 11) + (id[11] == '7' ? '8' : '7');
-            serial = serial > 5000 ? serial - 1 : serial + 1;
-            return id.Substring(0, 8) + serial.ToString("D4", System.Globalization.CultureInfo.InvariantCulture);
+                return id.Substring(0, 10) + (id[10] == '7' ? '8' : '7');
+            serial = serial > 500 ? serial - 1 : serial + 1;
+            return id.Substring(0, 8) + serial.ToString("D3", System.Globalization.CultureInfo.InvariantCulture);
         }
 
         private bool HasDuplicateCandidate(StudentIdentity self)
@@ -220,7 +257,7 @@ namespace Hollowbrook.Logic
             return false;
         }
 
-        private List<DefectType> BuildDefectPool(ShiftDef shift)
+        private List<DefectType> BuildDefectPool(ShiftDef shift, bool scared)
         {
             var pool = new List<DefectType>
             {
@@ -229,7 +266,8 @@ namespace Hollowbrook.Logic
                 DefectType.YearMismatch, DefectType.CourseMismatch, DefectType.StatusMismatch,
                 DefectType.NotInDatabase,
             };
-            if (shift.SubtleDefectsAllowed) pool.Add(DefectType.PhotoSubtleMismatch);
+            // a scared face hides the anomaly art, and a subtle photo change has no picture of its own
+            if (shift.SubtleDefectsAllowed && !scared) pool.Add(DefectType.PhotoSubtleMismatch);
             if (shift.ClassroomLieAllowed) pool.Add(DefectType.ClassroomMismatch);
             if (shift.ClassroomLieAllowed) pool.Add(DefectType.SpokenMismatch);
             if (shift.DuplicateIdsAllowed) pool.Add(DefectType.DuplicateId);
@@ -282,7 +320,12 @@ namespace Hollowbrook.Logic
                 {
                     string candidate;
                     int guard = 0;
-                    do { candidate = "HB-2026-" + _rng.NextInt(9000, 10000).ToString("D4", System.Globalization.CultureInfo.InvariantCulture); guard++; }
+                    // a believable number (a real year, a serial like the real ones), just not in the registry
+                    do
+                    {
+                        candidate = "HB-" + _rng.NextInt(2023, 2027) + "-" + _rng.NextInt(100, 1000).ToString("D3", System.Globalization.CultureInfo.InvariantCulture);
+                        guard++;
+                    }
                     while (_registry.Contains(candidate) && guard < 32);
                     v.IdNumber = candidate;
                     v.RecordIdNumber = candidate;
@@ -328,10 +371,10 @@ namespace Hollowbrook.Logic
             {
                 case 0: return "HC-" + valid.Substring(3);                       // wrong prefix
                 case 1: return valid.Replace("-", "");                            // missing dashes
-                case 2: return valid.Substring(0, 10) + "A" + valid[11];          // letter in serial
-                case 3: return valid.Substring(0, 11);                            // short
+                case 2: return valid.Substring(0, 9) + "A" + valid[10];           // letter in serial
+                case 3: return valid.Substring(0, 10);                            // short
                 case 4: return "HB-2099-" + valid.Substring(8);                   // implausible year
-                default: return "HB-" + valid.Substring(3, 4) + "-0000";          // serial 0000
+                default: return "HB-" + valid.Substring(3, 4) + "-000";            // serial 000
             }
         }
 
@@ -342,12 +385,18 @@ namespace Hollowbrook.Logic
         // student never speaks that way.
         private void BuildAnswers(VisitorData v, StudentIdentity id)
         {
-            v.SpeaksAwkwardly = v.IsAnomaly && _rng.Chance(GameRules.Current.AwkwardSpeechChance);
-            var awkward = v.SpeaksAwkwardly ? id.Awkward : null;
-            if (awkward != null) v.Greeting = awkward.Greeting;
+            // a scared visitor, student or not, talks the same shaken way: speech never gives them away
+            v.SpeaksAwkwardly = v.IsAnomaly && !v.IsScared && _rng.Chance(GameRules.Current.AwkwardSpeechChance);
+            AwkwardSpeech awkward = v.SpeaksAwkwardly ? id.Awkward : null;
+            if (v.IsScared)
+            {
+                awkward = Content.ScaredSpeech;
+                v.Greeting = string.IsNullOrEmpty(id.ScaredGreeting) ? Content.ScaredSpeech.Greeting : id.ScaredGreeting;
+            }
+            else if (awkward != null) v.Greeting = awkward.Greeting;
             v.Answers[(int)QuestionId.Course] = InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex], awkward);
             v.Answers[(int)QuestionId.Year] = InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1], awkward);
-            v.Answers[(int)QuestionId.Status] = InterviewRules.StatusSpeech(v.IdIsTransferee, awkward);
+            v.Answers[(int)QuestionId.Status] = InterviewRules.StatusSpeech(Content.StatusWord(v.IdIsTransferee, v.IsFaculty), awkward);
             string classroom = v.Defects.Contains(DefectType.ClassroomMismatch) ? LieAboutClassroom(id) : id.ClassroomSpeech;
             v.ClassroomAnswer = InterviewRules.ClassroomSpeech(classroom, awkward);
             v.Answers[(int)QuestionId.Classroom] = v.ClassroomAnswer;
@@ -369,7 +418,7 @@ namespace Hollowbrook.Logic
                     v.Answers[(int)q] = InterviewRules.YearSpeech(Content.YearNames[year - 1], awkward);
                     break;
                 default:
-                    v.Answers[(int)q] = InterviewRules.StatusSpeech(!v.IdIsTransferee, awkward);
+                    v.Answers[(int)q] = InterviewRules.StatusSpeech(Content.StatusWord(!v.IdIsTransferee, false), awkward);
                     break;
             }
         }
@@ -411,8 +460,8 @@ namespace Hollowbrook.Logic
                 ShiftNumber = shift.Number,
                 ClaimedName = "V. Marlowe",
                 RecordName = "R. Vance",                  // roster memo lists a different administrator
-                IdNumber = "DA-0233",                     // staff badge number, not on the roster memo
-                RecordIdNumber = "DA-1147",               // memo: "R. Vance - DA-1147"
+                IdNumber = "HB-1999-010",                  // badge number, one off from the roster memo
+                RecordIdNumber = "HB-1999-001",            // memo: "R. Vance - HB-1999-001"
                 IdYearLevel = 1, RecordYearLevel = 1,     // unused for staff (no year level)
                 IdCourseIndex = 0, RecordCourseIndex = 0, // unused ("District Administration")
                 IdIsTransferee = false, RecordIsTransferee = false,

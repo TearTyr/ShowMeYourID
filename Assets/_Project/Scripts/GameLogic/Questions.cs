@@ -85,13 +85,13 @@ namespace Hollowbrook.Logic
             awkward != null ? Fill(awkward.Course, course) : "I'm taking " + course + ".";
 
         public static string YearSpeech(string year, AwkwardSpeech awkward = null) =>
-            awkward != null ? Fill(awkward.Year, year) : "I'm in " + year + ".";
+            awkward != null ? Fill(awkward.Year, year) : "I'm a " + year + ".";
 
-        public static string StatusSpeech(bool transferee, AwkwardSpeech awkward = null)
-        {
-            string status = transferee ? "transferee" : "regular student";
-            return awkward != null ? Fill(awkward.Status, status) : "I'm a " + status + ".";
-        }
+        public static string StatusSpeech(bool transferee, AwkwardSpeech awkward = null) =>
+            StatusSpeech(Content.StatusWord(transferee, false), awkward);
+
+        public static string StatusSpeech(string statusWord, AwkwardSpeech awkward = null) =>
+            awkward != null ? Fill(awkward.Status, statusWord) : "I'm a " + statusWord + ".";
 
         public static string ClassroomSpeech(string plainAnswer, AwkwardSpeech awkward = null) =>
             awkward != null ? Fill(awkward.Classroom, plainAnswer.TrimEnd('.')) : plainAnswer;

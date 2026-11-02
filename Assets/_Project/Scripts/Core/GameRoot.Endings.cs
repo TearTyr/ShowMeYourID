@@ -27,10 +27,24 @@ namespace Hollowbrook.Core
         public void RequestEndShift()
         {
             if (!NightResolved) return;
+            if (LogRequired) Session.GradeNight(NightIncidents());   // the log is checked now, tomorrow's Rules sheet tells
             bool failed = Session.Mode == GameMode.Normal && Session.CurrentShift < ShiftPlan.TotalShifts &&
                           Session.ShiftBreaches > 0;
             if (failed) Session.RecordShiftFailure(ShiftFailure.Breach);
             FinishShift();
+        }
+
+        /// <summary>Nights 1 to 4 end with a signed Security Log. Night 5, night 6 and other modes have no log duty.</summary>
+        public bool LogRequired => Session != null && Session.Mode == GameMode.Normal && Session.CurrentShift < ShiftPlan.TotalShifts;
+
+        public bool LogReady => !LogRequired || Session.LogSigned;
+
+        // what the third box counts: students who never reached the window, and things driven out of the peek rooms
+        private int NightIncidents()
+        {
+            int driven = 0;
+            for (int bits = Session.PeekAnomaliesGone; bits != 0; bits &= bits - 1) driven++;
+            return (Queue != null ? Queue.MissingIncidents : 0) + driven;
         }
 
         /// <summary>A night with the administrator closes only once he has been refused and survived.

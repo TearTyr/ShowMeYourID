@@ -5,55 +5,93 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
-    // The hooded figure standing in a peek room (GameRoot.PeekAnomalyIn says which rooms have one
-    // tonight). It never moves and sits under the peek's black cover, so only the lamp shows it.
+    // What stands in a peek room (GameRoot.PeekAnomalyIn says which rooms have one tonight). Classrooms hold
+    // the hooded figure, comfort rooms the crouched one or the ceiling hanger (PeekSpots). It stands on a
+    // spot of clear painted floor, sized for its depth, under the peek's black cover, so only the lamp shows it.
     //
-    // The scene, once the lit FOCUS lamp is fully on him (the cursor on his body):
-    //   1. Flicker: he jumps around and the lamp dims and flickers (peekRepelSeconds).
-    //   2. Black: the lamp is gone for a moment, he is removed and the room counts as cleared.
-    //   3. Fade back: the room slowly returns, and he is gone.
-    // Once it starts it always plays to the end, and the lamp, E and stepping back are locked
-    // meanwhile. He never attacks. If the player steps back before lighting him he stays.
+    // Holding the lamp on its body fills a bar (PeekClear): 2 seconds with the plain lamp, 1.3 times faster
+    // with the Focus lamp (Q); the bar drains back if the lamp leaves. While it fills:
+    //   Rush  the figure jumps closer in steps, growing each time, until it fills the screen
+    //   Still it stays exactly where it stands
+    // When the bar is full the lamp goes black, the figure is removed and the room counts as cleared, then the
+    // room slowly fades back with nothing in it. From the black on, the lamp and stepping back are locked.
+    // It never attacks. Reduce Motion and Photosensitive keep a steady dim and no movement.
     public class PeekAnomaly : MonoBehaviour
     {
-        private const float Height = 3.2f;       // the art's height in world units (see FilePpus)
-        private const float BodyHalfW = 0.8f;    // the cursor box that counts as "on him"
-        private const float BodyHalfH = 1.5f;
-        private const float JumpUnits = 1.1f;    // how far he flickers around in the first phase
-        private const float JumpEvery = 0.07f;
+        private const int RushSteps = 5;
+        private const float RushFillHeight = 12f;    // how tall it is at the last step: more than the screen
+        private const float RushFeetY = -4.6f;       // where its feet end up, below the front edge
+        private const float AboveCoverFrom = 0.6f;   // from this share of the rush it is drawn over the black
 
-        private enum Phase { Waiting, Flicker, Black, FadeBack }
+        private enum Phase { Waiting, Charging, Black, FadeBack }
 
         private GameRoot _root;
         private PeekLight _lamp;
         private SpriteRenderer _sr;
-        private Vector3 _home;
+        private PeekKind _kind;
+        private PeekReaction _reaction;
+        private RoomId _room;
+        private float _homeX, _homeFeetY, _homeHeight, _spriteHeight;
         private Phase _phase = Phase.Waiting;
+        private float _progress;
+        private int _lastStep;
         private float _clock;
-        private float _nextJump;
+        private float _nextStutter;
         private bool _told;
         private bool _removed;
-        private RoomId _room;
         private GameRng _rng;
 
         public static PeekAnomaly Place(GameRoot root, RoomInstance room, PeekLight lamp, int seed)
         {
-            var go = RoomBuilder.SpriteGO(room.Root.transform, "PeekAnomaly", ProceduralArt.Get("char_hood"),
-                Vector3.zero, WorldLayers.PeekCover - 2);
+            int runSeed = root.Session.Seed, night = root.Session.CurrentShift;
+            var kind = PeekSpots.KindIn(runSeed, night, room.Id);
+            var sprite = ProceduralArt.Get(PeekSpots.ArtKey(kind));
+            var go = RoomBuilder.SpriteGO(room.Root.transform, "PeekAnomaly", sprite, Vector3.zero, WorldLayers.PeekCover - 2);
             var a = go.AddComponent<PeekAnomaly>();
             a._root = root;
             a._lamp = lamp;
             a._room = room.Id;
+            a._kind = kind;
+            a._reaction = PeekSpots.ReactionIn(runSeed, night, room.Id);
             a._sr = go.GetComponent<SpriteRenderer>();
             a._rng = new GameRng(seed ^ 0x600D);
-            var rng = new GameRng(seed);
-            a._home = new Vector3(rng.NextFloat() * 10f - 5f, RoomInstance.FloorY + Height / 2f, 0f);
-            go.transform.localPosition = a._home;
+            a._spriteHeight = sprite != null && sprite.bounds.size.y > 0.01f ? sprite.bounds.size.y : 1f;
+            a.ChooseSpot(runSeed, night);
+            a.Show(a._homeX, a._homeFeetY, a._homeHeight);
             return a;
         }
 
-        /// <summary>True while the flicker, black or fade back is playing.</summary>
+        // The spot it stands at tonight and how big it is there.
+        private void ChooseSpot(int runSeed, int night)
+        {
+            int index = PeekSpots.SpotIndexIn(runSeed, night, _room);
+            if (_kind == PeekKind.Coverhug)
+            {
+                _homeX = PeekSpots.CeilingXs(_room)[index];
+                _homeHeight = PeekSpots.HeightAt(_kind, _room, 0f);
+                _homeFeetY = PeekSpots.ScreenTopY - _homeHeight;   // hangs from the top of the screen
+                return;
+            }
+            var spot = PeekSpots.For(_room)[index];
+            _homeX = spot.X;
+            _homeFeetY = spot.FeetY;
+            _homeHeight = PeekSpots.HeightAt(_kind, _room, spot.FeetY);
+        }
+
+        // Put the figure with its feet at feetY, height tall, centred on x.
+        private void Show(float x, float feetY, float height)
+        {
+            transform.localScale = Vector3.one * (height / _spriteHeight);
+            transform.localPosition = new Vector3(x, feetY + height * 0.5f, 0f);
+        }
+
+        /// <summary>True while the bar is filling, or the black and the fade back are playing.</summary>
         internal bool Playing => _phase != Phase.Waiting;
+
+        internal PeekKind Kind => _kind;
+        internal PeekReaction Reaction => _reaction;
+        internal float Progress => _progress;
+        internal float CurrentHeight => _spriteHeight * transform.localScale.y;
 
         private void Update()
         {
@@ -68,66 +106,81 @@ namespace Hollowbrook.World
             if (_lamp == null || _root == null) return;
             switch (_phase)
             {
-                case Phase.Waiting: TickWaiting(); break;
-                case Phase.Flicker: TickFlicker(dt); break;
+                case Phase.Waiting:
+                case Phase.Charging: TickCharge(dt); break;
                 case Phase.Black: TickBlack(dt); break;
                 default: TickFadeBack(dt); break;
             }
         }
 
-        private void TickWaiting()
+        // The lamp lit and on its body fills the bar; anywhere else the bar drains.
+        private void TickCharge(float dt)
         {
             if (!_lamp.Active || !_root.PeekAnomalyIn(_room)) return;
             bool lit = _lamp.Lit && !_lamp.Flickering;
-            if (lit && _lamp.Covers(_home) && !_told)
+            var centre = transform.localPosition;
+            if (lit && _lamp.Covers(centre) && !_told)
             {
                 _told = true;
-                string hint = _lamp.Focused ? "*it stands perfectly still*" : "*the light does nothing. Focus it (Q)*";
-                _root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, hint, 3f, null));
+                _root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*hold the light on it. Focus (Q) is faster*", 3f, null));
             }
-            // only the tight Focus lamp drives him out; the wide lamp only shows him
-            if (!lit || !_lamp.Focused || !_lamp.CursorWithin(_home, BodyHalfW, BodyHalfH)) return;
+            float height = CurrentHeight;
+            bool onBody = lit && _lamp.CursorWithin(centre, PeekSpots.BodyHalfWidth(_kind, height), PeekSpots.BodyHalfHeight(_kind, height));
+            _progress = PeekClear.Advance(_progress, dt, onBody, _lamp.Focused, _root.Config.peekClearSeconds);
 
-            _phase = Phase.Flicker;
-            _clock = 0f;
-            _nextJump = 0f;
-            _lamp.Lock();
-            _root.Audio.PlaySfx("sfx_glitch", 0.6f);
+            if (_progress <= 0f)
+            {
+                if (_phase == Phase.Charging) Reset();
+                return;
+            }
+            _phase = Phase.Charging;
+            React(dt);
+            if (_progress >= 1f) Finish();
         }
 
-        // He flickers around and the lamp dims and flickers, for peekRepelSeconds.
-        private void TickFlicker(float dt)
+        // What it does while the bar fills.
+        private void React(float dt)
         {
-            _clock += dt;
-            float total = _root.Config.peekRepelSeconds;
             bool calm = _root.Settings != null && (_root.Settings.PhotosensitivitySafe || _root.Settings.ReduceMotion);
-            float progress = Mathf.Clamp01(_clock / total);
+            if (calm) { _lamp.SetDim(_progress * 0.8f); return; }   // a steady dim, it stays where it stands
 
-            if (calm)
-            {
-                // no strobe: a steady dim, and he stays where he stands
-                _lamp.SetDim(progress * 0.8f);
-            }
-            else
-            {
-                _nextJump -= dt;
-                if (_nextJump <= 0f)
-                {
-                    _nextJump = JumpEvery;
-                    float jx = (_rng.NextFloat() * 2f - 1f) * JumpUnits;
-                    float jy = (_rng.NextFloat() * 2f - 1f) * JumpUnits * 0.4f;
-                    transform.localPosition = _home + new Vector3(jx, jy, 0f);
-                    _sr.enabled = _rng.NextFloat() > 0.2f;
-                    // the lamp gets weaker on average, and stutters around that
-                    _lamp.SetDim(Mathf.Clamp01(progress * 0.75f + _rng.NextFloat() * 0.35f));
-                }
-            }
-            if (_clock < total) return;
+            if (_reaction == PeekReaction.Still) { _lamp.SetDim(_progress * 0.5f); return; }
 
-            // the light dies and he is gone before it comes back
+            int step = Mathf.FloorToInt(_progress * RushSteps);
+            if (step > _lastStep) _root.Audio.PlaySfx("sfx_glitch", 0.5f);
+            _lastStep = step;
+            float share = step / (float)RushSteps;
+            float tall = Mathf.Lerp(_homeHeight, RushFillHeight, share);
+            Show(Mathf.Lerp(_homeX, 0f, share * 0.8f), Mathf.Lerp(_homeFeetY, RushFeetY, share), tall);
+            _sr.sortingOrder = share >= AboveCoverFrom ? WorldLayers.PeekCover + 2 : WorldLayers.PeekCover - 2;
+
+            // the lamp stutters while it comes closer, weaker on average as it gets there
+            _nextStutter -= dt;
+            if (_nextStutter <= 0f)
+            {
+                _nextStutter = 0.07f;
+                _lamp.SetDim(Mathf.Clamp01(_progress * 0.75f + _rng.NextFloat() * 0.35f));
+            }
+        }
+
+        // The lamp left it before the bar was full: it settles back where it stood.
+        private void Reset()
+        {
+            _phase = Phase.Waiting;
+            _lastStep = 0;
+            Show(_homeX, _homeFeetY, _homeHeight);
+            _sr.sortingOrder = WorldLayers.PeekCover - 2;
+            _lamp.SetDim(0f);
+        }
+
+        // The bar is full: the light dies and it is gone before the light comes back.
+        private void Finish()
+        {
             _phase = Phase.Black;
             _clock = 0f;
+            _lamp.Lock();
             _lamp.SetDim(1f);
+            _root.Audio.PlaySfx("sfx_glitch", 0.6f);
             Remove();
         }
 
@@ -151,18 +204,16 @@ namespace Hollowbrook.World
             Destroy(gameObject);
         }
 
-        // The room counts for the patrol from the moment he is gone.
+        // The room counts for the patrol from the moment it is gone.
         private void Remove()
         {
             if (_removed) return;
             _removed = true;
             _sr.enabled = false;
-            transform.localPosition = _home;
             _root.RepelPeekAnomaly();
         }
 
-        // Leaving the peek (or any teardown) in the middle of the scene must never leave the lamp
-        // dim or locked.
+        // Leaving the peek (or any teardown) half way must never leave the lamp dim or locked.
         private void OnDestroy()
         {
             if (_lamp != null && _phase != Phase.Waiting) _lamp.Unlock();

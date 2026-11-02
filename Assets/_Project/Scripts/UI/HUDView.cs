@@ -211,7 +211,7 @@ namespace Hollowbrook.UI
             if (s == AppViewState.Checkpoint) _objective.text = _gameRoot.ObjectiveText ?? "";
             if (peeking) _objective.text = _gameRoot.HuntActive
                 ? _gameRoot.ObjectiveText
-                : "Move the flashlight across the room. Only the Focus light (Q) drives something out. S or the bottom edge steps back.";
+                : "Move the flashlight across the room and hold it on whatever stands there. The Focus light (Q) clears it faster. S or the bottom edge steps back.";
             if (exploring) _objective.text = _gameRoot.ObjectiveText;   // restore after a peek overwrote the hint
             if (_peekExitBand != null) _peekExitBand.SetActive(peeking);
             RefreshFindings();

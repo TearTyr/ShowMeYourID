@@ -68,7 +68,7 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | Move something on the desk | `Checkpoint/CheckpointLayout.cs` (all desk positions are numbers here) |
 | Flashlight battery, beam size | `GameConfig.asset` (battery, beam), `World/FlashlightRig.cs` |
 | The peek lamp size | `World/PeekLight.cs` (`Radius`, `FocusRadius`) |
-| The hooded figure in the peek rooms (how long he flickers, the black, the fade back) | `World/PeekAnomaly.cs`, `GameConfig.asset` > `peekRepelSeconds` |
+| The hooded figure in the peek rooms (how long the lamp must stay on it, the black, the fade back) | `World/PeekAnomaly.cs`, `GameConfig.asset` > `peekRepelSeconds` |
 | How big the sliding anomaly is and where it sits on the floor | `GameLogic/AnomalyBehaviorRules.cs` (`GroundCentreY`), `FilePpus` in `Generated/ProceduralArt.cs` |
 | Night 6 (the Challenge): his questions, how hard the hunt is | `GameLogic/AdminTalk.cs` (`n6_hub`), `GameConfig.asset` group **Night 6** |
 | The ten findings (the token is number 7) | `GameLogic/ClueRegistry.cs`, `World/RoomBuilder.cs` |

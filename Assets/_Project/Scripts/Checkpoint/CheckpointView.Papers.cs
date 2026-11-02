@@ -214,7 +214,7 @@ namespace Hollowbrook.Checkpoint
             {
                 string year = Content.YearNames[v.IdYearLevel - 1];
                 string course = Content.Courses[v.IdCourseIndex];
-                string status = v.IdIsTransferee ? "TRANSFEREE" : "REGULAR";
+                string status = Content.StatusName(v.IdIsTransferee, v.IsFaculty).ToUpperInvariant();
                 _idYear.text = (template ? "" : "YEAR: ") + year;
                 _idCourse.text = (template ? "" : "COURSE: ") + course;
                 _idStatus.text = (template ? "" : "STATUS: ") + status;

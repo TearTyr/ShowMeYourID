@@ -20,7 +20,7 @@ MonoBehaviour:
   queueBusyHurryMultiplier: 2
   nextStudentSeconds: 3
   anomalyFirstSpawnSeconds: 0
-  peekRepelSeconds: 1.5
+  peekClearSeconds: 2
   queueNightScale: 0.8
   queuePressureWarnAt: 9999
   queueOverwhelmedAt: 9999
@@ -57,6 +57,7 @@ MonoBehaviour:
   sprintRecoverSeconds: 1.4
   sprintAggroRange: 9
   anomalyRetreatSpeed: 3.2
+  beamPace: 0.5
   catchGraceBlink: 2.2
   catchGraceSlide: 2.4
   catchGraceSprint: 1.8

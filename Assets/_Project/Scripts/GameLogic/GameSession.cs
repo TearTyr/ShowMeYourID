@@ -86,6 +86,12 @@ namespace Hollowbrook.Logic
         {
             if (o == null || o.Verdict == Verdict.None) return;
             Processed++;
+            if (!o.WasAdministrator)
+                NightRecords.Add(new NightRecord
+                {
+                    Name = o.Name, WasAnomaly = o.WasAnomaly, Allowed = o.Verdict == Verdict.Allow,
+                    Why = o.RevealedDefects != null && o.RevealedDefects.Count > 0 ? o.RevealedDefects[0] : "",
+                });
             if (o.Verdict == Verdict.Allow)
                 AdmittedStudents.Add(new StudentData { Id = o.Id, Name = o.Name, IsAnomaly = o.WasAnomaly, VisitorIndex = o.VisitorIndex });
             if (o.Correct)
@@ -156,8 +162,31 @@ namespace Hollowbrook.Logic
         public int ChangeLog(int entry, int delta)
         {
             if (entry < 0 || entry >= LogEntries) return 0;
-            LogCounts[entry] = System.Math.Max(0, System.Math.Min(LogMax, LogCounts[entry] + delta));
+            int before = LogCounts[entry];
+            LogCounts[entry] = System.Math.Max(0, System.Math.Min(LogMax, before + delta));
+            if (LogCounts[entry] != before) LogSigned = false;   // a changed box needs signing again
             return LogCounts[entry];
+        }
+
+        /// <summary>Everyone who reached the window tonight, in order (saved). The Security Log is checked against it.</summary>
+        public readonly List<NightRecord> NightRecords = new List<NightRecord>();
+        /// <summary>The log has been signed: on nights 1 to 4 END SHIFT waits for it.</summary>
+        public bool LogSigned;
+        /// <summary>What last night's log got wrong (or "matched"): printed at the top of tonight's Rules sheet.</summary>
+        public string LogNote = "";
+        /// <summary>Sanity the wrong boxes cost, paid when the next night begins.</summary>
+        public int PendingLogLoss;
+
+        public void SignLog() => LogSigned = true;
+
+        /// <summary>The night is over: compare the three boxes with what really happened, write the note for
+        /// tomorrow's Rules sheet and book the penalty.</summary>
+        public NightLogRules.Grade GradeNight(int incidents)
+        {
+            var grade = NightLogRules.Check(LogCounts, NightRecords, incidents);
+            LogNote = grade.Note;
+            PendingLogLoss = grade.SanityLoss;
+            return grade;
         }
         /// <summary>How the night just played failed (None when it did not) - read by the results screen.</summary>
         public ShiftFailure LastShiftFailure = ShiftFailure.None;
@@ -182,6 +211,8 @@ namespace Hollowbrook.Logic
         {
             ShiftBreaches = 0;
             LogCounts = new int[LogEntries];
+            NightRecords.Clear();
+            LogSigned = false;
             Stacks.Clear();
             RefillPending = 0f;
             int severity = PendingPenaltySeverity;
@@ -191,6 +222,11 @@ namespace Hollowbrook.Logic
                 int stacks = ShiftFailureRules.StartStacks(severity);
                 for (int i = 0; i < stacks; i++) Stacks.Add();
                 RoamingAtStart = ShiftFailureRules.RoamingAtStart(severity);
+            }
+            if (PendingLogLoss > 0)
+            {
+                Sanity = SanityModel.Clamp(Sanity - PendingLogLoss);   // the wrong boxes of last night's log
+                PendingLogLoss = 0;
             }
             PendingPenaltySeverity = 0;
             PendingPenaltyNight = 0;
@@ -202,6 +238,8 @@ namespace Hollowbrook.Logic
         public void RewindNight()
         {
             QueueState = null;
+            NightRecords.Clear();
+            LogSigned = false;
             VisitorIndexAtSave = 0;
             ShiftClockMinutes = 0f;
             AdminAllowed = false;

@@ -9,22 +9,22 @@ namespace Hollowbrook.Logic
         public static bool IsFormatValid(string id)
         {
             if (string.IsNullOrEmpty(id)) return false;
-            if (id.Length != 12) return false;                 // HB-YYYY-NNNN
+            if (id.Length != 11) return false;                 // HB-YYYY-NNN
             if (id[0] != 'H' || id[1] != 'B' || id[2] != '-') return false;
             if (id[7] != '-') return false;
             for (int i = 3; i <= 6; i++) if (!char.IsDigit(id[i])) return false;
-            for (int i = 8; i <= 11; i++) if (!char.IsDigit(id[i])) return false;
+            for (int i = 8; i <= 10; i++) if (!char.IsDigit(id[i])) return false;
             int year = int.Parse(id.Substring(3, 4), System.Globalization.CultureInfo.InvariantCulture);
-            int serial = int.Parse(id.Substring(8, 4), System.Globalization.CultureInfo.InvariantCulture);
-            if (year < 2023 || year > 2027) return false;      // plausible enrollment years only
-            if (serial < 1 || serial > 9999) return false;     // 0000 is not issued
+            int serial = int.Parse(id.Substring(8, 3), System.Globalization.CultureInfo.InvariantCulture);
+            if (year < 1990 || year > 2027) return false;      // staff and professors joined earlier than students
+            if (serial < 1 || serial > 999) return false;      // 000 is not issued
             return true;
         }
 
         public static int SerialOf(string id)
         {
             if (!IsFormatValid(id)) return -1;
-            return int.Parse(id.Substring(8, 4), System.Globalization.CultureInfo.InvariantCulture);
+            return int.Parse(id.Substring(8, 3), System.Globalization.CultureInfo.InvariantCulture);
         }
 
         public static bool IsExpired(VisitorData v, int shiftNumber)

@@ -117,6 +117,14 @@ namespace FlowCheck
             cp0.AdvanceQueue(6f); cp0.AdvanceQueue(6f);   // >6s of ignored waiting (step 11.1.4)
             Check(cp0.CurrentVisitor == null && root.Queue.WaitingCount == 0 && root.Queue.ArrivalCount == 0,
                 "waiting 12s with the note up arrives nobody and queues nobody");
+            // the very start of the game: no visitor, the note up. The stamps are already there to see.
+            Check(StampAlpha(root, "stamp_allow") > 0.99f && StampAlpha(root, "stamp_deny") > 0.99f,
+                "STAMPS: both stamps are fully visible at the start of the game, before any visitor");
+            var captionAllow = FindDeep(cp0.transform, "stampcaption_APPROVE");
+            var overlayRules = FindDeep(cp0.transform, "OverlayRules");
+            Check(captionAllow != null && overlayRules != null && captionAllow.GetSiblingIndex() < overlayRules.GetSiblingIndex() &&
+                  captionAllow.GetSiblingIndex() < sticky.GetSiblingIndex(),
+                "STAMPS: the APPROVE caption sits under the sheets and the sticky note, not above their dimmers");
             ClickStickyNote(root);
             Check(!sticky.gameObject.activeSelf, "the note hides on click");
             Check(cp0.CurrentVisitor != null, "P10: clicking the note presents the first visitor");
@@ -165,6 +173,7 @@ namespace FlowCheck
             SceneReuseProof(root);
             ShiftFailureProof(root);
             RetryProof(root);
+            NightLogProof(root);
             MoreFlawsProof(root);
             SanityProof(root);
             Night6Proof(root);
@@ -1778,6 +1787,8 @@ namespace FlowCheck
                 allFaces &= FindArt(rootDir, Hollowbrook.Logic.FaceAssets.StudentKey(i - 1)) != null;
             for (int i = 1; i <= Hollowbrook.Logic.FaceAssets.StudentFaceCount && allFaces; i++)
                 allFaces &= FindArt(rootDir, Hollowbrook.Logic.FaceAssets.AnomalyKey(i - 1)) != null;   // paired variants
+            for (int i = 1; i <= Hollowbrook.Logic.FaceAssets.StudentFaceCount && allFaces; i++)
+                allFaces &= FindArt(rootDir, Hollowbrook.Logic.FaceAssets.ScaredKey(i - 1)) != null;
             Check(allFaces, "FM: every student and anomaly face asset ships under Resources/Art");
             Check(FindArt(rootDir, "stamp_allow") != null,
                 "FM: the approval stamp asset ships under Resources/Art");
@@ -2118,17 +2129,22 @@ namespace FlowCheck
 
             // the tray picture is the round check and cross, never stretched, and the stamp itself
             // only shows while it is held (it used to pop over the tray the moment the night went live)
+            // the tray picture itself is always fully visible, so the stamps never vanish
             foreach (var pair in new[] { new[] { "stamp_allow", "sec_tray_allow" }, new[] { "stamp_deny", "sec_tray_deny" } })
             {
                 var trayImg = FindDeep(root.Checkpoint.transform, pair[1]).GetComponent<UnityEngine.UI.Image>();
                 Check(trayImg.preserveAspect, "STAMPS: " + pair[1] + " keeps its shape (a check or a cross, not stretched)");
                 Check(StampHandAlpha(root, pair[0]) < 0.01f, "STAMPS: " + pair[0] + " is not drawn over the tray while it rests");
+                Check(StampAlpha(root, pair[0]) > 0.99f, "STAMPS: the " + pair[1] + " mark is fully visible");
                 var hand = FindDeep(root.Checkpoint.transform, pair[0]).GetComponent<DragPaper>();
                 hand.BeginDrag();
                 Check(StampHandAlpha(root, pair[0]) > 0.99f, "STAMPS: " + pair[0] + " shows in the hand while it is held");
                 hand.EndDrag();
                 Check(StampHandAlpha(root, pair[0]) < 0.01f && StampAlpha(root, pair[0]) > 0.9f,
                     "STAMPS: " + pair[0] + " goes back to the tray picture when let go");
+                Check(FindDeep(root.Checkpoint.transform, pair[0]).GetSiblingIndex() <
+                      FindDeep(root.Checkpoint.transform, "OverlayRules").GetSiblingIndex(),
+                    "STAMPS: " + pair[0] + " goes back under the sheets, so it cannot be grabbed through them");
             }
 
             cp.GoPatrol();
@@ -2186,6 +2202,11 @@ namespace FlowCheck
                 Check(!live("endshift"), "END SHIFT: two classrooms are not enough, a CR is needed");
                 root.Session.ClearedRooms |= PatrolCycle.Bit(RoomId.ComfortRoom2);
                 cp.RefreshHud();
+            }
+            if (root.LogRequired)
+            {
+                Check(!live("endshift"), "END SHIFT stays locked until the Security Log is signed");
+                SignLog(root);
             }
             Check(live("endshift"), "END SHIFT lights up when the roster is done");
             {
@@ -2506,6 +2527,7 @@ namespace FlowCheck
             root.Session.ClearedRooms = PatrolCycle.Bit(RoomId.Classroom1) | PatrolCycle.Bit(RoomId.Classroom2) | PatrolCycle.Bit(RoomId.ComfortRoom);
             cp.RefreshHud();
             ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
+            SignLog(root);
             Btn(root, "endshift").onClick.Invoke();
             Check(root.State == AppViewState.ShiftIntro && root.Session.CurrentShift == 2, "Q10: clocking out runs straight into the next night");
             root.QuitToMenu(true);
@@ -2682,6 +2704,10 @@ namespace FlowCheck
         // the production config -> tuning wiring is asserted in Q1 before any override
         private static void IsolateMissingStudent(GameRoot root) =>
             root.Queue.Tuning.MissingStudentChance = 0f;
+
+        // sign the Security Log the way a click on the sheet's button does (the sheet need not be open)
+        private static void SignLog(GameRoot root) =>
+            FindDeep(root.Checkpoint.transform, "sign").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
 
         private static void ClickStickyNote(GameRoot root)
         {
@@ -3515,6 +3541,26 @@ namespace FlowCheck
             }
             views.Spawner.DiscardLive();
 
+            // Slide: any beam on it slows it, so the player has time to switch to Focus. Only the speed
+            // changes: the path it walks in one second is about half with the beam on it.
+            var slideRun = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Slide);
+            Check(slideRun != null, "W6: Slide spawns for the pace proof");
+            if (slideRun != null)
+            {
+                TopUpBattery(root, rig);
+                views.Player.PlaceInRoom(hall, new Vector3(Mathf.Clamp(slideRun.Pos.x - 6f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), 0f, 0f));
+                SetBeam(root, rig, LightMode.Off);
+                float darkPath = 0f, lastSx = slideRun.Pos.x;
+                for (int i = 0; i < 60; i++) { WorldFrame(root); darkPath += Mathf.Abs(slideRun.Pos.x - lastSx); lastSx = slideRun.Pos.x; }
+                SetBeam(root, rig, LightMode.Sweep);
+                float beamPath = 0f;
+                for (int i = 0; i < 60; i++) { AimAt(slideRun.Pos.x, slideRun.Pos.y); WorldFrame(root); beamPath += Mathf.Abs(slideRun.Pos.x - lastSx); lastSx = slideRun.Pos.x; }
+                Check(darkPath > 0.5f && beamPath > darkPath * 0.3f && beamPath < darkPath * 0.7f,
+                    $"W6: the plain beam slows a Slide to about half its speed (dark {darkPath:F2}u, beam {beamPath:F2}u in one second)");
+                SetBeam(root, rig, LightMode.Off);
+            }
+            views.Spawner.DiscardLive();
+
             // Sprint: readable telegraph → dash → catch; the Focus beam interrupts the windup
             var sprint = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Sprint);
             Check(sprint != null, "W6: Sprint spawns");
@@ -3565,16 +3611,40 @@ namespace FlowCheck
             }
             views.Spawner.DiscardLive();
 
+            // Sprint: on the floor or upside down on the ceiling, rolled once per spawn
+            int onFloor = 0, upsideDown = 0;
+            for (int n = 0; n < 16; n++)
+            {
+                var run = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Sprint);
+                if (run == null) break;
+                if (run.OnCeiling)
+                {
+                    upsideDown++;
+                    Check(Mathf.Abs(run.Pos.y - (RoomInstance.FloorY + BehaviorProfile.RunnerCeilingY)) < 1e-3f && run.Renderer.flipY,
+                        "W6: a ceiling runner is upside down at the top of the screen");
+                }
+                else
+                {
+                    onFloor++;
+                    Check(Mathf.Abs(run.Pos.y - (RoomInstance.FloorY + BehaviorProfile.RunnerFloorY)) < 1e-3f && !run.Renderer.flipY,
+                        "W6: a floor runner stands on the floor line, the right way up");
+                }
+                views.Spawner.DiscardLive();
+            }
+            Check(onFloor > 0 && upsideDown > 0, $"W6: the runner is sometimes on the floor and sometimes on the ceiling ({onFloor} / {upsideDown})");
+
             // CoverHug: ceiling band is spawn AND clamp; only Focus identifies it
             var hug = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.CoverHug);
             Check(hug != null, "W6: CoverHug spawns");
             if (hug != null)
             {
                 float floorY = RoomInstance.FloorY;
-                Check(hug.Pos.y >= floorY + 3.6f - 1e-3f && hug.Pos.y <= floorY + 4.6f + 1e-3f,
+                Check(Mathf.Abs(hug.Pos.y - (floorY + BehaviorProfile.HangerCentreY)) < 1e-3f,
                     $"W6: CoverHug spawns inside its ceiling band (y={hug.Pos.y:F2})");
+                Check(System.Array.Exists(BehaviorProfile.DoorXs, d => Mathf.Abs(d - hug.Pos.x) < 0.05f),
+                    $"W6: CoverHug starts right above a door (x={hug.Pos.x:F2})");
                 WorldFrames(root, 150);
-                Check(!hug.Gone && hug.Pos.y >= floorY + 3.6f - 1e-3f && hug.Pos.y <= floorY + 4.6f + 1e-3f,
+                Check(!hug.Gone && Mathf.Abs(hug.Pos.y - (floorY + BehaviorProfile.HangerCentreY)) < 1e-3f,
                     $"W6: CoverHug stays on the ceiling - no contradictory clamp drags it down (y={hug.Pos.y:F2})");
                 views.Player.PlaceInRoom(hall, new Vector3(Mathf.Clamp(hug.Pos.x - 3f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), 0f, 0f));
                 SetBeam(root, rig, LightMode.Sweep);
@@ -3884,8 +3954,25 @@ namespace FlowCheck
             var hider = views.PeekedAnomaly.GetComponent<SpriteRenderer>();
             Check(hider.sortingOrder < WorldLayers.PeekCover, "AN: it sits under the dark, so only the lamp shows it");
             Check((root.Session.ClearedRooms & bit) == 0, "AN: the room does not count while it is still in there");
-            Check(hider.sprite == ProceduralArt.Get("char_hood"), "AN: it is the hooded figure");
+            var kindHere = PeekSpots.KindIn(root.Session.Seed, root.Session.CurrentShift, withOne);
+            Check(hider.sprite == ProceduralArt.Get(PeekSpots.ArtKey(kindHere)) && views.PeekedAnomaly.Kind == kindHere,
+                "AN: it is the kind this room holds (" + kindHere + ")");
+            bool classroom = withOne == RoomId.Classroom1 || withOne == RoomId.Classroom2;
+            Check(classroom == (kindHere == PeekKind.Hood), "AN: classrooms hold the hooded figure and comfort rooms never do");
             var hiderPos = views.PeekedAnomaly.transform.localPosition;
+            float heightBefore = views.PeekedAnomaly.CurrentHeight;
+            float feetNow = hiderPos.y - heightBefore * 0.5f;
+            if (kindHere == PeekKind.Coverhug)
+                Check(Mathf.Abs(hiderPos.y + heightBefore * 0.5f - PeekSpots.ScreenTopY) < 0.01f, "AN: the ceiling hanger hangs from the top of the screen");
+            else
+            {
+                bool onASpot = false;
+                foreach (var spot in PeekSpots.For(withOne))
+                    if (Mathf.Abs(hiderPos.x - spot.X) < 0.01f && Mathf.Abs(feetNow - spot.FeetY) < 0.01f) onASpot = true;
+                Check(onASpot, "AN: it stands on one of the room's floor spots, feet on the painted floor");
+                Check(Mathf.Abs(heightBefore - PeekSpots.HeightAt(kindHere, withOne, feetNow)) < 0.01f,
+                    "AN: its size follows the room's perspective (" + heightBefore.ToString("F2") + " units)");
+            }
             Check(lamp.Lit, "AN: the lamp is already on when the room opens");
             lamp.ToggleLamp();                      // put it out for the dark proof
             AimAt(hiderPos.x, hiderPos.y);
@@ -3896,27 +3983,26 @@ namespace FlowCheck
             WorldFrames(root, 150);
             Check(!views.PeekedAnomaly.Playing && views.PeekedAnomaly.transform.localPosition == hiderPos,
                 "AN: standing in the edge of the light does nothing, he does not move");
-            AimAt(hiderPos.x, hiderPos.y);          // the wide lamp fully on him: it only shows him
-            WorldFrames(root, 150);
-            Check(!views.PeekedAnomaly.Playing && (root.Session.PeekAnomaliesGone & bit) == 0,
-                "AN: the wide lamp fully on him does nothing, only Focus drives him out");
-            lamp.ToggleFocus();                     // the tight Focus lamp on him
-            AimAt(hiderPos.x, hiderPos.y);
-            WorldFrames(root, 5);
-            Check(views.PeekedAnomaly.Playing && lamp.Locked, "AN: light fully on him starts the scene and locks the lamp");
+            AimAt(hiderPos.x, hiderPos.y);          // the plain lamp on his body
+            WorldFrames(root, 30);
+            Check(views.PeekedAnomaly.Playing && !lamp.Locked && (root.Session.PeekAnomaliesGone & bit) == 0,
+                "AN: the plain lamp on his body starts to clear him, and he is still there after half a second");
+            if (views.PeekedAnomaly.Reaction == PeekReaction.Rush)
+                Check(views.PeekedAnomaly.transform.localPosition != hiderPos && views.PeekedAnomaly.CurrentHeight > heightBefore,
+                    "AN: one that rushes jumps closer and bigger while the lamp holds");
+            else
+                Check(views.PeekedAnomaly.transform.localPosition == hiderPos,
+                    "AN: one that stays still stays exactly where it stands while the lamp holds");
+            WorldFrames(root, 85);
+            Check(!lamp.Locked && (root.Session.PeekAnomaliesGone & bit) == 0, "AN: the plain lamp is not done at about 1.9 seconds");
+            WorldFrames(root, 15);
+            Check(lamp.Locked && (root.Session.PeekAnomaliesGone & bit) != 0 && (root.Session.ClearedRooms & bit) != 0,
+                "AN: after about two seconds of plain lamp he is gone, the room counts and the lamp is locked");
             var blindSr = FindDeep(lamp.transform, "PeekBlind").GetComponent<SpriteRenderer>();
             PressKey(root, KeyCode.F);
             PressKey(root, KeyCode.Q);
             PressKey(root, KeyCode.S);
-            Check(lamp.Lit && views.PeekActive && !views.Transitioning, "AN: while it plays F, Q and stepping back do nothing");
-            WorldFrames(root, 40);
-            Check(views.PeekedAnomaly.transform.localPosition != hiderPos, "AN: he flickers around");
-            Check(blindSr.gameObject.activeSelf && blindSr.color.a > 0f && blindSr.color.a < 1f || blindSr.color.a >= 1f,
-                "AN: the lamp dims while he flickers");
-            Check((root.Session.PeekAnomaliesGone & bit) == 0, "AN: he is still there during the flicker");
-            WorldFrames(root, 60);   // past peekRepelSeconds
-            Check((root.Session.PeekAnomaliesGone & bit) != 0 && (root.Session.ClearedRooms & bit) != 0,
-                "AN: after the flicker he is gone and the room counts");
+            Check(lamp.Lit && views.PeekActive && !views.Transitioning, "AN: while the black and the fade back play, F, Q and stepping back do nothing");
             Check(blindSr.color.a >= 0.99f && !views.PeekedAnomaly.GetComponent<SpriteRenderer>().enabled,
                 "AN: everything goes black, and he is not drawn any more");
             Check(lamp.Locked, "AN: the lamp stays locked through the black");
@@ -3943,6 +4029,11 @@ namespace FlowCheck
             AimAt(waiting.transform.localPosition.x, waiting.transform.localPosition.y);
             WorldFrames(root, 5);
             Check(waiting.Playing, "AN: hovering over it reacts at once, with no F press and no waiting");
+            views.PeekLight.ToggleFocus();   // the Focus lamp from here
+            int focusFrames = 5;
+            while (!views.PeekLight.Locked && focusFrames < 300) { WorldFrame(root); focusFrames++; }
+            Check(focusFrames >= 85 && focusFrames <= 100,
+                $"AN: the Focus lamp clears it about 1.3 times faster ({focusFrames} frames, against about 120 for the plain lamp)");
             WorldFrames(root, 400);
             PressKey(root, KeyCode.S);
             WorldFrames(root, 60);
@@ -4082,6 +4173,7 @@ namespace FlowCheck
             {
                 codeArt.Add("char_student_" + i.ToString("D2"));
                 codeArt.Add("char_student_" + i.ToString("D2") + "_anomaly");
+                codeArt.Add("char_student_" + i.ToString("D2") + "_scared");
             }
             codeArt.Add(Hollowbrook.Logic.FaceAssets.AdminKey);
             codeArt.Add(Hollowbrook.Logic.FaceAssets.AdminWindowKey);
@@ -4428,8 +4520,8 @@ namespace FlowCheck
             "sec_stamp_circle_allow", "sec_stamp_circle_deny", "sec_icon_accept",
             "sec_icon_decline", "sec_folder_tab1", "sec_icon_patrol",
             "sec_icon_endshift", "sec_qpanel", "sec_arrow_right", "sec_cabinet1",
-            "sec_cabinet2", "sec_stamp", "sec_rules_paper",
-            "sec_log_paper", "sec_bubble",
+            "sec_cabinet2", "sec_stamp", "sec_rules_prop", "sec_rules_paper",
+            "sec_log_prop", "sec_log_paper", "sec_bubble",
         };
 
         private static int Idx(Transform t) => t != null ? t.GetSiblingIndex() : -1;

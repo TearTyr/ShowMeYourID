@@ -12,7 +12,7 @@ namespace Hollowbrook.Checkpoint
     {
         // Paper tilts off the concept art (degrees, +z = counter-clockwise on screen): the
         // documents lie on the desk, they are not pinned to the grid.
-        public const float TiltCard = -2f, TiltSlip = -2f, TiltLog = -4f, TiltRules = 3f;
+        public const float TiltCard = -2f, TiltSlip = -2f, TiltLog = 0f, TiltRules = 0f;   // the two paper props are drawn already tilted
         // The printed card / slip art keeps its design space inside a scaled art layer.
         public const float CardArtW = 320f, CardArtH = 220f, SlipArtW = 200f, SlipArtH = 120f;
         // Desk footprint of the two held papers = art design space x these scales, and the
@@ -241,9 +241,10 @@ namespace Hollowbrook.Checkpoint
             // the printed ink; the LIVE typed body rides on an addendum slip pinned over
             // the sheet's blank bottom band (the paper keeps its aspect and its art),
             // and the close pill sits on the sheet's blank top-right corner
-            public static readonly Region PaperSlip = new Region(405, 596, 470, 116);
-            public static readonly Region PaperSlipBody = new Region(14, 10, 442, 96);
+            public static readonly Region PaperSlip = new Region(405, 594, 470, 118);
+            public static readonly Region PaperSlipBody = new Region(14, 8, 442, 102);
             public static readonly Region PaperClose = new Region(688, 42, 140, 36);
+            public static readonly Region PaperSign = new Region(688, 84, 140, 36);   // SIGN LOG, under CLOSE on the log sheet
 
             // day banner: night label on top, queue readout underneath
             public static readonly Region BannerTop = new Region(0, 0, 700, 30);   // pre-squeeze width

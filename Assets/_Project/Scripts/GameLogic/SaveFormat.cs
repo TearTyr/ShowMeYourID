@@ -64,6 +64,10 @@ namespace Hollowbrook.Logic
             KV(sb, "huntLeft", Inv(s.HuntSecondsLeft));
             sb.Append("shiftBreaches=").Append(s.ShiftBreaches).Append('\n');
             KV(sb, "logCounts", string.Join(",", s.LogCounts));
+            KV(sb, "nightRecords", EncodeRecords(s.NightRecords));
+            sb.Append("logSigned=").Append(s.LogSigned ? 1 : 0).Append('\n');
+            KV(sb, "logNote", (s.LogNote ?? "").Replace("\n", "~"));
+            sb.Append("pendingLogLoss=").Append(s.PendingLogLoss).Append('\n');
             sb.Append("penaltySeverity=").Append(s.PendingPenaltySeverity).Append('\n');
             sb.Append("penaltyNight=").Append(s.PendingPenaltyNight).Append('\n');
             sb.Append("lastFailure=").Append((int)s.LastShiftFailure).Append('\n');
@@ -181,6 +185,10 @@ namespace Hollowbrook.Logic
                     for (int i = 0; i < parts.Length && i < s.LogCounts.Length; i++)
                         if (int.TryParse(parts[i], out int n)) s.LogCounts[i] = Math.Max(0, Math.Min(GameSession.LogMax, n));
                 }
+                DecodeRecords(Str(map, "nightRecords", ""), s.NightRecords);
+                s.LogSigned = Int(map, "logSigned", 0) == 1;
+                s.LogNote = Str(map, "logNote", "").Replace("~", "\n");
+                s.PendingLogLoss = Math.Max(0, Int(map, "pendingLogLoss", 0));
                 s.PendingPenaltySeverity = Int(map, "penaltySeverity", 0);
                 s.PendingPenaltyNight = Int(map, "penaltyNight", 0);
                 s.LastShiftFailure = (ShiftFailure)Int(map, "lastFailure", 0);
@@ -226,6 +234,29 @@ namespace Hollowbrook.Logic
 
         private static void KV(StringBuilder sb, string key, string value) =>
             sb.Append(key).Append('=').Append(value ?? "").Append('\n');
+
+        // one record is Name|anomaly|allowed|why, records are joined with ^ (those two marks are cut from the text)
+        private static string Clean(string text) =>
+            (text ?? "").Replace("|", " ").Replace("^", " ").Replace("\n", " ").Replace("\r", " ");
+
+        private static string EncodeRecords(List<NightRecord> records)
+        {
+            var parts = new List<string>();
+            foreach (var r in records)
+                parts.Add(Clean(r.Name) + "|" + (r.WasAnomaly ? 1 : 0) + "|" + (r.Allowed ? 1 : 0) + "|" + Clean(r.Why));
+            return string.Join("^", parts);
+        }
+
+        private static void DecodeRecords(string text, List<NightRecord> into)
+        {
+            into.Clear();
+            foreach (var part in text.Split(new[] { '^' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var f = part.Split('|');
+                if (f.Length < 4) continue;
+                into.Add(new NightRecord { Name = f[0], WasAnomaly = f[1] == "1", Allowed = f[2] == "1", Why = f[3] });
+            }
+        }
 
         private static string Inv(float f) => f.ToString("0.###", CultureInfo.InvariantCulture);
 
