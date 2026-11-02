@@ -376,6 +376,16 @@ namespace FlowCheck
                   t6.RoomSeconds < cfg.huntRoomSeconds && t6.BehindSeconds < cfg.huntBehindSeconds,
                 "N6: a longer night, shorter stalks and less time to react");
             Check(t6.StalkMinSeconds <= t6.StalkMaxSeconds, "N6: the stalk range stays sane");
+            var mode5 = root.Session.Mode;
+            root.Session.Mode = GameMode.Normal;
+            var t5 = root.BuildHuntTuning();
+            root.Session.Mode = mode5;
+            Check(t6.RoomHoldSeconds > t5.RoomHoldSeconds && t6.BeamHitSeconds > t5.BeamHitSeconds && t6.StalkMinSeconds < t5.StalkMinSeconds,
+                "N6: the lamp must stay longer on him, the beam longer on his face, and he walks less between stops than night 5");
+            Check(t6.AmbushDelayMaxSeconds < t5.AmbushDelayMaxSeconds && t6.SwapAfterRepelSeconds < t5.SwapAfterRepelSeconds &&
+                  t6.AmbushDelayMinSeconds > 0.3f && t6.BehindSeconds >= 3f,
+                "N6: his swaps come quicker than night 5 (still a breath after a peek) and he still walks up over at least 3 seconds");
+            Check(GameRules.Current.ChallengeDrainScale > 1.5f, "N6: sanity drains faster than night 5");
 
             // the DENY stamp starts the pursuit, like night 5
             StampSlip(root, Verdict.Reject);

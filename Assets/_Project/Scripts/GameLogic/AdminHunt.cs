@@ -9,9 +9,10 @@ namespace Hollowbrook.Logic
     // thing in the building, and you survive until dawn. Each time he stops he is somewhere new:
     //   - IN A ROOM (Room 101, Room 202, CR-1 or CR-2): peek in and keep the lamp on his head.
     //   - BEHIND YOU in the hallway: flash his face with the beam.
-    // He goes for the player: he is likelier behind you in the hallway, and likelier in the room you
-    // are peeking into. Only the light stops him. Too slow and he catches you. CatchesToLose catches and he walks
-    // to the server door.
+    // He goes for the player, but never into the room the player is looking into: while you peek a room he
+    // stops somewhere else, and he comes up behind you once you step out (a random 1 to 2 seconds later, so
+    // you get a breath). When he is dealt with in the hallway he is off to a classroom within 2 seconds.
+    // Only the light stops him. Too slow and he catches you. CatchesToLose catches and he walks to the server door.
     //
     // The hard rule: nobody can ever get stuck. The dawn clock always runs and every phase has
     // a time limit, so the hunt ends in a win or a loss whatever the player does or does not do.
@@ -41,6 +42,10 @@ namespace Hollowbrook.Logic
         public float BehindSeconds;      // time to flash him when he is behind you
         public float BeamHitSeconds;     // seconds of beam on his face that count as a hit
         public float RetreatSeconds;     // harmless time after he leaves
+        public float AmbushDelayMinSeconds;   // after you step out of a peek he is behind you this long after (shortest)
+        public float AmbushDelayMaxSeconds;   // ...and longest, drawn at random so it cannot be timed
+        public float SwapRetreatSeconds;      // harmless time after he is dealt with in the hallway
+        public float SwapAfterRepelSeconds;   // retreat and walk together: the longest wait before he swaps to a classroom
 
         public static HuntTuning Default => new HuntTuning
         {
@@ -48,6 +53,10 @@ namespace Hollowbrook.Logic
             RoomSeconds = 9f, RoomHoldSeconds = 1.8f,
             HoldDecayPerSecond = GameRules.Current.HuntHoldDecayPerSecond, HeadRadius = 1.5f, BehindSeconds = 5f, BeamHitSeconds = 0.35f,
             RetreatSeconds = GameRules.Current.HuntRetreatSeconds,
+            AmbushDelayMinSeconds = GameRules.Current.HuntAmbushDelayMinSeconds,
+            AmbushDelayMaxSeconds = GameRules.Current.HuntAmbushDelayMaxSeconds,
+            SwapRetreatSeconds = GameRules.Current.HuntSwapRetreatSeconds,
+            SwapAfterRepelSeconds = GameRules.Current.HuntSwapAfterRepelSeconds,
         };
     }
 
@@ -86,10 +95,14 @@ namespace Hollowbrook.Logic
         private float _stalkLeft;
         private bool _spotted;
         private int _lastSpot = -1;
-        // He means to come up behind a player who is peeking: he waits for them to step out, or
-        // comes to their room if they stay in too long.
+        // He means to come up behind a player who is peeking: he waits for them to step out (then a random
+        // short delay), and gives up and walks off if they stay in too long. He never goes into their room.
         private bool _ambushWaiting, _ambushAfterRepel;
-        private float _ambushHallSeconds, _ambushPeekSeconds;
+        private float _ambushHallSeconds, _ambushWaited, _ambushDelay;
+        private bool _wasPeeking, _leftPeek;   // the player stepped out of a peek this frame
+        // Dealt with in the hallway: no extra wait, he swaps to a classroom within SwapAfterRepelSeconds.
+        private bool _swapNext;
+        private float _retreatSeconds;
 
         public HuntTuning Tuning { get; }
         public HuntPhase Phase { get; private set; } = HuntPhase.Stalking;
@@ -111,6 +124,7 @@ namespace Hollowbrook.Logic
         public AdminHunt(HuntTuning tuning, int seed)
         {
             Tuning = tuning;
+            _retreatSeconds = tuning.RetreatSeconds;
             _rng = new GameRng(seed);
             SurviveLeft = tuning.SurviveSeconds;
         }
@@ -130,6 +144,8 @@ namespace Hollowbrook.Logic
         {
             if (Finished || dt <= 0f) return HuntEvent.None;
             PhaseTimer += dt;
+            _leftPeek = _wasPeeking && !input.Peeking && input.InHallway;
+            _wasPeeking = input.Peeking;
 
             SurviveLeft -= dt;
             if (SurviveLeft <= 0f)
@@ -144,61 +160,72 @@ namespace Hollowbrook.Logic
                 case HuntPhase.Stalking: return TickStalking(dt, input);
                 case HuntPhase.InRoom: return TickInRoom(dt, input);
                 case HuntPhase.Behind: return TickBehind(dt, input);
-                default: return PhaseTimer >= Tuning.RetreatSeconds ? BeginStalking() : HuntEvent.None;
+                default: return PhaseTimer >= _retreatSeconds ? BeginStalking() : HuntEvent.None;
             }
         }
 
         // ------------------------------------------------------------ phases
         private HuntEvent TickStalking(float dt, HuntInput input)
         {
+            // stepping out of a peek can bring him up behind the player almost at once
+            if (_leftPeek && !_ambushWaiting && _rng.Chance(GameRules.Current.HuntBehindChance)) ArmAmbush();
+            if (_ambushWaiting) return TickAmbush(dt, input);
             _stalkLeft -= dt;
             if (_stalkLeft > 0f) return HuntEvent.None;
-            if (_ambushWaiting) return TickAmbush(dt, input);
-            int spot = PickSpot(input);
-            if (spot == BehindYou && !input.InHallway) { _ambushWaiting = true; return HuntEvent.None; }
-            return Stop(spot);
+            return Stop(PickSpot(input));
         }
 
+        // He waits for the player to be in the hallway, then shows up behind them after a random 1 to 2 seconds.
+        // A player who stays in the peek is not followed in: after HuntAmbushPatienceSeconds of waiting in all he
+        // gives up and walks off, so no phase can last for ever.
         private HuntEvent TickAmbush(float dt, HuntInput input)
         {
-            var rules = GameRules.Current;
+            _ambushWaited += dt;
             if (input.InHallway)
             {
-                _ambushPeekSeconds = 0f;
                 _ambushHallSeconds += dt;
-                return _ambushHallSeconds >= rules.HuntAmbushDelaySeconds ? Stop(BehindYou) : HuntEvent.None;
+                if (_ambushHallSeconds >= _ambushDelay) return Stop(BehindYou);
             }
-            _ambushHallSeconds = 0f;
-            _ambushPeekSeconds += dt;
-            if (_ambushPeekSeconds < rules.HuntAmbushPatienceSeconds) return HuntEvent.None;
-            int here = input.Peeking ? System.Array.IndexOf(Rooms, input.PlayerRoom) : -1;
-            if (here < 0) here = _rng.NextInt(0, Rooms.Length);   // not in the hallway and not peeking: he picks a room
-            var ev = Stop(here);   // a player who will not come out gets him in the room
-            PhaseTimer = Math.Max(0f, Tuning.RoomSeconds - rules.HuntFollowSeconds);
-            return ev;
+            else _ambushHallSeconds = 0f;
+            return _ambushWaited >= GameRules.Current.HuntAmbushPatienceSeconds ? BeginStalking() : HuntEvent.None;
+        }
+
+        private void ArmAmbush()
+        {
+            _ambushWaiting = true;
+            _ambushHallSeconds = _ambushWaited = 0f;
+            _ambushDelay = Tuning.AmbushDelayMinSeconds +
+                           _rng.NextFloat() * Math.Max(0f, Tuning.AmbushDelayMaxSeconds - Tuning.AmbushDelayMinSeconds);
         }
 
         private HuntEvent TickInRoom(float dt, HuntInput input)
         {
             bool looking = input.Peeking && input.PlayerRoom == Room;
             var seen = HuntEvent.None;
-            if (looking && !_spotted) { _spotted = true; seen = HuntEvent.Spotted; }
+            if (looking && !_spotted) { _spotted = true; seen = HuntEvent.Spotted; GiveFairChance(); }
             UpdateHold(dt, looking && input.OnTarget, Tuning.RoomHoldSeconds);
             if (Hold >= 1f) return seen | Repel(true);
             if (PhaseTimer < Tuning.RoomSeconds) return seen;
             // He only catches a player who saw him and was too slow. A player looking elsewhere
-            // is not caught by something never seen: he comes to where they are instead.
+            // is not caught by something never seen: he goes to wait behind them instead.
             return looking ? seen | Catch() : seen | FollowPlayer(input);
         }
 
-        // He goes to the room being peeked, with a short time to find him, or comes up behind
-        // a player in the hallway.
+        // The moment the player first looks into the room he is in, they get a full fair chance to find him:
+        // the clock never leaves less than HuntFollowSeconds, so he can not catch them on the very first look.
+        private void GiveFairChance()
+        {
+            float latest = Math.Max(0f, Tuning.RoomSeconds - GameRules.Current.HuntFollowSeconds);
+            if (PhaseTimer > latest) PhaseTimer = latest;
+        }
+
+        // The player did not look: he comes up behind them in the hallway, or waits for them to leave a peek.
+        // He never jumps into the room being peeked.
         private HuntEvent FollowPlayer(HuntInput input)
         {
-            int here = input.Peeking ? System.Array.IndexOf(Rooms, input.PlayerRoom) : -1;
-            if (here < 0) return Stop(BehindYou);
-            var ev = Stop(here);
-            PhaseTimer = Math.Max(0f, Tuning.RoomSeconds - GameRules.Current.HuntFollowSeconds);
+            if (input.InHallway) return Stop(BehindYou);
+            var ev = BeginStalking();
+            ArmAmbush();
             return ev;
         }
 
@@ -221,19 +248,28 @@ namespace Hollowbrook.Logic
             Enter(HuntPhase.Stalking);
             Room = RoomId.Hallway;
             _ambushWaiting = false;
-            _ambushHallSeconds = _ambushPeekSeconds = 0f;
+            _ambushHallSeconds = _ambushWaited = 0f;
             // he walks for less time as dawn gets closer
             float longest = Tuning.StalkMaxSeconds * (1f - 0.5f * DawnProgress);
             float top = Math.Max(Tuning.StalkMinSeconds, longest);
             _stalkLeft = Tuning.StalkMinSeconds + _rng.NextFloat() * (top - Tuning.StalkMinSeconds);
-            if (_ambushAfterRepel) { _ambushWaiting = true; _stalkLeft = 0f; }
+            if (_swapNext) _stalkLeft = SwapWalkSeconds();
+            if (_ambushAfterRepel) { ArmAmbush(); _stalkLeft = 0f; }
             _ambushAfterRepel = false;
             return HuntEvent.StalkStart;
+        }
+
+        // After he is dealt with in the hallway the retreat and this walk together are at most SwapAfterRepelSeconds.
+        private float SwapWalkSeconds()
+        {
+            float room = Math.Max(0.1f, Tuning.SwapAfterRepelSeconds - _retreatSeconds);
+            return room * (0.3f + 0.7f * _rng.NextFloat());
         }
 
         private HuntEvent Stop(int spot)
         {
             _lastSpot = spot;
+            _swapNext = false;
             if (spot == BehindYou)
             {
                 Enter(HuntPhase.Behind);
@@ -251,6 +287,8 @@ namespace Hollowbrook.Logic
         {
             Repels++;
             _ambushAfterRepel = whilePeeking;
+            _swapNext = !whilePeeking;   // dealt with in the hallway: no extra wait, a quick swap to a classroom
+            _retreatSeconds = whilePeeking ? Tuning.RetreatSeconds : Tuning.SwapRetreatSeconds;
             Enter(HuntPhase.Retreat);
             return HuntEvent.Repelled;
         }
@@ -258,6 +296,8 @@ namespace Hollowbrook.Logic
         private HuntEvent Catch()
         {
             Catches++;
+            _swapNext = false;
+            _retreatSeconds = Tuning.RetreatSeconds;
             if (Catches >= Tuning.CatchesToLose)
             {
                 Phase = HuntPhase.Lost;
@@ -275,25 +315,26 @@ namespace Hollowbrook.Logic
             BeamHit = 0f;
         }
 
-        // He goes for the player. In the hallway he comes up behind them more often than not; while the
-        // player peeks into a room he is as likely to be in that very room as anywhere else. Otherwise
-        // any of the four rooms. Never the same place twice in a row, and never behind you during a peek.
+        // He goes for the player. In the hallway he comes up behind them more often than not, unless he was just dealt
+        // with there (then a classroom). While the player peeks a room he is never in that room, and never behind
+        // them. Never the same place twice in a row.
         private int PickSpot(HuntInput input)
         {
-            int pick = ChooseSpot(input);
-            if (pick != _lastSpot) return pick;
-            return pick == BehindYou ? _rng.NextInt(0, Rooms.Length) : (pick + 1) % Rooms.Length;
+            int excluded = input.Peeking ? System.Array.IndexOf(Rooms, input.PlayerRoom) : -1;
+            bool behind = !_swapNext && input.InHallway && _rng.Chance(GameRules.Current.HuntBehindChance);
+            if (behind && _lastSpot != BehindYou) return BehindYou;
+            return PickRoom(excluded);
         }
 
-        private int ChooseSpot(HuntInput input)
+        private int PickRoom(int excluded)
         {
-            if (input.InHallway && _rng.Chance(GameRules.Current.HuntBehindChance)) return BehindYou;
-            if (input.Peeking && _rng.Chance(GameRules.Current.HuntSameRoomChance))
-            {
-                int here = System.Array.IndexOf(Rooms, input.PlayerRoom);
-                if (here >= 0) return here;
-            }
-            return _rng.NextInt(0, Rooms.Length);
+            var open = new System.Collections.Generic.List<int>();
+            for (int i = 0; i < Rooms.Length; i++)
+                if (i != excluded && i != _lastSpot) open.Add(i);
+            if (open.Count == 0)
+                for (int i = 0; i < Rooms.Length; i++)
+                    if (i != excluded) open.Add(i);
+            return open[_rng.NextInt(0, open.Count)];
         }
     }
 

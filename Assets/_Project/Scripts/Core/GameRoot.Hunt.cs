@@ -46,7 +46,18 @@ namespace Hollowbrook.Core
             t.HeadRadius = Config.huntHeadRadius;
             t.BehindSeconds = n6 ? Config.night6BehindSeconds : Config.huntBehindSeconds;
             t.BeamHitSeconds = n6 ? Config.night6BeamHitSeconds : Config.huntBeamHitSeconds;
+            if (n6) ScaleSwapWaits(ref t, GameRules.Current.Night6SwapScale);
             return t;
+        }
+
+        // Night 6: every wait between his swaps is shorter (the 1 to 2 s breath after a peek, the hallway swap).
+        private static void ScaleSwapWaits(ref HuntTuning t, float scale)
+        {
+            t.AmbushDelayMinSeconds *= scale;
+            t.AmbushDelayMaxSeconds *= scale;
+            t.SwapRetreatSeconds *= scale;
+            t.SwapAfterRepelSeconds *= scale;
+            t.RetreatSeconds *= scale;
         }
 
         /// <summary>The administrator was turned away: the security game is over for good, and
