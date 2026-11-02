@@ -301,6 +301,16 @@ namespace Hollowbrook.Checkpoint
 
         private bool _stampsLive;
 
+        // A dragged stamp is moved to the top of the desk; once let go it goes back down beside its tray
+        // mark, under the sheets and the sticky note, so it cannot be grabbed through them.
+        private void SendStampHome(int idx)
+        {
+            var mark = _trayCircles[idx];
+            var stamp = _stampTints[idx];
+            if (mark == null || stamp == null) return;
+            stamp.transform.SetSiblingIndex(mark.transform.GetSiblingIndex() + 1);
+        }
+
         private void RefreshStamps(bool live)
         {
             _stampsLive = live;
@@ -308,14 +318,16 @@ namespace Hollowbrook.Checkpoint
             {
                 if (_stampTints[i] == null) continue;
                 var c = _stampBase[i];
-                float dim = live ? 1f : 0.35f;       // dim tray until an inspection is live
-                bool tray = _trayCircles[i] != null; // the tray picture is the round mark, the stamp only while held
+                float dim = live ? 1f : 0.35f;       // without the kit art the stamp dims until an inspection is live
+                bool tray = _trayCircles[i] != null; // with the kit art the tray mark IS the stamp at rest
+                // the tray mark is always fully visible (it used to fade with no visitor and hid the
+                // stamps at the start of the game); the stamp handle only appears in the hand
                 c.a = tray ? (_stampHeld[i] ? 1f : 0f) : dim;
                 _stampTints[i].color = c;
                 if (tray)
                 {
                     var cc = _trayCircles[i].color;
-                    cc.a = dim;
+                    cc.a = 1f;
                     _trayCircles[i].color = cc;
                 }
             }
@@ -324,6 +336,7 @@ namespace Hollowbrook.Checkpoint
         private void HoldStamp(int idx, bool held)
         {
             _stampHeld[idx] = held;
+            if (!held) SendStampHome(idx);
             RefreshStamps(_stampsLive);
         }
 

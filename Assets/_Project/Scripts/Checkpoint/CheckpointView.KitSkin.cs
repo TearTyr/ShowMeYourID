@@ -420,6 +420,8 @@ namespace Hollowbrook.Checkpoint
             if (pillArt == null) return;
             var pill = UIFactory.Img(_desk, "stampcaption_" + word, pillArt);
             pill.raycastTarget = false;
+            // the caption is desk paper: it sits under the sheets and the sticky note, never above their dimmers
+            if (_notesRoot != null) pill.transform.SetSiblingIndex(_notesRoot.transform.GetSiblingIndex());
             L.Place(pill.rectTransform, new L.Region(box.X + 2f, box.Bottom + 8f, box.W - 4f, 28f));
             var iconArt = ProceduralArt.Get(iconKey);
             if (iconArt != null)

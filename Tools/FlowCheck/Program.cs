@@ -117,6 +117,14 @@ namespace FlowCheck
             cp0.AdvanceQueue(6f); cp0.AdvanceQueue(6f);   // >6s of ignored waiting (step 11.1.4)
             Check(cp0.CurrentVisitor == null && root.Queue.WaitingCount == 0 && root.Queue.ArrivalCount == 0,
                 "waiting 12s with the note up arrives nobody and queues nobody");
+            // the very start of the game: no visitor, the note up. The stamps are already there to see.
+            Check(StampAlpha(root, "stamp_allow") > 0.99f && StampAlpha(root, "stamp_deny") > 0.99f,
+                "STAMPS: both stamps are fully visible at the start of the game, before any visitor");
+            var captionAllow = FindDeep(cp0.transform, "stampcaption_APPROVE");
+            var overlayRules = FindDeep(cp0.transform, "OverlayRules");
+            Check(captionAllow != null && overlayRules != null && captionAllow.GetSiblingIndex() < overlayRules.GetSiblingIndex() &&
+                  captionAllow.GetSiblingIndex() < sticky.GetSiblingIndex(),
+                "STAMPS: the APPROVE caption sits under the sheets and the sticky note, not above their dimmers");
             ClickStickyNote(root);
             Check(!sticky.gameObject.activeSelf, "the note hides on click");
             Check(cp0.CurrentVisitor != null, "P10: clicking the note presents the first visitor");
@@ -2118,17 +2126,22 @@ namespace FlowCheck
 
             // the tray picture is the round check and cross, never stretched, and the stamp itself
             // only shows while it is held (it used to pop over the tray the moment the night went live)
+            // the tray picture itself is always fully visible, so the stamps never vanish
             foreach (var pair in new[] { new[] { "stamp_allow", "sec_tray_allow" }, new[] { "stamp_deny", "sec_tray_deny" } })
             {
                 var trayImg = FindDeep(root.Checkpoint.transform, pair[1]).GetComponent<UnityEngine.UI.Image>();
                 Check(trayImg.preserveAspect, "STAMPS: " + pair[1] + " keeps its shape (a check or a cross, not stretched)");
                 Check(StampHandAlpha(root, pair[0]) < 0.01f, "STAMPS: " + pair[0] + " is not drawn over the tray while it rests");
+                Check(StampAlpha(root, pair[0]) > 0.99f, "STAMPS: the " + pair[1] + " mark is fully visible");
                 var hand = FindDeep(root.Checkpoint.transform, pair[0]).GetComponent<DragPaper>();
                 hand.BeginDrag();
                 Check(StampHandAlpha(root, pair[0]) > 0.99f, "STAMPS: " + pair[0] + " shows in the hand while it is held");
                 hand.EndDrag();
                 Check(StampHandAlpha(root, pair[0]) < 0.01f && StampAlpha(root, pair[0]) > 0.9f,
                     "STAMPS: " + pair[0] + " goes back to the tray picture when let go");
+                Check(FindDeep(root.Checkpoint.transform, pair[0]).GetSiblingIndex() <
+                      FindDeep(root.Checkpoint.transform, "OverlayRules").GetSiblingIndex(),
+                    "STAMPS: " + pair[0] + " goes back under the sheets, so it cannot be grabbed through them");
             }
 
             cp.GoPatrol();
