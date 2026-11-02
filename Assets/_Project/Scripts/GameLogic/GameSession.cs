@@ -153,26 +153,11 @@ namespace Hollowbrook.Logic
         /// <summary>Anomalies let in during the shift being played (resets each night). Clocking out with
         /// any of them in is a failed night.</summary>
         public int ShiftBreaches;
-        /// <summary>The night security log: three counts the player keeps by hand (student encounters,
-        /// anomalies detected, security incidents). A recording toy only: nothing reads or scores them.
-        /// Cleared when a night begins.</summary>
-        public const int LogEntries = 3, LogMax = 99;
-        public int[] LogCounts = new int[LogEntries];
-
-        /// <summary>Count one entry up or down (kept between 0 and <see cref="LogMax"/>). Returns the new count.</summary>
-        public int ChangeLog(int entry, int delta)
-        {
-            if (entry < 0 || entry >= LogEntries) return 0;
-            int before = LogCounts[entry];
-            LogCounts[entry] = System.Math.Max(0, System.Math.Min(LogMax, before + delta));
-            if (LogCounts[entry] != before) LogSigned = false;   // a changed box needs signing again
-            return LogCounts[entry];
-        }
-
-        /// <summary>Everyone who reached the window tonight, in order (saved). The Security Log is checked against it.</summary>
+        /// <summary>Everyone who reached the window tonight, in order (saved). The Security Log is built from it.</summary>
         public readonly List<NightRecord> NightRecords = new List<NightRecord>();
-        /// <summary>The log has been signed: on nights 1 to 4 END SHIFT waits for it.</summary>
-        public bool LogSigned;
+        /// <summary>The one person the player reported in the Security Log tonight: an index into
+        /// <see cref="NightRecords"/>, -1 for nobody. Saved. Settled at END SHIFT.</summary>
+        public int ReportedRecord = -1;
         /// <summary>The Night 1 tutorial. Done (the default) means none: old saves and the other modes.</summary>
         public TutorialStep TutorialStep = TutorialStep.Done;
         /// <summary>What last night's log got wrong (or "matched"): printed at the top of tonight's Rules sheet.</summary>
@@ -180,16 +165,30 @@ namespace Hollowbrook.Logic
         /// <summary>Sanity the wrong boxes cost, paid when the next night begins.</summary>
         public int PendingLogLoss;
 
-        public void SignLog() => LogSigned = true;
-
-        /// <summary>The night is over: compare the three boxes with what really happened, write the note for
-        /// tomorrow's Rules sheet and book the penalty.</summary>
-        public NightLogRules.Grade GradeNight(int incidents)
+        /// <summary>Click a name in the log: report that person, or take the report back. One report at a time,
+        /// and only someone who was let in. Returns whether the report stands afterwards.</summary>
+        public bool ToggleReport(int index)
         {
-            var grade = NightLogRules.Check(LogCounts, NightRecords, incidents);
-            LogNote = grade.Note;
-            PendingLogLoss = grade.SanityLoss;
-            return grade;
+            if (!NightLogRules.CanReport(NightRecords, index)) return false;
+            ReportedRecord = ReportedRecord == index ? -1 : index;
+            return ReportedRecord == index;
+        }
+
+        /// <summary>END SHIFT: settle the report. A right one cancels that anomaly's breach (so the night may
+        /// not fail after all), a wrong one books the sanity penalty, and either way the note for tomorrow's
+        /// Rules sheet is written. With no report there is no note, so last night's note goes away.</summary>
+        public NightLogRules.Outcome SettleReport()
+        {
+            var outcome = NightLogRules.Resolve(NightRecords, ReportedRecord);
+            LogNote = outcome.Note;
+            PendingLogLoss = outcome.SanityLoss;
+            if (outcome.Cancels)
+            {
+                ShiftBreaches = System.Math.Max(0, ShiftBreaches - 1);
+                Breaches = System.Math.Max(0, Breaches - 1);
+            }
+            ReportedRecord = -1;
+            return outcome;
         }
         /// <summary>How the night just played failed (None when it did not) - read by the results screen.</summary>
         public ShiftFailure LastShiftFailure = ShiftFailure.None;
@@ -213,9 +212,8 @@ namespace Hollowbrook.Logic
         public void BeginNight()
         {
             ShiftBreaches = 0;
-            LogCounts = new int[LogEntries];
             NightRecords.Clear();
-            LogSigned = false;
+            ReportedRecord = -1;
             Stacks.Clear();
             RefillPending = 0f;
             int severity = PendingPenaltySeverity;
@@ -242,7 +240,7 @@ namespace Hollowbrook.Logic
         {
             QueueState = null;
             NightRecords.Clear();
-            LogSigned = false;
+            ReportedRecord = -1;
             if (TutorialStep != TutorialStep.Done) TutorialStep = TutorialSteps.Start;   // a lesson starts over with its night (none while it is parked)
             VisitorIndexAtSave = 0;
             ShiftClockMinutes = 0f;

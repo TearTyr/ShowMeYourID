@@ -470,7 +470,7 @@ namespace FlowCheck
             Check(root.State == AppViewState.MainMenu && root.Session.PendingPenaltySeverity == ShiftFailureRules.BlackoutSeverity,
                 "FAIL: a blackout on patrol fails the night and lands on the main menu, penalty booked");
 
-            // the night security log: three boxes the player counts in by hand, recorded only
+            // the night security log: three boxes that fill themselves in, nothing to count by hand
             {
                 FreshGame(root); ClickStickyNote(root);
                 var cpLog = root.Checkpoint;
@@ -481,25 +481,14 @@ namespace FlowCheck
                 bool allThere = true;
                 foreach (var bn in boxNames) allThere &= FindDeep(paperLog, "logbox_" + bn) != null;
                 Check(allThere, "LOG: it has the three boxes: student encounters, anomalies detected, security incidents");
-                var box1 = FindDeep(paperLog, "logbox_anomalies_detected").GetComponent<LogBox>();
-                var left = new UnityEngine.EventSystems.PointerEventData();
-                var right = new UnityEngine.EventSystems.PointerEventData { button = UnityEngine.EventSystems.PointerEventData.InputButton.Right };
-                box1.OnPointerClick(left); box1.OnPointerClick(left); box1.OnPointerClick(left); box1.OnPointerClick(right);
-                Check(root.Session.LogCounts[1] == 2 && root.Session.LogCounts[0] == 0,
-                    "LOG: left click counts up, right click counts down, each box on its own");
-                Check(FindDeep(paperLog, "logbox_anomalies_detected").Find("count").GetComponent<UnityEngine.UI.Text>().text == "2",
-                    "LOG: the box shows its number");
-                for (int i = 0; i < 5; i++) box1.OnPointerClick(right);
-                Check(root.Session.LogCounts[1] == 0, "LOG: it never goes below zero");
-                box1.OnPointerClick(left);
-                root.PersistRun();
-                Check(root.Saves.Read().Session.LogCounts[1] == 1, "LOG: the numbers are saved, so Continue keeps them");
-                root.Session.BeginNight();
-                Check(root.Session.LogCounts[1] == 0, "LOG: a new night starts with a clean log");
+                Check(FindDeep(paperLog, "logbox_anomalies_detected").Find("count").GetComponent<UnityEngine.UI.Text>().text == "0",
+                    "LOG: an empty night shows zeros");
+                Check(FindDeep(paperLog, "sign") == null, "LOG: there is no signing any more");
                 var before = new[] { root.Session.Sanity, (float)root.Session.Score, (float)root.Session.Breaches };
-                box1.OnPointerClick(left);
+                cpLog.DebugOpenOverlay("log");
+                cpLog.DebugOpenOverlay("log");
                 Check(root.Session.Sanity == before[0] && root.Session.Score == (int)before[1] && root.Session.Breaches == (int)before[2],
-                    "LOG: counting changes nothing else: no sanity, score or breaches (it is only a record)");
+                    "LOG: opening the log changes nothing: no sanity, score or breaches");
             }
 
             // the caption bar has no box: an empty caption shows nothing, a real one is text only
@@ -1658,7 +1647,7 @@ namespace FlowCheck
             HandBack(root, true, true);
             FindDeep(desk, "records").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             string logText = FindDeep(FindDeep(desk, "OverlayLog"), "text").GetComponent<UnityEngine.UI.Text>().text;
-            Check(logText.Contains("ALLOWED") || logText.Contains("REJECTED"),
+            Check(root.Session.NightRecords.Count > 0,
                 "SP: tonight's log still books every verdict");
             Check(!logText.Contains("appearance:"),
                 "SP: the removed face check leaves no data in the verdict record");
@@ -2269,11 +2258,6 @@ namespace FlowCheck
                 root.Session.ClearedRooms |= PatrolCycle.Bit(RoomId.ComfortRoom2);
                 cp.RefreshHud();
             }
-            if (root.LogRequired)
-            {
-                Check(!live("endshift"), "END SHIFT stays locked until the Security Log is signed");
-                SignLog(root);
-            }
             Check(live("endshift"), "END SHIFT lights up when the roster is done");
             {
                 // nobody at the window: the custodian rests (the only passive recovery there is)
@@ -2593,7 +2577,6 @@ namespace FlowCheck
             root.Session.ClearedRooms = PatrolCycle.Bit(RoomId.Classroom1) | PatrolCycle.Bit(RoomId.Classroom2) | PatrolCycle.Bit(RoomId.ComfortRoom);
             cp.RefreshHud();
             ResolvePool(root);   // a played patrol would have dealt with the night's anomalies (issue #7)
-            SignLog(root);
             Btn(root, "endshift").onClick.Invoke();
             Check(root.State == AppViewState.ShiftIntro && root.Session.CurrentShift == 2, "Q10: clocking out runs straight into the next night");
             root.QuitToMenu(true);
@@ -2766,10 +2749,6 @@ namespace FlowCheck
         // the production config -> tuning wiring is asserted in Q1 before any override
         private static void IsolateMissingStudent(GameRoot root) =>
             root.Queue.Tuning.MissingStudentChance = 0f;
-
-        // sign the Security Log the way a click on the sheet's button does (the sheet need not be open)
-        private static void SignLog(GameRoot root) =>
-            FindDeep(root.Checkpoint.transform, "sign").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
 
         private static void ClickStickyNote(GameRoot root)
         {

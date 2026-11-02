@@ -30,17 +30,19 @@ radio reports a roll-call discrepancy, and the absence is permanent.
 cabinet (pick Room 101 or Room 202, A-Z files), the **ID card** and **paper slip** (already on your
 desk), the **rules note** and **tonight's log** (with ID numbers), and the **questions panel**.
 
-- **The night security log (nights 1 to 4):** the log paper has three boxes, STUDENT ENCOUNTERS (everyone who
-  reached the window), ANOMALIES DETECTED (how many of them really were anomalies, whatever you stamped) and
-  SECURITY INCIDENTS (students who never arrived plus things driven out of a peek room). Left click a box to
-  count up, right click to count down. Under the boxes the sheet lists who came and what you stamped (it never
-  shows totals that would give a verdict away). **SIGN LOG** is a button on the sheet: END SHIFT stays locked
-  until the log is signed, and changing a box takes the signature back. At END SHIFT the game compares the
-  boxes with what really happened (`GameLogic/NightLog.cs`): each wrong box costs 5 sanity at the start of the
-  next night. You are never told on the spot. The next night's **Rules sheet** starts with LAST NIGHT'S LOG,
-  which says what was wrong (for example which anomaly you missed and why). Nights 5 and 6 have no log duty.
-  The list, the signature and the note are saved. The boxes are objects under `OverlayLog/paper` in the
-  Gameplay scene (positions are fractions of the picture, `LogBoxCentres` in `CheckpointView.Overlays.cs`).
+- **The night security log (nights 1 to 4):** the log paper has three boxes that fill themselves in, nobody
+  counts: STUDENT ENCOUNTERS (everyone who reached the window), ANOMALIES DETECTED (how many you rejected, not
+  how many really were anomalies, so it never gives a verdict away) and SECURITY INCIDENTS (students who never
+  arrived plus things driven out of a peek room). Under the paper, the slip lists **everyone you let in** as
+  buttons. Its job is a **second chance**: before END SHIFT you may **report one person** you doubt (click a
+  name, click again to take it back, one at a time). END SHIFT is never held up by the log. At END SHIFT
+  (`GameLogic/NightLog.cs`) a **right report** (they were an anomaly) cancels that one breach, so a night that
+  would have failed does not, and a **wrong report** (a real student) costs 5 sanity at the start of the next
+  night. You are never told on the spot: the next night's **Rules sheet** starts with LAST NIGHT'S LOG, which
+  says how the report went. No report, no effect. Nights 5 and 6 have no log duty. The list, the report and the
+  note are saved. The boxes are objects under `OverlayLog/paper` and the name buttons are `report_0` to
+  `report_7` under `OverlayLog/slip` (box positions are fractions of the picture, `LogBoxCentres` in
+  `CheckpointView.Overlays.cs`).
 
 - **The four questions:** your course, your year, regular or transferee, first classroom (buttons
   or keys `1` to `4`). You can ask only **2 per student** (the panel shows `2/2`), so choose. Year

@@ -133,9 +133,11 @@ stuck**: the dawn clock always runs and every phase has a time limit, and a test
 idle players to prove it.
 
 ### The night security log
-A recording toy. The log paper has three boxes (student encounters, anomalies detected, security
-incidents). Left click counts up, right click down. Nothing reads the numbers, so it cannot
-affect scoring. It is saved with the night and cleared each night.
+A second chance, not a chore. The log paper has three boxes (student encounters, anomalies
+detected, security incidents) that fill themselves in. The slip lists everyone you let in, and
+before END SHIFT you may report one of them. A right report cancels that anomaly, so the night
+does not fail. A wrong report costs 5 sanity next night. It is saved with the night and cleared
+each night.
 
 ### Saving
 `SaveFormat` turns the session into a text file (header `SMYIDSAVE`, version 3, with a checksum).

@@ -66,7 +66,7 @@ keybinds (desk and patrol) and a CONTINUE button: nobody arrives until you press
 says what to do; the clock and your sanity wait while it does. Visitor 1 is a real student (the whole desk routine). Visitor 2 has an
 expired ID (find the broken rule, DECLINE, and meet the Security Log). Then the patrol opens early: a slow anomaly walks the hallway
 (the plain light slows it, the Focus light `Q` drives it out and it cannot catch you), Room 101 is a clean peek, Room 202 holds a figure to
-clear, and other doors stay shut until their turn. Then GOT IT, and you finish the night alone: a CR, the rest of the line, count and sign the
+clear, and other doors stay shut until their turn. Then GOT IT, and you finish the night alone: a CR, the rest of the line, report anyone you doubt in the
 Security Log, END SHIFT. SKIP TUTORIAL is always on the box. Night 2 onward has none.
 
 ### Night 5: surviving the administrator

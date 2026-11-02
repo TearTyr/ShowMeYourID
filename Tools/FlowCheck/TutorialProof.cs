@@ -202,10 +202,7 @@ namespace FlowCheck
             for (int i = 0; i < 6 && !root.Queue.ShiftComplete; i++) StampCorrectly(root);
             Check(root.Queue.ShiftComplete, "TUT: the rest of the night plays through");
             cp.RefreshHud();
-            Check(!Btn(root, "endshift").interactable, "TUT: END SHIFT still waits for the signed log");
-            SignLog(root);
-            cp.RefreshHud();
-            Check(Btn(root, "endshift").interactable, "TUT: once the log is signed the night can end");
+            Check(Btn(root, "endshift").interactable, "TUT: once the line is done the night can end (the log has nothing to sign)");
             RunUpdates(root, 60);
             Check(root.ClockString != clock, "TUT: the clock runs again after the tutorial");
 

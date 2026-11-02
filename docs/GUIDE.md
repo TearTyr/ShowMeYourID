@@ -82,7 +82,7 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | How big the main menu buttons are | `UI/MainMenuView.cs` > `MenuScale` |
 | The secret unlock code and what it opens (Night 6, then Lockdown) | `GameLogic/UnlockCodeReader.cs` (the code), `Core/GameRoot.Unlocks.cs` (what it opens) |
 | How far away the Principal starts when he walks up behind you, and how long he takes | `World/AdminHuntDirector.cs` > `BehindStartDistance`, `GameConfig.asset` > `huntBehindSeconds` |
-| What a wrong Security Log box costs, and what the Rules sheet says about it | `GameLogic/NightLog.cs` (`SanityLossPerMistake`) |
+| What a wrong Security Log report costs, and what the Rules sheet says about it | `GameLogic/NightLog.cs` (`SanityLossPerWrongReport`) |
 | How big the sliding anomaly is and where it sits on the floor | `GameLogic/AnomalyBehaviorRules.cs` (`GroundCentreY`), `FilePpus` in `Generated/ProceduralArt.cs` |
 | Night 6 (the Challenge): his questions, how hard the hunt is | `GameLogic/AdminTalk.cs` (`n6_hub`), `GameConfig.asset` group **Night 6** |
 | The ten findings (the token is number 7) | `GameLogic/ClueRegistry.cs`, `World/RoomBuilder.cs` |

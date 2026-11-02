@@ -198,7 +198,7 @@ namespace Hollowbrook.Checkpoint
             else if (_gameRoot.HuntReady) want = "HE IS INSIDE THE SCHOOL. PATROL WHEN YOU ARE READY";
             else if (_current == null && Queue != null && Queue.ShiftComplete && _gameRoot.PatrolRequired)
             {
-                want = _gameRoot.PatrolDone ? (_gameRoot.LogReady ? "PATROL DONE: END THE SHIFT" : "PATROL DONE: COUNT AND SIGN THE SECURITY LOG, THEN END THE SHIFT")
+                want = _gameRoot.PatrolDone ? (ReportPending() ? "PATROL DONE: REPORT ANYONE YOU DOUBT IN THE SECURITY LOG, THEN END THE SHIFT" : "PATROL DONE: END THE SHIFT")
                     : "THE WINDOW IS CLOSED. PATROL: " + PatrolCycle.Left(_gameRoot.Session.ClearedRooms).ToUpperInvariant();
             }
             RefreshWindowCue();
