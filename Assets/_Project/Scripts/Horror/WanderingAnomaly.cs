@@ -46,6 +46,8 @@ namespace Hollowbrook.Horror
         private GameRng MoveRng => _moveRng ?? (_moveRng = new GameRng(0x5EED));
         private float _dashRecover;              // > 0 while Sprint catches its breath
         private float _retreatTargetX;           // where Repelled movement withdraws to
+        private const float RetreatTravel = 60f;     // far past any screen: the retreat target is never reached
+        private const float OffScreenMargin = 2.6f;  // half the widest picture: it is only gone once all of it is off screen
 
         public AnomalyState State => _state;
         public float Meter => _meter;
@@ -76,6 +78,7 @@ namespace Hollowbrook.Horror
                 RepelMeter = EncounterTuning.Default.RepelMeter,
                 ExposeMeter = cfg != null ? cfg.exposeMeterThreshold : 0.55f,
                 ExposedBeatSeconds = cfg != null ? cfg.repelBeatSeconds : 0.9f,
+                RetreatMaxSeconds = cfg != null ? cfg.repelRetreatMaxSeconds : EncounterTuning.Default.RetreatMaxSeconds,
                 RecoverSeconds = cfg != null ? cfg.anomalyRecoverySeconds : 14f,
                 ThreatRange = _profile.ThreatRange,
             };
@@ -245,7 +248,7 @@ namespace Hollowbrook.Horror
 
             // only the Focus beam or a lit room counts as light on it: the plain beam changes nothing
             var step = AnomalyEncounter.Step(_state, _meter, _stateTimer,
-                focused || roomLit, focused, rig == null || !rig.BatteryDead, dist, dt, _tuning);
+                focused || roomLit, focused, rig == null || !rig.BatteryDead, dist, dt, _tuning, HasLeftScreen(views, sameRoom));
 
             bool changed = ApplyStateStep(step, dt);
             if (step.JustExposed) AnnounceExposure();
@@ -371,13 +374,21 @@ namespace Hollowbrook.Horror
             _sr.sprite = _runFrames[(int)_frameClock % _runFrames.Length];
         }
 
+        // It runs backwards: away from the player, still facing them, far enough to leave the screen.
         private void BeginRetreat(ViewManager views)
         {
             float px = views.Player != null ? views.Player.transform.localPosition.x : 0f;
             float x = transform.localPosition.x;
-            float half = _room != null ? _room.HalfWidth - 0.5f : 10f;
             float sign = x >= px ? 1f : -1f;
-            _retreatTargetX = Mathf.Clamp(x + sign * 6f, -half, half);
+            _retreatTargetX = x + sign * RetreatTravel;
+            _sr.flipX = px < x;   // the art faces right, so facing a player on its left is a flip
+        }
+
+        // Off screen (or not in the room the player is in): safe to take away without anyone seeing it vanish.
+        private bool HasLeftScreen(ViewManager views, bool sameRoom)
+        {
+            if (!sameRoom) return true;
+            return views.IsOffScreen(transform.localPosition.x, OffScreenMargin);
         }
 
         // ---------------------------------------------------------------- movement
@@ -388,9 +399,11 @@ namespace Hollowbrook.Horror
 
             if (_state == AnomalyState.Repelled || _state == AnomalyState.Recovering)
             {
-                // physical retreat: ordinary movement and threat behavior are both over
+                // physical retreat: ordinary movement and threat behavior are both over. It runs on past the
+                // room's edge if it has to (only the height stays in its band), so it can always leave the screen.
                 p.x = Mathf.MoveTowards(p.x, _retreatTargetX, _profile.RetreatSpeed * dt);
-                transform.localPosition = ClampToBand(p);
+                p.y = Mathf.Clamp(p.y, RoomInstance.FloorY + _profile.MinY, RoomInstance.FloorY + _profile.MaxY);
+                transform.localPosition = p;
                 return;
             }
 
@@ -566,11 +579,12 @@ namespace Hollowbrook.Horror
             { c.a = alpha; _sr.color = c; _sr.sortingOrder = order; }
         }
 
-        // The art faces right, so moving left is a flip.
+        // The art faces right, so moving left is a flip. A retreating anomaly keeps facing the player instead.
         private void FaceTheWayItMoves()
         {
             float x = transform.localPosition.x;
-            if (Mathf.Abs(x - _lastX) > 0.001f) _sr.flipX = x < _lastX;
+            bool retreating = _state == AnomalyState.Repelled || _state == AnomalyState.Recovering;
+            if (!retreating && Mathf.Abs(x - _lastX) > 0.001f) _sr.flipX = x < _lastX;
             _lastX = x;
         }
 
