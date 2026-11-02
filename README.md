@@ -98,6 +98,15 @@ catches allowed, shorter walks between stops, less time to find him and a longer
 night: quitting it ends it, and it never touches your story save. The numbers are under "Night 6" in
 `GameConfig.asset`.
 
+## Lockdown
+
+The **LOCKDOWN** button on the main menu is open from the start. It is one finite night with every student at the gate at
+once: all 13 students, 6 of them anomalies, all frightened, arriving fast (8 to 11 seconds apart). There is no patrol, no Security
+Log and no sanity drain. Instead there is a clock on every face: **35 seconds** at the window, then the thing outside takes them.
+Three **mistakes** and the gate falls (you lose): an anomaly let in, a student turned away, or a real student taken when the
+time ran out (an anomaly taken is not a mistake). Clear the line to win; the rank is by mistakes (FLAWLESS, STEADY, BARELY HELD).
+A bar at the top of the desk shows the seconds and your mistakes. It is one sitting: it never touches your story save.
+
 ## Endings
 
 - **Surviving Hollowbrook** - five nights, and dawn reached on the last one.

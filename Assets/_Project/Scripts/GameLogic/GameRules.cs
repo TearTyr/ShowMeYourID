@@ -91,6 +91,8 @@ namespace Hollowbrook.Logic
         public ShiftDef[] Nights = DefaultNights();
         /// <summary>The Challenge night that opens after the story.</summary>
         public ShiftDef ChallengeNight = DefaultChallengeNight();
+        /// <summary>The Lockdown mode's one night: every student and six anomalies at the gate at once.</summary>
+        public ShiftDef LockdownNight = DefaultLockdownNight();
         /// <summary>One row per student, in face-art order: row N wears char_student_NN.</summary>
         public StudentRow[] Students = DefaultStudents();
     }

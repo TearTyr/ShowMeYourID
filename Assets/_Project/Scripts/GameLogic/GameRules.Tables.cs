@@ -102,6 +102,18 @@ namespace Hollowbrook.Logic
             ClassroomLieAllowed = true, SlipMismatchAllowed = true, NearExpiryAllowed = true,
         };
 
+        private static ShiftDef DefaultLockdownNight() => new ShiftDef
+        {
+            DateLabel = "All at the gate", LongDateLabel = "ALL AT THE GATE",
+            VisitorCount = 13, AnomalyCount = 6, ScaredCount = 13, Lockdown = true,   // every student, six of them not themselves, all frightened
+            Title = "Lockdown",
+            Objective = "Everyone is at the gate at once and the thing outside is closing in. Thirteen faces, thirty five seconds each. Three mistakes and the gate gives.",
+            RuleNoteAddendum = "LOCKDOWN - The same checks as every night. Approve a student, decline anything else. When the time on a face runs out, the thing outside takes them. Let an anomaly in, turn a student away, or lose a student, and that is a mistake. Three and the gate falls.",
+            IntroWarning = "There is no patrol tonight. Nobody is leaving this booth.",
+            MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = true, DuplicateIdsAllowed = true,
+            ClassroomLieAllowed = true, SlipMismatchAllowed = true, NearExpiryAllowed = true,
+        };
+
         // The ones marked Off (art still missing) are dropped here, so turning one on is one word.
         private static StudentRow[] DefaultStudents() => Array.FindAll(AllStudents(), s => !s.Off);
 

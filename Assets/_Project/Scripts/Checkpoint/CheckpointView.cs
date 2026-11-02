@@ -111,6 +111,7 @@ namespace Hollowbrook.Checkpoint
             _audit = _desk.gameObject.GetOrAdd<DeskLayoutAudit>();
 
             BuildTopBar();
+            BuildLockdownBar();
             BuildFileCabinet();    // floor-files station + the physical pull drawer...
             BuildLeftColumn();     // ...then the papers that ride above it
             BuildWindowArea();
@@ -263,6 +264,7 @@ namespace Hollowbrook.Checkpoint
             if (_gameRoot.State != AppViewState.Checkpoint) return;
             if (!gameObject.activeInHierarchy) return;
             if (_gameRoot.Dialogue != null && _gameRoot.Dialogue.IsActive) return;
+            TickLockdown(dt);
             if (_gameRoot.TutorialHoldsLine) return;   // nobody steps up while a lesson is away from the window
             var r = Queue.Tick(dt);
             ApplyTickResult(r, false);
@@ -312,6 +314,7 @@ namespace Hollowbrook.Checkpoint
             _idFlipped = false;
             _fileOpened = false;
             _verdictLocked = false;
+            if (LockdownOn) _lockdownClock.Start();   // thirty five seconds on this face
             // fresh hand-over state: nothing on the desk until the ID is offered and taken
             _documentsTaken = false;
             SetDocumentsVisible(false);

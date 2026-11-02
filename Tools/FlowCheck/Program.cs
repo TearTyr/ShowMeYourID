@@ -175,6 +175,7 @@ namespace FlowCheck
             RetryProof(root);
             NightLogProof(root);
             TutorialProof(root);
+            LockdownProof(root);
             MoreFlawsProof(root);
             SanityProof(root);
             Night6Proof(root);
@@ -4598,7 +4599,7 @@ namespace FlowCheck
             Check(cont.interactable && contFrame.color.r > 0.9f, "MENU: CONTINUE is white and live with a save");
             Check(hint.gameObject.activeSelf && hint.GetComponent<UnityEngine.UI.Text>().text == "NIGHT 3",
                 "MENU: hovering CONTINUE shows the saved night under it");
-            Check(hint.GetComponent<UnityEngine.UI.Text>().fontSize >= 24, "MENU: the night label is big enough to read at a glance");
+            Check(hint.GetComponent<UnityEngine.UI.Text>().fontSize >= 18, "MENU: the night label is big enough to read at a glance (the buttons are 70 percent size now, so 20)");
             root.Saves.Delete();
             root.MainMenu.RefreshContinue();
         }

@@ -183,6 +183,10 @@ namespace Hollowbrook.Logic
         public bool NearExpiryAllowed;   // real students' IDs can be close to running out
         public bool ExplorationFocus;    // this night nudges investigation
         public bool TutorialOpening;     // the first two visitors teach the desk: a real student, then an expired ID
+        public bool Lockdown;            // the Lockdown mode's night: no patrol, a clock on every face
+
+        /// <summary>"NIGHT 3", or "LOCKDOWN" for the Lockdown mode.</summary>
+        public string NightLabel => Lockdown ? "LOCKDOWN" : "NIGHT " + Number;
 
         /// <summary>Its own copy, so nothing can change the table by accident.</summary>
         public ShiftDef Copy() => (ShiftDef)MemberwiseClone();

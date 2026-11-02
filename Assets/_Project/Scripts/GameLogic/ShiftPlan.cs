@@ -8,8 +8,23 @@ public static int TotalShifts => GameRules.Current.Nights.Length;
         /// <summary>The Challenge: one night after the story, unlocked by finishing it. Not part of Build().</summary>
         public static int Night6Number => TotalShifts + 1;
 
-        /// <summary>The last night a mode can reach: the story's last, or the Challenge.</summary>
-        public static int LastNight(GameMode mode) => mode == GameMode.Challenge ? Night6Number : TotalShifts;
+        /// <summary>The Lockdown mode's night, numbered after the Challenge. Not part of Build().</summary>
+        public static int LockdownNumber => TotalShifts + 2;
+
+        /// <summary>The last night a mode can reach: the story's last, the Challenge, or the Lockdown night.</summary>
+        public static int LastNight(GameMode mode)
+        {
+            if (mode == GameMode.Challenge) return Night6Number;
+            if (mode == GameMode.Lockdown) return LockdownNumber;
+            return TotalShifts;
+        }
+
+        public static ShiftDef LockdownDef()
+        {
+            var night = GameRules.Current.LockdownNight.Copy();
+            night.Number = LockdownNumber;
+            return night;
+        }
 
         public static ShiftDef Night6Def()
         {

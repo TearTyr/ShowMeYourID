@@ -39,7 +39,8 @@ namespace Hollowbrook.Core
             if (mode == GameMode.Normal) Session.TutorialStep = TutorialSteps.First;   // a new story starts with the lesson
 
             // the Challenge is night 6 on its own: it never touches the story save (see PersistRun)
-            QueueSceneAction(() => BeginShift(mode == GameMode.Challenge ? ShiftPlan.Night6Number : 1));
+            int first = mode == GameMode.Normal ? 1 : ShiftPlan.LastNight(mode);   // Night 6 and Lockdown are one night each
+            QueueSceneAction(() => BeginShift(first));
             Hollowbrook.Scenes.SceneRouter.Load(Hollowbrook.Scenes.SceneRouter.Checkpoint);
         }
 
@@ -111,8 +112,9 @@ namespace Hollowbrook.Core
         {
             var plan = ShiftPlan.Build();
             Roster = new RosterFactory(Session.Seed);
-            for (int i = 0; i < number - 1; i++) Roster.GenerateShift(plan[i]); // advance RNG deterministically
-            CurrentShiftDef = number == ShiftPlan.Night6Number ? ShiftPlan.Night6Def() : plan[number - 1];
+            int replay = Mathf.Min(number - 1, plan.Count);
+            for (int i = 0; i < replay; i++) Roster.GenerateShift(plan[i]); // advance RNG deterministically
+            CurrentShiftDef = ShiftDefFor(number, plan);
             CurrentRoster = Roster.GenerateShift(CurrentShiftDef);
             // one shared pool: this shift's anomalies, outstanding until resolved.
             // Kinds derive from seed^shift (not the shared stream) so a resumed night
@@ -121,10 +123,18 @@ namespace Hollowbrook.Core
             var krng = new GameRng(Session.Seed ^ (number * 7919));
             // an administrator night has no patrol anomalies (nothing could ever clear them), so its
             // anomalies are met at the window only and owe the patrol nothing
-            int owedToPatrol = CurrentShiftDef.HasAdministrator ? 0 : CurrentShiftDef.AnomalyCount;
+            bool noPatrol = CurrentShiftDef.HasAdministrator || CurrentShiftDef.Lockdown;   // Lockdown has no patrol at all
+            int owedToPatrol = noPatrol ? 0 : CurrentShiftDef.AnomalyCount;
             for (int i = 0; i < owedToPatrol; i++)
                 kinds.Add((AnomalyBehaviorKind)krng.NextInt(0, 4));
             if (!keepPool) Session.Pool.Seed(kinds);
+        }
+
+        private static ShiftDef ShiftDefFor(int number, List<ShiftDef> plan)
+        {
+            if (number == ShiftPlan.Night6Number) return ShiftPlan.Night6Def();
+            if (number == ShiftPlan.LockdownNumber) return ShiftPlan.LockdownDef();
+            return plan[number - 1];
         }
 
         // Saved admitted lists ride as roster indices; re-attach ids/names once the roster exists.
@@ -157,7 +167,7 @@ namespace Hollowbrook.Core
         {
             var intro = new List<DialogueLine>
             {
-                new DialogueLine { Speaker = "NIGHT " + number + " - " + CurrentShiftDef.DateLabel.ToUpperInvariant(), Text = CurrentShiftDef.Title + ". " + CurrentShiftDef.Objective },
+                new DialogueLine { Speaker = CurrentShiftDef.NightLabel + " - " + CurrentShiftDef.DateLabel.ToUpperInvariant(), Text = CurrentShiftDef.Title + ". " + CurrentShiftDef.Objective },
                 new DialogueLine { Speaker = "PAPER NOTE", Text = CurrentShiftDef.RuleNoteAddendum },
             };
             if (!string.IsNullOrEmpty(penaltyNote))
@@ -206,7 +216,12 @@ if (!string.IsNullOrEmpty(CurrentShiftDef.IntroWarning))
             t.OverwhelmedAt = Config.queueOverwhelmedAt;
             t.MissingStudentChance = Config.missingStudentChance;
             t.MissingStudentLimit = Config.missingStudentLimit;
-            if (Session.CurrentShift == 1) t.MissingStudentChance = 0f;   // the lesson night loses nobody
+            if (Session.CurrentShift == 1 || Session.Mode == GameMode.Lockdown) t.MissingStudentChance = 0f;   // the lesson night and Lockdown lose nobody
+            if (Session.Mode == GameMode.Lockdown)
+            {
+                t.ArrivalMinSeconds = LockdownRules.ArrivalMinSeconds;   // they come fast
+                t.ArrivalMaxSeconds = LockdownRules.ArrivalMaxSeconds;
+            }
             return t;
         }
 
@@ -237,7 +252,7 @@ if (!string.IsNullOrEmpty(CurrentShiftDef.IntroWarning))
             // dialogue box open over it (a click skips the title)
             System.Action startDialogue = () => PlayIntroDialogue(intro, shift);
             if (Loading != null)
-                Loading.PlayNightTitle("NIGHT " + shift.Number, shift.DateLabel.ToUpperInvariant(), startDialogue);
+                Loading.PlayNightTitle(shift.NightLabel, shift.DateLabel.ToUpperInvariant(), startDialogue);
             else startDialogue();
         }
 
@@ -277,6 +292,7 @@ if (!string.IsNullOrEmpty(CurrentShiftDef.IntroWarning))
             _shiftMinutes += 240f / (CurrentRoster.Count + 1);
 
             Session.Score += outcome.Correct ? (outcome.WasAnomaly ? 100 : 50) : 0;
+            if (Session.Mode == GameMode.Lockdown) { NoteLockdownVerdict(outcome); return; }   // its own mistakes and its own end
 
             // atmosphere reacts to breaches
             if (outcome.AnomalyBreach && !outcome.WasAdministrator)

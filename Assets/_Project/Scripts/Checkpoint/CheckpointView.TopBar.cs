@@ -48,7 +48,9 @@ namespace Hollowbrook.Checkpoint
 
         private void RefreshTopBar()
         {
-            _topLeft.text = "NIGHT " + _gameRoot.Session.CurrentShift + " - " + (_shift != null ? _shift.LongDateLabel : "");
+            _topLeft.text = _shift != null && _shift.Lockdown
+                ? _shift.NightLabel
+                : "NIGHT " + _gameRoot.Session.CurrentShift + " - " + (_shift != null ? _shift.LongDateLabel : "");
             TickClockText();
         }
 

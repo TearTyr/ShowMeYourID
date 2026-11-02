@@ -30,11 +30,18 @@ namespace Hollowbrook.Checkpoint
             "\nWhen every student is done, PATROL: peek into Room 101, Room 202 and a CR, then END SHIFT.\n" +
             "A and D walk, the mouse aims, E uses what you stand at, F is your flashlight.";
 
+        private static string LockdownRulesNote =>
+            "Thirteen faces, " + (int)LockdownRules.SecondsPerVisitor + " seconds each. No patrol.\n" +
+            "Approve students, decline anything else.\n" +
+            "Run out of time on a student and they are taken.\n" +
+            "Three mistakes and the gate falls. Clear the line to win.";
+
         private Text _stickyTitle, _stickyBody;
 
         // The note reads differently on the first night of a normal run.
         private void RefreshStickyNote()
         {
+            if (_gameRoot.LockdownOn) { _stickyTitle.text = "LOCKDOWN."; _stickyBody.text = LockdownRulesNote; return; }
             bool firstNight = _gameRoot.Session.Mode == GameMode.Normal && _gameRoot.Session.CurrentShift == 1;
             _stickyTitle.text = firstNight ? "HOW TO PLAY" : "NIGHT SHIFT BEGINS.";
             _stickyBody.text = firstNight ? HowToPlay : NightRules;

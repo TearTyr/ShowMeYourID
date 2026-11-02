@@ -66,6 +66,7 @@ namespace Hollowbrook.Horror
 
             var session = _gameRoot.Session;
             if (_gameRoot.ShiftFailing) return;            // a failed night's scene owns the screen
+            if (session.Mode == GameMode.Lockdown) return;  // the clock on every face is the pressure there
             float before = session.Sanity;
             session.Stacks.Tick(dt);                       // a wrong call's extra drain wears off
             float refill = session.TakeRefill(dt);         // a correct call's refill, handed over gradually

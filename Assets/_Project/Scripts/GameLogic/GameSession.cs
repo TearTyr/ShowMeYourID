@@ -36,6 +36,7 @@ namespace Hollowbrook.Logic
     public class GameSession
     {
         public GameMode Mode = GameMode.Normal;
+        public int LockdownStrikes;         // Lockdown: mistakes so far (never saved, the mode is one sitting)
         public int Seed = GameRules.Current.FixedSeed;
         public int CurrentShift = 1;        // Normal: shift being played (1..5)
         public int CompletedShifts = 0;     // Normal: shifts fully completed

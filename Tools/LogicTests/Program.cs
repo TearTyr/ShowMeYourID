@@ -83,6 +83,7 @@ namespace Hollowbrook.LogicTests
             NightLogTests();
             NightLogGradingTests();
             TutorialTests();
+            LockdownTests();
             CultureRoundTripTests();
             ResumeReplayTests();
 
@@ -1068,6 +1069,50 @@ namespace Hollowbrook.LogicTests
             s.TutorialStep = TutorialStep.Done;
             s.RewindNight();
             Check(s.TutorialStep == TutorialStep.Done, "rewinding never starts a finished tutorial again");
+        }
+
+        private static void LockdownTests()
+        {
+            Group("Lockdown - mistakes, the clock on each face, the night's shape");
+            foreach (var verdict in new[] { Verdict.Allow, Verdict.Reject })
+                foreach (bool anomaly in new[] { false, true })
+                {
+                    bool wrong = verdict == Verdict.Allow ? anomaly : !anomaly;
+                    Check(LockdownRules.IsStrike(anomaly, verdict) == wrong, "a " + (anomaly ? "anomaly" : "student") + " who is " + verdict + "ed is a mistake only when wrong");
+                }
+            Check(!LockdownRules.IsStrike(true, Verdict.None) && !LockdownRules.IsStrike(false, Verdict.None), "no verdict is no mistake");
+            Check(LockdownRules.TakenIsStrike(false) && !LockdownRules.TakenIsStrike(true), "a taken student is a mistake, a taken anomaly is not");
+            Check(!LockdownRules.Lost(2) && LockdownRules.Lost(3) && LockdownRules.Lost(4), "the third mistake loses");
+            Check(LockdownRules.Rank(0) == "FLAWLESS" && LockdownRules.Rank(1) == "STEADY" && LockdownRules.Rank(2) == "BARELY HELD", "the rank follows the mistakes");
+            Check(!LockdownRules.WinText(0).Contains("\u2014") && !LockdownRules.WinText(2).Contains("\u2014") && !LockdownRules.LoseText.Contains("\u2014"), "no em dash in the ending texts");
+            Check(LockdownRules.WinText(1).Contains("1 mistake ") && LockdownRules.WinText(2).Contains("2 mistakes"), "the win text counts the mistakes in plain words");
+
+            var clock = new LockdownClock();
+            Check(!clock.Running && !clock.Tick(5f), "a clock that was never started does nothing");
+            clock.Start();
+            Check(clock.Running && Math.Abs(clock.Fraction - 1f) < 1e-4f && !clock.Warning, "a started clock is full");
+            Check(!clock.Tick(24f) && Math.Abs(clock.SecondsLeft - (LockdownRules.SecondsPerVisitor - 24f)) < 1e-3f && !clock.Warning, "after 24 seconds 11 are left and it does not warn yet");
+            Check(!clock.Tick(1.5f) && clock.Warning, "at 9.5 seconds it warns");
+            Check(clock.Tick(20f) && clock.SecondsLeft == 0f && !clock.Running, "it says once when the time is up");
+            Check(!clock.Tick(5f), "and never says it twice");
+            clock.Start(); clock.Stop();
+            Check(!clock.Running && !clock.Tick(100f), "a stopped clock does not run out");
+
+            Check(ShiftPlan.LockdownNumber == ShiftPlan.TotalShifts + 2 && ShiftPlan.LastNight(GameMode.Lockdown) == ShiftPlan.LockdownNumber, "Lockdown is numbered after the Challenge");
+            Check(ShiftPlan.LastNight(GameMode.Normal) == ShiftPlan.TotalShifts && ShiftPlan.LastNight(GameMode.Challenge) == ShiftPlan.Night6Number, "the other modes keep their last nights");
+            var def = ShiftPlan.LockdownDef();
+            Check(def.Lockdown && def.Number == ShiftPlan.LockdownNumber && def.NightLabel == "LOCKDOWN" && !def.HasAdministrator && !def.TutorialOpening, "the Lockdown night is flagged and has no administrator");
+            Check(def.VisitorCount == Content.TotalStudents && def.AnomalyCount == 6 && def.ScaredCount == def.VisitorCount, "every student comes, six are anomalies, all are frightened");
+            Check(ShiftPlan.Build()[2].NightLabel == "NIGHT 3" && !ShiftPlan.Build()[2].Lockdown, "a story night keeps its name");
+
+            for (int seed = 1; seed <= 100; seed++)
+            {
+                var roster = new RosterFactory(seed).GenerateShift(def);
+                Check(roster.Count == 13 && roster.Count(v => v.IsAnomaly) == 6 && roster.All(v => v.IsScared) && !roster.Any(v => v.IsAdministrator), "seed " + seed + ": thirteen frightened faces, six anomalies");
+                Check(roster.Select(v => v.RecordName).Distinct().Count() == 13, "seed " + seed + ": each student comes exactly once");
+                for (int i = 0; i < roster.Count; i++) Check(roster[i].VisitorIndex == i, "seed " + seed + ": visitor numbers follow the order");
+            }
+            Check(new GameSession().LockdownStrikes == 0 && new GameSession().Mode == GameMode.Normal, "a plain session has no mistakes and is the story");
         }
 
         private static void NightLogTests()

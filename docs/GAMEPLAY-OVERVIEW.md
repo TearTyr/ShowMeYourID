@@ -102,6 +102,11 @@ you are thrown back. **3 catches** = he reaches the server door (lose). Survive 
 The security door is locked and every phase has a time limit, so it cannot get stuck. Quit + CONTINUE
 restarts the hunt, or returns to the desk if it has not started.
 
+**Lockdown:** the third mode, open from the start (`GameMode.Lockdown`, `ShiftPlan.LockdownDef()`, rules in `GameLogic/Lockdown`). One
+night, all 13 students (6 anomalies, all frightened) arriving 8 to 11 s apart, no patrol, no log, no sanity drain. Each face has
+35 s at the window (the bar at the top of the desk), then it is taken. Mistakes: an anomaly let in, a student turned away, a student
+taken. Three lose; clearing the line wins, ranked FLAWLESS, STEADY or BARELY HELD. Never saved.
+
 **Night 6 (the Challenge):** opens on the main menu after the story's Win or Secret ending. He is back
 and says he does not give up; he asks for the right decision and has a new set of questions. DENY him
 again and the pursuit starts, harder: 2 catches, shorter stalks, less time to react, a longer night.

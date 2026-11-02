@@ -88,6 +88,13 @@ the rules, and turns events into sound, captions, the shaking picture and `PeekL
 Win -> `FinishShift` (normal Win/Secret ending); loss -> the `server_door` ending. The state is
 saved, so Continue resumes the hunt.
 
+**Lockdown:** `GameMode.Lockdown`, `ShiftPlan.LockdownDef()` (numbered after Night 6, row `GameRules.LockdownNight`, flag
+`ShiftDef.Lockdown`). `GameLogic/Lockdown` holds `LockdownRules` (what a mistake is, the rank, the texts) and `LockdownClock`
+(35 s per face). `CheckpointView.Lockdown` ticks the clock from `AdvanceQueue`, draws the bar and takes the visitor when it runs
+out (`GameRoot.OnVisitorTaken`); `GameRoot.Lockdown.cs` counts the mistakes and ends the night (`CheckLockdownEnd`, called after a
+verdict and after each face leaves). `PersistRun` writes nothing for any mode but the story, the sanity controller does not drain,
+`PatrolOpen` is false, `EndingView` has its own result lines and always offers TRY AGAIN.
+
 **Night 6 (the Challenge):** `GameMode.Challenge`, `ShiftPlan.Night6Def()`. Unlocked when the story
 save holds a Win or Secret in `Records.EndingsSeen` (`GameRoot.Night6Unlocked`). It reuses the Night 5
 flow end to end: the same desk, DENY, hunt and endings, with a second script in `GameLogic/AdminTalk`
