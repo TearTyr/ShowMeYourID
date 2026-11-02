@@ -76,7 +76,7 @@ namespace Hollowbrook.Checkpoint
             if (Queue != null) Queue.CommitActiveResolution();   // booked now, like a stamp
             RefreshHud();
             RefreshLockdownBar();
-            StartCoroutine(AfterStamp(taken));
+            RunAfterStamp(taken);
         }
     }
 }
