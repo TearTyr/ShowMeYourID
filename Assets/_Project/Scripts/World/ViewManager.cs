@@ -394,6 +394,7 @@ namespace Hollowbrook.World
             {
                 if (_peekLight != null) _peekLight.Tick(dt);
                 if (_peekAnomaly != null) _peekAnomaly.Tick(dt);
+                if (Flashlight != null) Flashlight.Tick(dt);   // the lamp drains the battery
                 return;
             }
             if (Current.Light != null) Current.Light.Tick(dt);

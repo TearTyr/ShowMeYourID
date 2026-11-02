@@ -5,34 +5,9 @@ using UnityEngine;
 
 namespace Hollowbrook.Scenes
 {
-    // Desk papers and stamps: the record sheet, ID frame, ALLOW/REJECT stamps.
+    // Desk papers: the bubble tail, the folder tab and the hand cursor. (The stamps are the kit's own discs.)
     public static partial class ProceduralArt
     {
-        private static Sprite MakeStamp(bool reject)
-        {
-            int size = 168;
-            var c = new Canvas2D(size, size);
-            Color col = reject ? new Color(0.72f, 0.12f, 0.16f, 0.92f) : G(0.2f, 0.9f);
-            DrawRing(c, size / 2f, size / 2f, 74, 74, col);
-            DrawRing(c, size / 2f, size / 2f, 64, 64, col);
-            DrawRing(c, size / 2f, size / 2f, 62, 62, col);
-            if (reject)
-            {
-                c.Line(48, 48, size - 48, size - 48, col, 12);
-                c.Line(size - 48, 48, 48, size - 48, col, 12);
-            }
-            else
-            {
-                c.Line(46, size / 2, size / 2 - 12, size - 56, col, 12);
-                c.Line(size / 2 - 12, size - 56, size - 42, 54, col, 12);
-            }
-            var r = new System.Random(reject ? 7 : 9);
-            for (int i = 0; i < 90; i++) // worn ink gaps
-                c.FillRect(r.Next(size), r.Next(size), 2 + r.Next(4), 2 + r.Next(3), G(0, 0));
-            var sp = c.ToSprite(reject ? "stamp_reject" : "stamp_allow", UiPpu);
-            return sp;
-        }
-
         // Speech-bubble tail: a paper triangle pointing LEFT (toward the visitor's face),
         // bordered on its two slanted sides. The base (right edge) is borderless and is
         // buried a few pixels under the bubble panel, so bubble + tail read as one

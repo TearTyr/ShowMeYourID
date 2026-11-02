@@ -9,8 +9,13 @@ using UnityEngine.UI;
 namespace Hollowbrook.Horror
 {
     // Stingers and jumpscares with accessibility guards. Lives in each scene file, connected by the scene script.
+    // A scare shows the REAL picture of what caught the player and zooms it at the camera.
     public class ScareSystem : MonoBehaviour
     {
+        private const float CaptureZoomTo = 2.4f;     // how big a catch zooms the picture
+        private const float FailureHoldScale = 0.8f;  // the failure scene's picture waits small and still
+        private const float FailureZoomTo = 3.2f;     // ...then lunges at the camera this big
+
         private GameRoot _gameRoot;
         private Canvas _canvas;
         private Image _black;
@@ -30,9 +35,11 @@ namespace Hollowbrook.Horror
             _black.color = new Color(0, 0, 0, 0f);
             _black.raycastTarget = false;
 
+            // the picture fills the screen but keeps its proportions; a scare zooms it up from there
             var faceRt = UIFactory.NewUI(_canvas.transform, "Face");
-            UIFactory.Anchor(faceRt, new Vector2(0.5f, 0.5f), new Vector2(560, 640), Vector2.zero);
+            UIFactory.AnchorsFull(faceRt);
             _face = faceRt.gameObject.GetOrAdd<Image>();
+            _face.preserveAspect = true;
             _face.color = new Color(1, 1, 1, 0f);
             _face.raycastTarget = false;
 
@@ -44,21 +51,20 @@ namespace Hollowbrook.Horror
             _flash.raycastTarget = false;
         }
 
-        public void Capture(AnomalyBehaviorKind kind)
+        /// <summary>An anomaly caught the player: its real picture zooms up over a dark screen.</summary>
+        public void Capture(AnomalyBehaviorKind kind) => CaptureWith(BehaviorProfile.ArtKey(kind));
+
+        /// <summary>The Principal caught the player: his glitched face zooms up the same way.</summary>
+        public void CaptureAdmin() => CaptureWith(FaceAssets.AdminWindowKey);
+
+        private void CaptureWith(string artKey)
         {
             if (Time.unscaledTime < _cooldownUntil) return;
             _cooldownUntil = Time.unscaledTime + 3f;
             bool photoSafe = _gameRoot.Settings != null && _gameRoot.Settings.PhotosensitivitySafe;
             bool reduce = _gameRoot.Settings != null && _gameRoot.Settings.ReduceMotion;
 
-            var distorted = new Portrait
-            {
-                HairStyle = (int)kind % 6,
-                FaceVariant = ((int)kind + 3) % 6,
-                Accessory = 0,
-                Distorted = true,
-            };
-            _face.sprite = ProceduralArt.Portrait("scare", distorted, 280, 320);
+            _face.sprite = ProceduralArt.Get(artKey);
             _gameRoot.Audio.PlaySfx("sfx_scare", photoSafe ? 0.45f : 0.9f);
             if (!reduce) Shake(0.6f);
             StartCoroutine(CaptureRoutine(photoSafe, reduce));
@@ -77,24 +83,11 @@ namespace Hollowbrook.Horror
                 fc.a = 0f; _flash.color = fc;
             }
 
+            var bc0 = _black.color; bc0.a = 0.85f; _black.color = bc0;
+            var shown = _face.color; shown.a = 1f; _face.color = shown;
+            // the zoom: the picture starts at normal size and grows past the screen while it holds
+            yield return Zoom(reduce ? 1.2f : 1f, reduce ? 1.2f : CaptureZoomTo, fadeIn + hold);
             float t = 0f;
-            while (t < fadeIn)
-            {
-                t += Time.unscaledDeltaTime;
-                var bc = _black.color; bc.a = 0.85f * (t / fadeIn); _black.color = bc;
-                var c = _face.color;
-                c.a = t / fadeIn;
-                _face.color = c;
-                if (!reduce)
-                {
-                    float punch = 1f + 0.35f * (1f - t / fadeIn);
-                    _face.rectTransform.localScale = new Vector3(punch, punch, 1f);
-                }
-                yield return null;
-            }
-            _face.rectTransform.localScale = Vector3.one;
-            yield return new WaitForSecondsRealtime(hold);
-            t = 0f;
             while (t < fadeOut)
             {
                 t += Time.unscaledDeltaTime;
@@ -104,25 +97,40 @@ namespace Hollowbrook.Horror
             }
             var b2 = _black.color; b2.a = 0; _black.color = b2;
             var f2 = _face.color; f2.a = 0; _face.color = f2;
+            _face.rectTransform.localScale = Vector3.one;
         }
 
-        /// <summary>The scene that ends a failed night: the screen goes black, a face holds still in the
-        /// middle long enough to take in what happened, then the jumpscare lands. <paramref name="onDone"/>
-        /// fires once the scare has landed, with the screen still black. Stepped waits (not a frame
-        /// loop), so any frame rate paces it. Photosensitive and Reduce-Motion settings soften it.</summary>
-        public void FailureSequence(AnomalyBehaviorKind kind, System.Action onDone)
+        // Grow the face's picture from one scale to another over some seconds (it eases out: fast, then slowing).
+        private IEnumerator Zoom(float from, float to, float seconds)
         {
-            StartCoroutine(FailureRoutine(kind, onDone));
+            float t = 0f;
+            while (t < seconds)
+            {
+                t += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(t / seconds);
+                float eased = 1f - (1f - k) * (1f - k);
+                float s = Mathf.Lerp(from, to, eased);
+                _face.rectTransform.localScale = new Vector3(s, s, 1f);
+                yield return null;
+            }
+            _face.rectTransform.localScale = new Vector3(to, to, 1f);
         }
 
-        private IEnumerator FailureRoutine(AnomalyBehaviorKind kind, System.Action onDone)
+        /// <summary>The scene that ends a failed night: the screen goes black, the real picture of what got you
+        /// holds still in the middle long enough to take in what happened, then it zooms at the camera and the
+        /// scare lands. <paramref name="onDone"/> fires once the scare has landed, with the screen still black.
+        /// Stepped waits (not a frame loop), so any frame rate paces it. Photosensitive and Reduce-Motion
+        /// settings soften it.</summary>
+        public void FailureSequence(string artKey, System.Action onDone)
+        {
+            StartCoroutine(FailureRoutine(artKey, onDone));
+        }
+
+        private IEnumerator FailureRoutine(string artKey, System.Action onDone)
         {
             bool photoSafe = _gameRoot.Settings != null && _gameRoot.Settings.PhotosensitivitySafe;
             bool reduce = _gameRoot.Settings != null && _gameRoot.Settings.ReduceMotion;
-            _face.sprite = ProceduralArt.Portrait("scare", new Portrait
-            {
-                HairStyle = (int)kind % 6, FaceVariant = ((int)kind + 3) % 6, Accessory = 0, Distorted = true,
-            }, 280, 320);
+            _face.sprite = ProceduralArt.Get(artKey);
             const int steps = 20;
             // 1) black screen, slowly
             for (int i = 1; i <= steps; i++)
@@ -130,15 +138,15 @@ namespace Hollowbrook.Horror
                 var bc = _black.color; bc.a = i / (float)steps; _black.color = bc;
                 yield return new WaitForSecondsRealtime(0.8f / steps);
             }
-            // 2) a face fades up in the middle and holds, small and still
-            _face.rectTransform.localScale = Vector3.one * 0.7f;
+            // 2) the picture fades up in the middle and holds, small and still
+            _face.rectTransform.localScale = Vector3.one * FailureHoldScale;
             for (int i = 1; i <= steps; i++)
             {
                 var c = _face.color; c.a = 0.9f * i / steps; _face.color = c;
                 yield return new WaitForSecondsRealtime(1.2f / steps);
             }
             yield return new WaitForSecondsRealtime(0.9f);
-            // 3) the jumpscare: it lunges forward with a flash and a sting
+            // 3) the jumpscare: the same picture zooms at the camera with a flash and a sting
             _gameRoot.Audio.PlaySfx("sfx_scare", photoSafe ? 0.45f : 0.9f);
             if (!photoSafe)
             {
@@ -147,9 +155,9 @@ namespace Hollowbrook.Horror
                 fc.a = 0f; _flash.color = fc;
             }
             var full = _face.color; full.a = 1f; _face.color = full;
-            _face.rectTransform.localScale = Vector3.one * (reduce ? 1.0f : 1.35f);
             if (!reduce) Shake(0.8f);
-            yield return new WaitForSecondsRealtime(photoSafe ? 0.9f : 0.7f);
+            float landSeconds = photoSafe ? 0.9f : 0.7f;
+            yield return Zoom(FailureHoldScale, reduce ? 1.2f : FailureZoomTo, landSeconds);
             // 4) hand over with the screen still black; the next screen fades in under it
             _face.rectTransform.localScale = Vector3.one;
             var f0 = _face.color; f0.a = 0f; _face.color = f0;

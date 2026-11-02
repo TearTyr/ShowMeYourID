@@ -5,12 +5,14 @@ using UnityEngine;
 
 namespace Hollowbrook.World
 {
-    // What stands in a peek room (GameRoot.PeekAnomalyIn says which rooms have one tonight). Classrooms hold
-    // the hooded figure, comfort rooms the crouched one or the ceiling hanger (PeekSpots). It stands on a
-    // spot of clear painted floor, sized for its depth, under the peek's black cover, so only the lamp shows it.
+    // What stands in a peek room (GameRoot.PeekAnomalyIn says which rooms have one tonight). Any room can hold
+    // the hooded figure, the crouched one or the ceiling hanger (PeekSpots deals them out). It stands on a
+    // spot of clear painted floor (the hanger hangs from the top), sized for its depth, under the peek's black
+    // cover, so only the lamp shows it.
     //
-    // Holding the lamp on its body fills a bar (PeekClear): 2 seconds with the plain lamp, 1.3 times faster
-    // with the Focus lamp (Q); the bar drains back if the lamp leaves. While it fills:
+    // Holding the lamp on its body fills a bar (PeekClear): 3 seconds with the plain wide lamp, 1.3 times faster
+    // with the Focus lamp (Q); the bar drains back if the lamp leaves. The lamp costs battery all the while.
+    // While it fills:
     //   Rush  the figure jumps closer in steps, growing each time, until it fills the screen
     //   Still it stays exactly where it stands
     // When the bar is full the lamp goes black, the figure is removed and the room counts as cleared, then the
@@ -122,7 +124,7 @@ namespace Hollowbrook.World
             if (lit && _lamp.Covers(centre) && !_told)
             {
                 _told = true;
-                _root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*hold the light on it. Focus (Q) is faster*", 3f, null));
+                _root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*hold the light on it. The wide light works, Focus (Q) is faster*", 3f, null));
             }
             float height = CurrentHeight;
             bool onBody = lit && _lamp.CursorWithin(centre, PeekSpots.BodyHalfWidth(_kind, height), PeekSpots.BodyHalfHeight(_kind, height));

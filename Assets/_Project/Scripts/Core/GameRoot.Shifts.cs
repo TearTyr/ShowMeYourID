@@ -125,8 +125,11 @@ namespace Hollowbrook.Core
             // anomalies are met at the window only and owe the patrol nothing
             bool noPatrol = CurrentShiftDef.HasAdministrator || CurrentShiftDef.Lockdown;   // Lockdown has no patrol at all
             int owedToPatrol = noPatrol ? 0 : CurrentShiftDef.AnomalyCount;
+            // the four kinds are dealt out in turn from a random start, so a patrol meets different ones
+            // (a plain random pick could hand out the same kind every night)
+            int firstKind = krng.NextInt(0, 4);
             for (int i = 0; i < owedToPatrol; i++)
-                kinds.Add((AnomalyBehaviorKind)krng.NextInt(0, 4));
+                kinds.Add((AnomalyBehaviorKind)((firstKind + i) % 4));
             if (!keepPool) Session.Pool.Seed(kinds);
         }
 
@@ -233,7 +236,7 @@ if (!string.IsNullOrEmpty(CurrentShiftDef.IntroWarning))
             if (Session.QueueOverwhelmed || Session.RunFinished || State == AppViewState.Ending) return;
             Session.QueueOverwhelmed = true;
             Audio.PlaySfx("sfx_alarm", 1f);
-            Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the line surges against the glass - too many, too fast*", 3.5f, null));
+            Bus.Publish(GameEvent.Of(EventIds.CaptionUrgent, "*the line surges against the glass - too many, too fast*", 3.5f, null));
             Bus.Publish(GameEvent.Of(EventIds.Notification, "THE LINE HAS OVERRUN THE CHECKPOINT."));
             TriggerEnding(Session.EvaluateEnding());
         }

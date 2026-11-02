@@ -17,15 +17,28 @@ namespace Hollowbrook.World
     // what the lit lamp is on; S or the bottom band steps back, so a dark room is never a trap.
     public class PeekLight : MonoBehaviour
     {
-        // Size of the hole in world units (about 1.3x smaller than the first version: 2.6).
-        public float Radius = 2.0f;
+        // Size of the hole in world units (a little wider than before, so the wide beam is enough on its own).
+        public float Radius = 2.3f;
         // Focus: the same idea as the handheld beam's Focus - a tighter, hotter circle for
         // reading details. Q toggles it; it never lights the lamp by itself and changing it
         // never moves the ON/OFF state (two independent flags, one source of truth each).
-        public float FocusRadius = 1.0f;
+        public float FocusRadius = 1.15f;
 
         /// <summary>Is the lamp in its tight, concentrated mode right now?</summary>
         public bool Focused { get; private set; }
+
+        /// <summary>What the lamp costs the battery right now: nothing when it is out, the Focus rate in the tight circle.</summary>
+        public LightMode BatteryMode => !Lit ? LightMode.Off : (Focused ? LightMode.Focus : LightMode.Sweep);
+
+        // The peek lamp runs on the same battery as the hallway beam (the rig owns it).
+        private bool BatteryDead
+        {
+            get
+            {
+                var rig = _gameRoot != null && _gameRoot.Views != null ? _gameRoot.Views.Flashlight : null;
+                return rig != null && rig.BatteryDead;
+            }
+        }
 
         /// <summary>The circle the lamp actually reveals with: the coverage query and the hole's
         /// size both answer to this.</summary>
@@ -111,12 +124,13 @@ namespace Hollowbrook.World
             _dim = 0f;
             Active = true;
             gameObject.SetActive(true);
+            if (BatteryDead) lampOn = false;   // a flat battery never lights the lamp
             SetLit(lampOn, true);
             transform.position = Vector3.zero;
             _worldPoint = Vector3.zero;
             if (_gameRoot != null && !lampOn)
                 _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification,
-                    "FLASHLIGHT OFF - press F to turn it on."));
+                    BatteryDead ? "BATTERY DEAD - let it recover." : "FLASHLIGHT OFF - press F to turn it on."));
         }
 
         /// <summary>The lamp dies for a moment (the administrator's stun). It comes back by
@@ -202,7 +216,15 @@ namespace Hollowbrook.World
 
         /// <summary>F is the ONLY lamp switch - the same deliberate toggle the handheld
         /// beam uses. One press on, one press off; no latch can survive an entry reset.</summary>
-        internal void ToggleLamp() => SetLit(!Lit, false);
+        internal void ToggleLamp()
+        {
+            if (!Lit && BatteryDead)
+            {
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, "BATTERY DEAD - let it recover."));
+                return;
+            }
+            SetLit(!Lit, false);
+        }
 
         // Esc follows the hallway rule (pause first; a peek exits with S or the bottom band), and
         // pause, dialogue and overlays freeze the cursor entirely.
@@ -244,6 +266,7 @@ namespace Hollowbrook.World
                 else if (Input.GetKeyDown(KeyCode.Q)) ToggleFocus();   // reshapes, never lights
             }
 
+            if (Lit && BatteryDead) SetLit(false, true);   // the battery ran out under the lamp (the rig says so)
             if (_flickerLeft > 0f) TickFlicker(dt);
 
             var mouse = Input.mousePosition;

@@ -59,14 +59,16 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | Change what the administrator says | `GameLogic/AdminTalk.cs` > `BuildScript` (plain text, copy a `Topic(...)` line) |
 | Change any rule number, a night or a student (their lines, even how they speak awkwardly) | `Resources/GameConfig.asset`, group **Game rules** (defaults in `GameLogic/GameRules.cs` and `GameRules.Tables.cs`) |
 | Tune night 5 (catches, seconds to dawn, door and lamp holds, seconds per lie) | `Resources/GameConfig.asset`, group **Administrator hunt** |
-| Change how his picture shakes | `GameLogic/AdminHunt.cs` > `AdminHuntMotion` |
+| Change how he wanders in a room (speed, how far, how long he pauses) | `GameLogic/AdminHunt.cs` > `AdminHuntMotion`; how fast he walks up behind you: `World/AdminHuntDirector.cs` > `BehindStartDistance` |
 | Give him a real picture | `char_admin.png` / `char_admin_glitch.png` come from the Director art (`Tools/prep_characters.py`); drop `char_admin_hunt.png` in `Resources/Art/` for a special hunt picture |
 | Add or change a student picture | put the busts in `Art/UI and Design Assets/Characters`, edit the list in `Tools/prep_characters.py`, run it, then add a row to the Students table in `GameRules.Tables.cs` |
 | Change the student ID card art | edit `Art/UI and Design Assets/ID/SMYI-ID.psd`, run `python Tools/prep_id_card.py` (needs `pip install psd-tools aggdraw pillow`); text positions are in `CheckpointView.Papers.cs` > `LayoutIdCard` |
 | Make customers arrive faster or slower | `GameConfig.asset`, group **Checkpoint queue** |
 | How long after a stamp until the next student | `GameConfig.asset` > `verdictBannerSeconds` |
 | Move something on the desk | `Checkpoint/CheckpointLayout.cs` (all desk positions are numbers here) |
-| Flashlight battery, beam size | `GameConfig.asset` (battery, beam), `World/FlashlightRig.cs` |
+| Flashlight battery, beam size (the peek lamp drains the same battery) | `GameConfig.asset` (battery, beam), `World/FlashlightRig.cs` |
+| How often the white caption text may show, and which captions always show | `GameLogic/CaptionPolicy.cs`; urgent ones are sent as `EventIds.CaptionUrgent` |
+| How often small wrong noises and lamp stutters happen on patrol | `Horror/HallucinationSystem.cs` > `TickDread` |
 | The peek lamp size | `World/PeekLight.cs` (`Radius`, `FocusRadius`) |
 | The figures in the peek rooms (where they stand, how big, how long the lamp must stay on them, who rushes, the black, the fade back) | `GameLogic/PeekSpots.cs`, `World/PeekAnomaly.cs`, `GameConfig.asset` > `peekClearSeconds` |
 | How much a plain flashlight beam slows a patrol anomaly | `GameConfig.asset` > `beamPace` (0.5 = half speed) |

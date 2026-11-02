@@ -7,6 +7,7 @@ namespace Hollowbrook.Logic
     public class PatrolPool
     {
         private readonly List<AnomalyBehaviorKind> _pending = new List<AnomalyBehaviorKind>();
+        private AnomalyBehaviorKind _lastMet = (AnomalyBehaviorKind)(-1);   // the kind PeekKind handed out last
 
         public int Pending => _pending.Count;
         public IReadOnlyList<AnomalyBehaviorKind> PendingList => _pending;
@@ -20,7 +21,13 @@ namespace Hollowbrook.Logic
         public AnomalyBehaviorKind PeekKind(GameRng rng)
         {
             if (_pending.Count == 0) return (AnomalyBehaviorKind)rng.NextInt(0, 4);
-            return _pending[rng.NextInt(0, _pending.Count)];
+            // a patrol meets a different kind each time: skip the kind it just met when another is waiting
+            var choices = new List<AnomalyBehaviorKind>();
+            foreach (var kind in _pending)
+                if (kind != _lastMet) choices.Add(kind);
+            if (choices.Count == 0) choices = _pending;
+            _lastMet = choices[rng.NextInt(0, choices.Count)];
+            return _lastMet;
         }
 
         public void Resolve(AnomalyBehaviorKind kind) => _pending.Remove(kind);

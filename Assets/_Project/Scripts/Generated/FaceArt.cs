@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Hollowbrook.Scenes
 {
     // Chooses the sprites for the window face and the ID photo: the face art when the visitor
-    // maps to one, otherwise the procedural portrait painter. One decision point, so the window
+    // maps to one, otherwise the empty-photo placeholder. One decision point, so the window
     // and the card can never disagree about who is displayed. Created by CheckpointView.Window.
     public static class FaceArt
     {
@@ -15,8 +15,7 @@ namespace Hollowbrook.Scenes
             string key = v.IsAdministrator ? FaceAssets.AdminWindowKey : WindowKeyFor(v);
             Sprite asset;
             if (key != null && ProceduralArt.TryGet(key, out asset)) return asset;
-            var drawn = ProceduralArt.Portrait("window", v.WindowPortrait, 240, 296);
-            return drawn != null ? drawn : ProceduralArt.Get("face_placeholder");
+            return ProceduralArt.Get("face_placeholder");   // only if a face file is missing
         }
 
         /// <summary>The photo printed on the ID: always the real student's face art.</summary>
@@ -26,8 +25,7 @@ namespace Hollowbrook.Scenes
             string key = v.IsAdministrator ? FaceAssets.AdminKey : FaceAssets.IdKey(v.FaceAssetIndex);
             Sprite asset;
             if (key != null && ProceduralArt.TryGet(key, out asset)) return asset;
-            var drawn = ProceduralArt.Portrait("card", v.IdPhoto, 168, 208);
-            return drawn != null ? drawn : ProceduralArt.Get("face_placeholder");
+            return ProceduralArt.Get("face_placeholder");   // only if a face file is missing
         }
 
         private static string WindowKeyFor(VisitorData v)

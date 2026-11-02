@@ -74,44 +74,5 @@ namespace Hollowbrook.Scenes
             c.FillRect(c.W - 2, 0, 2, c.H, col);
         }
 
-        // Flat decision circle (ALLOW / CALL PRINCIPAL): solid fill, 2px rim, no speckle.
-        private static Sprite MakeDoor(int w, int h, bool security, bool chained = false)
-        {
-            var c = new Canvas2D(w, h);
-            c.FillRect(0, 0, w, h, G(0.14f));
-            c.FillRect(8, 8, w - 16, h - 12, G(security ? 0.10f : 0.115f));
-            c.FillRect(20, 26, w - 40, (int)(h * 0.3f), G(0.085f));
-            c.FillRect(20, (int)(h * 0.42f), w - 40, (int)(h * 0.44f), G(0.085f));
-            c.FillEllipse(w - 28, h / 2, 6, 6, G(0.55f));
-            if (security) c.FillRect(w / 2 - 44, 40, 88, 20, G(0.35f)); // "SECURITY" plate
-            if (chained)
-            {
-                for (int i = 0; i < 5; i++)
-                    c.Line(10, 60 + i * 54, w - 10, 84 + i * 54, G(0.45f), 5);   // chains
-                c.FillEllipse(w / 2, h / 2, 14, 18, G(0.5f));                    // padlock
-                c.FillRect(w / 2 - 10, h / 2 - 4, 20, 26, G(0.42f));
-            }
-            c.Noise(0.04f, 3);
-            return c.ToSprite(chained ? "prop_server_door" : (security ? "prop_door_security" : "prop_door"), WorldPpu);
-        }
-
-        private static Sprite MakeClock(int size, string name = "prop_clock")
-        {
-            var c = new Canvas2D(size, size);
-            int half = size / 2;
-            c.FillEllipse(half, half, half - 2, half - 2, G(0.14f));
-            c.FillEllipse(half, half, half - 8, half - 8, G(0.78f));
-            for (int i = 0; i < 12; i++)
-            {
-                float a = i * Mathf.PI / 6f;
-                c.FillRect(half + (int)(Mathf.Sin(a) * (half - 14)) - 1, half - (int)(Mathf.Cos(a) * (half - 14)) - 1, 3, 3, G(0.15f));
-            }
-            float ha = (1 + 47 / 60f) * Mathf.PI / 6f, ma = 47 * Mathf.PI / 30f;
-            c.Line(half, half, half + (int)(Mathf.Sin(ha) * half * 0.45f), half - (int)(Mathf.Cos(ha) * half * 0.45f), G(0.1f), 4);
-            c.Line(half, half, half + (int)(Mathf.Sin(ma) * half * 0.72f), half - (int)(Mathf.Cos(ma) * half * 0.72f), G(0.1f), 2);
-            c.FillEllipse(half, half, 4, 4, G(0.2f));
-            return c.ToSprite(name, WorldPpu);
-        }
-
     }
 }

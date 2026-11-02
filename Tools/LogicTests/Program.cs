@@ -68,6 +68,7 @@ namespace Hollowbrook.LogicTests
             ScaredVisitorTests();
             StudentRecordTests();
             PeekFigureTests();
+            CaptionAndPoolTests();
             QueueBusyHurryTests();
             PatrolCycleTests();
             QueueInvariantTests();
@@ -1426,23 +1427,38 @@ namespace Hollowbrook.LogicTests
             for (int i = 0; i < 100; i++) off.Tick(0.05f, new HuntInput { Peeking = true, PlayerRoom = off.Room, OnTarget = false });
             Check(off.Repels == repelsBefore && off.Hold == 0f, "peeking without the lamp on his head never sends him away");
 
-            // his picture: bounded, and harder after every stun
-            float maxAbs = 0f, pathSlow = 0f, pathFast = 0f;
+            // his picture: he wanders slowly to spots, stays near his anchor, is never in a hurry, and is a little quicker after every stun
+            float maxAbs = 0f, topSpeed = 0f, pathSlow = 0f, pathFast = 0f;
             float px = 0, py = 0, qx = 0, qy = 0;
             AdminHuntMotion.HeadOffset(0f, 0, 5, out px, out py);
             AdminHuntMotion.HeadOffset(0f, 3, 5, out qx, out qy);
-            for (int i = 1; i <= 200; i++)
+            const float step = 1f / 60f;
+            for (int i = 1; i <= 60 * 120; i++)
             {
-                float t = i * 0.01f;
+                float t = i * step;
                 AdminHuntMotion.HeadOffset(t, 0, 5, out float x0, out float y0);
                 AdminHuntMotion.HeadOffset(t, 3, 5, out float x3, out float y3);
-                pathSlow += (float)System.Math.Sqrt((x0 - px) * (x0 - px) + (y0 - py) * (y0 - py));
-                pathFast += (float)System.Math.Sqrt((x3 - qx) * (x3 - qx) + (y3 - qy) * (y3 - qy));
+                float d0 = (float)System.Math.Sqrt((x0 - px) * (x0 - px) + (y0 - py) * (y0 - py));
+                float d3 = (float)System.Math.Sqrt((x3 - qx) * (x3 - qx) + (y3 - qy) * (y3 - qy));
+                pathSlow += d0; pathFast += d3;
+                topSpeed = System.Math.Max(topSpeed, System.Math.Max(d0, d3) / step);
                 px = x0; py = y0; qx = x3; qy = y3;
                 maxAbs = System.Math.Max(maxAbs, System.Math.Max(System.Math.Abs(x3), System.Math.Abs(y3)));
             }
-            Check(maxAbs < 4f, "his picture stays within a few units of its anchor (" + maxAbs.ToString("F2") + ")");
-            Check(pathFast > pathSlow * 1.3f, "after three visits he moves clearly faster");
+            Check(maxAbs < 3f, "his picture stays within a few units of its anchor (" + maxAbs.ToString("F2") + ")");
+            Check(topSpeed < 2.5f, "he is never fast: at most 2.5 units a second (" + topSpeed.ToString("F2") + ")");
+            Check(pathSlow / 120f > 0.3f, "but he does keep moving about (" + (pathSlow / 120f).ToString("F2") + " units a second)");
+            Check(pathFast > pathSlow, "after three visits he drifts a little quicker");
+            // no circling: the direction he drifts in changes from stop to stop instead of turning steadily
+            int rightward = 0, leftward = 0;
+            for (int k = 0; k < 12; k++)
+            {
+                float t0 = k * AdminHuntMotion.StopSeconds(0);
+                AdminHuntMotion.HeadOffset(t0, 0, 5, out float ax, out float ay);
+                AdminHuntMotion.HeadOffset(t0 + AdminHuntMotion.StopSeconds(0) * 0.69f, 0, 5, out float bx, out float by);
+                if (bx > ax + 0.05f) rightward++; else if (bx < ax - 0.05f) leftward++;
+            }
+            Check(rightward > 0 && leftward > 0, "he drifts both ways, not round and round (" + rightward + " right, " + leftward + " left)");
         }
 
         // the hunt decides how the last night ends
@@ -3146,16 +3162,20 @@ namespace Hollowbrook.LogicTests
             Check(PeekSpots.FrontHeight(PeekKind.Hood) > 3.2f, "the hooded figure is bigger than the first version (3.2)");
 
             // what a room holds, and the night's rolls
-            int slides = 0, hangers = 0, rushes = 0, stills = 0;
+            int slides = 0, hangers = 0, hoods = 0, rushes = 0, stills = 0, slidesInClassrooms = 0, hangersInClassrooms = 0;
             for (int seed = 1; seed <= 200; seed++)
                 for (int night = 1; night <= 4; night++)
+                {
+                    var seen = new System.Collections.Generic.HashSet<PeekKind>();
+                    for (int r = 0; r < 3; r++) seen.Add(PeekSpots.KindIn(seed, night, rooms[r]));
+                    Eq(seen.Count, 3, "the first three rooms of a night hold three different kinds (seed " + seed + ", night " + night + ")");
                     foreach (var room in rooms)
                     {
                         var kind = PeekSpots.KindIn(seed, night, room);
                         bool classroom = room == RoomId.Classroom1 || room == RoomId.Classroom2;
-                        Check(classroom == (kind == PeekKind.Hood), "classrooms hold the hood and nothing else does");
-                        if (kind == PeekKind.Slide) slides++;
-                        if (kind == PeekKind.Coverhug) hangers++;
+                        if (kind == PeekKind.Hood) hoods++;
+                        if (kind == PeekKind.Slide) { slides++; if (classroom) slidesInClassrooms++; }
+                        if (kind == PeekKind.Coverhug) { hangers++; if (classroom) hangersInClassrooms++; }
                         var reaction = PeekSpots.ReactionIn(seed, night, room);
                         if (kind == PeekKind.Coverhug) Check(reaction == PeekReaction.Still, "the hanger never moves");
                         if (reaction == PeekReaction.Rush) rushes++; else stills++;
@@ -3164,7 +3184,9 @@ namespace Hollowbrook.LogicTests
                         Check(PeekSpots.KindIn(seed, night, room) == kind && PeekSpots.ReactionIn(seed, night, room) == reaction
                               && PeekSpots.SpotIndexIn(seed, night, room) == index, "the same night gives the same answers");
                     }
-            Check(slides > 100 && hangers > 100, "comfort rooms hold both the crouched one and the hanger (" + slides + " / " + hangers + ")");
+                }
+            Check(slides > 200 && hangers > 200 && hoods > 200, "every kind turns up (" + hoods + " / " + slides + " / " + hangers + ")");
+            Check(slidesInClassrooms > 100 && hangersInClassrooms > 100, "the crouched one and the hanger also stand in classrooms (" + slidesInClassrooms + " / " + hangersInClassrooms + ")");
             Check(rushes > 200 && stills > 200, "some rush and some stay still (" + rushes + " / " + stills + ")");
 
             // clearing speed: 2 seconds plain, 1.3 times faster with Focus, draining when the lamp leaves
@@ -3179,6 +3201,29 @@ namespace Hollowbrook.LogicTests
             Check(PeekClear.Advance(0.5f, 1f, false, true, 2f) == 0f && Math.Abs(PeekClear.Advance(1f, 1f, false, false, 2f) - 0.5f) < 1e-4f,
                 "off the body the bar drains, and never below zero");
             Eq(PeekClear.Advance(0.3f, 0f, true, true, 2f), 0.3f, "no time passing changes nothing");
+        }
+
+        private static void CaptionAndPoolTests()
+        {
+            Group("Captions stay rare; patrol anomalies vary");
+            Check(CaptionPolicy.Allow(100f, -999f, "a", "", false), "the first caption is shown");
+            Check(!CaptionPolicy.Allow(103f, 100f, "b", "a", false), "an ordinary caption soon after another is dropped");
+            Check(CaptionPolicy.Allow(100f + CaptionPolicy.QuietGapSeconds + 1f, 100f, "b", "a", false), "after the quiet gap a new caption is shown");
+            Check(!CaptionPolicy.Allow(112f, 100f, "a", "a", false), "the same words are not shown again so soon");
+            Check(CaptionPolicy.Allow(103f, 100f, "b", "a", true), "an urgent caption is always shown");
+
+            var pool = new PatrolPool();
+            pool.Seed(new[] { AnomalyBehaviorKind.Blink, AnomalyBehaviorKind.Slide, AnomalyBehaviorKind.Sprint, AnomalyBehaviorKind.CoverHug });
+            var rng = new GameRng(77);
+            var last = pool.PeekKind(rng);
+            bool never = true;
+            for (int i = 0; i < 200; i++)
+            {
+                var next = pool.PeekKind(rng);
+                if (next == last) never = false;
+                last = next;
+            }
+            Check(never, "the pool never hands out the same kind twice in a row while others wait");
         }
 
         private static void CheckpointQueueTests()
