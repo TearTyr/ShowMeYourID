@@ -20,7 +20,7 @@ MonoBehaviour:
   queueBusyHurryMultiplier: 2
   nextStudentSeconds: 3
   anomalyFirstSpawnSeconds: 0
-  peekClearSeconds: 2
+  peekClearSeconds: 3
   queueNightScale: 0.8
   queuePressureWarnAt: 9999
   queueOverwhelmedAt: 9999

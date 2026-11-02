@@ -143,7 +143,7 @@ namespace Hollowbrook.Core
         private void PlayFailure(System.Action then)
         {
             bool onPatrol = State == AppViewState.Exploration || State == AppViewState.RoomPeek;
-            if (Scares != null && onPatrol) Scares.FailureSequence(AnomalyBehaviorKind.Blink, then);
+            if (Scares != null && onPatrol) Scares.FailureSequence(BehaviorProfile.ArtKey(AnomalyBehaviorKind.Blink), then);
             else then();
         }
 

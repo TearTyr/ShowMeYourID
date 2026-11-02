@@ -266,6 +266,9 @@ namespace Hollowbrook.Checkpoint
         internal const float StampMaxTilt = 18f;   // |−12 + [−6..+6]| - the seeded tilt span
         internal const float StampEdgePad = 2f;    // breathing room between mark and edge
 
+        // The mark on the slip is the kit's own check or cross disc (real art, black ink on the paper).
+        internal static string MarkKey(Verdict v) => v == Verdict.Allow ? "sec_icon_accept" : "sec_icon_decline";
+
         private void PlaceStampMark(Verdict v, Vector2 localCentre)
         {
             if (_stampOverlay == null || _slipGo == null) return;
@@ -281,7 +284,7 @@ namespace Hollowbrook.Checkpoint
             _stampOverlay.raycastTarget = false;             // the mark never eats clicks
             rt.anchoredPosition = new Vector2(localCentre.x, -localCentre.y);
             rt.localEulerAngles = new Vector3(0, 0, -12 + _stampRng.NextInt(-6, 7));
-            _stampOverlay.sprite = ProceduralArt.Get(v == Verdict.Allow ? "stamp_allow" : "stamp_reject");
+            _stampOverlay.sprite = ProceduralArt.Get(MarkKey(v));
             rt.localScale = Vector3.one;
             var c = _stampOverlay.color; c.a = 0f; _stampOverlay.color = c;
             _punch = StartCoroutine(StampPunch(v));
@@ -301,6 +304,7 @@ namespace Hollowbrook.Checkpoint
         }
 
         private bool _stampsLive;
+        private const float TrayGhostAlpha = 0.3f;   // the tray mark while its stamp is out in the hand
 
         // A dragged stamp is moved to the top of the desk; once let go it goes back down beside its tray
         // mark, under the sheets and the sticky note, so it cannot be grabbed through them.
@@ -320,15 +324,15 @@ namespace Hollowbrook.Checkpoint
                 if (_stampTints[i] == null) continue;
                 var c = _stampBase[i];
                 float dim = live ? 1f : 0.35f;       // without the kit art the stamp dims until an inspection is live
-                bool tray = _trayCircles[i] != null; // with the kit art the tray mark IS the stamp at rest
-                // the tray mark is always fully visible (it used to fade with no visitor and hid the
-                // stamps at the start of the game); the stamp handle only appears in the hand
-                c.a = tray ? (_stampHeld[i] ? 1f : 0f) : dim;
+                bool tray = _trayCircles[i] != null; // with the kit art the stamp is always drawn in full
+                // The stamp in the hand never fades (a click, a drag or a drop can not make it vanish). While it
+                // is out on the desk its tray mark shows a faint ghost, so the empty spot still reads.
+                c.a = tray ? 1f : dim;
                 _stampTints[i].color = c;
                 if (tray)
                 {
                     var cc = _trayCircles[i].color;
-                    cc.a = 1f;
+                    cc.a = _stampHeld[i] ? TrayGhostAlpha : 1f;
                     _trayCircles[i].color = cc;
                 }
             }
@@ -403,7 +407,7 @@ namespace Hollowbrook.Checkpoint
 
         private IEnumerator StampPunch(Verdict verdict)
         {
-            _stampOverlay.sprite = ProceduralArt.Get(verdict == Verdict.Allow ? "stamp_allow" : "stamp_reject");
+            _stampOverlay.sprite = ProceduralArt.Get(MarkKey(verdict));
             bool reduce = _gameRoot.Settings != null && _gameRoot.Settings.ReduceMotion;
             if (!reduce)
             {

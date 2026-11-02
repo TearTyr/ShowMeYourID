@@ -16,7 +16,8 @@ namespace Hollowbrook.Core
         public const string SanityChanged = "sanity.changed";      // Value: 0..100
         public const string SanityStageChanged = "sanity.stage";   // Data: SanityStage
 
-        public const string CaptionRequested = "caption.show";     // Text: caption, Value: seconds
+        public const string CaptionRequested = "caption.show";     // Text: caption, Value: seconds. Ordinary: the bar keeps quiet between them
+        public const string CaptionUrgent = "caption.urgent";      // same payload, always shown (the hunt, a dying flashlight, a warning)
         public const string SettingsChanged = "settings.changed";  // Data: SettingsData
         public const string Notification = "ui.notification";
         public const string AnomalyCaught = "anomaly.caught";      // Text: toast message

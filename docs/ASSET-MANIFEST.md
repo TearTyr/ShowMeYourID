@@ -55,8 +55,7 @@ with their own eyes, so these portraits carry more gameplay weight than any othe
 
 `id_card_frame` (320×220 px @100 ppu - the card art only; photo and text rows are drawn on top by
 code), `record_sheet` (320×290), `folder_tab` (304×26), `paper_flat` (760×480 overlays),
-`bubble_tail`, `stamp_allow` (temp ink ships as
-`UI/SecurityDesk/stamp_allow.png`), `stamp_reject`. All @ **UiPpu = 100**: pixel size ÷ 100 =
+`bubble_tail`. (The stamp mark on the slip is the kit's own `sec_icon_accept` / `sec_icon_decline` disc, so there is no drawn stamp.) All @ **UiPpu = 100**: pixel size ÷ 100 =
 desk-grid units, and the desk grid is fixed at 1280×720 reference, so **deliver at the listed px**.
 
 ## 3. Patrol world (`world-bg`, `world-prop`, `character`)

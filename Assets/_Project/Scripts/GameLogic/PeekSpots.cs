@@ -2,7 +2,7 @@ using System;
 
 namespace Hollowbrook.Logic
 {
-    /// <summary>What stands in a peek room.</summary>
+    /// <summary>What stands in a peek room. Any room can hold any of the three.</summary>
     public enum PeekKind { Hood, Slide, Coverhug }
 
     /// <summary>What it does while the lamp is on it: stays where it stands, or rushes at the camera.</summary>
@@ -33,6 +33,10 @@ namespace Hollowbrook.Logic
 
         // where the ceiling hanger can hang in a comfort room (above the corridor and its light)
         private static readonly float[] ComfortCeilingXs = { -2.5f, -0.5f, 2.0f };
+        // ...and in a classroom (above the desks, clear of the board and the door)
+        private static readonly float[] ClassroomCeilingXs = { -3.5f, 0.5f, 3.5f };
+
+        private static bool IsClassroom(RoomId room) => room == RoomId.Classroom1 || room == RoomId.Classroom2;
 
         private static bool Mirrored(RoomId room) => room == RoomId.ComfortRoom2;
 
@@ -55,6 +59,7 @@ namespace Hollowbrook.Logic
         /// <summary>The x positions a ceiling hanger can hang at in this room.</summary>
         public static float[] CeilingXs(RoomId room)
         {
+            if (IsClassroom(room)) return (float[])ClassroomCeilingXs.Clone();
             var xs = (float[])ComfortCeilingXs.Clone();
             if (Mirrored(room)) for (int i = 0; i < xs.Length; i++) xs[i] = -xs[i];
             return xs;
@@ -63,7 +68,7 @@ namespace Hollowbrook.Logic
         /// <summary>The height (above the floor line) where the picture's floor and walls seem to meet the eye level.</summary>
         public static float Horizon(RoomId room)
         {
-            return room == RoomId.Classroom1 || room == RoomId.Classroom2 ? 1.7f : 0.2f;
+            return IsClassroom(room) ? 1.7f : 0.2f;
         }
 
         /// <summary>How tall a kind stands at the front edge of the floor, in world units.</summary>
@@ -108,11 +113,24 @@ namespace Hollowbrook.Logic
 
         private static GameRng Roll(int seed, int shift, RoomId room, int salt) => new GameRng(seed ^ (shift * 6151) ^ ((int)room * 977) ^ salt);
 
-        /// <summary>Classrooms hold the hooded figure. A comfort room holds the crouched one or the ceiling hanger.</summary>
+        // the four peek rooms, in the order the kinds are dealt out
+        private static int Slot(RoomId room)
+        {
+            switch (room)
+            {
+                case RoomId.Classroom1: return 0;
+                case RoomId.Classroom2: return 1;
+                case RoomId.ComfortRoom: return 2;
+                default: return 3;
+            }
+        }
+
+        /// <summary>Any room can hold any kind. The night picks a starting kind and the rooms take the three
+        /// kinds in turn, so a night with several figures shows different ones, and no night is all hoods.</summary>
         public static PeekKind KindIn(int seed, int shift, RoomId room)
         {
-            if (room == RoomId.Classroom1 || room == RoomId.Classroom2) return PeekKind.Hood;
-            return Roll(seed, shift, room, 0x11).Chance(0.5f) ? PeekKind.Slide : PeekKind.Coverhug;
+            int start = Roll(seed, shift, RoomId.Hallway, 0x11).NextInt(0, 3);
+            return (PeekKind)((start + Slot(room)) % 3);
         }
 
         /// <summary>Which of the room's three spots it stands at tonight.</summary>
@@ -126,8 +144,9 @@ namespace Hollowbrook.Logic
         }
     }
 
-    /// <summary>How fast the lamp clears a figure it is held on (pure). Held on the body it fills a bar in
-    /// the clear time (Focus is 1.3 times faster); off the body the bar drains back.</summary>
+    /// <summary>How fast the lamp clears a figure it is held on (pure). The plain wide lamp works, it is just
+    /// slow: held on the body it fills a bar in the clear time, and Focus is 1.3 times faster. Off the body
+    /// the bar drains back.</summary>
     public static class PeekClear
     {
         public const float FocusSpeed = 1.3f;

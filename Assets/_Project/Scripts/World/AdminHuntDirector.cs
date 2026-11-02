@@ -15,15 +15,15 @@ namespace Hollowbrook.World
     // Where things happen:
     // There is no audio yet, so every cue is a caption and the HUD line.
     //  - Stalking: no picture, a caption says he is walking.
-    //  - InRoom:   a caption names the room. His picture shakes and circles in it, and only the
-    //              lamp shows it.
+    //  - InRoom:   a caption names the room. His picture wanders slowly about in it (see
+    //              AdminHuntMotion), and only the lamp shows it.
     //  - Behind:   his picture closes in along the hallway. Flash the beam on his face.
     public class AdminHuntDirector : MonoBehaviour
     {
         private const float FigureHeight = 3.9f;          // world units, the picture's height (big enough to hover when he is fast)
         private const int FigureSortingOrder = 40;        // under the darkness overlay (70): only light reveals him
         private const float StatusEverySeconds = 0.4f;    // how often the HUD line is rewritten
-        private const float BehindStartDistance = 6f;     // how far away he starts when he comes at your back
+        private const float BehindStartDistance = 4.5f;   // how far away he starts when he comes at your back (a slow walk, not a dash)
 
         private GameRoot _root;
         private ViewManager _views;
@@ -119,15 +119,14 @@ namespace Hollowbrook.World
         }
 
         // Drop a PNG named char_admin_hunt.png into Resources/Art to replace his face; otherwise the
-        // administrator's glitched window face, his badge face, or the painted portrait.
+        // administrator's glitched window face, or his badge face.
         private static Sprite PickSprite()
         {
             Sprite s;
             if (ProceduralArt.TryGet("char_admin_hunt", out s)) return s;
             if (ProceduralArt.TryGet(FaceAssets.AdminWindowKey, out s)) return s;
             if (ProceduralArt.TryGet(FaceAssets.AdminKey, out s)) return s;
-            var face = new Portrait { HairStyle = 2, FaceVariant = 3, Accessory = 0, Distorted = true };
-            return ProceduralArt.Portrait("hunt", face, 240, 296);
+            return ProceduralArt.Get(FaceAssets.AdminKey);
         }
 
         private void ShowFigureIn(RoomId room, Vector3 localPosition)
@@ -144,7 +143,7 @@ namespace Hollowbrook.World
             if (_figure != null) _figure.SetActive(false);
         }
 
-        // He appears somewhere in the framed room; the shake circles around this anchor.
+        // He appears somewhere in the framed room; his wandering is measured from this anchor.
         private void PlaceInRoom()
         {
             float screenHalf = _views.ScreenHalfWidth;
@@ -227,7 +226,7 @@ namespace Hollowbrook.World
         {
             HideFigure();
             GiveSanity(-(_root.Config != null ? _root.Config.huntCaughtSanity : 15f));
-            if (_root.Scares != null) _root.Scares.Capture(AnomalyBehaviorKind.Blink);
+            if (_root.Scares != null) _root.Scares.CaptureAdmin();
             if (_views.PeekActive) _root.ExitRoomPeek();
             else if (_views.Player != null && _views.Current != null)
                 _views.Player.PlaceInRoom(_views.Current, _views.Current.PlayerSpawn);
@@ -271,7 +270,7 @@ namespace Hollowbrook.World
 
         private void Say(string text, float seconds)
         {
-            _root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, text, seconds, null));
+            _root.Bus.Publish(GameEvent.Of(EventIds.CaptionUrgent, text, seconds, null));
         }
     }
 }

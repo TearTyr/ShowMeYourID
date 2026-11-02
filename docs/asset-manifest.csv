@@ -52,8 +52,6 @@ menu_icon_newgame,art,kit,P0,shipped-kit,PNG,cropped skull icon inside the NEW G
 menu_icon_settings,art,kit,P0,shipped-kit,PNG,cropped gear icon inside the first square,MainMenuView (main menu composite per Art/Old/MainMenu/reference),
 menu_logo,art,kit,P0,shipped-kit,PNG,"cropped logo plate: SHOW ME YOUR ID! lettering + soft halo, top right",MainMenuView (main menu composite per Art/Old/MainMenu/reference),
 paper_flat,art,desk-doc,P0,procedural,PNG,"PNG RGBA 760x480 px @100 ppu, plain aged sheet for the RULES NOTE / TONIGHT'S LOG overlays",CheckpointView overlays,
-prop_door_security,art,world-prop,P0,procedural,PNG,"PNG RGBA 160x384 px @64 ppu, booth/security door with plate",RoomBuilder security door + office door,
-prop_server_door,art,world-prop,P0,procedural,PNG,"PNG RGBA 208x384 px @64 ppu, SEALED server/ID room door: chains + padlock baked",hallway east end,the scratch marks are story - keep them
 record_sheet,art,desk-doc,P0,procedural,PNG,"PNG RGBA 320x290 px @100 ppu; FORM 11-C layout, header band + ruled rows left blank for code-drawn text",CheckpointView (student record / admin memo),
 rough_panel_dark,art,functional,P0,code-drawn,PNG,256x192 dark rough panel - the drawer body/front skin,CheckpointView drawer,replaceable if you want a wood-grain drawer: same key
 sec_background,art,kit,P0,shipped-kit,PNG,"full-frame 2880x1620 layer: booth base, lamp cone baked, no window",CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
@@ -77,8 +75,6 @@ sec_stamp_circle_allow,art,kit,P0,shipped-kit,PNG,sliced tray card + check disc 
 sec_stamp_circle_deny,art,kit,P0,shipped-kit,PNG,sliced tray card + cross disc under the DECLINE stamp,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 sec_upper_panel_bg,art,kit,P0,shipped-kit,PNG,full-frame layer: header board without the widget cut-outs,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
 sec_wide_pill,art,kit,P0,shipped-kit,PNG,sliced pill: patrol / end-shift button skin,CheckpointView.KitSkin / DialogueView / LoadingView / ShiftResults,
-stamp_allow,art,desk-doc,P0,temp-shipped,PNG,"PNG RGBA square ~150 px @100 ppu, APPROVE rubber stamp mark, transparent outside the ink",CheckpointView stamp tray + slip mark,ships as Art/UI/SecurityDesk/stamp_allow.png; final ink replaces the file
-stamp_reject,art,desk-doc,P0,procedural,PNG,"PNG RGBA square ~150 px @100 ppu, DENY rubber stamp mark",CheckpointView stamp tray + slip mark,"pair of stamp_allow: same weight, same tilt language"
 bubble_tail,art,desk-doc,P1,procedural,PNG,"PNG RGBA 48x40 px @100 ppu, comic-bubble tail pointing left",CheckpointView speech bubble,
 circle_paper,art,functional,P1,code-drawn,PNG,110 px flat paper circle (ID back seal),CheckpointView ID back,
 hood_figure,art,character,P1,procedural,PNG,"PNG RGBA 24x48 px @100 ppu, waiting-line silhouette for the queue stands",CheckpointView stands,
@@ -87,12 +83,10 @@ sec_arrow_right,art,kit,P1,shipped-kit,PNG,cropped chevron: the asked-mark on qu
 map_paper,art,map,P2,procedural,PNG,"PNG RGBA 940x440 px @100 ppu, aged/stained/folded sheet with red district stamp; ROOM OUTLINES ARE DRAWN BY CODE ON TOP - deliver blank paper only",MapView sheet,owner's hand-drawn reference can replace this file 1:1
 map_room,art,map,P2,procedural,PNG,"PNG RGBA 160x120 px @100 ppu, wobbly double-stroked room outline, transparent centre (stretched per room)",MapView rooms,
 map_sealed,art,map,P2,procedural,PNG,"PNG RGBA 160x120 px @100 ppu, red hatch + chain + padlock outline",MapView sealed room,
-prop_clock,art,world-prop,P2,procedural,PNG,"PNG RGBA 112x112 px @64 ppu, wall clock stopped at 1:47 (clue #10)",hallway clue 'clock',GDD: Clock
 sec_log_prop,art,kit,P2,shipped-kit,PNG,dark tilted security log on the desk (click opens sec_log_paper),CheckpointView.Decision (desk prop),
 sec_log_paper,art,kit,P2,shipped-kit,PNG,flat NIGHT SECURITY LOG overlay skin (the three boxes sit on its printed squares),CheckpointView.Overlays,
 sec_rules_prop,art,kit,P2,shipped-kit,PNG,dark tilted rules paper on the desk (click opens sec_rules_paper),CheckpointView.Decision (desk prop),
 sec_rules_paper,art,kit,P2,shipped-kit,PNG,flat RULES NOTE overlay skin,CheckpointView.Overlays,
-token,art,world-prop,P2,procedural,PNG,"PNG RGBA 28x28 px @64 ppu, pocket-watch token: finding 7 in Room 101 (one use interactable)",RoomBuilder (Room 101),
 char_admin,art,face,P3,missing,PNG,"PNG RGBA 512x640, district administrator: formal coat, briefcase, smile that arrives late - badge photo",Night-5 administrator ID badge,FaceAssets.AdminKey (new this pass)
 char_admin_glitch,art,face,P3,missing,PNG,"PNG RGBA 512x640, same administrator, a half-second wrong (the window tell)",Night-5 administrator at the window,FaceAssets.AdminWindowKey (new this pass)
 cursor_hand,art,functional,P3,code-drawn,PNG,24 px hand cursor,HoverCursor,

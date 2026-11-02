@@ -297,20 +297,52 @@ namespace Hollowbrook.Logic
         }
     }
 
-    /// <summary>How his picture moves in a room: the head circles an anchor point while
-    /// the whole image jitters. Faster and wider each time he has been sent away.</summary>
+    /// <summary>How his picture moves in a room. He wanders like the Rat in Five Nights at Candy's 3: he drifts
+    /// to a spot, stands there a moment, then drifts to another one somewhere else, slowly and never in a circle.
+    /// The spots come from the hunt's seed, so a run always wanders the same way. Each time he has been sent away
+    /// he drifts a little faster, and the whole picture is only ever a few units from its anchor.</summary>
     public static class AdminHuntMotion
     {
+        public const float MaxX = 2.6f;           // how far from the anchor a spot can be, sideways
+        public const float MaxY = 0.7f;           // ...and up or down
+        public const float MaxStep = 2.8f;        // the longest drift from one spot to the next
+        private const int SpotCount = 16;         // the spots repeat after this many, nobody can tell
+        private const float DriftShare = 0.7f;    // the rest of each stop is spent standing still
+
+        /// <summary>Seconds one drift plus one pause takes: shorter after every visit, never frantic.</summary>
+        public static float StopSeconds(int stuns) => Math.Max(2.6f, 3.8f - 0.3f * stuns);
+
         public static void HeadOffset(float t, int stuns, int seed, out float x, out float y)
         {
-            float phase = (seed % 628) / 100f;
-            float radius = 1.0f + 0.15f * stuns;
-            float speed = 2.2f + 0.6f * stuns;
-            float drift = (float)Math.Sin(0.9f * t + phase) * 1.1f;            // slow wander left/right
-            float shakeX = (float)(Math.Sin(37f * t + phase * 3f) * 0.07 + Math.Sin(53f * t) * 0.05);
-            float shakeY = (float)(Math.Sin(41f * t + phase) * 0.07 + Math.Sin(61f * t) * 0.05);
-            x = (float)Math.Cos(speed * t + phase) * radius + drift + shakeX;
-            y = (float)Math.Sin(speed * t + phase) * radius * 0.6f + shakeY;
+            var spots = SpotsFor(seed);
+            float stop = StopSeconds(stuns);
+            float clock = Math.Max(0f, t) / stop;
+            int index = (int)clock;
+            float within = clock - index;
+            var from = spots[index % SpotCount];
+            var to = spots[(index + 1) % SpotCount];
+            float walk = within < DriftShare ? within / DriftShare : 1f;
+            float ease = walk * walk * (3f - 2f * walk);   // starts and ends gently
+            float shake = within < DriftShare ? 0.02f : 0.045f;   // a faint tremble, more when he stands still
+            x = from[0] + (to[0] - from[0]) * ease + (float)Math.Sin(23f * t) * shake;
+            y = from[1] + (to[1] - from[1]) * ease + (float)Math.Cos(29f * t) * shake;
         }
+
+        // The spots he visits, one after another: each is a short drift from the one before.
+        private static float[][] SpotsFor(int seed)
+        {
+            var rng = new GameRng(seed ^ 0x7A11);
+            var spots = new float[SpotCount][];
+            float x = 0f, y = 0f;
+            for (int i = 0; i < SpotCount; i++)
+            {
+                x = Clamp(x + (rng.NextFloat() * 2f - 1f) * MaxStep, -MaxX, MaxX);
+                y = Clamp(y + (rng.NextFloat() * 2f - 1f) * MaxY * 1.5f, -MaxY, MaxY);
+                spots[i] = new[] { x, y };
+            }
+            return spots;
+        }
+
+        private static float Clamp(float v, float lo, float hi) => v < lo ? lo : (v > hi ? hi : v);
     }
 }

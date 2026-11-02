@@ -468,13 +468,15 @@ namespace FlowCheck
                 root.Settings.Current.Captions = true;
                 root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "", 2f, null));
                 Check(!capBg.gameObject.activeSelf, "CAP: an empty caption shows nothing");
-                root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*a door opens somewhere*", 2f, null));
+                root.Bus.Publish(GameEvent.Of(EventIds.CaptionUrgent, "*a door opens somewhere*", 2f, null));
                 Check(capBg.gameObject.activeSelf && FindDeep(capBg, "t").GetComponent<UnityEngine.UI.Text>().text == "*a door opens somewhere*",
                     "CAP: the words the game sends as event data really appear (they used to show as an empty black strip)");
                 capBg.gameObject.SetActive(false);
                 root.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, null, 2f, "*knock*"));
+                Check(!capBg.gameObject.activeSelf, "CAP: an ordinary caption right after another stays quiet (the bar is not on all the time)");
+                root.Bus.Publish(GameEvent.Of(EventIds.CaptionUrgent, null, 2f, "*knock*"));
                 Check(capBg.gameObject.activeSelf && FindDeep(capBg, "t").GetComponent<UnityEngine.UI.Text>().text == "*knock*",
-                    "CAP: words sent as the event's Text appear too");
+                    "CAP: words sent as the event's Text appear too, and an urgent caption always shows");
                 capBg.gameObject.SetActive(false);
                 root.Checkpoint.Ask(QuestionId.Classroom);
                 Check(!capBg.gameObject.activeSelf, "CAP: asking a question shows no caption at all");
@@ -1534,8 +1536,8 @@ namespace FlowCheck
             Check(soRt.parent == slipArt, "SP: the mark is a layer OF THE SLIP (it rides the paper)");
             var markImg = soRt.GetComponent<UnityEngine.UI.Image>();
             Check(markImg.sprite != null &&
-                  markImg.sprite.name == (want == Verdict.Allow ? "stamp_allow" : "stamp_reject"),
-                "SP: the mark shows the EXISTING stamp art for the verdict (types preserved)");
+                  markImg.sprite.name == CheckpointView.MarkKey(want) && ProceduralArt.IsFileBacked(markImg.sprite.name),
+                "SP: the mark shows the kit's real check or cross disc for the verdict, never a drawn one");
             Check(Mathf.Abs(soRt.sizeDelta.x - CheckpointView.StampMarkSize) < 0.01f &&
                   Mathf.Abs(soRt.sizeDelta.y - CheckpointView.StampMarkSize) < 0.01f,
                 $"SP: the mark draws at {soRt.sizeDelta.x:F0}x{soRt.sizeDelta.y:F0} reference px - square, so no stretching");
@@ -1603,29 +1605,16 @@ namespace FlowCheck
             FindDeep(desk, "records").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             // the next visitor (night 1's last) is left untouched for the desk loop
 
-            // the reduced mark's art ships as a real asset override (Resources/Art/stamp_allow.png),
-            // which the headless Resources stub cannot load - so prove the FILE and its alpha
-            // stream are in place, exactly as ProceduralArt.Get would find them in the editor.
+            // the slip mark is the kit's own disc: prove both files are in place with their .meta
             string rootDir = RepoRoot();
-            string png = FindArt(rootDir, "stamp_allow");
-            Check(png != null && System.IO.File.Exists(png),
-                "SP: the approval stamp ships as an asset file named stamp_allow.png under Resources/Art");
-            if (png != null && System.IO.File.Exists(png))
+            foreach (var markKey in new[] { CheckpointView.MarkKey(Verdict.Allow), CheckpointView.MarkKey(Verdict.Reject) })
             {
-                byte[] head = new byte[30];
-                using (var fs = System.IO.File.OpenRead(png))
-                {
-                    int got = fs.Read(head, 0, head.Length);
-                    Check(got == head.Length, "SP: the override file reads back whole");
-                }
-                Check(head[0] == 0x89 && head[1] == 0x50 && head[2] == 0x4E && head[3] == 0x47 &&
-                      head[25] == 6,
-                    "SP: it is a true-colour RGBA PNG (signature + colour type 6 = alpha channel)");
-                Check(System.IO.File.Exists(png + ".meta"),
-                    "SP: the override has its .meta, so Unity imports it on the next open");
+                string png = FindArt(rootDir, markKey);
+                Check(png != null && System.IO.File.Exists(png) && System.IO.File.Exists(png + ".meta"),
+                    "SP: the " + markKey + " mark ships as a real art file with its .meta");
             }
-            Check(Hollowbrook.Scenes.ProceduralArt.Get("stamp_allow") != null,
-                "SP: the stamp key still resolves (asset override wins in-editor, painter is the fallback)");
+            Check(FindArt(rootDir, "stamp_allow") == null,
+                "SP: the old generated stamp_allow file is gone");
         }
 
         // ONE source of truth, three light layers + the HUD: cone, stencil mask and penumbra
@@ -1795,8 +1784,8 @@ namespace FlowCheck
             for (int i = 1; i <= Hollowbrook.Logic.FaceAssets.StudentFaceCount && allFaces; i++)
                 allFaces &= FindArt(rootDir, Hollowbrook.Logic.FaceAssets.ScaredKey(i - 1)) != null;
             Check(allFaces, "FM: every student and anomaly face asset ships under Resources/Art");
-            Check(FindArt(rootDir, "stamp_allow") != null,
-                "FM: the approval stamp asset ships under Resources/Art");
+            Check(FindArt(rootDir, "sec_icon_accept") != null && FindArt(rootDir, "sec_icon_decline") != null,
+                "FM: the check and cross discs used for the slip mark ship under Resources/Art");
             Check(FindArt(rootDir, "char_guard_idle") != null && FindArt(rootDir, "char_guard_walk_a") != null &&
                   FindArt(rootDir, "char_guard_walk_b") != null,
                 "FM: the guard's idle pose and both walking poses ship under Resources/Art");
@@ -2139,14 +2128,15 @@ namespace FlowCheck
             {
                 var trayImg = FindDeep(root.Checkpoint.transform, pair[1]).GetComponent<UnityEngine.UI.Image>();
                 Check(trayImg.preserveAspect, "STAMPS: " + pair[1] + " keeps its shape (a check or a cross, not stretched)");
-                Check(StampHandAlpha(root, pair[0]) < 0.01f, "STAMPS: " + pair[0] + " is not drawn over the tray while it rests");
+                Check(StampHandAlpha(root, pair[0]) > 0.99f, "STAMPS: " + pair[0] + " is fully visible while it rests");
                 Check(StampAlpha(root, pair[0]) > 0.99f, "STAMPS: the " + pair[1] + " mark is fully visible");
                 var hand = FindDeep(root.Checkpoint.transform, pair[0]).GetComponent<DragPaper>();
                 hand.BeginDrag();
                 Check(StampHandAlpha(root, pair[0]) > 0.99f, "STAMPS: " + pair[0] + " shows in the hand while it is held");
+                Check(StampAlpha(root, pair[0]) < 0.9f, "STAMPS: the tray mark ghosts while its stamp is out, so the spot still reads");
                 hand.EndDrag();
-                Check(StampHandAlpha(root, pair[0]) < 0.01f && StampAlpha(root, pair[0]) > 0.9f,
-                    "STAMPS: " + pair[0] + " goes back to the tray picture when let go");
+                Check(StampHandAlpha(root, pair[0]) > 0.99f && StampAlpha(root, pair[0]) > 0.9f,
+                    "STAMPS: " + pair[0] + " is still fully visible and back on its tray mark when let go");
                 Check(FindDeep(root.Checkpoint.transform, pair[0]).GetSiblingIndex() <
                       FindDeep(root.Checkpoint.transform, "OverlayRules").GetSiblingIndex(),
                     "STAMPS: " + pair[0] + " goes back under the sheets, so it cannot be grabbed through them");
@@ -2922,7 +2912,7 @@ namespace FlowCheck
             int deathCaptions = 0, rebootCaptions = 0, tensesCaptions = 0, creakCaptions = 0;
             int revealedReal = 0, caughtEvents = 0;
             var stateLog = new List<string>();
-            root.Bus.Subscribe(EventIds.CaptionRequested, e =>
+            System.Action<GameEvent> witness = e =>
             {
                 // captions are published via Of(id, data, value, text) - the string rides in Data
                 string t = e.Text ?? e.Data as string ?? "";
@@ -2930,7 +2920,9 @@ namespace FlowCheck
                 else if (t.Contains("coughs")) rebootCaptions++;
                 else if (t.Contains("tenses")) tensesCaptions++;
                 else if (t.Contains("door creaks")) creakCaptions++;
-            });
+            };
+            root.Bus.Subscribe(EventIds.CaptionRequested, witness);
+            root.Bus.Subscribe(EventIds.CaptionUrgent, witness);
             root.Bus.Subscribe(EventIds.AnomalyStateChanged, e => { if (e.Text != null) stateLog.Add(e.Text); });
             root.Bus.Subscribe(EventIds.AnomalyRevealed, e => { if (e.Data is AnomalyBehaviorKind) revealedReal++; });
             root.Bus.Subscribe(EventIds.AnomalyCaught, e => caughtEvents++);
@@ -3438,8 +3430,7 @@ namespace FlowCheck
             Check(an.State == AnomalyState.Exposed, $"W5: sustained accurate Focus exposes the corrupted identity (frames={g}, meter={an.Meter:F2})");
             Check(exposedAt > 55, $"W5: exposure took sustained tracking, not one frame ({exposedAt} frames)");
             Check(stateLog.Count(s => s == "Exposed") == 1, "W5: the Exposed transition published exactly once");
-            var face = FindDeep(an.transform, "ExposedFace");
-            Check(face != null && face.gameObject.activeSelf, "W5: the distorted face is shown while Exposed");
+            Check(FindDeep(an.transform, "ExposedFace") == null, "W5: no face is painted in code over an exposed anomaly");
 
             // losing Focus is recoverable - no free repel: step 8u to the far side (the clamp
             // can never push the player back next to it) and point the beam the other way
@@ -3452,7 +3443,6 @@ namespace FlowCheck
             WorldFrames(root, 60);
             Check(an.Meter < mLoss0, $"W5: the meter decays once the grace window runs out ({mLoss0:F2} → {an.Meter:F2})");
             Check(an.State != AnomalyState.Exposed, "W5: Exposed is recoverable - it fell back when Focus was lost");
-            Check(face != null && !face.gameObject.activeSelf, "W5: the exposed face hides again");
 
             // hold accurate Focus to a real repel
             int repelMark = stateLog.Count;
@@ -3963,8 +3953,6 @@ namespace FlowCheck
             var kindHere = PeekSpots.KindIn(root.Session.Seed, root.Session.CurrentShift, withOne);
             Check(hider.sprite == ProceduralArt.Get(PeekSpots.ArtKey(kindHere)) && views.PeekedAnomaly.Kind == kindHere,
                 "AN: it is the kind this room holds (" + kindHere + ")");
-            bool classroom = withOne == RoomId.Classroom1 || withOne == RoomId.Classroom2;
-            Check(classroom == (kindHere == PeekKind.Hood), "AN: classrooms hold the hooded figure and comfort rooms never do");
             var hiderPos = views.PeekedAnomaly.transform.localPosition;
             float heightBefore = views.PeekedAnomaly.CurrentHeight;
             float feetNow = hiderPos.y - heightBefore * 0.5f;
@@ -3993,17 +3981,19 @@ namespace FlowCheck
             WorldFrames(root, 30);
             Check(views.PeekedAnomaly.Playing && !lamp.Locked && (root.Session.PeekAnomaliesGone & bit) == 0,
                 "AN: the plain lamp on his body starts to clear him, and he is still there after half a second");
+            Check(views.Flashlight.Battery < 0.999f && views.Flashlight.Battery > 0.5f,
+                "AN: the peek lamp runs the same battery down while it is lit (" + views.Flashlight.Battery.ToString("F3") + ")");
             if (views.PeekedAnomaly.Reaction == PeekReaction.Rush)
                 Check(views.PeekedAnomaly.transform.localPosition != hiderPos && views.PeekedAnomaly.CurrentHeight > heightBefore,
                     "AN: one that rushes jumps closer and bigger while the lamp holds");
             else
                 Check(views.PeekedAnomaly.transform.localPosition == hiderPos,
                     "AN: one that stays still stays exactly where it stands while the lamp holds");
-            WorldFrames(root, 85);
-            Check(!lamp.Locked && (root.Session.PeekAnomaliesGone & bit) == 0, "AN: the plain lamp is not done at about 1.9 seconds");
-            WorldFrames(root, 15);
+            WorldFrames(root, 140);
+            Check(!lamp.Locked && (root.Session.PeekAnomaliesGone & bit) == 0, "AN: the plain wide lamp is not done at about 2.8 seconds (it is slow)");
+            WorldFrames(root, 20);
             Check(lamp.Locked && (root.Session.PeekAnomaliesGone & bit) != 0 && (root.Session.ClearedRooms & bit) != 0,
-                "AN: after about two seconds of plain lamp he is gone, the room counts and the lamp is locked");
+                "AN: after about three seconds of plain wide lamp he is gone, the room counts and the lamp is locked");
             var blindSr = FindDeep(lamp.transform, "PeekBlind").GetComponent<SpriteRenderer>();
             PressKey(root, KeyCode.F);
             PressKey(root, KeyCode.Q);
@@ -4038,8 +4028,8 @@ namespace FlowCheck
             views.PeekLight.ToggleFocus();   // the Focus lamp from here
             int focusFrames = 5;
             while (!views.PeekLight.Locked && focusFrames < 300) { WorldFrame(root); focusFrames++; }
-            Check(focusFrames >= 85 && focusFrames <= 100,
-                $"AN: the Focus lamp clears it about 1.3 times faster ({focusFrames} frames, against about 120 for the plain lamp)");
+            Check(focusFrames >= 130 && focusFrames <= 150,
+                $"AN: the Focus lamp clears it about 1.3 times faster ({focusFrames} frames, against about 180 for the plain wide lamp)");
             WorldFrames(root, 400);
             PressKey(root, KeyCode.S);
             WorldFrames(root, 60);

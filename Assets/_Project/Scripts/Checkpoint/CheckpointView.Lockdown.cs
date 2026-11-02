@@ -69,7 +69,7 @@ namespace Hollowbrook.Checkpoint
         {
             var taken = _current;
             _verdictLocked = true;
-            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the thing outside reaches the glass and takes them*", 3f, null));
+            _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionUrgent, "*the thing outside reaches the glass and takes them*", 3f, null));
             _gameRoot.Audio.PlaySfx("sfx_alarm", 0.7f);
             _gameRoot.OnVisitorTaken(taken);
             if (_gameRoot.State == AppViewState.Ending) { Hide(); return; }

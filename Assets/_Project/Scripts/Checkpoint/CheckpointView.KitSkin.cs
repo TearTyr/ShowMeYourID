@@ -398,9 +398,10 @@ namespace Hollowbrook.Checkpoint
             var t = FindTransform(_desk, stampName);
             if (t == null) return;
             var img = t.GetComponent<Image>();
-            var stampArt = ProceduralArt.Get("sec_stamp");
-            // RefreshStamps keeps driving the Image colour (verdict tint, dim until live), so the
-            // kit handle inherits the established wake/dim language for free
+            // The thing in the hand is the SAME picture as the tray mark (the check or cross disc), so the
+            // stamp never vanishes: at rest it sits exactly on its tray mark, when picked up it follows the cursor.
+            var stampArt = ProceduralArt.Get(stampName == "stamp_allow" ? "sec_stamp_circle_allow" : "sec_stamp_circle_deny");
+            if (stampArt == null) stampArt = ProceduralArt.Get("sec_stamp");
             if (img != null && stampArt != null) { img.sprite = stampArt; img.preserveAspect = true; }
             var lbl = t.Find("label");
             if (lbl != null)

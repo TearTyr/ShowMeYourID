@@ -101,16 +101,18 @@ namespace Hollowbrook.World
         internal void Tick(float dt)
         {
             // peek rests the corridor beam: force Off AND clear the latches, so stepping back
-            // never re-lights it by itself - revival needs a deliberate F/Q (acceptance 7)
+            // never re-lights it by itself - revival needs a deliberate F/Q (acceptance 7).
+            // The peek lamp runs on this same battery, so it drains here at the lamp's own rate.
             if (_gameRoot.State == AppViewState.RoomPeek)
             {
                 if (Beam != LightMode.Off) ApplyBeam(LightMode.Off, true);
                 _latches = default;
+                TickBattery(dt, PeekLampMode());
                 return;
             }
             ReadInput();
             AimBeam(dt);
-            TickBattery(dt);
+            TickBattery(dt, Beam);
         }
 
         // Input answers only while actually patrolling: paused, blocking dialogue, room
@@ -270,7 +272,15 @@ namespace Hollowbrook.World
             _cone.transform.localScale = new Vector3(sx, sy, 1f);
         }
 
-        private void TickBattery(float dt)
+        // What the peek lamp is doing to the battery (Off when there is no lamp yet).
+        private LightMode PeekLampMode()
+        {
+            var views = _gameRoot.Views;
+            var lamp = views != null ? views.PeekLight : null;
+            return lamp != null && lamp.Active ? lamp.BatteryMode : LightMode.Off;
+        }
+
+        private void TickBattery(float dt, LightMode mode)
         {
             var cfg = _gameRoot.Config;
             if (cfg == null) return;
@@ -285,18 +295,18 @@ namespace Hollowbrook.World
             // the REAL ambient state of the room - never a beam mode stored on the light
             bool roomLit = _gameRoot.Views != null && _gameRoot.Views.RoomLit;
             float before = _battery.Charge;
-            _battery = BatteryModel.Tick(_battery, Beam, roomLit, dt, p, out bool justDied, out bool justRebooted);
+            _battery = BatteryModel.Tick(_battery, mode, roomLit, dt, p, out bool justDied, out bool justRebooted);
 
             if (justDied)
             {
                 _latches = default;                        // deliberate input required to relight
                 ApplyBeam(LightMode.Off, false);
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the flashlight dies - let it breathe*", 2.4f, null));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionUrgent, "*the flashlight dies - let it breathe*", 2.4f, null));
                 _gameRoot.Audio.PlaySfx("sfx_scan_error", 0.5f);
             }
             else if (justRebooted)
             {
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*the flashlight coughs back to life - pick a beam*", 2f, null));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionUrgent, "*the flashlight coughs back to life - pick a beam*", 2f, null));
             }
 
             _pubThrottle -= dt;

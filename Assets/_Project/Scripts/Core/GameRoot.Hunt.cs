@@ -125,7 +125,7 @@ namespace Hollowbrook.Core
                 ShiftFailing = false;
                 TriggerEnding(Session.EvaluateEnding());
             };
-            if (Scares != null) Scares.FailureSequence(AnomalyBehaviorKind.Blink, then);
+            if (Scares != null) Scares.FailureSequence(FaceAssets.AdminWindowKey, then);
             else then();
         }
     }

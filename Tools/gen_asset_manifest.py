@@ -24,8 +24,6 @@ ART = [
     ("paper_flat",      "desk-doc",  "P0", "procedural", "PNG RGBA 760x480 px @100 ppu, plain aged sheet for the RULES NOTE / TONIGHT'S LOG overlays", "CheckpointView overlays", ""),
     ("note_paper",      "desk-doc",  "P1", "procedural", "PNG RGBA 390x300 px @100 ppu, sticky/notice paper", "reserve (overlay variant)", ""),
     ("clipboard",       "desk-doc",  "P1", "procedural", "PNG RGBA 370x490 px @100 ppu", "reserve (overlay variant)", ""),
-    ("stamp_allow",     "desk-doc",  "P0", "temp-shipped", "PNG RGBA square ~150 px @100 ppu, APPROVE rubber stamp mark, transparent outside the ink", "CheckpointView stamp tray + slip mark", "ships as Art/UI/SecurityDesk/stamp_allow.png; final ink replaces the file"),
-    ("stamp_reject",    "desk-doc",  "P0", "procedural", "PNG RGBA square ~150 px @100 ppu, DENY rubber stamp mark", "CheckpointView stamp tray + slip mark", "pair of stamp_allow: same weight, same tilt language"),
     ("bubble_tail",     "desk-doc",  "P1", "procedural", "PNG RGBA 48x40 px @100 ppu, comic-bubble tail pointing left", "CheckpointView speech bubble", ""),
 
     # ---- student / administrator faces (the eye-check IS the gameplay) ----
@@ -36,10 +34,6 @@ ART = [
     ("hall_depth",      "world-bg",  "P0", "procedural", "PNG RGBA, ALPHA-ONLY black radial falloff (see HallwayDarkness.DepthAt), native px = shroud world size x10", "hallway limited visibility", "must stay alpha-graded or the pool breaks"),
 
     # ---- patrol world: props & the GDD interaction objects ----
-    ("prop_door_security",   "world-prop", "P0", "procedural", "PNG RGBA 160x384 px @64 ppu, booth/security door with plate", "RoomBuilder security door + office door", ""),
-    ("prop_server_door",     "world-prop", "P0", "procedural", "PNG RGBA 208x384 px @64 ppu, SEALED server/ID room door: chains + padlock baked", "hallway east end", "the scratch marks are story - keep them"),
-    ("prop_clock",           "world-prop", "P2", "procedural", "PNG RGBA 112x112 px @64 ppu, wall clock stopped at 1:47 (clue #10)", "hallway clue 'clock'", "GDD: Clock"),
-    ("token",                "world-prop", "P2", "procedural", "PNG RGBA 28x28 px @64 ppu, pocket-watch token left by a repelled anomaly", "anomaly repel reward", ""),
 
     # ---- characters ----
     ("hood_figure",     "character", "P1", "procedural", "PNG RGBA 24x48 px @100 ppu, waiting-line silhouette for the queue stands", "CheckpointView stands", ""),

@@ -277,12 +277,9 @@ namespace Hollowbrook.Scenes
             "solid_white", "vignette", "noise_overlay", "flash", "light_cone",
             "desk_bg", "hood_figure",
             "hall_depth",
-            "prop_door_security", "prop_server_door",
-            "prop_clock",
-            "token",
             "rough_panel_dark", "rough_circle", "circle_paper",
             "paper_flat", "school_facade", "face_placeholder",
-            "record_sheet", "stamp_allow", "stamp_reject",
+            "record_sheet",
             "folder_tab", "cursor_hand", "bubble_tail",
             "id_card_frame",
             "map_paper", "map_room", "map_sealed", "map_door",
@@ -312,10 +309,6 @@ namespace Hollowbrook.Scenes
                 case "desk_bg": return MakeDeskBg(640, 360);
                 case "hood_figure": return MakeHoodFigure(24, 48);
                 case "hall_depth": return MakeHallDepth();
-                case "prop_door_security": return MakeDoor(160, 384, true);
-                case "prop_server_door": return MakeDoor(208, 384, false, chained: true);
-                case "prop_clock": return MakeClock(112);
-                case "token": return MakeClock(28, "token");   // pocket-watch token left by a revealed anomaly
                 case "rough_panel_dark": return MakeRoughPanel(256, 192, 0.16f, "rough_panel_dark");
                 case "rough_circle": return MakeRoughCircle(128);
                 case "circle_paper": return MakeFlatCircle("circle_paper", new Color(0.839f, 0.831f, 0.800f));
@@ -325,8 +318,6 @@ namespace Hollowbrook.Scenes
                 case "face_placeholder": return MakeFacePlaceholder(168, 208);
                 case "id_card_frame": return MakeIdCard();
                 case "record_sheet": return MakeRecordSheet();
-                case "stamp_allow": return MakeStamp(false);
-                case "stamp_reject": return MakeStamp(true);
                 case "folder_tab": return MakeFolderTab(304, 26);
                 case "cursor_hand": return MakeCursorHand(24);
                 case "bubble_tail": return MakeBubbleTail();

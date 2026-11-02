@@ -21,8 +21,6 @@ namespace Hollowbrook.Horror
         private GameRoot _gameRoot;
         private RoomInstance _room;              // room ownership - roaming updates this at doors
         private SpriteRenderer _sr;
-        private GameObject _faceGo;
-        private SpriteRenderer _face;
         private float _lifetime;
         private bool _sightedPenaltyApplied;
         private float _sanityTickTimer;
@@ -271,14 +269,12 @@ namespace Hollowbrook.Horror
             var prev = _state;
             _state = step.State;
             if (!changed) return false;
-            if (prev == AnomalyState.Exposed && _state != AnomalyState.Repelled) HideFace();
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.AnomalyStateChanged, _state.ToString()));
             return true;
         }
 
         private void AnnounceExposure()
         {
-            ShowFace();
             _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*under the beam the face is WRONG*", 2.6f, null));
             _gameRoot.Audio.PlaySfx("sfx_glitch", 0.6f);
         }
@@ -309,7 +305,7 @@ namespace Hollowbrook.Horror
             if (!_threatTold)
             {
                 _threatTold = true;
-                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*footsteps, close, behind you*", 2.2f, null));
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionUrgent, "*footsteps, close, behind you*", 2.2f, null));
                 _gameRoot.Audio.PlaySfx("sfx_heartbeat", 0.7f);
             }
             _threatSeconds += dt;
@@ -459,7 +455,7 @@ namespace Hollowbrook.Horror
                 {
                     // understandable warning BEFORE the burst - the reaction window
                     _telegraph = _profile.TelegraphSeconds;
-                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionRequested, "*it tenses - MOVE*", 1.6f, null));
+                    _gameRoot.Bus.Publish(GameEvent.Of(EventIds.CaptionUrgent, "*it tenses - MOVE*", 1.6f, null));
                     _gameRoot.Audio.PlaySfx("sfx_heartbeat", 0.8f);
                 }
                 _telegraph -= dt;
@@ -525,35 +521,12 @@ namespace Hollowbrook.Horror
 
         // ---------------------------------------------------------------- feedback / visuals
 
-        private void ShowFace()
-        {
-            if (_faceGo != null) { _faceGo.SetActive(true); return; }
-            // where the head is in each drawing, and how big the shown face is
-            var head = new Vector2(0.3f, 1.2f);   // the crouched thing: its bowed head
-            float size = 0.87f;
-            if (Kind == AnomalyBehaviorKind.Sprint) { head = new Vector2(1.7f, OnCeiling ? -0.45f : 0.45f); size = 0.7f; }
-            else if (Kind == AnomalyBehaviorKind.CoverHug) { head = new Vector2(-0.3f, -0.55f); size = 0.6f; }
-            if (_sr.flipX) head.x = -head.x;
-            _faceGo = new GameObject("ExposedFace");
-            _faceGo.transform.SetParent(transform, false);
-            _faceGo.transform.localPosition = new Vector3(head.x, head.y, -0.1f);
-            _faceGo.transform.localScale = new Vector3(size, size, 1f);
-            _face = _faceGo.AddComponent<SpriteRenderer>();
-            _face.sprite = ProceduralArt.Portrait("anom",
-                new Portrait { HairStyle = 2, FaceVariant = 4, Accessory = 0, Distorted = true }, 96, 120);
-            _face.color = new Color(0.9f, 0.9f, 0.88f);
-            _face.sortingOrder = 81;
-        }
-
-        private void HideFace() => _faceGo?.SetActive(false);
-
         private void TickVisibility(ViewManager views, bool sameRoom)
         {
             if (_sr == null) return;
             if (!sameRoom)
             {
                 _sr.enabled = false;                       // off-stage: never drawn over another room
-                if (_faceGo != null && _faceGo.activeSelf) _faceGo.SetActive(false);
                 return;
             }
             _sr.enabled = true;
@@ -566,7 +539,6 @@ namespace Hollowbrook.Horror
                 bool peekLit = views.IsPeekLit(pos);
                 var pc = _sr.color; pc.a = peekLit ? 0.95f : 0f; _sr.color = pc;
                 _sr.sortingOrder = 80;
-                if (_faceGo != null && _faceGo.activeSelf) _faceGo.SetActive(false);
                 return;
             }
 
