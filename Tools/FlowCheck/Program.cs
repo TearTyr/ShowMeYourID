@@ -286,6 +286,27 @@ namespace FlowCheck
             FreshGame(root);   // leave a live game for whatever runs next
         }
 
+        // The Lockdown lock and the secret code on the main menu: the code opens Night 6 first, then Lockdown.
+        private static void UnlockCodeProof(GameRoot root)
+        {
+            root.MainMenu.RefreshContinue();
+            var lockBtn = root.MainMenu.transform.Find("buttons/LOCKDOWN").GetComponent<UnityEngine.UI.Button>();
+            var nightBtn = root.MainMenu.transform.Find("buttons/NIGHT 6").GetComponent<UnityEngine.UI.Button>();
+            Check(!root.LockdownUnlocked && !lockBtn.interactable, "UC: Lockdown is locked and greyed on a fresh game");
+            Check(!nightBtn.interactable, "UC: Night 6 is locked and greyed on a fresh game");
+            foreach (char c in UnlockCodeReader.Code) root.MainMenu.FeedCodeKey(c);
+            Check(root.Night6Unlocked && !root.LockdownUnlocked && nightBtn.interactable && !lockBtn.interactable,
+                "UC: the code the first time opens Night 6 only");
+            foreach (char c in UnlockCodeReader.Code) root.MainMenu.FeedCodeKey(c);
+            Check(root.Night6Unlocked && root.LockdownUnlocked && lockBtn.interactable,
+                "UC: the code the second time opens Lockdown");
+            foreach (char c in UnlockCodeReader.Code) root.MainMenu.FeedCodeKey(c);
+            Check(root.UnlockCodeStage == 2, "UC: a third time changes nothing");
+            UnityEngine.PlayerPrefs.DeleteKey("hollowbrook.unlock.codestage");
+            root.MainMenu.RefreshContinue();
+            Check(!root.LockdownUnlocked && !lockBtn.interactable, "UC: clearing the unlock locks Lockdown again");
+        }
+
         // --------------------------------------------- night 6, the Challenge
         // Unlocked by finishing the story, the same hunt with harder numbers, its own conversation,
         // and it never touches the story save.
@@ -296,7 +317,10 @@ namespace FlowCheck
 
             // locked until the story has been finished (a Win or the Secret ending)
             root.Saves.Delete();
+            UnityEngine.PlayerPrefs.DeleteKey("hollowbrook.unlock.codestage");
+            UnityEngine.PlayerPrefs.DeleteKey("hollowbrook.unlock.night6beaten");
             Check(!root.Night6Unlocked, "N6: locked with no save");
+            UnlockCodeProof(root);
             var story = new SaveGame();
             story.Session.CurrentShift = 3;
             story.Records.EndingsSeen.Add("lose");
@@ -3926,7 +3950,7 @@ namespace FlowCheck
             if (fresh.Live != null)
             {
                 Check(fresh.Live.Renderer.sprite != null && ProceduralArt.IsFileBacked(fresh.Live.Renderer.sprite.name) && PatrolPool.IsHallwayKind(fresh.Live.Kind),
-                    "AN: it is a hallway kind (the runner or the hanger, never the crouched one) and uses real creature art");
+                    "AN: it is a hallway kind and uses real creature art");
                 Check(fresh.Live.Room.Id == RoomId.Hallway, "AN: roaming anomalies walk the hallway only");
             }
             {
@@ -3990,10 +4014,15 @@ namespace FlowCheck
             WorldFrames(root, 200);
             Check((root.Session.PeekAnomaliesGone & bit) == 0 && !views.PeekedAnomaly.Playing, "AN: a dark lamp does nothing to it");
             lamp.ToggleLamp();
-            AimAt(hiderPos.x + 1.9f, hiderPos.y);   // the lit circle reaches him, the light is not on him
-            WorldFrames(root, 150);
-            Check(!views.PeekedAnomaly.Playing && views.PeekedAnomaly.transform.localPosition == hiderPos,
-                "AN: standing in the edge of the light does nothing, he does not move");
+            // the lit circle reaches him, the light is not on him (a wide figure may be too wide for that)
+            float edge = PeekSpots.BodyHalfWidth(kindHere, heightBefore) + 0.1f;
+            if (edge < lamp.EffectiveRadius - 0.05f)
+            {
+                AimAt(hiderPos.x + edge, hiderPos.y);
+                WorldFrames(root, 150);
+                Check(!views.PeekedAnomaly.Playing && views.PeekedAnomaly.transform.localPosition == hiderPos,
+                    "AN: standing in the edge of the light does nothing, he does not move");
+            }
             AimAt(hiderPos.x, hiderPos.y);          // the plain lamp on his body
             WorldFrames(root, 30);
             Check(views.PeekedAnomaly.Playing && !lamp.Locked && (root.Session.PeekAnomaliesGone & bit) == 0,

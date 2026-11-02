@@ -180,11 +180,12 @@ namespace Hollowbrook.Core
         }
 
         /// <summary>Night 6 opens once the story has been finished (a Win or the Secret ending), read
-        /// from the save so it is right on the main menu too.</summary>
+        /// from the save so it is right on the main menu too, or when the secret code has opened it.</summary>
         public bool Night6Unlocked
         {
             get
             {
+                if (UnlockCodeStage >= 1) return true;
                 var save = Saves != null ? Saves.Read() : null;
                 var seen = save != null && save.Records != null ? save.Records.EndingsSeen : null;
                 return seen != null && (seen.Contains("win") || seen.Contains("secret"));
@@ -218,6 +219,7 @@ namespace Hollowbrook.Core
             }
             string key = eval.Ending == EndingType.Secret ? "secret" : (eval.Ending == EndingType.Win ? "win" : "lose");
             if (Session.Mode == GameMode.Normal && !Records.EndingsSeen.Contains(key)) Records.EndingsSeen.Add(key);
+            if (Session.Mode == GameMode.Challenge && eval.Ending == EndingType.Win) MarkNight6Beaten();   // opens Lockdown
             Session.RunFinished = true;
             if (eval.Ending == EndingType.Lose) SaveLostNight(); else PersistRun();
             SetState(AppViewState.Ending);

@@ -105,7 +105,7 @@ night: quitting it ends it, and it never touches your story save. The numbers ar
 
 ## Lockdown
 
-The **LOCKDOWN** button on the main menu is open from the start. It is one finite night with every student at the gate at
+The **LOCKDOWN** button on the main menu is locked until Night 6 has been beaten. A secret code typed on the main menu (`wwssaaddggez`, one key after another) opens the hidden modes one at a time: the first time it opens Night 6, the next time Lockdown. It is one finite night with every student at the gate at
 once: all 13 students, 6 of them anomalies, all frightened, arriving fast (8 to 11 seconds apart). There is no patrol, no Security
 Log and no sanity drain. Instead there is a clock on every face: **35 seconds** at the window, then the thing outside takes them.
 Three **mistakes** and the gate falls (you lose): an anomaly let in, a student turned away, or a real student taken when the

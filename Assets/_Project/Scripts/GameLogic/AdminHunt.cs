@@ -46,7 +46,7 @@ namespace Hollowbrook.Logic
         {
             CatchesToLose = 3, SurviveSeconds = 210f, StalkMinSeconds = 3f, StalkMaxSeconds = 6f,
             RoomSeconds = 9f, RoomHoldSeconds = 1.8f,
-            HoldDecayPerSecond = GameRules.Current.HuntHoldDecayPerSecond, HeadRadius = 1.5f, BehindSeconds = 2.2f, BeamHitSeconds = 0.35f,
+            HoldDecayPerSecond = GameRules.Current.HuntHoldDecayPerSecond, HeadRadius = 1.5f, BehindSeconds = 5f, BeamHitSeconds = 0.35f,
             RetreatSeconds = GameRules.Current.HuntRetreatSeconds,
         };
     }

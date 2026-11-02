@@ -6,10 +6,10 @@ namespace Hollowbrook.Logic
     [Serializable]
     public class PatrolPool
     {
-        /// <summary>The only kinds that wander the hallway on patrol: the runner and the ceiling hanger. The crouched
-        /// picture (Blink and Slide) belongs to the peek rooms, so it never walks the hallway. The enum keeps all four
-        /// values so saves stay readable.</summary>
-        public static readonly AnomalyBehaviorKind[] HallwayKinds = { AnomalyBehaviorKind.Sprint, AnomalyBehaviorKind.CoverHug };
+        /// <summary>The kinds that wander the hallway on patrol: the crouched slider and creeper, the runner and the
+        /// ceiling hanger. They are dealt out in turn each night.</summary>
+        public static readonly AnomalyBehaviorKind[] HallwayKinds =
+            { AnomalyBehaviorKind.Slide, AnomalyBehaviorKind.Sprint, AnomalyBehaviorKind.CoverHug, AnomalyBehaviorKind.Blink };
 
         /// <summary>What a hallucination looks like: the ceiling hanger drifting, harmless and fading on its own.</summary>
         public const AnomalyBehaviorKind PhantomKind = AnomalyBehaviorKind.CoverHug;
@@ -51,7 +51,7 @@ namespace Hollowbrook.Logic
             foreach (var part in s.Split(','))
             {
                 int v;
-                if (int.TryParse(part, out v) && v >= 0 && v <= 3 && IsHallwayKind((AnomalyBehaviorKind)v)) _pending.Add((AnomalyBehaviorKind)v);   // an old save cannot bring the crouched one back
+                if (int.TryParse(part, out v) && v >= 0 && v <= 3 && IsHallwayKind((AnomalyBehaviorKind)v)) _pending.Add((AnomalyBehaviorKind)v);
             }
         }
     }
