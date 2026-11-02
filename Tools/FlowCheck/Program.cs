@@ -120,11 +120,12 @@ namespace FlowCheck
             // the very start of the game: no visitor, the note up. The stamps are already there to see.
             Check(StampAlpha(root, "stamp_allow") > 0.99f && StampAlpha(root, "stamp_deny") > 0.99f,
                 "STAMPS: both stamps are fully visible at the start of the game, before any visitor");
-            var captionAllow = FindDeep(cp0.transform, "stampcaption_APPROVE");
-            var overlayRules = FindDeep(cp0.transform, "OverlayRules");
-            Check(captionAllow != null && overlayRules != null && captionAllow.GetSiblingIndex() < overlayRules.GetSiblingIndex() &&
-                  captionAllow.GetSiblingIndex() < sticky.GetSiblingIndex(),
-                "STAMPS: the APPROVE caption sits under the sheets and the sticky note, not above their dimmers");
+            Check(FindDeep(cp0.transform, "stampcaption_APPROVE") == null && FindDeep(cp0.transform, "stampcaption_DECLINE") == null,
+                "STAMPS: no APPROVE or DECLINE word pills: the card with the check or the cross says which stamp is which");
+            var toolAllow = FindDeep(cp0.transform, "stamp_allow");
+            var cardAllow = FindDeep(cp0.transform, "sec_tray_allow");
+            Check(toolAllow != null && cardAllow != null && toolAllow.GetSiblingIndex() > cardAllow.GetSiblingIndex(),
+                "STAMPS: the stamp tool stands on top of its card (Stamp BG)");
             ClickStickyNote(root);
             Check(sticky.gameObject.activeSelf && !root.Queue.Started, "the keybind card comes first: the note waits for CONTINUE");
             root.TutorialGotIt();   // CONTINUE
@@ -2133,7 +2134,7 @@ namespace FlowCheck
                 var hand = FindDeep(root.Checkpoint.transform, pair[0]).GetComponent<DragPaper>();
                 hand.BeginDrag();
                 Check(StampHandAlpha(root, pair[0]) > 0.99f, "STAMPS: " + pair[0] + " shows in the hand while it is held");
-                Check(StampAlpha(root, pair[0]) < 0.9f, "STAMPS: the tray mark ghosts while its stamp is out, so the spot still reads");
+                Check(StampAlpha(root, pair[0]) > 0.99f, "STAMPS: the card stays fully visible while its stamp is out");
                 hand.EndDrag();
                 Check(StampHandAlpha(root, pair[0]) > 0.99f && StampAlpha(root, pair[0]) > 0.9f,
                     "STAMPS: " + pair[0] + " is still fully visible and back on its tray mark when let go");

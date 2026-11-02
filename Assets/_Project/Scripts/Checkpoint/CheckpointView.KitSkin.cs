@@ -176,8 +176,8 @@ namespace Hollowbrook.Checkpoint
                 _trayCircles[0] = circAllow;   // same slots as _stampTints
                 _trayCircles[1] = circDeny;
             }
-            SkinStamp("stamp_allow", "sec_icon_accept");
-            SkinStamp("stamp_deny", "sec_icon_decline");
+            SkinStamp("stamp_allow");
+            SkinStamp("stamp_deny");
 
             // ---- speech bubble: the kit bubble (tail included) as a 9-slice panel skin ----
             var bubbleOuter = FindImage(_desk, "bubble_border");
@@ -387,21 +387,18 @@ namespace Hollowbrook.Checkpoint
             var img = UIFactory.Img(_desk, name, sp);
             img.raycastTarget = false;
             img.preserveAspect = true;   // the check and the cross keep their shape in the wider slot
-            L.Place(img.rectTransform, key.EndsWith("allow") ? L.StampAllow : L.StampDeny);
+            L.Place(img.rectTransform, L.StampCard(key.EndsWith("allow") ? L.StampAllow : L.StampDeny));
             return img;
         }
 
-        // The draggable stamp becomes the kit's hand stamp, tinted by its verdict, wearing the
-        // check/cross disc as a badge; the printed mark on the slip is unchanged.
-        private void SkinStamp(string stampName, string iconKey)
+        // The draggable stamp becomes the kit's stamp tool; it stands on its card (TrayCircle).
+        private void SkinStamp(string stampName)
         {
             var t = FindTransform(_desk, stampName);
             if (t == null) return;
             var img = t.GetComponent<Image>();
-            // The thing in the hand is the SAME picture as the tray mark (the check or cross disc), so the
-            // stamp never vanishes: at rest it sits exactly on its tray mark, when picked up it follows the cursor.
-            var stampArt = ProceduralArt.Get(stampName == "stamp_allow" ? "sec_stamp_circle_allow" : "sec_stamp_circle_deny");
-            if (stampArt == null) stampArt = ProceduralArt.Get("sec_stamp");
+            // the kit's stamp tool (Stamp.png), drawn in full at all times; it stands on its card
+            var stampArt = ProceduralArt.Get("sec_stamp");
             if (img != null && stampArt != null) { img.sprite = stampArt; img.preserveAspect = true; }
             var lbl = t.Find("label");
             if (lbl != null)
@@ -409,36 +406,6 @@ namespace Hollowbrook.Checkpoint
                 var lt = lbl.GetComponent<Text>();
                 if (lt != null) lt.color = UIFactory.NsInk;   // dark word on the white handle
             }
-            AddStampCaption(stampName == "stamp_allow" ? L.StampAllow : L.StampDeny,
-                stampName == "stamp_allow" ? "APPROVE" : "DECLINE", iconKey);
-        }
-
-        // The white caption pill under a stamp box: icon on the left, bold word beside it
-        // (the concept's "APPROVE" / "DECLINE" strips). It is just paper, not a button.
-        private void AddStampCaption(L.Region box, string word, string iconKey)
-        {
-            var pillArt = ProceduralArt.Get("sec_wide_pill");
-            if (pillArt == null) return;
-            var pill = UIFactory.Img(_desk, "stampcaption_" + word, pillArt);
-            pill.raycastTarget = false;
-            // the caption is desk paper: it sits under the sheets and the sticky note, never above their dimmers
-            if (_notesRoot != null) pill.transform.SetSiblingIndex(_notesRoot.transform.GetSiblingIndex());
-            L.Place(pill.rectTransform, new L.Region(box.X + 2f, box.Bottom + 8f, box.W - 4f, 28f));
-            var iconArt = ProceduralArt.Get(iconKey);
-            if (iconArt != null)
-            {
-                var icon = UIFactory.Img(pill.transform, "icon", iconArt, UIFactory.NsInk);
-                icon.raycastTarget = false;
-                UIFactory.Anchor(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(18f, 18f),
-                    new Vector2(14f, 0f));
-            }
-            var text = UIFactory.Label(pill.transform, "word", word, 14, UIFactory.NsInk,
-                TextAnchor.MiddleCenter);
-            text.font = UIFactory.UiFontBold;
-            text.rectTransform.anchorMin = Vector2.zero;
-            text.rectTransform.anchorMax = Vector2.one;
-            text.rectTransform.offsetMin = new Vector2(28f, 0f);
-            text.rectTransform.offsetMax = Vector2.zero;
         }
 
         private static Image FindImage(Transform root, string name)
