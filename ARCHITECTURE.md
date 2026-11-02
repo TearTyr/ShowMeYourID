@@ -67,6 +67,14 @@ plays intro dialogue, and on the last click sets state Checkpoint and calls `Beg
 attaches the desk to `GameRoot.Queue`. If the scene script never runs, `CheckSceneHandshake` logs and
 returns to the menu after 3.5 s.
 
+**Night 1 tutorial:** `GameLogic/TutorialSteps` (pure) holds the order, the texts and what each step holds still;
+`GameSession.TutorialStep` is saved (`Done` = none, which is also every old save and every other mode). `GameRoot.Tutorial.cs` feeds it
+facts once a frame (`TickTutorial`), pauses the clock and sanity in `Update` while a step is active, holds the line
+(`CheckpointQueue.HoldLine`), opens the patrol early (`CheckpointView.PatrolOpen`), guards the peek doors (`Doorway.Interact`) and
+makes `RoomSpawner` spawn one Slide in the hallway and nothing else; `WanderingAnomaly.TickCatch` cannot catch while it runs. The box is
+`UI/TutorialGuide`, built inside the HUD frame. `RosterFactory` makes visitor 1 a calm real student and visitor 2 an expired ID anomaly when
+`ShiftDef.TutorialOpening` is set (night 1), and `PatrolCycle.StandingIn` fixes night 1 to Room 202 only.
+
 **Night 5 - the administrator:** eight students first (the normal desk), then he comes last. Sanity drains all the time only once he is at the window (`GameRoot.AdministratorDrainOn`). At the window, `GameLogic/AdminTalk` (pure) is a short topic list
 shown by `CheckpointView.AdminTalk`; it can never stamp or award clues, and he can be questioned without limit (a lie counts once).
 Only the DENY stamp turns him away, and his words go through the dialogue box, never the bubble. A DENY on the administrator calls
@@ -79,6 +87,13 @@ players). The director reads the world (peek open, cursor on his head, beam on h
 the rules, and turns events into sound, captions, the shaking picture and `PeekLight.Flicker`.
 Win -> `FinishShift` (normal Win/Secret ending); loss -> the `server_door` ending. The state is
 saved, so Continue resumes the hunt.
+
+**Lockdown:** `GameMode.Lockdown`, `ShiftPlan.LockdownDef()` (numbered after Night 6, row `GameRules.LockdownNight`, flag
+`ShiftDef.Lockdown`). `GameLogic/Lockdown` holds `LockdownRules` (what a mistake is, the rank, the texts) and `LockdownClock`
+(35 s per face). `CheckpointView.Lockdown` ticks the clock from `AdvanceQueue`, draws the bar and takes the visitor when it runs
+out (`GameRoot.OnVisitorTaken`); `GameRoot.Lockdown.cs` counts the mistakes and ends the night (`CheckLockdownEnd`, called after a
+verdict and after each face leaves). `PersistRun` writes nothing for any mode but the story, the sanity controller does not drain,
+`PatrolOpen` is false, `EndingView` has its own result lines and always offers TRY AGAIN.
 
 **Night 6 (the Challenge):** `GameMode.Challenge`, `ShiftPlan.Night6Def()`. Unlocked when the story
 save holds a Win or Secret in `Records.EndingsSeen` (`GameRoot.Night6Unlocked`). It reuses the Night 5

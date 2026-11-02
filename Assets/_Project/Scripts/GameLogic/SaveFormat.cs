@@ -66,6 +66,7 @@ namespace Hollowbrook.Logic
             KV(sb, "logCounts", string.Join(",", s.LogCounts));
             KV(sb, "nightRecords", EncodeRecords(s.NightRecords));
             sb.Append("logSigned=").Append(s.LogSigned ? 1 : 0).Append('\n');
+            sb.Append("tutorialStep=").Append((int)s.TutorialStep).Append('\n');
             KV(sb, "logNote", (s.LogNote ?? "").Replace("\n", "~"));
             sb.Append("pendingLogLoss=").Append(s.PendingLogLoss).Append('\n');
             sb.Append("penaltySeverity=").Append(s.PendingPenaltySeverity).Append('\n');
@@ -187,6 +188,7 @@ namespace Hollowbrook.Logic
                 }
                 DecodeRecords(Str(map, "nightRecords", ""), s.NightRecords);
                 s.LogSigned = Int(map, "logSigned", 0) == 1;
+                s.TutorialStep = (TutorialStep)Math.Max(0, Math.Min((int)TutorialStep.Finish, Int(map, "tutorialStep", 0)));
                 s.LogNote = Str(map, "logNote", "").Replace("~", "\n");
                 s.PendingLogLoss = Math.Max(0, Int(map, "pendingLogLoss", 0));
                 s.PendingPenaltySeverity = Int(map, "penaltySeverity", 0);

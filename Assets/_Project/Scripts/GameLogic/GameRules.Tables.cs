@@ -46,6 +46,7 @@ namespace Hollowbrook.Logic
                 Objective = "Learn the checkpoint: inspect IDs, pull the student file, ask a question or two, and stamp Allow or Reject. Take a walk - learn how to leave the security room and come back.",
                 RuleNoteAddendum = "NIGHT 1 - Welcome, custodian. Verify: ID number format (HB-YYYY-NNN), photo vs. the person at the window, expiration date, year level, course, and Regular/Transferee status against the student file in the drawer. Your questions per student are limited. Not everyone tonight is a student. Some visitors arrive frightened: fear proves nothing, a student can be scared and so can the thing wearing their face. Trust the papers.",
                 MaxDefectsPerAnomaly = 1,
+                TutorialOpening = true,
             },
             new ShiftDef
             {
@@ -97,6 +98,18 @@ namespace Hollowbrook.Logic
             Objective = "The administrator is back. Same questions, new answers. Deny him again and survive until dawn: he is faster and more aggressive than ever.",
             RuleNoteAddendum = "NIGHT 6 - District personnel present a STAFF BADGE. Badge and memo must match. If they do not, deny entry. He will ask you to make the right decision. You already know what it is.",
             IntroWarning = "He said he would be back. He does not give up. Deny him again, and this time he will not be gentle. Only the light stops him.",
+            MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = true, DuplicateIdsAllowed = true,
+            ClassroomLieAllowed = true, SlipMismatchAllowed = true, NearExpiryAllowed = true,
+        };
+
+        private static ShiftDef DefaultLockdownNight() => new ShiftDef
+        {
+            DateLabel = "All at the gate", LongDateLabel = "ALL AT THE GATE",
+            VisitorCount = 13, AnomalyCount = 6, ScaredCount = 13, Lockdown = true,   // every student, six of them not themselves, all frightened
+            Title = "Lockdown",
+            Objective = "Everyone is at the gate at once and the thing outside is closing in. Thirteen faces, thirty five seconds each. Three mistakes and the gate gives.",
+            RuleNoteAddendum = "LOCKDOWN - The same checks as every night. Approve a student, decline anything else. When the time on a face runs out, the thing outside takes them. Let an anomaly in, turn a student away, or lose a student, and that is a mistake. Three and the gate falls.",
+            IntroWarning = "There is no patrol tonight. Nobody is leaving this booth.",
             MaxDefectsPerAnomaly = 2, SubtleDefectsAllowed = true, DuplicateIdsAllowed = true,
             ClassroomLieAllowed = true, SlipMismatchAllowed = true, NearExpiryAllowed = true,
         };

@@ -23,5 +23,6 @@ namespace Hollowbrook.Core
         public const string AnomalyRevealed = "anomaly.revealed";    // Data: kind / "hallucination"
         public const string BatteryChanged = "light.battery";      // Value: 0..1 charge
         public const string AnomalyStateChanged = "anomaly.state"; // Data: AnomalyState name
+        public const string TutorialChanged = "tutorial.changed";  // Value: the new TutorialStep as a number
     }
 }

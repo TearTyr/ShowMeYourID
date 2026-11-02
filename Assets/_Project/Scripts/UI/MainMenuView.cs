@@ -25,6 +25,7 @@ namespace Hollowbrook.UI
         private GameRoot _gameRoot;
         private Button _continueBtn;
         private Button _night6Btn;
+        private Button _lockdownBtn;
         private Button _newGameBtn;
         private Image _shade, _bg, _logo;
         private Coroutine _glitch, _ambient;
@@ -36,20 +37,26 @@ namespace Hollowbrook.UI
         private const float F2WindowSeconds = 1.5f;
 
         // ---- reference geometry (1280x720 canvas units; reference px / 2.25) ----
-        private const float WideW = 434.22f, WideH = 87.56f;          // 977x197 frame
+        // The buttons are drawn at 70 percent of the reference size (the owner found them too large);
+        // the logo plate keeps its reference size. Change MenuScale to resize every button together.
+        private const float MenuScale = 0.7f;
+        private const float WideW = 434.22f * MenuScale, WideH = 87.56f * MenuScale;   // 977x197 frame
         private const float WideX = 49.33f;                           // left edge of the column
+        private const float WideStep = 82f;                           // top of one button to the top of the next
         private const float Wide1Y = 68.44f;                          // NEW GAME top
-        private const float Wide2Y = 179.56f;                         // CONTINUE top
-        private const float Wide3Y = 290.68f;                         // NIGHT 6 top
-        private const float SqW = 71.11f, SqH = 72f;                  // 160x162 frame
-        private const float SqY = 591.56f;                            // icon row top
-        private const float Sq1X = 48.44f, Sq2X = 134.67f, Sq3X = 218.67f;
+        private const float Wide2Y = Wide1Y + WideStep;               // CONTINUE top
+        private const float Wide3Y = Wide2Y + WideStep;               // NIGHT 6 top
+        private const float Wide4Y = Wide3Y + WideStep;               // LOCKDOWN top
+        private const float SqW = 71.11f * MenuScale, SqH = 72f * MenuScale;           // 160x162 frame
+        private const float SqY = 663.56f - SqH;                      // icon row top (bottom edge stays where it was)
+        private const float Sq1X = 48.44f, Sq2X = Sq1X + 66f, Sq3X = Sq2X + 66f;
         private const float LogoW = 543.11f, LogoH = 350.22f;         // 1222x788 plate
         private const float LogoRight = 322.22f;                      // centre offset from right
         private const float LogoTop = 223.11f;                        // centre offset from top
-        private const float IconPadLeft = 29.8f;                      // icon left pad in wide btn
-        private const float LabelPadLeft = 91.1f;                       // label left pad in wide btn
-        private const int LabelSize = 46;                             // chiller cap band ≈ ref raster
+        private const float IconPadLeft = 29.8f * MenuScale;          // icon left pad in wide btn
+        private const float LabelPadLeft = 91.1f * MenuScale;         // label left pad in wide btn
+        private const int LabelSize = 32;                             // chiller cap band, 46 at full size
+        private const int HintSize = 20;                              // the line under a button, 26 at full size
         private const float LabelSqueeze = 1.042f;                    // match the kit's tracking
         private const float BgAspect = 16f / 9f;                      // backdrop native aspect
 
@@ -107,6 +114,16 @@ namespace Hollowbrook.UI
             _night6Hint = HintLabel(col, "night6_hint", Wide3Y);
             OnHover(_night6Btn, ShowNight6Hint, () => _night6Hint.gameObject.SetActive(false));
 
+            // LOCKDOWN: every student at the gate at once, open from the start
+            WideButton(col, "LOCKDOWN", "LOCKDOWN", "menu_icon_newgame",
+                new Vector2(44.89f, 52f), new Vector2(0f, 0.9f), () =>
+                {
+                    Click();
+                    _gameRoot.StartNewGame(GameMode.Lockdown);
+                }, b => _lockdownBtn = b, WideX, Wide4Y);
+            _lockdownHint = HintLabel(col, "lockdown_hint", Wide4Y);
+            OnHover(_lockdownBtn, ShowLockdownHint, () => _lockdownHint.gameObject.SetActive(false));
+
             SquareButton(col, "SETTINGS", "menu_icon_settings", new Vector2(49.33f, 49.33f),
                 new Vector2(0.9f, 0f), () => { Click(); _gameRoot.OpenSettings(); }, Sq1X, SqY);
             SquareButton(col, "EXIT", "menu_icon_exit", new Vector2(49.33f, 49.33f),
@@ -133,7 +150,7 @@ namespace Hollowbrook.UI
         }
 
         private Text _menuNote;
-        private Text _nightHint, _night6Hint;
+        private Text _nightHint, _night6Hint, _lockdownHint;
 
         private static Sprite Kit(string key) => ProceduralArt.Get(key);
 
@@ -145,9 +162,10 @@ namespace Hollowbrook.UI
                 new Vector2(x + WideW / 2f, -(y + WideH / 2f)), onClick, created);
             var rt = b.GetComponent<RectTransform>();
 
+            iconSize *= MenuScale;
             var icon = UIFactory.Img(rt, "icon", Kit(iconKey));
             UIFactory.Anchor(icon.rectTransform, new Vector2(0f, 0.5f), iconSize,
-                new Vector2(IconPadLeft + iconSize.x / 2f, iconOffset.y));
+                new Vector2(IconPadLeft + iconSize.x / 2f, iconOffset.y * MenuScale));
             icon.raycastTarget = false;
 
             var txt = UIFactory.Label(rt, "label", label, LabelSize, UIFactory.Ink, TextAnchor.MiddleLeft);
@@ -158,7 +176,7 @@ namespace Hollowbrook.UI
             lrt.anchorMax = new Vector2(0f, 0.5f);
             lrt.pivot = new Vector2(0f, 0.5f);
             lrt.sizeDelta = new Vector2(WideW - LabelPadLeft - 6f, WideH);
-            lrt.anchoredPosition = new Vector2(LabelPadLeft, -2.67f);
+            lrt.anchoredPosition = new Vector2(LabelPadLeft, -2.67f * MenuScale);
             lrt.localScale = new Vector3(LabelSqueeze, 1f, 1f);   // the kit's condensed tracking
             txt.raycastTarget = false;
             return b;
@@ -171,7 +189,7 @@ namespace Hollowbrook.UI
                 new Vector2(x + SqW / 2f, -(y + SqH / 2f)), onClick, null);
             var rt = b.GetComponent<RectTransform>();
             var icon = UIFactory.Img(rt, "icon", Kit(iconKey));
-            UIFactory.Anchor(icon.rectTransform, new Vector2(0.5f, 0.5f), iconSize, iconOffset);
+            UIFactory.Anchor(icon.rectTransform, new Vector2(0.5f, 0.5f), iconSize * MenuScale, iconOffset * MenuScale);
             icon.raycastTarget = false;
             return b;
         }
@@ -304,17 +322,24 @@ namespace Hollowbrook.UI
         // A small line in the gap under a wide button (shown while it is hovered).
         private Text HintLabel(Transform parent, string name, float buttonTop)
         {
-            var t = UIFactory.Label(parent, name, "", 26, UIFactory.Ink, TextAnchor.MiddleLeft);
+            var t = UIFactory.Label(parent, name, "", HintSize, UIFactory.Ink, TextAnchor.MiddleLeft);
             t.font = UIFactory.TypeFont;
             t.raycastTarget = false;
             var rt = t.rectTransform;
             rt.anchorMin = new Vector2(0f, 1f);
             rt.anchorMax = new Vector2(0f, 1f);
             rt.pivot = new Vector2(0f, 1f);
-            rt.sizeDelta = new Vector2(WideW, 28f);   // the gap under a button is 23 units: the bigger text just reaches into the next frame's margin
+            rt.sizeDelta = new Vector2(WideW, 22f);   // the gap under a button is about 20 units
             rt.anchoredPosition = new Vector2(WideX + LabelPadLeft, -(buttonTop + WideH + 1f));
             t.gameObject.SetActive(false);
             return t;
+        }
+
+        internal void ShowLockdownHint()
+        {
+            if (_lockdownHint == null) return;
+            _lockdownHint.text = "ALL AT ONCE. NO PATROL.";
+            _lockdownHint.gameObject.SetActive(true);
         }
 
         internal void ShowNight6Hint()

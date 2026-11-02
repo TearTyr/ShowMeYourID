@@ -84,6 +84,22 @@ namespace Hollowbrook.UI
             _again.gameObject.SetActive(!night6 || lost);
         }
 
+        // Lockdown is one sitting: no badges, no save, and the one button always plays it again.
+        private void ShowLockdownEnding(GameSession session, bool won)
+        {
+            foreach (var b in _badges) b.gameObject.SetActive(false);
+            _againAction = () => _gameRoot.StartNewGame(GameMode.Lockdown);
+            var label = _again.GetComponentInChildren<Text>();
+            if (label != null) label.text = "TRY AGAIN";
+            _again.gameObject.SetActive(true);
+            var sb = new StringBuilder();
+            sb.Append("Mode:                       Lockdown\n");
+            sb.Append("Mistakes:                   ").Append(session.LockdownStrikes).Append(" / ").Append(LockdownRules.MaxStrikes).Append('\n');
+            sb.Append("Result:                     ").Append(won ? LockdownRules.Rank(session.LockdownStrikes) : "THE GATE FELL");
+            _summary.text = sb.ToString();
+            gameObject.SetActive(true);
+        }
+
         public void Populate(EndingRules.Evaluation eval, GameSession session, RecordsData records)
         {
             switch (eval.Ending)
@@ -96,6 +112,7 @@ namespace Hollowbrook.UI
                     _title.text = WinTitle; _title.color = UIFactory.Ink; break;
             }
             _desc.text = eval.ReasonText;
+            if (session.Mode == GameMode.Lockdown) { ShowLockdownEnding(session, eval.Ending == EndingType.Win); return; }
 
             // night 6 is its own short story: no badges. The button after a loss plays the night that
             // was lost again; after a win it starts a new game (night 6 has no second button).

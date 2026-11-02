@@ -6,6 +6,12 @@ BEGIN", on night 1 the how to play card)** -> the shutter opens for the first st
 **checkpoint desk** <-> **patrol** (hallway + 2 classrooms) -> shift results -> next
 night -> ending.
 
+**Night 1 tutorial:** a new story opens with a guided night (`GameLogic/TutorialSteps`, the box is `UI/TutorialGuide`). Steps: a real
+student, a student with an expired ID, the patrol (opens early, the line waits), a slow hallway anomaly that cannot catch you (beam slows
+it, Focus drives it out), Room 101 (clean), Room 202 (a figure to clear), then GOT IT and the player finishes alone. The clock and sanity stand
+still while it runs, only the room the lesson is about opens, and SKIP TUTORIAL is always shown. Night 1 always has Room 101 empty and Room 202
+occupied, nobody goes missing, and visitor 1 and 2 are calm (the frightened one comes later). It is saved with the run (`tutorialStep`).
+
 **The line:** an **arrival clock** (25-30 s on night 1, x0.8 each night, double speed while the
 window is busy) walks the roster up to the booth. If the window is busy they queue in the yard.
 Nothing on the desk says how many visitors are left tonight; the waiting line is only the hooded figures at the sides. After your verdict, the oldest waiter steps up
@@ -53,7 +59,7 @@ desk), the **rules note** and **tonight's log** (with ID numbers), and the **que
 - **Faces:** the ID always shows the real student. The window shows the same person unless the
   visitor has a photo defect (somebody else's face, or the same person with one feature off).
   Anomalies with other defects look completely normal.
-- **Stamps:** drag **ACCEPT** or **DECLINE** onto the slip. The slip glows while you hold a stamp,
+- **Stamps:** drag **APPROVE** or **DECLINE** onto the slip. The slip glows while you hold a stamp,
   and a missed drop tells you why. The mark lands where you dropped it. Stamp again to replace it.
 - **Hand back:** the window sill lights up; drag the ID back. The decision counts now and is
   permanent. Wrong calls feed complaints (false rejects) and breaches (anomalies let in); 3 of
@@ -95,6 +101,11 @@ the light stops him, and each success gives 8 sanity. Too slow and he catches yo
 you are thrown back. **3 catches** = he reaches the server door (lose). Survive **210 s** to dawn.
 The security door is locked and every phase has a time limit, so it cannot get stuck. Quit + CONTINUE
 restarts the hunt, or returns to the desk if it has not started.
+
+**Lockdown:** the third mode, open from the start (`GameMode.Lockdown`, `ShiftPlan.LockdownDef()`, rules in `GameLogic/Lockdown`). One
+night, all 13 students (6 anomalies, all frightened) arriving 8 to 11 s apart, no patrol, no log, no sanity drain. Each face has
+35 s at the window (the bar at the top of the desk), then it is taken. Mistakes: an anomaly let in, a student turned away, a student
+taken. Three lose; clearing the line wins, ranked FLAWLESS, STEADY or BARELY HELD. Never saved.
 
 **Night 6 (the Challenge):** opens on the main menu after the story's Win or Secret ending. He is back
 and says he does not give up; he asks for the right decision and has a new set of questions. DENY him

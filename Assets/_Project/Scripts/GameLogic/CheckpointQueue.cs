@@ -112,6 +112,10 @@ namespace Hollowbrook.Logic
             set { if (!value) ActiveQuestionMask = 0; else if (ActiveQuestionMask == 0) ActiveQuestionMask = 1; }
         }
 
+        /// <summary>While true, a visitor who finishes leaves and nobody steps up in their place: the Night 1
+        /// tutorial walks away from the window for its lessons. Not saved.</summary>
+        public bool HoldLine { get; set; }
+
         public bool IsAttached => _roster != null;
 
         /// <summary>Visitors the source can still produce (vanished ones never arrive).</summary>
@@ -290,7 +294,7 @@ namespace Hollowbrook.Logic
             ResolutionPending = false;
             ActiveQuestionAsked = false;
             Active = null;
-            if (_waiting.Count > 0) Active = _waiting.Dequeue();
+            if (!HoldLine && _waiting.Count > 0) Active = _waiting.Dequeue();
             return Active;
         }
 

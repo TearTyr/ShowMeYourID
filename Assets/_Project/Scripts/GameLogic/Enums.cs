@@ -1,6 +1,6 @@
 namespace Hollowbrook.Logic
 {
-    public enum GameMode { Normal, Challenge }   // Challenge is Night 6
+    public enum GameMode { Normal, Challenge, Lockdown }   // Challenge is Night 6, Lockdown is the all-at-once night
 
     public enum Verdict { None, Allow, Reject }
 

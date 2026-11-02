@@ -6,7 +6,7 @@ You are the newest temporary night custodian of **Hollowbrook College**, a schoo
 mid-year without an official explanation, yet still open at night so its students can finish the
 term. Students come to the window of your security booth. Check their ID and paper slip, ask
 up to two questions, check the answers against their file in the cabinet, and stamp
-**ACCEPT** or **DECLINE**. Not everyone at the window is a student. Between visitors you patrol
+**APPROVE** or **DECLINE**. Not everyone at the window is a student. Between visitors you patrol
 the hallway and peek into the classrooms and the comfort rooms. On the last night eight students come first,
 then a district administrator, and turning him away is only the start.
 
@@ -55,6 +55,15 @@ Folder rules and naming are in [docs/ART-NAMING.md](docs/ART-NAMING.md), the ful
    interrogate him (`T`) as often as you like, catch his lies, turn him away with the DENY stamp, and he
    forces his way in. He speaks only through the dialogue box. Survive until dawn (see below).
 
+### The Night 1 tutorial
+
+A new story starts with a guided Night 1 that teaches the core ideas once and then leaves you alone. A box at the top of the screen
+says what to do; the clock and your sanity wait while it does. Visitor 1 is a real student (the whole desk routine). Visitor 2 has an
+expired ID (find the broken rule, DECLINE, and meet the Security Log). Then the patrol opens early: a slow anomaly walks the hallway
+(the plain light slows it, the Focus light `Q` drives it out and it cannot catch you), Room 101 is a clean peek, Room 202 holds a figure to
+clear, and other doors stay shut until their turn. Then GOT IT, and you finish the night alone: a CR, the rest of the line, count and sign the
+Security Log, END SHIFT. SKIP TUTORIAL is always on the box. Night 2 onward has none.
+
 ### Night 5: surviving the administrator
 
 After the eight students you question him at the window. When you refuse him the window closes, the
@@ -88,6 +97,15 @@ right decision. He has a new set of questions. Deny him again and the pursuit st
 catches allowed, shorter walks between stops, less time to find him and a longer night. It is one
 night: quitting it ends it, and it never touches your story save. The numbers are under "Night 6" in
 `GameConfig.asset`.
+
+## Lockdown
+
+The **LOCKDOWN** button on the main menu is open from the start. It is one finite night with every student at the gate at
+once: all 13 students, 6 of them anomalies, all frightened, arriving fast (8 to 11 seconds apart). There is no patrol, no Security
+Log and no sanity drain. Instead there is a clock on every face: **35 seconds** at the window, then the thing outside takes them.
+Three **mistakes** and the gate falls (you lose): an anomaly let in, a student turned away, or a real student taken when the
+time ran out (an anomaly taken is not a mistake). Clear the line to win; the rank is by mistakes (FLAWLESS, STEADY, BARELY HELD).
+A bar at the top of the desk shows the seconds and your mistakes. It is one sitting: it never touches your story save.
 
 ## Endings
 
@@ -128,7 +146,8 @@ bash Tools/run_all.sh
 
 That runs, in order: the rules tests (`Tools/LogicTests`), the button-level flow check
 (`Tools/FlowCheck`, which plays the desk, patrol and the hunt headlessly), and the compile against
-the **real Unity assemblies** (`Tools/Verify`, downloads them once). Each prints PASS/FAIL.
+the **real Unity assemblies** (`Tools/Verify`, downloads them once), and a check that no file contains an em dash
+(`Tools/check_no_em_dashes.py`; the project never uses them). Each prints PASS/FAIL.
 
 What these cannot tell you: how it **looks**, **sounds** and **feels**. That needs the editor.
 

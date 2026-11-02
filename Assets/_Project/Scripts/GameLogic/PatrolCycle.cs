@@ -20,6 +20,7 @@ namespace Hollowbrook.Logic
         {
             int index = Array.IndexOf(PeekRooms, room);
             if (index < 0) return false;
+            if (shift == 1) return room == RoomId.Classroom2;   // the lesson: Room 101 is clean, Room 202 holds one
             var rng = new GameRng(seed ^ (shift * 6151));
             bool any = false, mine = false;
             for (int i = 0; i < PeekRooms.Length; i++)

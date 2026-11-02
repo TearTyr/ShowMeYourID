@@ -349,6 +349,8 @@ namespace Hollowbrook.Checkpoint
                 if (_gameRoot.HuntReady) return true;
                 if (_gameRoot.CurrentShiftDef != null && _gameRoot.CurrentShiftDef.HasAdministrator) return false;
                 if (Queue == null || !Queue.Started || Queue.Collapsed) return false;
+                if (_gameRoot.LockdownOn) return false;   // nobody leaves the booth in Lockdown
+                if (_gameRoot.TutorialOpensPatrol) return true;   // the lesson walks before the line is done
                 return !_gameRoot.PatrolRequired || Queue.ShiftComplete;
             }
         }
@@ -463,6 +465,8 @@ namespace Hollowbrook.Checkpoint
             // the resolved visitor leaves the window; the oldest waiting visitor steps up
             // immediately (no second waiting period when someone is already queued)
             var promoted = Queue != null ? Queue.CompleteActive() : null;
+            _gameRoot.CheckLockdownEnd();   // the last face has left: the gate held
+            if (_gameRoot.State == AppViewState.Ending) { Hide(); yield break; }
 
             if (resolved.IsAdministrator && _gameRoot.Session.AdminRejected)
             {

@@ -49,6 +49,8 @@ namespace Hollowbrook.World
             }
             if (Target == RoomId.Security) _gameRoot.Views.ReturnToSecurity();
             // every room is peek only: the player looks inside from the doorway, never enters
+            else if (!_gameRoot.TutorialAllowsPeek(Target))
+                _gameRoot.Bus.Publish(GameEvent.Of(EventIds.Notification, "Follow the guide first. That door opens later."));
             else _gameRoot.EnterRoomPeek(Target);
         }
     }

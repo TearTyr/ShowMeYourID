@@ -47,7 +47,7 @@ namespace Hollowbrook.Core
         {
             // Night 6 is a one night challenge: it must never overwrite the story save (its records,
             // the unlock, and Continue all live there). Quitting it just ends it.
-            if (Session != null && Session.Mode == GameMode.Challenge) return;
+            if (Session != null && Session.Mode != GameMode.Normal) return;   // Night 6 and Lockdown are one sitting and never touch the story save
             if (Queue != null && Queue.IsAttached)
             {
                 Session.QueueState = Queue.BuildSnapshot();

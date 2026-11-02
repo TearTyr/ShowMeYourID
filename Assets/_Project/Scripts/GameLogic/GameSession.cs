@@ -36,6 +36,7 @@ namespace Hollowbrook.Logic
     public class GameSession
     {
         public GameMode Mode = GameMode.Normal;
+        public int LockdownStrikes;         // Lockdown: mistakes so far (never saved, the mode is one sitting)
         public int Seed = GameRules.Current.FixedSeed;
         public int CurrentShift = 1;        // Normal: shift being played (1..5)
         public int CompletedShifts = 0;     // Normal: shifts fully completed
@@ -172,6 +173,8 @@ namespace Hollowbrook.Logic
         public readonly List<NightRecord> NightRecords = new List<NightRecord>();
         /// <summary>The log has been signed: on nights 1 to 4 END SHIFT waits for it.</summary>
         public bool LogSigned;
+        /// <summary>The Night 1 tutorial. Done (the default) means none: old saves and the other modes.</summary>
+        public TutorialStep TutorialStep = TutorialStep.Done;
         /// <summary>What last night's log got wrong (or "matched"): printed at the top of tonight's Rules sheet.</summary>
         public string LogNote = "";
         /// <summary>Sanity the wrong boxes cost, paid when the next night begins.</summary>
@@ -240,6 +243,7 @@ namespace Hollowbrook.Logic
             QueueState = null;
             NightRecords.Clear();
             LogSigned = false;
+            if (TutorialStep != TutorialStep.Done) TutorialStep = TutorialSteps.First;   // a lesson starts over with its night
             VisitorIndexAtSave = 0;
             ShiftClockMinutes = 0f;
             AdminAllowed = false;

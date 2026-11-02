@@ -179,6 +179,8 @@ namespace Hollowbrook.Core
         {
             CheckSceneHandshake();
             if (Paused || Session == null) return;
+            TickTutorial();
+            if (TutorialActive) return;   // the clock and sanity wait while a lesson is showing
             TickShiftClock();
             TickSanity();
         }
