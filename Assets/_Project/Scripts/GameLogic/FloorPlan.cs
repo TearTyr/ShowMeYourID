@@ -51,11 +51,11 @@ namespace Hollowbrook.Logic
 
     /// <summary>HOLLOWBROOK COLLEGE - GROUND FLOOR: the single source of truth for the school.
     /// The small map on the desk, the full plan and the walkable hallway are all built from this
-    /// table. The hallway strip is the walkable hallway to scale: world x from -15 to 15 maps to
-    /// design x from -390 to 390 (UnitsPerWorldX per world unit), and every room's door sits at
-    /// its real HallX on that scale. Walking east you pass, in order: the Security Room (south),
-    /// Room 101, Room 202, CR-1 (north), the sealed server room (south) and CR-2 (north). The
-    /// plan therefore spreads over the whole width of the sheet.
+    /// table. The game is a side scroller, so every door is on the hallway's back wall: the plan
+    /// draws ALL the rooms in ONE row along the top, the hallway runs underneath, and nothing hangs
+    /// below it. The row is in the order you walk past the doors (HallX, west to east): the Security
+    /// Room, Room 101, Room 202, CR-1, the sealed server room and CR-2. The rooms are evenly spaced
+    /// so the plan fills the whole sheet; the real distances between the doors are not drawn.
     ///
     /// Everything is expressed in a fixed DESIGN SPACE with the origin at the sheet centre,
     /// y down. MapView scales that space uniformly to whatever the screen can show, and the desk
@@ -69,9 +69,11 @@ namespace Hollowbrook.Logic
         /// from the whole sheet, so it uses the full width of the paper.</summary>
         public static readonly float PlanW = 900f;
         public static readonly float PlanH = 270f;
-        /// <summary>Design units on the sheet per world unit along the hallway.</summary>
-        public const float UnitsPerWorldX = 26f;
         public const string Title = "HOLLOWBROOK COLLEGE - GROUND FLOOR";
+
+        // The one row: six slots this far apart, every room's bottom wall on the same line (the hallway's back wall).
+        private const float Slot = 150f;
+        private const float RowBottom = 10f;
 
         /// <summary>The plan rooms, in draw order (hallway first so rooms sit on it).</summary>
         public static readonly FloorRoom[] Rooms =
@@ -79,66 +81,66 @@ namespace Hollowbrook.Logic
             new FloorRoom
             {
                 Key = "room_hallway", Label = "MAIN HALLWAY", MiniLabel = "MAIN HALL",
-                X = 0f, Y = 10f, W = 780f, H = 64f, Room = RoomId.Hallway,
+                X = 0f, Y = 62f, W = 884f, H = 64f, Room = RoomId.Hallway,
             },
             new FloorRoom
             {
                 Key = "room_security", Label = "SECURITY ROOM\nSecurity Checkpoint", MiniLabel = "SECURITY",
-                X = -358.8f, Y = 95.5f, W = 160f, H = 70f, Room = RoomId.Security,
-                DoorX = -358.8f, DoorY = 60.5f,
+                X = -2.5f * Slot, Y = RowBottom - 35f, W = 134f, H = 70f, Room = RoomId.Security,
+                DoorX = -2.5f * Slot, DoorY = RowBottom,
                 HallX = -13.8f, DoorName = "Security", DoorArt = "prop_door_security",
             },
             new FloorRoom
             {
                 Key = "room_classroom1", Label = "CLASSROOM 1\nRoom 101", MiniLabel = "ROOM 101",
-                X = -228.8f, Y = -88f, W = 170f, H = 80f, Room = RoomId.Classroom1,
-                DoorX = -228.8f, DoorY = -48f,
+                X = -1.5f * Slot, Y = RowBottom - 40f, W = 134f, H = 80f, Room = RoomId.Classroom1,
+                DoorX = -1.5f * Slot, DoorY = RowBottom,
                 HallX = -8.8f, DoorName = "Room 101",
             },
             new FloorRoom
             {
                 Key = "room_classroom2", Label = "CLASSROOM 2\nRoom 202", MiniLabel = "ROOM 202",
-                X = 10.4f, Y = -88f, W = 170f, H = 80f, Room = RoomId.Classroom2,
-                DoorX = 10.4f, DoorY = -48f,
+                X = -0.5f * Slot, Y = RowBottom - 40f, W = 134f, H = 80f, Room = RoomId.Classroom2,
+                DoorX = -0.5f * Slot, DoorY = RowBottom,
                 HallX = 0.4f, DoorName = "Room 202",
             },
             new FloorRoom
             {
                 Key = "room_cr1", Label = "CR-1", MiniLabel = "CR-1",
-                X = 223.6f, Y = -76f, W = 100f, H = 56f, Room = RoomId.ComfortRoom, Comfort = true,
-                DoorX = 223.6f, DoorY = -48f,
+                X = 0.5f * Slot, Y = RowBottom - 28f, W = 100f, H = 56f, Room = RoomId.ComfortRoom, Comfort = true,
+                DoorX = 0.5f * Slot, DoorY = RowBottom,
                 HallX = 8.6f, DoorName = "CR-1", DoorArt = "prop_door_comfort",
             },
             new FloorRoom
             {
                 Key = "room_server", Label = "SERVER - SEALED", MiniLabel = "SERVER - SEALED",
-                X = 286f, Y = 95.5f, W = 140f, H = 70f, Room = null, Sealed = true,
-                DoorX = 286f, DoorY = 60.5f,
+                X = 1.5f * Slot, Y = RowBottom - 35f, W = 134f, H = 70f, Room = null, Sealed = true,
+                DoorX = 1.5f * Slot, DoorY = RowBottom,
                 HallX = 11.0f, DoorArt = "prop_server_door",
             },
             new FloorRoom
             {
                 Key = "room_cr2", Label = "CR-2", MiniLabel = "CR-2",
-                X = 345.8f, Y = -76f, W = 100f, H = 56f, Room = RoomId.ComfortRoom2, Comfort = true,
-                DoorX = 345.8f, DoorY = -48f,
+                X = 2.5f * Slot, Y = RowBottom - 28f, W = 100f, H = 56f, Room = RoomId.ComfortRoom2, Comfort = true,
+                DoorX = 2.5f * Slot, DoorY = RowBottom,
                 HallX = 13.3f, DoorName = "CR-2", DoorArt = "prop_door_comfort",
             },
         };
 
-        /// <summary>Thin chalk runs joining each room door to the hallway wall (x0,y0 -> x1,y1). Decoration.</summary>
+        /// <summary>Thin chalk runs joining each room door to the hallway's back wall (x0,y0 -> x1,y1). Decoration.</summary>
         public static readonly float[][] Corridors =
         {
-            new[] { -358.8f, 60.5f, -358.8f, 42f },   // security door -> hallway south wall
-            new[] { -228.8f, -48f, -228.8f, -22f },   // room 101 door -> hallway north wall
-            new[] { 10.4f, -48f, 10.4f, -22f },       // room 202 door -> hallway north wall
-            new[] { 223.6f, -48f, 223.6f, -22f },     // CR-1 door -> hallway north wall
-            new[] { 286f, 60.5f, 286f, 42f },         // sealed server door -> hallway south wall
-            new[] { 345.8f, -48f, 345.8f, -22f },     // CR-2 door -> hallway north wall
+            new[] { -2.5f * Slot, RowBottom, -2.5f * Slot, 30f },   // security door -> hallway
+            new[] { -1.5f * Slot, RowBottom, -1.5f * Slot, 30f },   // room 101 door -> hallway
+            new[] { -0.5f * Slot, RowBottom, -0.5f * Slot, 30f },   // room 202 door -> hallway
+            new[] { 0.5f * Slot, RowBottom, 0.5f * Slot, 30f },     // CR-1 door -> hallway
+            new[] { 1.5f * Slot, RowBottom, 1.5f * Slot, 30f },     // sealed server door -> hallway
+            new[] { 2.5f * Slot, RowBottom, 2.5f * Slot, 30f },     // CR-2 door -> hallway
         };
 
         // The desk map is the same plan, drawn this many times smaller, around this point (the
-        // plan centre is a little west of the sheet centre, so the point is a little east).
-        private const float MiniScale = 3.3f, MiniCentreX = 150f, MiniCentreY = 99f;
+        // plan is centred on the sheet, so the point is the middle of the 290 wide card).
+        private const float MiniScale = 3.3f, MiniCentreX = 145f, MiniCentreY = 99f;
 
         /// <summary>Where a room sits on the small desk map (top-left corner and size, in the
         /// map card own units).</summary>
