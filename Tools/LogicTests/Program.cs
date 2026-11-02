@@ -65,6 +65,7 @@ namespace Hollowbrook.LogicTests
             HallwayDarknessTests();
             FaceTruthTests();
             FaceAssetMappingTests();
+            ScaredVisitorTests();
             QueueBusyHurryTests();
             PatrolCycleTests();
             QueueInvariantTests();
@@ -443,7 +444,7 @@ namespace Hollowbrook.LogicTests
                 r.AwkwardSpeechChance = 0f;
                 Check(new RosterFactory(1).GenerateShift(ShiftPlan.Get(5)).All(v => !v.SpeaksAwkwardly), "awkward chance 0: nobody");
                 r.AwkwardSpeechChance = 1f;
-                Check(new RosterFactory(1).GenerateShift(ShiftPlan.Get(5)).Where(v => v.IsAnomaly).All(v => v.SpeaksAwkwardly), "awkward chance 1: every anomaly");
+                Check(new RosterFactory(1).GenerateShift(ShiftPlan.Get(5)).Where(v => v.IsAnomaly && !v.IsScared).All(v => v.SpeaksAwkwardly), "awkward chance 1: every anomaly that is not scared (scared ones use the shared shaken words)");
 
                 r.RandomSeed = false; r.FixedSeed = 12345;
                 Eq(r.NewRunSeed(), 12345, "seed mode Fixed uses the number from the rules");
@@ -893,12 +894,19 @@ namespace Hollowbrook.LogicTests
             Check(rejected.Correct && !rejected.AnomalyBreach, "rejecting the administrator is correct");
         }
 
-        // ---------------------------------------------------- classroom question
+        // The words this visitor uses: a scared visitor the shared shaken words, an awkward anomaly its own
+        // student's awkward lines, everybody else plain speech (null).
+        private static AwkwardSpeech SpeechOf(VisitorData v)
+        {
+            if (v.IsScared) return Content.ScaredSpeech;
+            return v.SpeaksAwkwardly ? GameRules.Current.Students[v.FaceAssetIndex].Awkward : null;
+        }
+
         // "Rooms the file would say": the answer is "Room 202, Genetics." and the file prints
         // "Room 202 · Genetics" - the same room and class, spelled for a different reader.
         private static bool AnswerMatchesFile(VisitorData v)
         {
-            var awkward = v.SpeaksAwkwardly ? GameRules.Current.Students[v.FaceAssetIndex].Awkward : null;
+            var awkward = SpeechOf(v);
             string plain = v.RecordFirstClassroom.Replace(" · ", ", ") + ".";
             return v.ClassroomAnswer == InterviewRules.ClassroomSpeech(plain, awkward);
         }
@@ -914,7 +922,7 @@ namespace Hollowbrook.LogicTests
         // says the card's fact in its own student's awkward lines.
         private static string CardSpeech(VisitorData v, QuestionId q)
         {
-            var awkward = v.SpeaksAwkwardly ? GameRules.Current.Students[v.FaceAssetIndex].Awkward : null;
+            var awkward = SpeechOf(v);
             switch (q)
             {
                 case QuestionId.Course: return InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex], awkward);
@@ -2785,6 +2793,71 @@ namespace Hollowbrook.LogicTests
             var numbers = new HashSet<string>();
             foreach (var st in names) numbers.Add(st.IdNumber);
             Check(numbers.Count == names.Count, "every student has their own ID number");
+        }
+
+        // A scared visitor can be a real student or an anomaly, and nothing about how they look or sound
+        // may tell the two apart: the same scared face art, the same shaken words. Only the papers can.
+        private static void ScaredVisitorTests()
+        {
+            Group("Scared visitors - the same face and the same words for students and anomalies");
+            var plan = ShiftPlan.Build();
+            var students = GameRules.Current.Students;
+            int honestScared = 0, wrongScared = 0;
+            for (int seed = 1; seed <= 100; seed++)
+            {
+                var factory = new RosterFactory(seed);
+                foreach (var night in plan)
+                {
+                    var roster = factory.GenerateShift(night);
+                    int scared = 0, scaredHonest = 0, scaredWrong = 0;
+                    foreach (var v in roster)
+                    {
+                        if (v.IsAdministrator) { Check(!v.IsScared, "the administrator is never scared"); continue; }
+                        if (!v.IsScared) continue;
+                        scared++;
+                        var row = students[v.FaceAssetIndex];
+                        Eq(v.Greeting, row.ScaredGreeting, $"seed {seed} night {night.Number}: a scared visitor says that student's scared greeting");
+                        Check(!v.SpeaksAwkwardly, "a scared anomaly never speaks awkwardly: speech cannot give them away");
+                        if (!v.Defects.Contains(DefectType.SpokenMismatch))
+                            Eq(v.Answers[(int)QuestionId.Course], InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex], Content.ScaredSpeech),
+                                "a scared visitor answers in the shared shaken words");
+                        if (v.IsAnomaly)
+                        {
+                            scaredWrong++; wrongScared++;
+                            Check(v.Defects.Count > 0 && !v.Defects.Contains(DefectType.PhotoSubtleMismatch),
+                                $"seed {seed} night {night.Number}: a scared anomaly never relies on a subtle photo change");
+                            bool paperTell = false;
+                            foreach (var d in v.Defects) if (d != DefectType.PhotoSubtleMismatch) paperTell = true;
+                            Check(paperTell, $"seed {seed} night {night.Number}: a scared anomaly still has a tell");
+                        }
+                        else { scaredHonest++; honestScared++; Check(v.Defects.Count == 0, "a scared student is still clean"); }
+                    }
+                    Eq(scared, night.ScaredCount, $"seed {seed} night {night.Number}: as many scared visitors as the row says");
+                    if (night.ScaredCount >= 2)
+                        Check(scaredHonest >= 1 && scaredWrong >= 1, $"seed {seed} night {night.Number}: scared visitors are both students and anomalies");
+                }
+            }
+            Check(honestScared > 0 && wrongScared > 0, $"over many runs both kinds arrive scared ({honestScared} students, {wrongScared} anomalies)");
+
+            for (int i = 0; i < FaceAssets.StudentFaceCount; i++)
+            {
+                Eq(FaceAssets.ScaredKey(i), FaceAssets.StudentKey(i) + "_scared", "the scared art is paired with its student");
+                Eq(FaceAssets.WindowKey(i, true, true), FaceAssets.ScaredKey(i), "a scared anomaly wears the scared art, not the monster art");
+                Eq(FaceAssets.WindowKey(i, false, true), FaceAssets.ScaredKey(i), "a scared student wears the same art");
+                Eq(FaceAssets.WindowKey(i, true, false), FaceAssets.AnomalyKey(i), "a calm anomaly still wears the monster art");
+                Eq(FaceAssets.WindowKey(i, false, false), FaceAssets.StudentKey(i), "a calm student still wears their own face");
+            }
+            Check(FaceAssets.WindowKey(-1, true, true) == null, "no asset index still means the procedural painter");
+            foreach (var row in students) Check(!string.IsNullOrEmpty(row.ScaredGreeting), row.FullName + " has a scared greeting");
+            Check(Content.ScaredSpeech.Course.Contains("{0}") && Content.ScaredSpeech.Year.Contains("{0}") &&
+                  Content.ScaredSpeech.Status.Contains("{0}") && Content.ScaredSpeech.Classroom.Contains("{0}"),
+                "the scared words keep the fact in them, so the papers can still be checked");
+
+            var a = new RosterFactory(31);
+            var b = new RosterFactory(31);
+            foreach (var night in plan)
+                Check(a.GenerateShift(night).Select(v => v.IsScared).SequenceEqual(b.GenerateShift(night).Select(v => v.IsScared)),
+                    $"night {night.Number}: the same seed picks the same scared visitors");
         }
 
         private static void CheckpointQueueTests()

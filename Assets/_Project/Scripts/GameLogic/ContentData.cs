@@ -50,6 +50,7 @@ namespace Hollowbrook.Logic
         public string FirstClassSubject;
         public string Greeting;        // flavor line at the window
         public AwkwardSpeech Awkward;  // how an anomaly wearing this student talks
+        public string ScaredGreeting;  // what they say when they arrive frightened (student or anomaly alike)
 
         public string StatusString => IsTransferee ? "Transferee" : "Regular";
         public string YearString => Content.YearNames[YearLevel - 1];
@@ -99,6 +100,7 @@ namespace Hollowbrook.Logic
         public string[] Answers = new string[InterviewRules.Count];
         public int SpokenLieQuestion = -1;
         public bool SpeaksAwkwardly;          // this anomaly got its student's awkward lines
+        public bool IsScared;                 // arrives frightened: the scared face and scared words, student or anomaly
         // Which student's face is shown at the window (a PhotoMismatch shows somebody else's).
         public int WindowFaceIndex = -1;
         // Canon roster position of the person this visitor CLAIMS to be (-1 = none, e.g. the
@@ -165,6 +167,7 @@ namespace Hollowbrook.Logic
         public string LongDateLabel; // "MONDAY - NOVEMBER 2" (header board form)
         public int VisitorCount;     // how many come to the window
         public int AnomalyCount;     // how many of them are not students
+        public int ScaredCount;      // how many of them arrive frightened (some students, some anomalies)
         public bool HasAdministrator;
         public string Title;
         public string Objective;
@@ -231,10 +234,22 @@ public static List<StudentIdentity> BuildStudentRoster()
                     FirstClassSubject = row.FirstClassSubject,
                     Greeting = row.Greeting,
                     Awkward = row.Awkward,
+                    ScaredGreeting = row.ScaredGreeting,
                 });
             }
             return list;
         }
+
+        /// <summary>How EVERY scared visitor talks, real student or not: the same shaken words, so the
+        /// way they speak never gives an anomaly away. The papers and the file still decide.</summary>
+        public static readonly AwkwardSpeech ScaredSpeech = new AwkwardSpeech
+        {
+            Greeting = "P-please. Let me in. Something is out there.",
+            Course = "{0}. Please, can I go in now?",
+            Year = "{0}. Please, I just want to go inside.",
+            Status = "A {0}. Please, it is not safe out here.",
+            Classroom = "{0}. Please, can I go there? Quickly?",
+        };
 
         public static readonly string[] AnomalyGreetings =
         {

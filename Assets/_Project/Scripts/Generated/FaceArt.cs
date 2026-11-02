@@ -33,7 +33,7 @@ namespace Hollowbrook.Scenes
         private static string WindowKeyFor(VisitorData v)
         {
             int face = v.WindowFaceIndex >= 0 ? v.WindowFaceIndex : v.FaceAssetIndex;
-            return FaceAssets.WindowKey(face, v.IsAnomaly);
+            return FaceAssets.WindowKey(face, v.IsAnomaly, v.IsScared);
         }
     }
 }

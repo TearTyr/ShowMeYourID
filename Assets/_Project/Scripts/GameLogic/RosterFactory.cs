@@ -39,11 +39,16 @@ namespace Hollowbrook.Logic
                 CountTurn(worn);
             }
 
+            var isAnomaly = new bool[shift.VisitorCount];
+            for (int i = 0; i < isAnomaly.Length; i++)
+                isAnomaly[i] = i >= honestSlots || turning.Contains(identities[i]);
+            var scared = PickScared(isAnomaly, shift.ScaredCount);
+
             for (int i = 0; i < shift.VisitorCount; i++)
             {
                 var id = identities[i];
-                bool anomaly = i >= honestSlots || turning.Contains(id);
-                var v = anomaly ? BuildAnomaly(id, shift) : BuildLegit(id, shift);
+                bool afraid = scared.Contains(i);
+                var v = isAnomaly[i] ? BuildAnomaly(id, shift, afraid) : BuildLegit(id, shift, afraid);
                 v.VisitorIndex = i;
                 v.ShiftNumber = shift.Number;
                 visitors.Add(v);
@@ -79,6 +84,33 @@ namespace Hollowbrook.Logic
 
         private void CountTurn(StudentIdentity s) => _timesAnomaly[s] = Turns(s) + 1;
 
+        // Who arrives frightened: spread over real students and anomalies (a real student first, then
+        // an anomaly, and so on), never the administrator. Decided BEFORE the defects, because a scared
+        // face hides the monster art and changes what an anomaly can be caught by.
+        private HashSet<int> PickScared(bool[] isAnomaly, int count)
+        {
+            var honest = new List<int>();
+            var wrong = new List<int>();
+            for (int i = 0; i < isAnomaly.Length; i++)
+            {
+                if (isAnomaly[i]) wrong.Add(i);
+                else honest.Add(i);
+            }
+            _rng.Shuffle(honest);
+            _rng.Shuffle(wrong);
+
+            var picked = new HashSet<int>();
+            for (int n = 0; n < count; n++)
+            {
+                var from = n % 2 == 0 ? honest : wrong;
+                if (from.Count == 0) from = honest.Count > 0 ? honest : wrong;
+                if (from.Count == 0) break;
+                picked.Add(from[0]);
+                from.RemoveAt(0);
+            }
+            return picked;
+        }
+
         // Tonight's line: everyone turning, the rest honest, in a random order.
         private List<StudentIdentity> PickNight(List<StudentIdentity> turning, int count)
         {
@@ -91,7 +123,7 @@ namespace Hollowbrook.Logic
             return night;
         }
 
-        private VisitorData BuildLegit(StudentIdentity id, ShiftDef shift)
+        private VisitorData BuildLegit(StudentIdentity id, ShiftDef shift, bool scared)
         {
             bool nearExpiry = shift.NearExpiryAllowed && _rng.Chance(GameRules.Current.NearExpiryChance);
             int expDay = nearExpiry
@@ -101,6 +133,7 @@ namespace Hollowbrook.Logic
             var v = new VisitorData
             {
                 IsAnomaly = false,
+                IsScared = scared,
                 ClaimedName = id.FullName,
                 RecordName = id.FullName,
                 IdNumber = id.IdNumber,
@@ -134,11 +167,12 @@ namespace Hollowbrook.Logic
             return Content.DisplayDate(date.Year, date.Month, date.Day);
         }
 
-        private VisitorData BuildAnomaly(StudentIdentity id, ShiftDef shift)
+        private VisitorData BuildAnomaly(StudentIdentity id, ShiftDef shift, bool scared)
         {
             var v = new VisitorData
             {
                 IsAnomaly = true,
+                IsScared = scared,
                 ClaimedName = id.FullName,
                 RecordName = id.FullName,
                 IdNumber = id.IdNumber,
@@ -165,7 +199,7 @@ namespace Hollowbrook.Logic
             v.SlipIdNumber = v.IdNumber;
 
             int defectCount = _rng.NextInt(1, shift.MaxDefectsPerAnomaly + 1);
-            var pool = BuildDefectPool(shift);
+            var pool = BuildDefectPool(shift, scared);
             _rng.Shuffle(pool);
 
             bool idDefectTaken = false; // {IdFormatInvalid, NotInDatabase, DuplicateId} are exclusive
@@ -220,7 +254,7 @@ namespace Hollowbrook.Logic
             return false;
         }
 
-        private List<DefectType> BuildDefectPool(ShiftDef shift)
+        private List<DefectType> BuildDefectPool(ShiftDef shift, bool scared)
         {
             var pool = new List<DefectType>
             {
@@ -229,7 +263,8 @@ namespace Hollowbrook.Logic
                 DefectType.YearMismatch, DefectType.CourseMismatch, DefectType.StatusMismatch,
                 DefectType.NotInDatabase,
             };
-            if (shift.SubtleDefectsAllowed) pool.Add(DefectType.PhotoSubtleMismatch);
+            // a scared face hides the anomaly art, and a subtle photo change has no picture of its own
+            if (shift.SubtleDefectsAllowed && !scared) pool.Add(DefectType.PhotoSubtleMismatch);
             if (shift.ClassroomLieAllowed) pool.Add(DefectType.ClassroomMismatch);
             if (shift.ClassroomLieAllowed) pool.Add(DefectType.SpokenMismatch);
             if (shift.DuplicateIdsAllowed) pool.Add(DefectType.DuplicateId);
@@ -342,9 +377,15 @@ namespace Hollowbrook.Logic
         // student never speaks that way.
         private void BuildAnswers(VisitorData v, StudentIdentity id)
         {
-            v.SpeaksAwkwardly = v.IsAnomaly && _rng.Chance(GameRules.Current.AwkwardSpeechChance);
-            var awkward = v.SpeaksAwkwardly ? id.Awkward : null;
-            if (awkward != null) v.Greeting = awkward.Greeting;
+            // a scared visitor, student or not, talks the same shaken way: speech never gives them away
+            v.SpeaksAwkwardly = v.IsAnomaly && !v.IsScared && _rng.Chance(GameRules.Current.AwkwardSpeechChance);
+            AwkwardSpeech awkward = v.SpeaksAwkwardly ? id.Awkward : null;
+            if (v.IsScared)
+            {
+                awkward = Content.ScaredSpeech;
+                v.Greeting = string.IsNullOrEmpty(id.ScaredGreeting) ? Content.ScaredSpeech.Greeting : id.ScaredGreeting;
+            }
+            else if (awkward != null) v.Greeting = awkward.Greeting;
             v.Answers[(int)QuestionId.Course] = InterviewRules.CourseSpeech(Content.Courses[v.IdCourseIndex], awkward);
             v.Answers[(int)QuestionId.Year] = InterviewRules.YearSpeech(Content.YearNames[v.IdYearLevel - 1], awkward);
             v.Answers[(int)QuestionId.Status] = InterviewRules.StatusSpeech(v.IdIsTransferee, awkward);
