@@ -72,7 +72,7 @@ namespace Hollowbrook.Checkpoint
             // is manual: documents, floor files and questions.)
             // the two desk papers are PROPS: the kit's printed sheets lying on the desk at
             // the concept art's angles, clickable to open their overlay sheet
-            _recordsBtn = PaperProp("records", "sec_log_paper",
+            _recordsBtn = PaperProp("records", "sec_log_prop",
                 () => { RefreshRecords(); ToggleOverlay(_recordsRoot); }, L.UtilityRecords, L.TiltLog);
             Reg("records", _recordsBtn, L.UtilityRecords);
             // the mockup's inline college map: a panel-button (click still opens the full
@@ -123,7 +123,7 @@ namespace Hollowbrook.Checkpoint
                 L.Place(tape.rectTransform, new L.Region(tI == 0 ? -8f : 244f, -6f, 46f, 14f));
                 tape.rectTransform.localEulerAngles = new Vector3(0, 0, tI == 0 ? 8f : -8f);
             }
-            _notesBtn = PaperProp("notes", "sec_rules_paper",
+            _notesBtn = PaperProp("notes", "sec_rules_prop",
                 () => ToggleOverlay(_notesRoot), L.UtilityNotes, L.TiltRules);
             Reg("notes", _notesBtn, L.UtilityNotes);
 
@@ -142,6 +142,7 @@ namespace Hollowbrook.Checkpoint
             if (sp != null) { img.sprite = sp; img.color = Color.white; }
             else img.color = UIFactory.Paper;
             img.raycastTarget = true;
+            img.preserveAspect = true;   // the prop pictures are narrower than their desk slot: never stretch them
             var b = rt.gameObject.GetOrAdd<UnityEngine.UI.Button>();
             b.targetGraphic = img;
             b.onClick.AddListener(() => onClick());

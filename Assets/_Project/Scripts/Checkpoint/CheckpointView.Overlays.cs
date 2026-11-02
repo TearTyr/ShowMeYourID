@@ -83,10 +83,10 @@ namespace Hollowbrook.Checkpoint
         // the player counts what they notice. Left click counts up, right click counts down. It is only a
         // record for the experience: nothing reads it. Each box is a plain object under OverlayLog/paper, so
         // when the paper art changes the boxes can simply be moved in the scene. Centres are fractions of the
-        // paper picture, measured on the 789x879 art.
+        // paper picture, measured on the SecurityLog art (789x879 after the 2x cut).
         private readonly Text[] _logCounts = new Text[GameSession.LogEntries];
         private static readonly Vector2[] LogBoxCentres =
-            { new Vector2(0.825f, 0.497f), new Vector2(0.830f, 0.588f), new Vector2(0.843f, 0.679f) };
+            { new Vector2(0.822f, 0.498f), new Vector2(0.836f, 0.589f), new Vector2(0.848f, 0.680f) };
         private static readonly string[] LogBoxNames = { "student_encounters", "anomalies_detected", "security_incidents" };
 
         private void BuildLogBoxes()
@@ -162,10 +162,7 @@ namespace Hollowbrook.Checkpoint
         private void RefreshNotes()
         {
             var sb = new StringBuilder();
-            sb.Append("BASE RULES - Every person presents a Student ID and record form.\n");
-            sb.Append("Verify: ID format (HB-YYYY-NNNN) · photo vs. the person · expiration · year level · course/program · Regular/Transferee status · record name.\n");
-            sb.Append("Ask which classroom they are going to, then check the answer against their file in the drawer. Decisions are permanent.\n");
-            sb.Append("Compare the face at the window with the ID photo yourself - the desk keeps no appearance form.\n\n");
+            sb.Append("BASE RULES - Check every ID against the file in the drawer: number format, photo, expiry, year, course, status, name. Ask where they are going and check that too. Decisions are permanent.\n\n");
             if (_shift != null) { sb.Append(_shift.RuleNoteAddendum).Append('\n'); }
             _notesText.text = sb.ToString();
         }

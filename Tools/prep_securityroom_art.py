@@ -124,15 +124,19 @@ def main():
         "sec_cabinet1":      "6. Registry Terminal/Cabinet1.png",
         "sec_cabinet2":      "6. Registry Terminal/Cabinet2.png",
         "sec_stamp":         "7. Accept & Decline/Stamp.png",
+        # the desk props are the dark, tilted pictures; clicking one opens the flat paper
+        "sec_rules_prop":    "7. Tonight Log & Rules/Rules.png",
         "sec_rules_paper":   "7. Tonight Log & Rules/Rules Paper.png",
-        "sec_rules_dark":    "7. Tonight Log & Rules/Rules.png",
-        "sec_log_paper":     "7. Tonight Log & Rules/Tonights Log Paper.png",
-        "sec_log_dark":      "7. Tonight Log & Rules/Tonights Log.png",
-        "sec_log_rules":     "7. Tonight Log & Rules/TL and R.png",
+        "sec_log_prop":      "7. Tonight Log & Rules/SecurityLog_1.png",
+        "sec_log_paper":     "7. Tonight Log & Rules/SecurityLog.png",
         "sec_bubble":        "8. Dialouge Box/Dialouge.png",
     }
     for key, rel in CROP.items():
         im = load(rel)
+        if key == "sec_log_paper":
+            # exported small (395 wide) next to the 789 wide rules paper: double it smoothly so the
+            # two sheets look equally sharp when they open
+            im = im.resize((im.width * 2, im.height * 2), Image.LANCZOS)
         if key == "sec_bubble":
             # the kit master ships padded with transparent margins; trim to the art so the
             # 9-slice borders in ProceduralArt.FileBorders measure the real tail and edges

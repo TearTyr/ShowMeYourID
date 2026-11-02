@@ -4441,8 +4441,8 @@ namespace FlowCheck
             "sec_stamp_circle_allow", "sec_stamp_circle_deny", "sec_icon_accept",
             "sec_icon_decline", "sec_folder_tab1", "sec_icon_patrol",
             "sec_icon_endshift", "sec_qpanel", "sec_arrow_right", "sec_cabinet1",
-            "sec_cabinet2", "sec_stamp", "sec_rules_paper",
-            "sec_log_paper", "sec_bubble",
+            "sec_cabinet2", "sec_stamp", "sec_rules_prop", "sec_rules_paper",
+            "sec_log_prop", "sec_log_paper", "sec_bubble",
         };
 
         private static int Idx(Transform t) => t != null ? t.GetSiblingIndex() : -1;

@@ -158,8 +158,10 @@ SEC = [
     ("sec_cabinet1",         "kit", "P0", "cropped cabinet face: FLOOR FILES station skin"),
     ("sec_cabinet2",         "kit", "P0", "cropped drawer unit: file-drawer body skin"),
     ("sec_stamp",            "kit", "P0", "cropped hand stamp: the draggable verdict stamp body"),
-    ("sec_rules_paper",      "kit", "P2", "cropped tilted paper: RULES NOTE overlay skin"),
-    ("sec_log_paper",        "kit", "P2", "cropped tilted paper: TONIGHT'S LOG overlay skin"),
+    ("sec_rules_prop",       "kit", "P2", "dark tilted rules paper on the desk (click opens sec_rules_paper)"),
+    ("sec_rules_paper",      "kit", "P2", "flat RULES NOTE overlay skin"),
+    ("sec_log_prop",         "kit", "P2", "dark tilted security log on the desk (click opens sec_log_paper)"),
+    ("sec_log_paper",        "kit", "P2", "flat NIGHT SECURITY LOG overlay skin, the boxes are placed on its printed squares"),
     ("sec_bubble",           "kit", "P0", "speech box, 9-sliced (left tail + rough edge preserved): bubble + dialogue panel skin"),
 ]
 
