@@ -1956,6 +1956,17 @@ namespace FlowCheck
             Check(inside, "MAP: every room is drawn inside the plan area (nothing clipped or overflowing)");
             Check(scaled, "MAP: every room is sized from the design table by the ONE plan scale");
             Check(faithful, "MAP: every room sits exactly where FloorPlan puts it (the drawing is faithful to the data)");
+            // the drawn rooms use the whole paper: at least 80 percent of the sheet width, centred, not bunched on one side
+            float drawnLeft = float.MaxValue, drawnRight = float.MinValue;
+            foreach (var def in FloorPlan.Rooms)
+            {
+                var rt = map.RoomNode(def.Key).GetComponent<RectTransform>();
+                drawnLeft = Mathf.Min(drawnLeft, rt.anchoredPosition.x - rt.sizeDelta.x / 2f);
+                drawnRight = Mathf.Max(drawnRight, rt.anchoredPosition.x + rt.sizeDelta.x / 2f);
+            }
+            Check((drawnRight - drawnLeft) >= 0.8f * sheet.sizeDelta.x * 0.95f &&
+                  Mathf.Abs((drawnLeft + drawnRight) / 2f) <= 0.06f * sheet.sizeDelta.x,
+                $"MAP: the drawn rooms spread over the sheet ({(drawnRight - drawnLeft) / sheet.sizeDelta.x * 100f:F0} percent of its width), centred, not bunched on one side");
             Check(MapSheetLayout.ToAnchoredY(c1.Value.Y, 1f) > MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f) &&
                   MapSheetLayout.ToAnchoredY(c2.Value.Y, 1f) > MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f) &&
                   MapSheetLayout.ToAnchoredY(sec.Value.Y, 1f) < MapSheetLayout.ToAnchoredY(hall.Value.Y, 1f),
