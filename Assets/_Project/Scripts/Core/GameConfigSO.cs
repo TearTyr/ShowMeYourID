@@ -89,8 +89,8 @@ namespace Hollowbrook.Core
         [Header("Patrol")]
         [Tooltip("Seconds into a patrol before the first anomaly appears. 0 = it is already waiting when the patrol starts.")][Range(0f, 60f)]
         public float anomalyFirstSpawnSeconds = 0f;
-        [Tooltip("The hooded figure in a peek room: seconds it flickers and jumps while the lamp dims, once the light is fully on it.")][Range(0.3f, 6f)]
-        public float peekRepelSeconds = 1.5f;
+        [Tooltip("A figure in a peek room: seconds the plain lamp must stay on its body to clear it. The Focus lamp (Q) is 1.3 times faster.")][Range(0.5f, 8f)]
+        public float peekClearSeconds = 2f;
         [Tooltip("Seconds of full black after the flicker, while the figure is removed.")][Range(0.1f, 3f)]
         public float peekBlackoutSeconds = 0.6f;
         [Tooltip("Seconds the room takes to fade back in, with the figure gone.")][Range(0.5f, 6f)]

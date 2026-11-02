@@ -67,6 +67,7 @@ namespace Hollowbrook.LogicTests
             FaceAssetMappingTests();
             ScaredVisitorTests();
             StudentRecordTests();
+            PeekFigureTests();
             QueueBusyHurryTests();
             PatrolCycleTests();
             QueueInvariantTests();
@@ -2978,6 +2979,73 @@ namespace Hollowbrook.LogicTests
                     }
             }
             Check(fakes > 20 && professorsSeen > 20 && studentYearLies > 20, $"the runs covered fakes, professors and year lies ({fakes}, {professorsSeen}, {studentYearLies})");
+        }
+
+        // Peek rooms: where things stand, how big they are there, what the lamp does to them.
+        private static void PeekFigureTests()
+        {
+            Group("Peek figures - floor spots, perspective size, clearing speed");
+            var rooms = new[] { RoomId.Classroom1, RoomId.Classroom2, RoomId.ComfortRoom, RoomId.ComfortRoom2 };
+            foreach (var room in rooms)
+            {
+                var spots = PeekSpots.For(room);
+                Eq(spots.Length, 3, room + " has three floor spots");
+                foreach (var spot in spots)
+                {
+                    Check(spot.FeetY <= -1.3f && spot.FeetY >= PeekSpots.FrontFeetY, room + ": a spot's feet are on the lower part of the picture (" + spot.FeetY + ")");
+                    Check(Math.Abs(spot.X) <= 4f, room + ": a spot is inside the room (" + spot.X + ")");
+                }
+                Eq(PeekSpots.CeilingXs(room).Length, 3, room + " has three ceiling spots");
+            }
+            var cr1 = PeekSpots.For(RoomId.ComfortRoom);
+            var cr2 = PeekSpots.For(RoomId.ComfortRoom2);
+            for (int i = 0; i < 3; i++)
+                Check(cr2[i].X == -cr1[i].X && cr2[i].FeetY == cr1[i].FeetY, "CR-2 is CR-1 mirrored, spot " + i);
+
+            // perspective: the further back the feet, the smaller the figure, and full size at the front edge
+            foreach (var kind in new[] { PeekKind.Hood, PeekKind.Slide })
+            {
+                Check(Math.Abs(PeekSpots.HeightAt(kind, RoomId.Classroom1, PeekSpots.FrontFeetY) - PeekSpots.FrontHeight(kind)) < 1e-3f, kind + ": full size at the front edge");
+                Check(PeekSpots.HeightAt(kind, RoomId.Classroom1, -1.4f) < PeekSpots.HeightAt(kind, RoomId.Classroom1, -2.9f), kind + ": smaller further back");
+                Check(PeekSpots.HeightAt(kind, RoomId.Classroom1, -1.4f) > 0.4f * PeekSpots.FrontHeight(kind), kind + ": but never a doll");
+            }
+            Eq(PeekSpots.HeightAt(PeekKind.Coverhug, RoomId.ComfortRoom, 0f), PeekSpots.FrontHeight(PeekKind.Coverhug), "the hanger has no perspective, it hangs");
+            Check(PeekSpots.FrontHeight(PeekKind.Hood) > 3.2f, "the hooded figure is bigger than the first version (3.2)");
+
+            // what a room holds, and the night's rolls
+            int slides = 0, hangers = 0, rushes = 0, stills = 0;
+            for (int seed = 1; seed <= 200; seed++)
+                for (int night = 1; night <= 4; night++)
+                    foreach (var room in rooms)
+                    {
+                        var kind = PeekSpots.KindIn(seed, night, room);
+                        bool classroom = room == RoomId.Classroom1 || room == RoomId.Classroom2;
+                        Check(classroom == (kind == PeekKind.Hood), "classrooms hold the hood and nothing else does");
+                        if (kind == PeekKind.Slide) slides++;
+                        if (kind == PeekKind.Coverhug) hangers++;
+                        var reaction = PeekSpots.ReactionIn(seed, night, room);
+                        if (kind == PeekKind.Coverhug) Check(reaction == PeekReaction.Still, "the hanger never moves");
+                        if (reaction == PeekReaction.Rush) rushes++; else stills++;
+                        int index = PeekSpots.SpotIndexIn(seed, night, room);
+                        Check(index >= 0 && index < 3, "the spot index is one of three");
+                        Check(PeekSpots.KindIn(seed, night, room) == kind && PeekSpots.ReactionIn(seed, night, room) == reaction
+                              && PeekSpots.SpotIndexIn(seed, night, room) == index, "the same night gives the same answers");
+                    }
+            Check(slides > 100 && hangers > 100, "comfort rooms hold both the crouched one and the hanger (" + slides + " / " + hangers + ")");
+            Check(rushes > 200 && stills > 200, "some rush and some stay still (" + rushes + " / " + stills + ")");
+
+            // clearing speed: 2 seconds plain, 1.3 times faster with Focus, draining when the lamp leaves
+            Check(Math.Abs(PeekClear.SecondsToClear(false, 2f) - 2f) < 1e-4f, "plain: two seconds");
+            Check(Math.Abs(PeekClear.SecondsToClear(true, 2f) - 2f / 1.3f) < 1e-4f, "Focus: 1.3 times faster");
+            float bar = 0f; int frames = 0;
+            while (bar < 1f && frames < 1000) { bar = PeekClear.Advance(bar, 1f / 60f, true, false, 2f); frames++; }
+            Check(frames >= 119 && frames <= 121, "a plain lamp fills the bar in about 120 frames (" + frames + ")");
+            bar = 0f; frames = 0;
+            while (bar < 1f && frames < 1000) { bar = PeekClear.Advance(bar, 1f / 60f, true, true, 2f); frames++; }
+            Check(frames >= 91 && frames <= 93, "a Focus lamp fills it in about 92 frames (" + frames + ")");
+            Check(PeekClear.Advance(0.5f, 1f, false, true, 2f) == 0f && Math.Abs(PeekClear.Advance(1f, 1f, false, false, 2f) - 0.5f) < 1e-4f,
+                "off the body the bar drains, and never below zero");
+            Eq(PeekClear.Advance(0.3f, 0f, true, true, 2f), 0.3f, "no time passing changes nothing");
         }
 
         private static void CheckpointQueueTests()

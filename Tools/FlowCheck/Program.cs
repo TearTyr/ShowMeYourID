@@ -3954,8 +3954,25 @@ namespace FlowCheck
             var hider = views.PeekedAnomaly.GetComponent<SpriteRenderer>();
             Check(hider.sortingOrder < WorldLayers.PeekCover, "AN: it sits under the dark, so only the lamp shows it");
             Check((root.Session.ClearedRooms & bit) == 0, "AN: the room does not count while it is still in there");
-            Check(hider.sprite == ProceduralArt.Get("char_hood"), "AN: it is the hooded figure");
+            var kindHere = PeekSpots.KindIn(root.Session.Seed, root.Session.CurrentShift, withOne);
+            Check(hider.sprite == ProceduralArt.Get(PeekSpots.ArtKey(kindHere)) && views.PeekedAnomaly.Kind == kindHere,
+                "AN: it is the kind this room holds (" + kindHere + ")");
+            bool classroom = withOne == RoomId.Classroom1 || withOne == RoomId.Classroom2;
+            Check(classroom == (kindHere == PeekKind.Hood), "AN: classrooms hold the hooded figure and comfort rooms never do");
             var hiderPos = views.PeekedAnomaly.transform.localPosition;
+            float heightBefore = views.PeekedAnomaly.CurrentHeight;
+            float feetNow = hiderPos.y - heightBefore * 0.5f;
+            if (kindHere == PeekKind.Coverhug)
+                Check(Mathf.Abs(hiderPos.y + heightBefore * 0.5f - PeekSpots.ScreenTopY) < 0.01f, "AN: the ceiling hanger hangs from the top of the screen");
+            else
+            {
+                bool onASpot = false;
+                foreach (var spot in PeekSpots.For(withOne))
+                    if (Mathf.Abs(hiderPos.x - spot.X) < 0.01f && Mathf.Abs(feetNow - spot.FeetY) < 0.01f) onASpot = true;
+                Check(onASpot, "AN: it stands on one of the room's floor spots, feet on the painted floor");
+                Check(Mathf.Abs(heightBefore - PeekSpots.HeightAt(kindHere, withOne, feetNow)) < 0.01f,
+                    "AN: its size follows the room's perspective (" + heightBefore.ToString("F2") + " units)");
+            }
             Check(lamp.Lit, "AN: the lamp is already on when the room opens");
             lamp.ToggleLamp();                      // put it out for the dark proof
             AimAt(hiderPos.x, hiderPos.y);
@@ -3966,27 +3983,26 @@ namespace FlowCheck
             WorldFrames(root, 150);
             Check(!views.PeekedAnomaly.Playing && views.PeekedAnomaly.transform.localPosition == hiderPos,
                 "AN: standing in the edge of the light does nothing, he does not move");
-            AimAt(hiderPos.x, hiderPos.y);          // the wide lamp fully on him: it only shows him
-            WorldFrames(root, 150);
-            Check(!views.PeekedAnomaly.Playing && (root.Session.PeekAnomaliesGone & bit) == 0,
-                "AN: the wide lamp fully on him does nothing, only Focus drives him out");
-            lamp.ToggleFocus();                     // the tight Focus lamp on him
-            AimAt(hiderPos.x, hiderPos.y);
-            WorldFrames(root, 5);
-            Check(views.PeekedAnomaly.Playing && lamp.Locked, "AN: light fully on him starts the scene and locks the lamp");
+            AimAt(hiderPos.x, hiderPos.y);          // the plain lamp on his body
+            WorldFrames(root, 30);
+            Check(views.PeekedAnomaly.Playing && !lamp.Locked && (root.Session.PeekAnomaliesGone & bit) == 0,
+                "AN: the plain lamp on his body starts to clear him, and he is still there after half a second");
+            if (views.PeekedAnomaly.Reaction == PeekReaction.Rush)
+                Check(views.PeekedAnomaly.transform.localPosition != hiderPos && views.PeekedAnomaly.CurrentHeight > heightBefore,
+                    "AN: one that rushes jumps closer and bigger while the lamp holds");
+            else
+                Check(views.PeekedAnomaly.transform.localPosition == hiderPos,
+                    "AN: one that stays still stays exactly where it stands while the lamp holds");
+            WorldFrames(root, 85);
+            Check(!lamp.Locked && (root.Session.PeekAnomaliesGone & bit) == 0, "AN: the plain lamp is not done at about 1.9 seconds");
+            WorldFrames(root, 15);
+            Check(lamp.Locked && (root.Session.PeekAnomaliesGone & bit) != 0 && (root.Session.ClearedRooms & bit) != 0,
+                "AN: after about two seconds of plain lamp he is gone, the room counts and the lamp is locked");
             var blindSr = FindDeep(lamp.transform, "PeekBlind").GetComponent<SpriteRenderer>();
             PressKey(root, KeyCode.F);
             PressKey(root, KeyCode.Q);
             PressKey(root, KeyCode.S);
-            Check(lamp.Lit && views.PeekActive && !views.Transitioning, "AN: while it plays F, Q and stepping back do nothing");
-            WorldFrames(root, 40);
-            Check(views.PeekedAnomaly.transform.localPosition != hiderPos, "AN: he flickers around");
-            Check(blindSr.gameObject.activeSelf && blindSr.color.a > 0f && blindSr.color.a < 1f || blindSr.color.a >= 1f,
-                "AN: the lamp dims while he flickers");
-            Check((root.Session.PeekAnomaliesGone & bit) == 0, "AN: he is still there during the flicker");
-            WorldFrames(root, 60);   // past peekRepelSeconds
-            Check((root.Session.PeekAnomaliesGone & bit) != 0 && (root.Session.ClearedRooms & bit) != 0,
-                "AN: after the flicker he is gone and the room counts");
+            Check(lamp.Lit && views.PeekActive && !views.Transitioning, "AN: while the black and the fade back play, F, Q and stepping back do nothing");
             Check(blindSr.color.a >= 0.99f && !views.PeekedAnomaly.GetComponent<SpriteRenderer>().enabled,
                 "AN: everything goes black, and he is not drawn any more");
             Check(lamp.Locked, "AN: the lamp stays locked through the black");
@@ -4013,6 +4029,11 @@ namespace FlowCheck
             AimAt(waiting.transform.localPosition.x, waiting.transform.localPosition.y);
             WorldFrames(root, 5);
             Check(waiting.Playing, "AN: hovering over it reacts at once, with no F press and no waiting");
+            views.PeekLight.ToggleFocus();   // the Focus lamp from here
+            int focusFrames = 5;
+            while (!views.PeekLight.Locked && focusFrames < 300) { WorldFrame(root); focusFrames++; }
+            Check(focusFrames >= 85 && focusFrames <= 100,
+                $"AN: the Focus lamp clears it about 1.3 times faster ({focusFrames} frames, against about 120 for the plain lamp)");
             WorldFrames(root, 400);
             PressKey(root, KeyCode.S);
             WorldFrames(root, 60);

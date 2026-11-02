@@ -50,7 +50,7 @@ namespace Hollowbrook.UI
                 "   MOUSE                aim the flashlight - a lit beam turns you to face it\n" +
                 "   E                    interact with what you are standing at (doors, clues)\n" +
                 "   F                    flashlight on / off - sweep beam on patrol, the cursor light on peeks\n" +
-                "   Q                    focus beam (toggle - tight, the ONLY light that exposes & repels; on peeks it\n" +
+                "   Q                    focus beam (toggle - tight: on patrol it alone repels, on peeks it clears 1.3x faster; on peeks it\n" +
                 "                        tightens the flashlight without turning it on)\n" +
                 "   L                    beam off\n" +
                 "   M                    map (at the security desk only)     ESC   pause\n" +
