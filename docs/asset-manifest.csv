@@ -100,31 +100,31 @@ solid_white,art,functional,P3,code-drawn,PNG,"4x4 flat quad, 1x1 world unit - ev
 vignette,art,fx,P3,procedural,PNG,"PNG RGBA 512x384, edge darkening",desk + menu wash,
 music_checkpoint,audio,music,P0,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","2-4 min loop, the desk: quiet room tone, pencil, clock",AudioDirector.PlayMusic(context) -> music_<context>,the longest-running bed in the game
 music_hallway,audio,music,P0,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","2-3 min loop, patrol corridor",AudioDirector.PlayMusic(context) -> music_<context>,
-sfx_bell,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,"distant school bell, one strike, dead room",ProceduralAudio / AudioDirector.PlaySfx,
-sfx_click,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,dry UI tick,ProceduralAudio / AudioDirector.PlaySfx,
-sfx_door,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,"room door open/close, hinge + latch",ProceduralAudio / AudioDirector.PlaySfx,
-sfx_footstep,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,single guard footstep on lino (queue line uses it too),ProceduralAudio / AudioDirector.PlaySfx,
-sfx_knock,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,"window knock, 3 beats, wood + glass",ProceduralAudio / AudioDirector.PlaySfx,
-sfx_paper,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,paper slide / flip / drop - the desk's voice,ProceduralAudio / AudioDirector.PlaySfx,fired ~10x per inspection
-sfx_scan_error,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,refusal buzz (hand-back without a verdict),ProceduralAudio / AudioDirector.PlaySfx,
-sfx_stamp_allow,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,"APPROVE thud: heavy stamp, soft rebound",ProceduralAudio / AudioDirector.PlaySfx,
-sfx_stamp_reject,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,"DENY thud: lower, drier",ProceduralAudio / AudioDirector.PlaySfx,
-sfx_ui_close,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,sheet/drawer close,ProceduralAudio / AudioDirector.PlaySfx,most-used sfx in the game
-sfx_ui_open,audio,sfx,P0,procedural,WAV 44.1 kHz 16-bit MONO,sheet/drawer open: short paper+wood,ProceduralAudio / AudioDirector.PlaySfx,
+sfx_bell,audio,sfx,P0,missing,WAV 44.1 kHz 16-bit MONO,"distant school bell, one strike, dead room",AudioLibrary / AudioDirector.PlaySfx,
+sfx_click,audio,sfx,P0,missing,WAV 44.1 kHz 16-bit MONO,dry UI tick,AudioLibrary / AudioDirector.PlaySfx,
+sfx_door,audio,sfx,P0,missing,WAV 44.1 kHz 16-bit MONO,"room door open/close, hinge + latch",AudioLibrary / AudioDirector.PlaySfx,
+sfx_footstep,audio,sfx,P0,missing,WAV 44.1 kHz 16-bit MONO,single guard footstep on lino (queue line uses it too),AudioLibrary / AudioDirector.PlaySfx,
+sfx_knock,audio,sfx,P0,missing,WAV 44.1 kHz 16-bit MONO,"window knock, 3 beats, wood + glass",AudioLibrary / AudioDirector.PlaySfx,
+sfx_paper,audio,sfx,P0,missing,WAV 44.1 kHz 16-bit MONO,paper slide / flip / drop - the desk's voice,AudioLibrary / AudioDirector.PlaySfx,fired ~10x per inspection
+sfx_scan_error,audio,sfx,P0,missing,WAV 44.1 kHz 16-bit MONO,refusal buzz (hand-back without a verdict),AudioLibrary / AudioDirector.PlaySfx,
+sfx_stamp_allow,audio,sfx,P0,missing,WAV 44.1 kHz 16-bit MONO,"APPROVE thud: heavy stamp, soft rebound",AudioLibrary / AudioDirector.PlaySfx,
+sfx_stamp_reject,audio,sfx,P0,missing,WAV 44.1 kHz 16-bit MONO,"DENY thud: lower, drier",AudioLibrary / AudioDirector.PlaySfx,
+sfx_ui_close,audio,sfx,P0,missing,WAV 44.1 kHz 16-bit MONO,sheet/drawer close,AudioLibrary / AudioDirector.PlaySfx,most-used sfx in the game
+sfx_ui_open,audio,sfx,P0,missing,WAV 44.1 kHz 16-bit MONO,sheet/drawer open: short paper+wood,AudioLibrary / AudioDirector.PlaySfx,
 music_anomaly,audio,music,P1,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","loop while an encounter is live, cuts back to the room bed on resolve",AudioDirector.PlayMusic(context) -> music_<context>,
 music_classroom,audio,music,P1,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","2-3 min loop, Room 101",AudioDirector.PlayMusic(context) -> music_<context>,
 music_darkroom,audio,music,P1,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","2-3 min loop, Room 202 / security office",AudioDirector.PlayMusic(context) -> music_<context>,
-sfx_flicker,audio,sfx,P1,procedural,WAV 44.1 kHz 16-bit MONO,fluorescent flicker buzz,ProceduralAudio / AudioDirector.PlaySfx,
-sfx_glitch,audio,sfx,P1,procedural,WAV 44.1 kHz 16-bit MONO,"digital stutter, 0.12 s",ProceduralAudio / AudioDirector.PlaySfx,anomaly tell
-sfx_heartbeat,audio,sfx,P1,procedural,WAV 44.1 kHz 16-bit MONO,single low heartbeat,ProceduralAudio / AudioDirector.PlaySfx,sanity stages
-sfx_intercom,audio,sfx,P1,procedural,WAV 44.1 kHz 16-bit MONO,intercom chirp + room tone,ProceduralAudio / AudioDirector.PlaySfx,queue pressure warnings
-sfx_scan_ok,audio,sfx,P1,procedural,WAV 44.1 kHz 16-bit MONO,positive chime (reserve path),ProceduralAudio / AudioDirector.PlaySfx,
-sfx_static,audio,sfx,P1,procedural,WAV 44.1 kHz 16-bit MONO,radio static burst,ProceduralAudio / AudioDirector.PlaySfx,
+sfx_flicker,audio,sfx,P1,missing,WAV 44.1 kHz 16-bit MONO,fluorescent flicker buzz,AudioLibrary / AudioDirector.PlaySfx,
+sfx_glitch,audio,sfx,P1,missing,WAV 44.1 kHz 16-bit MONO,"digital stutter, 0.12 s",AudioLibrary / AudioDirector.PlaySfx,anomaly tell
+sfx_heartbeat,audio,sfx,P1,missing,WAV 44.1 kHz 16-bit MONO,single low heartbeat,AudioLibrary / AudioDirector.PlaySfx,sanity stages
+sfx_intercom,audio,sfx,P1,missing,WAV 44.1 kHz 16-bit MONO,intercom chirp + room tone,AudioLibrary / AudioDirector.PlaySfx,queue pressure warnings
+sfx_scan_ok,audio,sfx,P1,missing,WAV 44.1 kHz 16-bit MONO,positive chime (reserve path),AudioLibrary / AudioDirector.PlaySfx,
+sfx_static,audio,sfx,P1,missing,WAV 44.1 kHz 16-bit MONO,radio static burst,AudioLibrary / AudioDirector.PlaySfx,
 music_investigation,audio,music,P2,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","loop, clue-chain tension",AudioDirector.PlayMusic(context) -> music_<context>,"context exists in code, not yet played - hook it or retire it"
-sfx_alarm,audio,sfx,P2,procedural,WAV 44.1 kHz 16-bit MONO,muffled alarm behind walls,ProceduralAudio / AudioDirector.PlaySfx,
-sfx_pickup,audio,sfx,P2,procedural,WAV 44.1 kHz 16-bit MONO,token pickup: watch tick + chime,ProceduralAudio / AudioDirector.PlaySfx,
-sfx_scare,audio,sfx,P2,procedural,WAV 44.1 kHz 16-bit MONO,full scare hit,ProceduralAudio / AudioDirector.PlaySfx,"once per run, ideally"
-sfx_stinger,audio,sfx,P2,procedural,WAV 44.1 kHz 16-bit MONO,short horror sting,ProceduralAudio / AudioDirector.PlaySfx,
+sfx_alarm,audio,sfx,P2,missing,WAV 44.1 kHz 16-bit MONO,muffled alarm behind walls,AudioLibrary / AudioDirector.PlaySfx,
+sfx_pickup,audio,sfx,P2,missing,WAV 44.1 kHz 16-bit MONO,token pickup: watch tick + chime,AudioLibrary / AudioDirector.PlaySfx,
+sfx_scare,audio,sfx,P2,missing,WAV 44.1 kHz 16-bit MONO,full scare hit,AudioLibrary / AudioDirector.PlaySfx,"once per run, ideally"
+sfx_stinger,audio,sfx,P2,missing,WAV 44.1 kHz 16-bit MONO,short horror sting,AudioLibrary / AudioDirector.PlaySfx,
 music_end_lose,audio,music,P3,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","ending stinger, 20-40 s, non-loop",AudioDirector.PlayMusic(context) -> music_<context>,
 music_end_secret,audio,music,P3,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","secret ending stinger, 20-40 s, non-loop",AudioDirector.PlayMusic(context) -> music_<context>,
 music_end_win,audio,music,P3,procedural,"WAV or OGG 44.1 kHz STEREO, loop-seamless","ending stinger, 20-40 s, non-loop",AudioDirector.PlayMusic(context) -> music_<context>,

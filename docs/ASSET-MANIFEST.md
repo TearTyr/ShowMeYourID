@@ -8,8 +8,8 @@ Assets/_Project/Resources/Art/<key>.png      (sprites, faces, map sheet)
 Assets/_Project/Resources/Audio/<key>.wav    (sfx AND music: music contexts are "music_<context>")
 ```
 
-replaces the placeholder with **zero code changes** (`ProceduralArt.Get` / `ProceduralAudio.Get`
-load the file first and only fall back to the painter). Deleting the file restores the placeholder
+replaces the placeholder with **zero code changes** (`ProceduralArt.Get` loads the file first and only falls back to the painter; `AudioLibrary.Get` only
+loads files, and a sound with no file is silent). Deleting a picture file restores its placeholder
 instantly, so nothing can ever break while the team iterates.
 
 Machine-readable twin: **`docs/asset-manifest.csv`** (regenerate with
@@ -177,7 +177,7 @@ Contract of the integration pass (`MainMenuView`):
 ## 11. Adding a new asset name
 
 1. Add the painter case **and** the key to `ProceduralArt.AllKeys` (same edit, same place) -
-   or the audio case + `ProceduralAudio.AllKeys`. Kit-only sprites (no painter) instead join
+   or the audio case + `AudioLibrary.AllKeys`. Kit-only sprites (no painter) instead join
    `ProceduralArt.MainMenuKitKeys` / FlowCheck's `SecurityKitKeys` and ship their PNG.
 2. Add the row to `Tools/gen_asset_manifest.py`, re-run it, commit the CSV.
 3. FlowCheck's manifest-sync proof fails loudly if any of the three disagree.

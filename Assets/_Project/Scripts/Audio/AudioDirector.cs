@@ -6,7 +6,8 @@ using UnityEngine;
 
 namespace Hollowbrook.Audio
 {
-    // Plays every sound and music bed; also emits captions. Created by GameCore.
+    // Plays every sound and music bed from real audio files (AudioLibrary); a sound with no file is silent.
+    // Also emits captions. Created by GameCore.
     public class AudioDirector : MonoBehaviour
     {
         private EventBus _bus;
@@ -64,10 +65,10 @@ namespace Hollowbrook.Audio
 
         public void PlaySfx(string key, float volume = 1f)
         {
-            var clip = ProceduralAudio.Get(key);
+            var clip = AudioLibrary.Get(key);
             if (clip == null)
             {
-                if (_missingWarned.Add(key)) Debug.LogWarning("[AudioDirector] missing sfx '" + key + "' - skipped gracefully.");
+                if (_missingWarned.Add(key)) Debug.Log("[AudioDirector] no audio file for '" + key + "' - staying silent.");
                 return;
             }
             if (_sfxPool == null || _sfxPool.Length == 0) return;
@@ -100,10 +101,10 @@ namespace Hollowbrook.Audio
             AudioClip clip = null;
             if (!string.IsNullOrEmpty(clipKey))
             {
-                clip = ProceduralAudio.Get(clipKey);
+                clip = AudioLibrary.Get(clipKey);
                 if (clip == null)
                 {
-                    if (_missingWarned.Add(clipKey)) Debug.LogWarning("[AudioDirector] missing music '" + clipKey + "' - staying silent.");
+                    if (_missingWarned.Add(clipKey)) Debug.Log("[AudioDirector] no music file for '" + clipKey + "' - staying silent.");
                 }
             }
             to.clip = clip;
