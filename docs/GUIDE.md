@@ -73,6 +73,7 @@ without opening Unity. Rules go there. Anything that touches the screen goes els
 | How often small wrong noises and lamp stutters happen on patrol | `Horror/HallucinationSystem.cs` > `TickDread` |
 | The peek lamp size | `World/PeekLight.cs` (`Radius`, `FocusRadius`) |
 | The figures in the peek rooms (where they stand, how big, how long the lamp must stay on them, the black, the fade back) | `GameLogic/PeekSpots.cs`, `World/PeekAnomaly.cs`, `GameConfig.asset` > `peekClearSeconds` |
+| How fast the crawler runs (it never slows down except under a beam) | `GameConfig.asset` > `anomalySpeedSprint` (4.5) |
 | How much a plain flashlight beam slows a patrol anomaly | `GameConfig.asset` > `beamPace` (0.5 = half speed) |
 | How a repelled hallway anomaly leaves (how fast it runs backwards, how long it must be seen, the timeout) | `GameConfig.asset` > `anomalyRetreatSpeed`, `repelBeatSeconds`, `repelRetreatMaxSeconds`; it is only removed once it is off screen (`Horror/WanderingAnomaly.cs` > `HasLeftScreen`) |
 | Turn the (parked) Night 1 tutorial back on | `GameLogic/TutorialSteps.cs` > `Enabled` (set it to `true`, then playtest) |

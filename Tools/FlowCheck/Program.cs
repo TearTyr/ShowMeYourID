@@ -3633,49 +3633,44 @@ namespace FlowCheck
             }
             views.Spawner.DiscardLive();
 
-            // Sprint: readable telegraph → dash → catch; the Focus beam interrupts the windup
+            // Sprint, the crawler: it never walks. Always fast, slower only while a beam is on it, caught if you stand still
             var sprint = views.SpawnAnomalyOfKind(AnomalyBehaviorKind.Sprint);
             Check(sprint != null, "W6: Sprint spawns");
             if (sprint != null)
             {
                 views.Player.PlaceInRoom(hall, new Vector3(Mathf.Clamp(sprint.Pos.x - 4f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), 0f, 0f));
                 int tenses0 = tensesCaptions;
-                float sx0 = sprint.Pos.x;
-                WorldFrames(root, 30);                     // halfway through the 1.1s windup
-                Check(tensesCaptions == tenses0 + 1, "W6: Sprint's windup is announced exactly once, BEFORE the burst");
-                Check(Mathf.Abs(sprint.Pos.x - sx0) < 0.05f, "W6: Sprint holds position during the telegraph - the reaction window is real");
-                Check(Mathf.Abs(sprint.Pos.x - views.Player.transform.localPosition.x) > 3f,
-                    "W6: it has not reached the player during the telegraph (no instant catch on spawn)");
-                SetBeam(root, rig, LightMode.Sweep);       // the plain beam on it: the windup goes on
-                for (int i = 0; i < 20; i++) { AimAt(sprint.Pos.x, sprint.Pos.y); WorldFrame(root); }
-                Check(tensesCaptions == tenses0 + 1, "W6: the plain Sweep beam does not interrupt Sprint's windup");
-                SetBeam(root, rig, LightMode.Focus);       // Focus on it: interrupts the windup
+                SetBeam(root, rig, LightMode.Off);
+                float maxStepDark = 0f, lastDx = sprint.Pos.x;
+                for (int i = 0; i < 20; i++)
+                {
+                    WorldFrame(root);
+                    maxStepDark = Math.Max(maxStepDark, Mathf.Abs(sprint.Pos.x - lastDx));
+                    lastDx = sprint.Pos.x;
+                }
+                Check(maxStepDark > 3.5f / 60f, $"W6: the crawler runs at once, no windup (max step {maxStepDark:F4}u/frame)");
+                Check(tensesCaptions == tenses0, "W6: there is no 'it tenses' warning any more");
+
+                // the plain beam on it: about half the speed
+                views.Player.PlaceInRoom(hall, new Vector3(Mathf.Clamp(sprint.Pos.x - 8f, -hall.HalfWidth + 1f, hall.HalfWidth - 1f), 0f, 0f));
+                SetBeam(root, rig, LightMode.Sweep);
                 float maxStepBeam = 0f, lastBx = sprint.Pos.x;
-                for (int i = 0; i < 40; i++)
+                for (int i = 0; i < 20; i++)
                 {
                     AimAt(sprint.Pos.x, sprint.Pos.y);
                     WorldFrame(root);
                     maxStepBeam = Math.Max(maxStepBeam, Mathf.Abs(sprint.Pos.x - lastBx));
                     lastBx = sprint.Pos.x;
                 }
-                Check(maxStepBeam <= 1.35f / 60f + 1e-4f, $"W6: under the Focus beam Sprint never bursts (max step {maxStepBeam:F4}u/frame ≤ patrol speed)");
-                Check(tensesCaptions == tenses0 + 1, "W6: no re-windup while the Focus beam holds it");
+                Check(maxStepBeam > 0.5f * 4.5f / 60f * 0.8f && maxStepBeam < 0.7f * 4.5f / 60f,
+                    $"W6: a beam on the crawler halves its speed (max step {maxStepBeam:F4}u/frame, full {4.5f / 60f:F4})");
                 SetBeam(root, rig, LightMode.Off);
-                float maxStepDash = 0f, lastDx = sprint.Pos.x;
-                g = 0;
-                while (Mathf.Abs(sprint.Pos.x - views.Player.transform.localPosition.x) > 1.0f && !sprint.Gone && g++ < 420)
-                {
-                    WorldFrame(root);
-                    maxStepDash = Math.Max(maxStepDash, Mathf.Abs(sprint.Pos.x - lastDx));
-                    lastDx = sprint.Pos.x;
-                }
-                Check(g < 420 && !sprint.Gone, $"W6: with the beam off Sprint telegraphs, then dashes at the player (frames={g})");
-                Check(maxStepDash > 2.5f / 60f, $"W6: the dash really is fast (max step {maxStepDash:F4}u/frame)");
+
                 int caught0 = caughtEvents;
                 float sanity0 = root.Session.Sanity;
                 g = 0;
-                while (!sprint.Gone && g++ < 60 * 8) WorldFrame(root);   // stand still and eat the consequence
-                Check(sprint.WasCaught, "W6: standing next to a dashing Sprint gets you caught - after its grace, not instantly");
+                while (!sprint.Gone && g++ < 60 * 12) WorldFrame(root);   // stand still and eat the consequence
+                Check(sprint.WasCaught, "W6: standing still next to the crawler gets you caught, after its grace, not instantly");
                 Check(caughtEvents == caught0 + 1, "W6: the catch event fires exactly once");
                 Check(root.Session.Sanity < sanity0 - 10f, "W6: a catch costs real sanity");
                 Check(Mathf.Abs(views.Player.transform.localPosition.x - hall.PlayerSpawn.x) < 0.01f,

@@ -6,12 +6,8 @@ namespace Hollowbrook.Logic
     {
         public float BlinkSpeed;          // world units/second while creeping
         public float SlideSpeed;          // lateral glide speed
-        public float SprintSpeed;         // patrol speed between bursts
-        public float SprintDashSpeed;     // burst speed
-        public float SprintTelegraphSeconds; // readable warning before the burst
-        public float SprintDashSeconds;   // burst duration
-        public float SprintRecoverSeconds;   // pause after a burst before re-telegraphing
-        public float SprintAggroRange;    // world distance inside which it winds up
+        public float SprintSpeed;         // the crawler's one speed: always fast, halved while a beam is on it
+        public float SprintAggroRange;    // world distance inside which it runs straight at the player
         public float CoverHugSpeed;       // ceiling drift speed
         public float ThreatRange;         // distance at which the catch windup runs
         public float CatchGraceBlink;     // continuous threatening seconds before a catch
@@ -25,11 +21,7 @@ namespace Hollowbrook.Logic
         {
             BlinkSpeed = 1.15f,
             SlideSpeed = 0.9f,
-            SprintSpeed = 1.3f,
-            SprintDashSpeed = 4.5f,
-            SprintTelegraphSeconds = 1.1f,
-            SprintDashSeconds = 1.4f,
-            SprintRecoverSeconds = 1.4f,
+            SprintSpeed = 4.5f,
             SprintAggroRange = 9f,
             CoverHugSpeed = 0.55f,
             ThreatRange = 1.6f,
@@ -70,7 +62,7 @@ namespace Hollowbrook.Logic
 
         // How tall each drawing is on screen, in world units (the picture sizes are set in ProceduralArt FilePpus).
         public const float CrouchedHeight = 3.0f;   // Blink and Slide: the crouched thing, a bit more than the guard
-        public const float RunnerHeight = 2.5f;     // Sprint: the four legged runner (it is about 4.5 wide)
+        public const float RunnerHeight = 2.0f;     // Sprint: the four legged crawler (it is about 3.6 wide)
         public const float HangerHeight = 1.9f;     // CoverHug: it hangs from the ceiling (about 4.6 wide)
 
         /// <summary>The top of the screen, as a height above the floor line: the camera shows 5 units above its
@@ -88,14 +80,9 @@ namespace Hollowbrook.Logic
         public float MinY, MaxY;          // floor-relative vertical band it may never leave
         public float ThreatRange;
         public float CatchGraceSeconds;
-        public float TelegraphSeconds;    // 0 = behavior has no windup burst
-        public float DashSpeed;           // 0 = behavior never bursts
-        public float DashSeconds;
-        public float DashRecoverSeconds;
         public float AggroRange;
         public bool FreezesWhenObserved;  // Blink: the Focus beam or room light holds it still
         public bool CeilingLurker;        // CoverHug: only the Focus beam finds it clearly
-        public bool BeamInterruptsBurst;  // Sprint: the Focus beam on it cancels the windup
         public float BeamPace;            // speed multiplier while any beam is on it: the player's time to reach for Focus
         public float RetreatSpeed;
 
@@ -125,11 +112,6 @@ namespace Hollowbrook.Logic
                     p.MoveSpeed = t.SprintSpeed;
                     p.SpawnY = RunnerFloorY; p.MinY = RunnerFloorY; p.MaxY = RunnerCeilingY;   // the floor or the ceiling
                     p.CatchGraceSeconds = t.CatchGraceSprint;
-                    p.TelegraphSeconds = t.SprintTelegraphSeconds;
-                    p.DashSpeed = t.SprintDashSpeed;
-                    p.DashSeconds = t.SprintDashSeconds;
-                    p.DashRecoverSeconds = t.SprintRecoverSeconds;
-                    p.BeamInterruptsBurst = true;
                     break;
                 default: // CoverHug - ceiling lurker; spawn inside its own band, never clamped out
                     p.MoveSpeed = t.CoverHugSpeed;

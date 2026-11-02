@@ -2185,10 +2185,9 @@ namespace Hollowbrook.LogicTests
             Check(blink.MoveSpeed == bt.BlinkSpeed && slide.MoveSpeed == bt.SlideSpeed &&
                   sprint.MoveSpeed == bt.SprintSpeed && hug.MoveSpeed == bt.CoverHugSpeed,
                 "each behavior moves at its own configured speed");
-            Check(sprint.DashSpeed > sprint.MoveSpeed, "Sprint's burst is faster than its patrol");
-            Check(sprint.TelegraphSeconds > 0f && blink.TelegraphSeconds == 0f && slide.TelegraphSeconds == 0f && hug.TelegraphSeconds == 0f,
-                "only Sprint has a windup telegraph - the reaction window is explicit");
-            Check(sprint.BeamInterruptsBurst && !blink.BeamInterruptsBurst, "only Sprint's windup is beam-interruptible");
+            Check(sprint.MoveSpeed > 3.4f && sprint.MoveSpeed * bt.BeamPace > blink.MoveSpeed,
+                "the crawler is always faster than a walking guard (3.4), and still fast under a beam");
+            Check(sprint.MoveSpeed * bt.BeamPace < 3.4f, "...but a beam on it brings it below the guard's walking speed");
             Check(blink.FreezesWhenObserved && !slide.FreezesWhenObserved && !sprint.FreezesWhenObserved && !hug.FreezesWhenObserved,
                 "only Blink freezes when observed");
             Check(hug.CeilingLurker && !blink.CeilingLurker && !slide.CeilingLurker && !sprint.CeilingLurker,
@@ -3299,7 +3298,7 @@ namespace Hollowbrook.LogicTests
                 Check(cr2[i].X == -cr1[i].X && cr2[i].FeetY == cr1[i].FeetY, "CR-2 is CR-1 mirrored, spot " + i);
 
             // perspective: the further back the feet, the smaller the figure, and full size at the front edge
-            foreach (var kind in new[] { PeekKind.Hood, PeekKind.Slide, PeekKind.Runner })
+            foreach (var kind in new[] { PeekKind.Hood, PeekKind.Slide })
             {
                 Check(Math.Abs(PeekSpots.HeightAt(kind, RoomId.Classroom1, PeekSpots.FrontFeetY) - PeekSpots.FrontHeight(kind)) < 1e-3f, kind + ": full size at the front edge");
                 Check(PeekSpots.HeightAt(kind, RoomId.Classroom1, -1.4f) < PeekSpots.HeightAt(kind, RoomId.Classroom1, -2.9f), kind + ": smaller further back");
@@ -3309,19 +3308,18 @@ namespace Hollowbrook.LogicTests
             Check(PeekSpots.FrontHeight(PeekKind.Hood) > 3.2f, "the hooded figure is bigger than the first version (3.2)");
 
             // what a room holds, and the night's rolls
-            int slides = 0, hangers = 0, hoods = 0, runners = 0, slidesInClassrooms = 0, hangersInClassrooms = 0;
+            int slides = 0, hangers = 0, hoods = 0, slidesInClassrooms = 0, hangersInClassrooms = 0;
             for (int seed = 1; seed <= 200; seed++)
                 for (int night = 1; night <= 4; night++)
                 {
                     var seen = new System.Collections.Generic.HashSet<PeekKind>();
                     for (int r = 0; r < 4; r++) seen.Add(PeekSpots.KindIn(seed, night, rooms[r]));
-                    Eq(seen.Count, 4, "the four rooms of a night hold four different kinds (seed " + seed + ", night " + night + ")");
+                    Eq(seen.Count, 3, "the four rooms of a night hold all three kinds (seed " + seed + ", night " + night + ")");
                     foreach (var room in rooms)
                     {
                         var kind = PeekSpots.KindIn(seed, night, room);
                         bool classroom = room == RoomId.Classroom1 || room == RoomId.Classroom2;
                         if (kind == PeekKind.Hood) hoods++;
-                        if (kind == PeekKind.Runner) runners++;
                         if (kind == PeekKind.Slide) { slides++; if (classroom) slidesInClassrooms++; }
                         if (kind == PeekKind.Coverhug) { hangers++; if (classroom) hangersInClassrooms++; }
                         int index = PeekSpots.SpotIndexIn(seed, night, room);
@@ -3330,7 +3328,8 @@ namespace Hollowbrook.LogicTests
                               && PeekSpots.SpotIndexIn(seed, night, room) == index, "the same night gives the same answers");
                     }
                 }
-            Check(slides > 200 && hangers > 200 && hoods > 200 && runners > 200, "every kind turns up (" + hoods + " / " + slides + " / " + hangers + " / " + runners + ")");
+            Check(slides > 200 && hangers > 200 && hoods > 200, "every kind turns up (" + hoods + " / " + slides + " / " + hangers + ")");
+            Check(!Enum.GetNames(typeof(PeekKind)).Contains("Runner"), "the crawler is not a peek kind: it only patrols");
             Check(slidesInClassrooms > 100 && hangersInClassrooms > 100, "the crouched one and the hanger also stand in classrooms (" + slidesInClassrooms + " / " + hangersInClassrooms + ")");
 
             // clearing speed: 2 seconds plain, 1.3 times faster with Focus, draining when the lamp leaves
