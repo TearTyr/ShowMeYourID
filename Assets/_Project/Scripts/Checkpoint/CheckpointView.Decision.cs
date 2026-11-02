@@ -397,7 +397,7 @@ namespace Hollowbrook.Checkpoint
                                                                       // this visitor stampable again
             RefreshHud();
 
-            StartCoroutine(AfterStamp(resolved));
+            RunAfterStamp(resolved);
         }
 
         // Silent verdict: the banner states the decision and nothing else - never whether
@@ -459,9 +459,16 @@ namespace Hollowbrook.Checkpoint
 
         // The post-stamp beat: the mark lands, the subject leaves, the next steps up.
         // Deliberately wordless - feedback is the stamp, the sound, the walking figure.
-        // If the player opens the map (or anything else that takes the desk away) while this plays, the
-        // sequence waits for the desk to come back instead of quitting: quitting left the Principal's exit
-        // scene unplayed and the night stuck for good.
+        // The sequence runs on the GameRoot, not on this view. Opening the map switches the whole desk view
+        // off, and Unity stops every coroutine of an object that is switched off: that killed the Principal's
+        // exit scene half way and left the night stuck for good. The GameRoot is never switched off.
+        internal void RunAfterStamp(VisitorData resolved)
+        {
+            _gameRoot.StartCoroutine(AfterStamp(resolved));
+        }
+
+        // If the player opens the map while the sequence plays, it waits for the desk to come back
+        // before it goes on (the desk is hidden while the map is up).
         internal IEnumerator WaitForDesk()
         {
             while (_gameRoot.State == AppViewState.Map) yield return null;
@@ -469,8 +476,10 @@ namespace Hollowbrook.Checkpoint
 
         private IEnumerator AfterStamp(VisitorData resolved)
         {
+            var session = _gameRoot.Session;   // a quit to the menu in the middle must end this sequence
             yield return WaitUnpaused(BannerSeconds);
             yield return WaitForDesk();
+            if (this == null || _gameRoot.Session != session) yield break;
             if (_gameRoot.State != AppViewState.Checkpoint) yield break;
 
             // the resolved visitor leaves the window; the oldest waiting visitor steps up
@@ -489,6 +498,7 @@ namespace Hollowbrook.Checkpoint
                 RefreshHud();
                 yield return DimAndFlicker();
                 yield return WaitForDesk();
+                if (this == null || _gameRoot.Session != session) yield break;
                 _gameRoot.PlayAdminExit();
                 yield break;
             }
