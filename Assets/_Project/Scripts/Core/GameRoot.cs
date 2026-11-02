@@ -372,7 +372,7 @@ namespace Hollowbrook.Core
             Time.timeScale = 1f;
             // the procedural atlases are native allocations: release them with the core
             Hollowbrook.Scenes.ProceduralArt.ClearCache();
-            Hollowbrook.Scenes.ProceduralAudio.ClearCache();
+            Hollowbrook.Audio.AudioLibrary.ClearCache();
         }
     }
 }

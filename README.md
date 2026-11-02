@@ -27,9 +27,9 @@ then a district administrator, and turning him away is only the start.
 4. Windows build: `File > Build Settings > Windows > Build` (the three scenes are already listed).
 
 The game ships painted art for the desk, the menu, the hallway, the classrooms, the comfort room
-and the thirteen students. Anything without a picture is drawn in code, and sounds are generated at
-runtime. To replace a picture or a sound, drop a file with the same name in the matching folder
-under `Assets/_Project/Resources/Art/` or `Resources/Audio/`; the game prefers it automatically.
+and the thirteen students. Anything without a picture is drawn in code (a short list, see the asset manifest). There is no
+sound yet: nothing is generated, so the game is silent until real files are added. To add a picture or a sound, drop a file with the
+same name in the matching folder under `Assets/_Project/Resources/Art/` or `Resources/Audio/`; the game uses it automatically.
 Folder rules and naming are in [docs/ART-NAMING.md](docs/ART-NAMING.md), the full list is
 [docs/ASSET-MANIFEST.md](docs/ASSET-MANIFEST.md).
 
@@ -132,8 +132,8 @@ Assets/_Project/
     Horror/               anomalies, sanity, scares, hallucinations
     UI/                   menus, HUD, dialogue, map, results, endings
     Scenes/               one start script per scene, plus the find or make helpers (SceneBuild, SceneEdits)
-    Generated/            procedural art and audio (painted in code when no file exists)
-    Audio/                music and effects
+    Generated/            procedural art (painted in code when no file exists)
+    Audio/                AudioDirector and AudioLibrary (plays real files only)
 Art/                      source art for the prep scripts (the current kit is "UI and Design Assets")
 Tools/                    test, check and art prep tools (not part of the game build)
 docs/                     GUIDE.md, GAMEPLAY-OVERVIEW.md, ART-NAMING.md, ASSET-MANIFEST.md

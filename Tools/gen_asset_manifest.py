@@ -4,7 +4,7 @@
 Why this script exists: every name in the manifest is a LIVE key in the game. Art dropped at
 Assets/_Project/Resources/Art/<key>.png (or audio at Resources/Audio/<key>.wav) replaces the
 procedural placeholder with zero code changes, so the CSV must never drift from the code. The
-lists below mirror ProceduralArt.AllKeys / ProceduralAudio.AllKeys / FaceAssets, and FlowCheck
+lists below mirror ProceduralArt.AllKeys / AudioLibrary.AllKeys / FaceAssets, and FlowCheck
 proves the mirror in both directions (`== asset manifest sync ==`). Edit the priorities/specs
 here, re-run, and commit the CSV.
 """
@@ -191,7 +191,7 @@ def main():
     for key, cat, prio, status, spec, used, notes in FACES:
         rows.append([key, "art", cat, prio, status, "PNG", spec, used, notes])
     for key, prio, spec, notes in SFX:
-        rows.append([key, "audio", "sfx", prio, "procedural", "WAV 44.1 kHz 16-bit MONO", spec, "ProceduralAudio / AudioDirector.PlaySfx", notes])
+        rows.append([key, "audio", "sfx", prio, "missing", "WAV 44.1 kHz 16-bit MONO", spec, "AudioLibrary / AudioDirector.PlaySfx", notes])
     for key, prio, spec, notes in MUSIC:
         rows.append([key, "audio", "music", prio, "procedural", "WAV or OGG 44.1 kHz STEREO, loop-seamless", spec, "AudioDirector.PlayMusic(context) -> music_<context>", notes])
     for key, cat, prio, spec in SEC:

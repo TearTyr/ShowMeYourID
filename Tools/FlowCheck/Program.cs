@@ -598,7 +598,7 @@ namespace FlowCheck
 
             int errs = UnityEngine.Debug.ErrorCount;
             ProceduralArt.ClearCache();     // exactly what GameRoot.OnDestroy calls
-            ProceduralAudio.ClearCache();
+            Hollowbrook.Audio.AudioLibrary.ClearCache();
             Check(UnityEngine.Debug.ErrorCount == errs,
                   "teardown logs no engine error (no 'Destroying assets is not permitted')");
             Check(fileTex, "the imported kit texture SURVIVES teardown (asset on disk - not ours to free)");
@@ -2626,21 +2626,17 @@ namespace FlowCheck
             Check(Math.Abs(s.SfxVolume - 0.125f) < 0.0001f, "S3: sfx volume = master x sfx (0.5 x 0.25)");
             Check(Math.Abs(s.MusicVolume - 0.2f) < 0.0001f, "S3: moving sfx did NOT change the music mix");
 
-            // the music bed reacts without a scene reload (existing SettingsChanged path)
+            // no sound is made up in code, so with no audio files nothing plays; the mix still follows the sliders
             var sources = root.Audio.gameObject.GetComponentsInChildren<UnityEngine.AudioSource>(true);
-            UnityEngine.AudioSource playingMusic = null;
-            foreach (var src in sources) if (src.isPlaying && src.loop) { playingMusic = src; break; }
-            Check(playingMusic != null, "S4: a music source is playing (menu bed)");
-            if (playingMusic != null)
-            {
-                SetSlider(music, 1f);
-                Check(Math.Abs(playingMusic.volume - s.MusicVolume) < 0.0001f,
-                      "S4: the playing music source refreshed to master x music = " + s.MusicVolume);
-                SetSlider(master, 0f);
-                Check(Math.Abs(playingMusic.volume) < 0.0001f, "S4: master at zero mutes music");
-                Check(Math.Abs(s.SfxVolume) < 0.0001f, "S4: master at zero mutes sfx too");
-                SetSlider(master, 0.8f);
-            }
+            bool anythingPlaying = false;
+            foreach (var src in sources) if (src.isPlaying) anythingPlaying = true;
+            Check(!anythingPlaying, "S4: with no audio files the game is silent (nothing is synthesised)");
+            SetSlider(music, 1f);
+            Check(Math.Abs(s.MusicVolume - 0.5f) < 0.0001f, "S4: music volume = master x music = " + s.MusicVolume);
+            SetSlider(master, 0f);
+            Check(Math.Abs(s.MusicVolume) < 0.0001f, "S4: master at zero mutes music");
+            Check(Math.Abs(s.SfxVolume) < 0.0001f, "S4: master at zero mutes sfx too");
+            SetSlider(master, 0.8f);
 
             // persistence across an application restart (PlayerPrefs path)
             var fresh = new SettingsSystem(root.Bus);
@@ -4134,7 +4130,7 @@ namespace FlowCheck
         // from, and every name in it is a live key: a file at Resources/Art/<key>.png or
         // Resources/Audio/<key>.wav replaces the procedural placeholder with no code change. That
         // only stays true while the list and the code agree, so this proof reads the CSV and
-        // checks it against ProceduralArt.AllKeys / ProceduralAudio.AllKeys / FaceAssets in both
+        // checks it against ProceduralArt.AllKeys / AudioLibrary.AllKeys / FaceAssets in both
         // directions, plus that every key actually resolves (a typo'd case would fall back to the
         // solid/placeholder and ship a white square).
         private static void AssetManifestProof(GameRoot root)
@@ -4180,9 +4176,9 @@ namespace FlowCheck
                 (artDiff.Length > 0 ? " (diff: " + artDiff + ")" : ""));
 
             // audio rows == the synth's keys, exactly
-            Check(SameSet(audioRows, new List<string>(Hollowbrook.Scenes.ProceduralAudio.AllKeys),
+            Check(SameSet(audioRows, new List<string>(Hollowbrook.Audio.AudioLibrary.AllKeys),
                   out string audioDiff),
-                "AM: every audio row is a real synth key and every key has a row" +
+                "AM: every audio row is a sound name the game asks for and every name has a row" +
                 (audioDiff.Length > 0 ? " (diff: " + audioDiff + ")" : ""));
 
             // every art key resolves to its own sprite (a missing case would fall back to solid)
@@ -4196,15 +4192,15 @@ namespace FlowCheck
             Check(resolves, "AM: every art key paints its own sprite (no fallback squares)" +
                   (resolves ? "" : " - first broken key: " + badKey));
 
-            // every audio key resolves to its own clip
+            // no sound is made up in code: a name with no audio file is silent, a file is its own clip
             bool audioOk = true;
             string badAudio = "";
-            foreach (var k in Hollowbrook.Scenes.ProceduralAudio.AllKeys)
+            foreach (var k in Hollowbrook.Audio.AudioLibrary.AllKeys)
             {
-                var clip = Hollowbrook.Scenes.ProceduralAudio.Get(k);
-                if (clip == null || clip.name != k) { audioOk = false; badAudio = k; break; }
+                var clip = Hollowbrook.Audio.AudioLibrary.Get(k);
+                if (clip != null && clip.name != k) { audioOk = false; badAudio = k; break; }
             }
-            Check(audioOk, "AM: every audio key synthesises its own clip (no silent falls-through)" +
+            Check(audioOk, "AM: every audio name is silent or its own file (nothing is synthesised)" +
                   (audioOk ? "" : " - first broken key: " + badAudio));
 
             // rows claiming a shipped file must actually ship it
