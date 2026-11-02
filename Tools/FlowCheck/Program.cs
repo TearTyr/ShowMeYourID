@@ -516,6 +516,22 @@ namespace FlowCheck
                 Check(!capBg.gameObject.activeSelf, "CAP: asking a question shows no caption at all");
             }
 
+            // SOFTLOCK: the map opened while the stamp sequence plays must not end it (it used to stop the Principal's
+            // exit scene for good); the sequence waits for the desk, and the map stays shut during a conversation
+            {
+                FreshGame(root); ClickStickyNote(root);
+                root.OpenMap();
+                Check(root.State == AppViewState.Map, "SOFTLOCK: the map opens on a quiet desk");
+                var waiter = root.Checkpoint.WaitForDesk();
+                Check(waiter.MoveNext(), "SOFTLOCK: the stamp sequence waits while the map is open");
+                root.CloseMap();
+                Check(!waiter.MoveNext() && root.State == AppViewState.Checkpoint, "SOFTLOCK: it carries on once the map is closed");
+                root.Dialogue.Play(new List<DialogueLine> { new DialogueLine { Speaker = "TEST", Text = "talking" } }, null);
+                root.OpenMap();
+                Check(root.State == AppViewState.Checkpoint, "SOFTLOCK: the map does not open over a conversation");
+                root.Dialogue.Hide();
+            }
+
             // a failed night is played again, not skipped: Continue stays on it, with the penalty
             void PlayToNight(int n)
             {

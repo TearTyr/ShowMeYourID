@@ -120,6 +120,7 @@ namespace Hollowbrook.Core
                 return;
             }
             if (State != AppViewState.Checkpoint) return;   // the map is pinned up in the security office only
+            if (Dialogue != null && Dialogue.IsActive) return;   // a conversation owns the desk: the map waits
             SetState(AppViewState.Map);
             Audio.PlaySfx("sfx_ui_open");
         }
