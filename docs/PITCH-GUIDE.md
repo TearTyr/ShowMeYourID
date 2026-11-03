@@ -1,5 +1,8 @@
 # Pitch and Q&A study guide: how ShowMeYourID works
 
+> The fuller and newer guide is `docs/QNA-CODE-GUIDE.md` (it also answers "why is there no camera in the
+> Hierarchy?"). This page was brought up to date on November 3, 2026.
+
 Written for: the person who has to pitch the game and answer questions about how its code works.
 Read it in order once, then use the Q&A section (part 8) as flash cards. Every number below was
 checked against the code, and the file names tell you where to look if someone asks you to show it.
@@ -10,13 +13,14 @@ ShowMeYourID is a 2D horror game set in Hollowbrook College, where you are the n
 You do three jobs, five nights in a row:
 
 1. **Security desk.** Students arrive at your window. You check their ID, their file, and ask
-   questions. You stamp APPROVE or DENY. Some of them are not students.
+   questions. You stamp ACCEPT or DECLINE. Some of them are not students.
 2. **Patrol.** Between visitors you walk the hallway with a flashlight, peek into rooms, and
    deal with things that roam.
-3. **Survive the last night.** Night 5 is only the district administrator. You question him, deny
-   him, and survive until dawn while he hunts you.
+3. **Survive the last night.** Night 5 is eight students, then the district administrator. You
+   question him, decline him, and survive until dawn while he hunts you.
 
-Finish the story and **Night 6** (the Challenge) opens: the same administrator, harder.
+Finish the story and **Night 6** (the Challenge) opens: the same administrator, harder. Beat Night 6
+and **Lockdown** opens: all 13 students at the gate, 35 seconds each, no patrol.
 
 The one sentence about the code: **the rules of the game are plain C# that does not touch the screen,
 and the screens are built on top of those rules.** That is why we can test the whole game without
@@ -30,11 +34,12 @@ opening Unity.
    that night come from `ShiftPlan`, and an intro plays.
 3. A visitor arrives. `CheckpointQueue` decides when (a timer), and `CheckpointView` shows them.
 4. You inspect. `IdRules` finds what is wrong with the papers. You may ask 2 of the 4 questions.
-5. You stamp. The verdict is compared with the truth. Wrong calls cost sanity and count as
+5. You stamp. The verdict is compared with the truth. Wrong calls make sanity drain faster and count as
    breaches (let an anomaly in) or false rejections (turned a real student away).
 6. Between visitors you can patrol (`GameRoot.Patrol`, `ViewManager`, `FlashlightRig`).
-7. END SHIFT. The night is saved. Nights 1 to 4 go back to the menu, night 5 shows results and
-   then one of three endings: Win, Lose or Secret.
+7. END SHIFT. The night is saved and the next night starts straight away (there is no main menu in
+   between; you quit from the pause menu and Continue later). Night 5 shows results and then one of three
+   endings: Win, Lose or Secret.
 
 ## 3. The big idea: rules are separate from screens
 
@@ -46,22 +51,22 @@ This is the thing to understand best, because most questions come back to it.
 | **Orchestrator** | `Scripts/Core` | Yes | `GameRoot` ties the rules to the screens |
 | **Screens** (the body) | `Checkpoint`, `UI`, `World`, `Horror` | Yes | buttons, rooms, flashlight, scares |
 | **Scene setup** | `Scripts/Scenes` | Yes | builds or finds the screens when a scene loads |
-| **Placeholders** | `Scripts/Generated` | Yes | pictures and sounds painted by code when no file exists |
+| **Placeholders** | `Scripts/Generated` | Yes | pictures painted by code when no file exists (sounds are never made by code) |
 
 Why it matters, in plain words: the rules never say "draw a red box". They only answer questions.
-The screens ask the rules and draw the answer. So you can run 63,000 rule checks in seconds on a
+The screens ask the rules and draw the answer. So you can run 120,000 rule checks in seconds on a
 laptop with no game window, and you can change the art without touching the rules.
 
 ## 4. The files worth knowing (read in this order)
 
-About 115 scripts and 20,000 lines of C#. You do not need all of them. These twelve explain the game.
+About 130 scripts and 22,600 lines of C#. You do not need all of them. These twelve explain the game.
 
 | # | File | What to say about it |
 |---|---|---|
 | 1 | `Core/GameRoot.cs` (and its parts `.Shifts`, `.Patrol`, `.Endings`, `.Hunt`, `.Saving`) | The one object that lives across all scenes. It owns the run, the save, the audio, and a link to every screen. It is one class split into files by topic. |
 | 2 | `GameLogic/GameSession.cs` | Everything that has happened this run: night, sanity, score, breaches, the administrator state. This is what gets saved. |
-| 3 | `GameLogic/ShiftPlan.cs` | The five nights as data: visitors 4, 6, 7, 8 and 0, anomalies 2, 3, 4, 5 and 0, plus the rule note and what tricks are allowed each night. Night 6 is defined here too. |
-| 4 | `GameLogic/RosterFactory.cs` | Makes the visitors for a night. Honest students come from 7 canon identities. Anomalies copy a student and then get "defects" (a wrong year, an expired ID, a swapped photo). |
+| 3 | `GameLogic/ShiftPlan.cs` | The five nights as data: visitors 4, 6, 7, 8 and 8 (plus the administrator on night 5), anomalies 2, 3, 4, 5 and 5, plus the rule note and what tricks are allowed each night. Night 6 is defined here too. |
+| 4 | `GameLogic/RosterFactory.cs` | Makes the visitors for a night. Honest students come from the 13 students in `GameRules.Tables.cs`. Anomalies copy a student and then get "defects" (a wrong year, an expired ID, a swapped photo). |
 | 5 | `GameLogic/IdRules.cs` | The rulebook for the papers. It checks 13 kinds of defect (expired, bad ID format, photo mismatch, duplicate ID and so on). |
 | 6 | `GameLogic/CheckpointQueue.cs` | The waiting line: arrival timer, who is waiting, who is at the window, and what happens if the line overruns. |
 | 7 | `GameLogic/EndingRules.cs` | Pure function from session to ending. Three breaches or three false rejections lose. The Secret needs ten findings in order plus surviving the administrator. |
@@ -124,10 +129,10 @@ him and a fixed sequence plays (a small state machine): he flickers, the lamp di
 fade back, and he is gone. It cannot be interrupted.
 
 ### The administrator hunt (night 5)
-Deny him and the Patrol click starts a hunt. `AdminHunt` is a state machine with phases:
-Stalking (walking, no danger), InRoom (he is in a peek room, keep the lamp on his head for 1.8 s),
-Behind (he is behind you in the hallway, flash his face with the beam within 2.6 s), Retreat,
-Won, Lost. Three catches lose (two on Night 6), 210 seconds to dawn. He goes for you: more often
+Decline him and the Patrol click starts a hunt (ACCEPT loses at once). `AdminHunt` is a state machine with phases:
+Stalking (walking, no danger), InRoom (he is in a peek room, keep the lamp on his head for 1.8 s
+within 9 s), Behind (he runs up behind you in the hallway, flash his face within 2.8 s), Loose (you left
+him in his room: for 6 s any door you open is a catch), Retreat, Won, Lost. Three catches lose (two on Night 6), 210 seconds to dawn. He goes for you: more often
 behind you in the hallway, and often in the room you are peeking into. **The hunt can never get
 stuck**: the dawn clock always runs and every phase has a time limit, and a test runs random and
 idle players to prove it.
@@ -140,7 +145,7 @@ does not fail. A wrong report costs 5 sanity next night. It is saved with the ni
 each night.
 
 ### Saving
-`SaveFormat` turns the session into a text file (header `SMYIDSAVE`, version 3, with a checksum).
+`SaveFormat` turns the session into a text file (header `SMYIDSAVE`, version 4, with a checksum).
 `SaveSystem` writes it to a temp file, then swaps it in, keeping a backup, so a crash mid save does
 not corrupt it. A corrupt or older save is ignored instead of crashing. Settings (volumes and
 accessibility) are stored separately in PlayerPrefs.
@@ -152,7 +157,7 @@ settings changes, the HUD to notifications, the caption bar to caption requests.
 
 ## 6. Scenes and the "no bootstrap" change
 
-There are three scenes: `MainMenu`, `Gameplay` (the desk) and `School` (the patrol).
+There are three scenes: `MenuScene`, `DeskScene` (the desk) and `PatrolScene` (the patrol).
 
 Originally each scene held one empty object with a "bootstrap" script that built the whole
 screen from code when you pressed Play. That is hard to edit, because nothing was visible in the
@@ -174,10 +179,10 @@ Unity editor. The team needed to edit screens in the scenes, so we changed it:
 
 We have three automatic checks, run with one command (`bash Tools/run_all.sh`):
 
-1. **Rules tests** (`Tools/LogicTests`): about 63,000 checks of the pure rules (IDs, endings, queue,
+1. **Rules tests** (`Tools/LogicTests`): about 120,000 checks of the pure rules (IDs, endings, queue,
    hunt, saves, credits, the night log).
-2. **Flow check** (`Tools/FlowCheck`): about 1,200 checks that press the real buttons headlessly:
-   play the desk, patrol, the whole hunt, night 6, saves and retries.
+2. **Flow check** (`Tools/FlowCheck`): about 1,460 checks that press the real buttons headlessly:
+   play the desk, patrol, the whole hunt, night 6, Lockdown, saves and retries.
 3. **Compile check** (`Tools/Verify`): compiles every script against the real Unity assemblies, so
    if it passes it compiles in the editor.
 
@@ -230,12 +235,14 @@ hallway and to decide what the beam repels. One shape drives both, so what you s
 
 **How is Night 6 different from Night 5?**
 Same flow, but a different conversation, harder hunt numbers (two catches to lose, shorter stalks),
-and it never touches your story save. It unlocks after the Win or Secret ending.
+and in a room he circles and dodges the lamp. It never touches your story save. It unlocks after the
+Win or Secret ending.
 
 **What is "procedural art"?**
-Placeholder pictures and sounds painted by code when no file exists, so the game never shows a
-hole while art is still arriving. A real file with the same name always wins. We removed the
-placeholders nothing used so the game relies on the team's real assets.
+Placeholder pictures painted by code when no file exists, so the game never shows a hole while art
+is still arriving. A real file with the same name always wins. Sounds are never made by code: a sound
+with no file is silent. We removed the placeholders nothing used so the game relies on the team's
+real assets.
 
 **Hardest bug you found?**
 Good answer: the captions. Every caption showed as an empty black strip at the bottom of the screen,
@@ -244,11 +251,12 @@ by reading both and drawing text only, with a test so it cannot come back.
 
 **What are the limits?**
 The look and feel needs human playtesting, the scene tool needs Unity to run, the patrol world is
-not stored in the scene files, and the audio is still placeholder.
+not stored in the scene files, and there are no audio files yet (the game is silent, captions carry
+the cues).
 
 **What would you do next?**
-Balance the numbers with playtesters (they all live in `GameConfig`), finish the log art, replace
-placeholder audio, and move more of the patrol world into scenes.
+Balance the numbers with playtesters (they all live in `GameConfig`), finish the log art, add the
+final audio, and move more of the patrol world into scenes.
 
 **Who made what?** (Use the credits: Project Director and Narrative Jessie Mariel De Mesa,
 Programming Elijah Japeth Ramos and John Perilla, Art Daniel Steven Solitaria and Jessie Mariel De
@@ -260,18 +268,19 @@ Storyboard Jessie Mariel De Mesa, Daniel Steven Solitaria, Daniella Garing and D
 | Thing | Value |
 |---|---|
 | Nights | 5 (story) plus Night 6 (Challenge) |
-| Visitors per night | 4, 6, 7, 8, then only the administrator |
-| Anomalies at the window | 2, 3, 4, 5 (of 4, 6, 7, 8) |
+| Visitors per night | 4, 6, 7, 8, then 8 students and the administrator |
+| Anomalies at the window | 2, 3, 4, 5, 5 |
 | Questions | 4 exist, 2 allowed per student |
 | Defect types | 13 |
-| Students | 7 illustrated canon identities |
+| Students | 13 |
 | Lose threshold | 3 breaches or 3 false rejections |
 | Findings for the Secret | 10, in order |
 | Sanity stages | Stable 70+, Uneasy 40+, Shaken 15+, Breaking below |
-| Hunt | 3 catches (2 on Night 6), 210 s to dawn, lamp hold 1.8 s, flash within 2.6 s |
+| Hunt | 3 catches (2 on Night 6), 210 s to dawn (300 s on Night 6), lamp hold 1.8 s within 9 s, flash within 2.8 s |
+| Lockdown | 13 students, 6 anomalies, 35 s per face, 3 mistakes |
 | Flashlight | Sweep range 12, Focus range 15, all in `GameConfig` |
 | Seed | random for each new game (`GameRules.RandomSeed`; fixed value 20261102 when off) |
-| Tests | about 63,000 rules checks, about 1,200 flow checks, plus the real Unity compile |
+| Tests | about 120,000 rules checks, about 1,460 flow checks, plus the real Unity compile |
 
 ## 10. A study plan (about 4 short sessions)
 

@@ -16,7 +16,7 @@ Machine-readable twin: **`docs/asset-manifest.csv`** (regenerate with
 `python3 Tools/gen_asset_manifest.py`). `Tools/FlowCheck` proves the CSV and the code agree in
 both directions (`== asset manifest sync ==`), so the list cannot silently drift.
 
-Counts: **90 art/face rows · 32 audio rows · 4 fonts = 126 assets.**
+Counts: **99 art/face rows · 32 audio rows · 8 fonts = 139 assets.**
 Priority tiers map onto the five shifts in the design doc:
 
 | Tier | Ships with | Contents |
