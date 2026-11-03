@@ -8,9 +8,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
 ASSETS = os.path.join(ROOT, "Assets")
 
 PINNED = {
-    "Assets/_Project/Scenes/Gameplay.unity": "1f4e0c8a3b2d4e6f8a0b1c2d3e4f5a6b",
-    "Assets/_Project/Scenes/MainMenu.unity": "2a4e0c8a3b2d4e6f8a0b1c2d3e4f5a6b",
-    "Assets/_Project/Scenes/School.unity": "3f4e0c8a3b2d4e6f8a0b1c2d3e4f5a6b",
+    "Assets/_Project/Scenes/DeskScene.unity": "1f4e0c8a3b2d4e6f8a0b1c2d3e4f5a6b",
+    "Assets/_Project/Scenes/MenuScene.unity": "2a4e0c8a3b2d4e6f8a0b1c2d3e4f5a6b",
+    "Assets/_Project/Scenes/PatrolScene.unity": "3f4e0c8a3b2d4e6f8a0b1c2d3e4f5a6b",
     "Assets/_Project/Scripts/Scenes/MenuScene.cs": "0b1b2c3d4e5f60718293a4b5c6d7e8f9",
     "Assets/_Project/Scripts/Scenes/DeskScene.cs": "0c1b2c3d4e5f60718293a4b5c6d7e8f9",
     "Assets/_Project/Scripts/Scenes/PatrolScene.cs": "0d1b2c3d4e5f60718293a4b5c6d7e8f9",

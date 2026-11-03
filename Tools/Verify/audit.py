@@ -206,7 +206,7 @@ def main():
                     if f.endswith(".unity")) if os.path.isdir(os.path.join(ROOT, "_Project", "Scenes")) else []
     consts = sorted(set(re.findall(r'public const string \w+ = "([^"]+)"',
                                    "\n".join(raw.values()))))
-    routed = [c for c in consts if c in ("MainMenu", "Gameplay", "School")]
+    routed = [c for c in consts if c in ("MenuScene", "DeskScene", "PatrolScene")]
     if scenes:
         print("\n--- scene routing ---")
         print(f"  scene assets on disk : {scenes}")

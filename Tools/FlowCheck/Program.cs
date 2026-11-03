@@ -2649,7 +2649,7 @@ namespace FlowCheck
             Console.WriteLine("== SETTINGS modal proofs (Phase 10 + 11.5, headless) ==");
 
             root.BootToMainMenu();
-            MenuScene.Build(root);            // what Unity does after LoadScene(MainMenu)
+            MenuScene.Build(root);            // what Unity does after LoadScene(Menu)
             var settingsBtn = root.MainMenu.transform.Find("buttons").Find("SETTINGS");
             Check(settingsBtn != null, "S1: the menu SETTINGS button exists");
             settingsBtn.GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
@@ -2744,7 +2744,7 @@ namespace FlowCheck
         private static void FreshGame(GameRoot root)
         {
             root.StartNewGame(GameMode.Normal); root.SkipTutorial();   // the older proofs are about other things; the tutorial has its own proof
-            DeskScene.Build(root);        // what Unity does after LoadScene(Gameplay)
+            DeskScene.Build(root);        // what Unity does after LoadScene(Checkpoint)
             for (int i = 0; i < 8 && root.Dialogue != null && root.Dialogue.IsActive; i++) root.Dialogue.Advance();
         }
 

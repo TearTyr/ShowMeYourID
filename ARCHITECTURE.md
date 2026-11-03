@@ -18,8 +18,8 @@ menu) fills the scenes by running the same code in the editor, saves code painte
 in `SceneArt`, repairs Build Settings, art import settings and `GameConfig.asset`, and has the Check and
 Rebuild From Scratch commands. Button clicks are wired in code, not in the Inspector. The patrol world is
 not baked. Every `MonoBehaviour` that sits in a scene must live in a file named like the class.
-`MainMenu.unity` -> menu + overlay sheets. `Gameplay.unity` -> the desk (CheckpointView) plus
-HUD/dialogue/map/results/endings. `School.unity` -> rooms, player, flashlight rig, anomalies, the
+`MenuScene.unity` -> menu + overlay sheets. `DeskScene.unity` -> the desk (CheckpointView) plus
+HUD/dialogue/map/results/endings. `PatrolScene.unity` -> rooms, player, flashlight rig, anomalies, the
 administrator hunt. The core survives loads via DontDestroyOnLoad; per-scene roots are destroyed
 normally. The ending screens exist only in the desk scene, so `GameRoot.TriggerEnding` loads it
 first when called from the patrol.
@@ -61,7 +61,7 @@ student's `_scared` art whether they are real or an anomaly (`FaceAssets.WindowK
 says that student's `ScaredGreeting` and answers in the shared `Content.ScaredSpeech`, and a scared anomaly
 cannot get awkward speech or a subtle photo change. So only the papers and the file can catch one.
 
-**Intro -> checkpoint:** NEW GAME queues `BeginShift` then loads Hollowbrook; the new scene's
+**Intro -> checkpoint:** NEW GAME queues `BeginShift` then loads DeskScene; the new scene's
 scene script's Awake sets the views up and calls `RunQueuedSceneAction`; `BeginShift` shows the Loading card,
 plays intro dialogue, and on the last click sets state Checkpoint and calls `BeginRun`, which
 attaches the desk to `GameRoot.Queue`. If the scene script never runs, `CheckSceneHandshake` logs and

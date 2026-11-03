@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Hollowbrook.Scenes
 {
-    // The one component on Gameplay.unity (the desk). The desk screens are objects in the scene
+    // The one component on DeskScene.unity (the desk). The desk screens are objects in the scene
     // file (edit them there); this connects them to the game when the scene loads and builds anything
     // the file lacks.
     public class DeskScene : MonoBehaviour
