@@ -37,11 +37,11 @@ namespace Hollowbrook.EditorTools
         // The order matters: build index 0 is the scene the built game starts in.
         private static readonly SceneInfo[] Scenes =
         {
-            new SceneInfo { Path = ScenesFolder + "/MainMenu.unity", Name = SceneRouter.Menu,
+            new SceneInfo { Path = ScenesFolder + "/MenuScene.unity", Name = SceneRouter.Menu,
                 StarterObject = "MenuScene", Starter = typeof(MenuScene), ScreenScript = "MainMenuView.cs" },
-            new SceneInfo { Path = ScenesFolder + "/Gameplay.unity", Name = SceneRouter.Checkpoint,
+            new SceneInfo { Path = ScenesFolder + "/DeskScene.unity", Name = SceneRouter.Checkpoint,
                 StarterObject = "DeskScene", Starter = typeof(DeskScene), ScreenScript = "CheckpointView.cs" },
-            new SceneInfo { Path = ScenesFolder + "/School.unity", Name = SceneRouter.School,
+            new SceneInfo { Path = ScenesFolder + "/PatrolScene.unity", Name = SceneRouter.School,
                 StarterObject = "PatrolScene", Starter = typeof(PatrolScene), ScreenScript = "HUDView.cs" },
         };
 
@@ -76,7 +76,7 @@ namespace Hollowbrook.EditorTools
                 return;
             }
             if (!EditorUtility.DisplayDialog("Rebuild scenes from scratch",
-                    "This throws away EVERY change you made inside MainMenu, Hollowbrook and School and fills them " +
+                    "This throws away EVERY change you made inside MenuScene, DeskScene and PatrolScene and fills them " +
                     "again from the code.\n\nIf you only want to add what is missing, use Set Up Project instead.\n\nContinue?",
                     "Rebuild", "Cancel"))
                 return;
@@ -111,7 +111,7 @@ namespace Hollowbrook.EditorTools
             if (problems.Count > 0)
                 message += "\nStill wrong (the setup could not fix these):\n- " + string.Join("\n- ", problems);
             else
-                message += "\nEverything is set. Open MainMenu and press Play.";
+                message += "\nEverything is set. Open MenuScene and press Play.";
 
             Debug.Log("[Setup] " + message);
             EditorUtility.DisplayDialog(title, message, "OK");
@@ -184,10 +184,15 @@ namespace Hollowbrook.EditorTools
 
             // what a designer changed in this scene before (so it is kept)
             var oldRoot = FindRoot(scene, "SceneRoot_" + info.Name);
-            if (oldRoot == null && GameCore.OldRootName(info.Name) != null)
+            if (oldRoot == null)
             {
-                oldRoot = FindRoot(scene, GameCore.OldRootName(info.Name));   // set up before the rename: keep its edits
-                if (oldRoot != null) oldRoot.name = "SceneRoot_" + info.Name;
+                foreach (string oldName in GameCore.OldRootNames(info.Name))
+                {
+                    oldRoot = FindRoot(scene, oldName);   // set up before the rename: keep its edits
+                    if (oldRoot == null) continue;
+                    oldRoot.name = "SceneRoot_" + info.Name;
+                    break;
+                }
             }
             var kept = SceneEdits.Begin(oldRoot);
 
@@ -340,7 +345,7 @@ namespace Hollowbrook.EditorTools
             for (int i = 0; i < Scenes.Length; i++)
                 list[i] = new EditorBuildSettingsScene(Scenes[i].Path, true);
             EditorBuildSettings.scenes = list;
-            done.Add("listed the 3 scenes in Build Settings (MainMenu first)");
+            done.Add("listed the 3 scenes in Build Settings (MenuScene first)");
         }
 
         // Pressing Play always starts at the main menu, whichever scene is open.
@@ -349,7 +354,7 @@ namespace Hollowbrook.EditorTools
             var menu = AssetDatabase.LoadAssetAtPath<SceneAsset>(Scenes[0].Path);
             if (menu == null || EditorSceneManager.playModeStartScene == menu) return;
             EditorSceneManager.playModeStartScene = menu;
-            done.Add("Play now always starts at MainMenu");
+            done.Add("Play now always starts at MenuScene");
         }
 
         // ------------------------------------------------------------------ checks
@@ -366,7 +371,7 @@ namespace Hollowbrook.EditorTools
                     problems.Add(info.Path + " is missing, empty or has no " + info.Starter.Name + " (run Set Up Project)");
 
             if (!BuildSettingsAreCorrect())
-                problems.Add("Build Settings do not list MainMenu, Hollowbrook and School in that order");
+                problems.Add("Build Settings do not list MenuScene, DeskScene and PatrolScene in that order");
 
             foreach (string guid in AssetDatabase.FindAssets("t:Texture2D", new[] { ArtFolder }))
             {

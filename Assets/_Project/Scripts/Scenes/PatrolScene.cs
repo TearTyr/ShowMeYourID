@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Hollowbrook.Scenes
 {
-    // The one component on School.unity (the patrol). The patrol screens are objects in the scene
+    // The one component on PatrolScene.unity (the patrol). The patrol screens are objects in the scene
     // file (edit them there); this connects them to the game when the scene loads and builds anything
     // the file lacks. The rooms, doors and items of the patrol world are not in the file: they are
     // data (hit boxes, clues) and are still built here each time the scene loads.
@@ -24,7 +24,7 @@ namespace Hollowbrook.Scenes
 
         private static void BuildScreens(GameRoot root, bool withWorld)
         {
-            var sceneRoot = GameCore.BeginSceneRoot("School");
+            var sceneRoot = GameCore.BeginSceneRoot(SceneRouter.School);
             var edits = SceneEdits.Begin(sceneRoot);   // what was changed in the scene file
             SceneBuild.Begin();
             try
@@ -75,6 +75,6 @@ namespace Hollowbrook.Scenes
             edits.Apply();   // the scene file changes go back on top
         }
 
-        private void Awake() { GameCore.SafeBuild("School", () => Build(GameCore.EnsureCore())); }
+        private void Awake() { GameCore.SafeBuild(SceneRouter.School, () => Build(GameCore.EnsureCore())); }
     }
 }

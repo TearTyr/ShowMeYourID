@@ -4,12 +4,12 @@ You know the Unity basics. This page tells you where things live and how to chan
 
 ## How the game is put together (the one idea you need)
 
-The three scenes (`MainMenu`, `Gameplay`, `School`) hold the **real objects** of the game: the
+The three scenes (`MenuScene`, `DeskScene`, `PatrolScene`) hold the **real objects** of the game: the
 canvases, every screen, every button and label. Open a scene, look in the Hierarchy under
 `SceneRoot_...`, and move, resize, recolour or re-text things in the Inspector like any Unity object.
 
 **One click setup:** the menu bar has **Hollowbrook > Set Up Project (one click)**. It fills the three
-scenes with those objects, lists them in Build Settings (MainMenu first), sets the art to Sprite at the
+scenes with those objects, lists them in Build Settings (MenuScene first), sets the art to Sprite at the
 size the game draws it, creates `GameConfig.asset` if it is missing, and makes Play always start at the
 main menu. It only adds what is missing and **never overwrites a change you made**, so click it any time
 something looks off. **Hollowbrook > Check Project** only reports. **Hollowbrook > Rebuild Scenes From
@@ -28,8 +28,14 @@ never ran the setup, the game still works: it builds the missing objects in code
 **Not in the scene files:** things that only exist while playing (anomalies, papers on the desk, the
 administrator hunt) and the patrol world (rooms, doors, items), which is data built from code.
 
-- **Gameplay.unity** = the security booth desk (the inspection).
-- **School.unity** = the patrol (hallway, classrooms, flashlight, the administrator hunt).
+- **DeskScene.unity** = the security booth desk (the inspection).
+- **PatrolScene.unity** = the patrol (hallway, classrooms, flashlight, the administrator hunt).
+- **MenuScene.unity** = the main menu.
+
+Each scene file holds one object with the same name as the scene (`MenuScene`, `DeskScene`, `PatrolScene`),
+which starts it, and after Set Up Project a `SceneRoot_MenuScene` (`_DeskScene`, `_PatrolScene`) with its screens. A
+scene set up before the rename still has `SceneRoot_MainMenu`, `_Gameplay` or `_School`: the game and the setup tool
+rename it once and keep every edit inside.
 - **GameRoot** (in `Scripts/Core`) is the one object that lives across scenes. It holds the run,
   the night, the save, and links to every screen. Start there if you are lost.
 

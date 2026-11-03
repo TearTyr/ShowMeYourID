@@ -22,7 +22,7 @@ then a district administrator, and turning him away is only the start.
    Then click **Hollowbrook > Set Up Project (one click)** in the menu bar. It fixes the scenes,
    the Build Settings list, the art import settings and `GameConfig.asset`, and only touches what is
    broken. **Hollowbrook > Check Project** just reports.
-3. Press **Play**. The first scene is `Assets/_Project/Scenes/MainMenu.unity`. Each of the three
+3. Press **Play**. The first scene is `Assets/_Project/Scenes/MenuScene.unity`. Each of the three
    scenes holds its screens as real objects (put there by the setup tool) that you can edit.
 4. Windows build: `File > Build Settings > Windows > Build` (the three scenes are already listed).
 
@@ -123,7 +123,7 @@ A bar at the top of the desk shows the seconds and your mistakes. It is one sitt
 
 ```
 Assets/_Project/
-  Scenes/                 MainMenu, Gameplay (the desk), School (patrol) - hold their screens
+  Scenes/                 MenuScene, DeskScene (the desk), PatrolScene (patrol) - hold their screens
   Editor/                 ProjectSetup: the Hollowbrook menu (one click setup and check), editor only
   Resources/              GameConfig.asset (tuning), Audio/ drop-in files
     Art/                  Characters/ (Students, Anomalies, Staff), UI/ (SecurityDesk, MainMenu) and Environment/ (Hallway, Rooms,
@@ -177,5 +177,5 @@ It is ignored by git and still available in the history.
 ## Saves
 
 `hollowbrook_save.txt` in `Application.persistentDataPath` (versioned, checksum-guarded; a bad
-file counts as “no save”). Settings live in PlayerPrefs. **Save version 3** changed the student
-registry and the questions: old saves are ignored, start a New Game.
+file counts as “no save”). Settings live in PlayerPrefs. **Save version 4** (students take turns as
+anomalies) ignores older saves: start a New Game.

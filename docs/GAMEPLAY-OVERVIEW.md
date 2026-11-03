@@ -98,7 +98,7 @@ away (there is no refuse button). He speaks only through the dialogue box. Allow
 back and leaves. The security game is over and only Patrol works; the hunt starts when it is clicked.
 Then it plays like Nightmare Fredbear's night in FNaF 4, with captions instead of audio. He is the
 only anomaly and can be anywhere: in **Room 101, Room 202, CR-1 or CR-2** (peek in and hold the lamp
-on his head within 12 s) or **right behind you** (aim at him and flash his face within 2.8 s: he **runs** up the hallway at your back, about 3.9 units a second). He goes for you: in the hallway he
+on his head within 9 s) or **right behind you** (aim at him and flash his face within 2.8 s: he **runs** up the hallway at your back, about 3.9 units a second). He goes for you: in the hallway he
 comes up behind you more often than not, and while you peek into a room he is often in that very room. Only
 the light stops him, and each success gives 8 sanity. Too slow and he catches you: sanity drops and
 you are thrown back. **3 catches** = he reaches the server door (lose). Survive **210 s** to dawn.

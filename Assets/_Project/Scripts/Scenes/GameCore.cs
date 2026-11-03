@@ -12,9 +12,10 @@ namespace Hollowbrook.Scenes
 {
     public static class SceneRouter
     {
-        public const string Menu = "MainMenu";
-        public const string Checkpoint = "Gameplay";   // the desk (security booth) scene; the file is Gameplay.unity
-        public const string School = "School";           // Scene B - side-scroller + security room
+        // The scene names are the file names, and the same as the one object inside each scene.
+        public const string Menu = "MenuScene";         // MenuScene.unity: the main menu
+        public const string Checkpoint = "DeskScene";   // DeskScene.unity: the security booth desk
+        public const string School = "PatrolScene";     // PatrolScene.unity: the hallway, the peeks and the hunt
 
         public static bool IsRegistered(string sceneName) =>
             sceneName == Menu || sceneName == Checkpoint || sceneName == School;
@@ -62,10 +63,15 @@ namespace Hollowbrook.Scenes
             root.InitServices(bus, config, saves, settings, audio);
             KeepAlive(rootGo);
 
-            // legacy input module event system (required for ALL uGUI clicks)
+            // the event system (required for ALL uGUI clicks). The project uses the Input System package
+            // (Active Input Handling = Both), so the UI reads the mouse through its UI input module.
             var esGo = new GameObject("EventSystem");
             CreatedEventSystem = esGo.AddComponent<EventSystem>();
+#if ENABLE_INPUT_SYSTEM
+            esGo.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+#else
             esGo.AddComponent<StandaloneInputModule>();
+#endif
             KeepAlive(esGo);
 
             var camGo = new GameObject("MainCamera");
@@ -147,17 +153,27 @@ namespace Hollowbrook.Scenes
             return CurrentSceneRoot;
         }
 
-        // The desk scene used to be called Hollowbrook. A scene that was set up back then still holds its
-        // root under the old name: take it over (keeping every edit made inside) instead of making a second.
-        public static string OldRootName(string sceneName) =>
-            sceneName == SceneRouter.Checkpoint ? "SceneRoot_Hollowbrook" : null;
+        // The scenes used to be called MainMenu, Gameplay (and before that Hollowbrook) and School. A scene that
+        // was set up back then still holds its root under the old name: take it over (keeping every edit made
+        // inside) instead of making a second.
+        public static string[] OldRootNames(string sceneName)
+        {
+            if (sceneName == SceneRouter.Menu) return new[] { "SceneRoot_MainMenu" };
+            if (sceneName == SceneRouter.Checkpoint) return new[] { "SceneRoot_Gameplay", "SceneRoot_Hollowbrook" };
+            if (sceneName == SceneRouter.School) return new[] { "SceneRoot_School" };
+            return new string[0];
+        }
 
         private static GameObject RenameOldRoot(string sceneName, string rootName)
         {
-            string old = OldRootName(sceneName);
-            var found = old != null ? FindRootInScene(old) : null;
-            if (found != null) found.name = rootName;
-            return found;
+            foreach (string old in OldRootNames(sceneName))
+            {
+                var found = FindRootInScene(old);
+                if (found == null) continue;
+                found.name = rootName;
+                return found;
+            }
+            return null;
         }
 
         private static GameObject FindRootInScene(string rootName)
@@ -243,7 +259,7 @@ namespace Hollowbrook.Scenes
         private static void EnsureSceneStarted()
         {
             if (GameRoot.Instance != null) return;
-            Debug.LogWarning("[GameCore] the scene has no scene component - loading MainMenu.");
+            Debug.LogWarning("[GameCore] the scene has no scene component - loading MenuScene.");
             SceneManager.LoadScene(SceneRouter.Menu);
         }
 
